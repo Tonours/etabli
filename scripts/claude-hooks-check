@@ -3,8 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 REPO_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
-. "$SCRIPT_DIR/lib/claude-config-dir.sh"
-CLAUDE_DIR="$(claude_effective_dir)"
+CLAUDE_DIR="$(node "$SCRIPT_DIR/lib/surfaces.mjs" claude-dir)"
 
 usage() {
   cat <<EOF

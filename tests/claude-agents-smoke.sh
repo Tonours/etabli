@@ -117,22 +117,14 @@ paths.each do |path|
 end
 
 install_main = File.read(File.join(root, "scripts/lib/install-main.sh"))
-deploy_workflow = File.read(File.join(root, "scripts/deploy-agent-workflow"))
-managed_surfaces = File.read(File.join(root, "scripts/lib/managed-surfaces.sh"))
+surfaces = File.read(File.join(root, "scripts/lib/surfaces.mjs"))
 unless install_main.include?("converge_agent_surfaces") &&
-       deploy_workflow.include?("for scope in $(active_scopes)") &&
-       deploy_workflow.include?('claude/scopes/$scope/agents') &&
-       deploy_workflow.include?('link_path "$agent_file" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/agents/$agent_name"')
-  raise "primary installer omits scoped Claude agents. Remediation: link active claude/scopes/<scope>/agents/*.md into ~/.claude/agents/."
+       surfaces.include?('join(repoDir, "claude/scopes", scope, "agents")') &&
+       surfaces.include?('join(claudeRoot, "agents", name)')
+  raise "primary installer omits scoped Claude agents. Remediation: link active claude/scopes/<scope>/agents/*.md into ~/.claude/agents/ in scripts/lib/surfaces.mjs."
 end
-unless deploy_workflow.include?("managed_surface_prune_stale_claude_agents") &&
-       managed_surfaces.include?("managed_surface_prune_stale_claude_agents")
+unless surfaces.include?('"stale managed Claude agent"')
   raise "primary installer does not prune stale Etabli-managed Claude agent links."
-end
-
-fix_links = File.read(File.join(root, "scripts/check-fix-symlinks.sh"))
-unless fix_links.include?("check_claude_agent_links") && fix_links.include?("claude/scopes/$scope/agents")
-  raise "symlink repair omits Claude agents. Remediation: add and invoke check_claude_agent_links over claude/scopes/<scope>/agents."
 end
 
 hook = File.join(root, "claude/hooks/read-only-agent-guard.mjs")

@@ -10,8 +10,7 @@ HOME_DIR="${CLAUDE_SKILL_LOAD_HOME:-$HOME}"
 if [ -n "${CLAUDE_SKILL_LOAD_HOME:-}" ]; then
   CLAUDE_DIR="$HOME_DIR/.claude"
 else
-  . "$SCRIPT_DIR/lib/claude-config-dir.sh"
-  CLAUDE_DIR="${CLAUDE_SKILL_LOAD_CLAUDE_DIR:-$(claude_effective_dir)}"
+  CLAUDE_DIR="${CLAUDE_SKILL_LOAD_CLAUDE_DIR:-$(node "$SCRIPT_DIR/lib/surfaces.mjs" claude-dir)}"
 fi
 REPO_OVERRIDE="${CLAUDE_SKILL_LOAD_REPO:-}"
 FIX=0
@@ -84,26 +83,11 @@ command -v node >/dev/null 2>&1 || {
 
 REPO_BASE="${REPO_OVERRIDE:-$REPO_DIR}"
 
-# Scope policy from the catalog: KNOWN lists every repo skill (all scopes),
-# EXPECTED the ones this machine's scopes deploy to Claude (minus shadows).
+# Scope policy from the catalog: known lists every repo skill (all scopes),
+# expected the ones this machine's scopes deploy to Claude (minus shadows).
 # Without a catalog both stay empty and every map key must be on the surface.
-SKILL_KNOWN=""
-SKILL_EXPECTED=""
-if [ -f "$REPO_BASE/workflow/runtime/skill-surface.tsv" ] && [ -f "$REPO_BASE/vendor/sources.tsv" ]; then
-  . "$SCRIPT_DIR/lib/skill-catalog.sh"
-  . "$SCRIPT_DIR/lib/etabli-scope.sh"
-  . "$SCRIPT_DIR/lib/managed-surfaces.sh"
-  active_scopes="$(etabli_active_scopes "$HOME_DIR")"
-  while IFS=$'\t' read -r record_scope record_name _record_dir record_pi_core _record_source; do
-    [ -n "$record_name" ] || continue
-    SKILL_KNOWN="$SKILL_KNOWN$record_name"$'\n'
-    if skill_surface_expected .claude/skills "$record_scope" "$record_pi_core" "$active_scopes" &&
-      ! managed_surface_skill_is_shadowed "$record_name" "$active_scopes"; then
-      SKILL_EXPECTED="$SKILL_EXPECTED$record_name"$'\n'
-    fi
-  done < <(skill_catalog_records "$REPO_BASE/workflow/runtime/skill-surface.tsv" "$REPO_BASE")
-fi
-export SKILL_KNOWN SKILL_EXPECTED
+SKILL_NAMES="$(node "$SCRIPT_DIR/lib/surfaces.mjs" skill-names "$REPO_BASE" "$HOME_DIR")"
+export SKILL_NAMES
 
 node - "$CLAUDE_DIR" "$REPO_BASE" "$GATE" "$ALERT" "$FIX" <<'NODE'
 const fs = require("node:fs");
@@ -136,9 +120,9 @@ const PINNED_ON = new Set([
   "wizard",
   "write-direct",
 ]);
-const namesOf = (raw) => new Set((raw ?? "").split("\n").filter(Boolean));
-const KNOWN = namesOf(process.env.SKILL_KNOWN);
-const EXPECTED = namesOf(process.env.SKILL_EXPECTED);
+const skillNames = JSON.parse(process.env.SKILL_NAMES);
+const KNOWN = new Set(skillNames.known);
+const EXPECTED = new Set(skillNames.expected);
 // Repo skills another scope owns: absent here by policy, still governed.
 const OTHER_SCOPE = new Set([...KNOWN].filter((name) => !EXPECTED.has(name)));
 

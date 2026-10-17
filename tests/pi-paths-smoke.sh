@@ -23,8 +23,6 @@ fi
 
 managed_scripts=(
   "$ROOT_DIR/scripts/lib/install-main.sh"
-  "$ROOT_DIR/scripts/deploy-agent-workflow"
-  "$ROOT_DIR/scripts/check-fix-symlinks.sh"
 )
 
 for managed_script in "${managed_scripts[@]}"; do

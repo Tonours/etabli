@@ -67,12 +67,6 @@ printf '%s\n' '{
   ]
 }' >"$HOME_DIR/.pi/agent/settings.json"
 
-grep -Fq '. "$SCRIPT_DIR/lib/pi-paths.sh"' "$DEPLOY_SCRIPT" &&
-  grep -Fq 'pi_agent_node_modules_dir "$HOME_DIR"' "$DEPLOY_SCRIPT" || {
-  printf 'deploy script must use the shared Pi path helper\n' >&2
-  exit 1
-}
-
 # The dry-run probe touches only DRY_HOME_DIR, so it overlaps the shared-home
 # setup instead of blocking it.
 "$DEPLOY_SCRIPT" --dry-run --home "$DRY_HOME_DIR" >/dev/null &
@@ -326,7 +320,7 @@ if (!settings.enabledModels.includes("custom/personal-model")) {
 }
 NODE
 
-grep -Fq '"$REPO_DIR/claude/hooks"/*.mjs "$REPO_DIR/claude/hooks"/*.sh' "$DEPLOY_SCRIPT" || {
+grep -Fq 'for (const suffix of [".mjs", ".sh"])' "$ROOT_DIR/scripts/lib/surfaces.mjs" || {
   printf 'deploy must reconcile both JavaScript and shell Claude hooks\n' >&2
   exit 1
 }

@@ -43,6 +43,16 @@ Full layout, scopes and managed surfaces: `docs/symlink-layout.md`.
 - Review rubric: `workflow/review-rubric.md`
 - Memory: `~/work/brain` for ForestAdmin repos, `~/work/obvault` otherwise; see `workflow/skills/obvault-memory.md`.
 
+## Growth
+
+- Add a surface (skill, hook, script, extension, check) only for something used
+  weekly; the ADR-0035 census set this bar.
+- Measure first: a throwaway script of about 50 lines shows the need before any
+  subsystem is built.
+- A new subsystem's ADR records a review date; still unused at that date, it is
+  deleted.
+- When deleting and adding both fix a problem, delete.
+
 ## Code
 
 - Keep extension files small and explicit.

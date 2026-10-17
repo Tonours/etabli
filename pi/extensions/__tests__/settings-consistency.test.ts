@@ -31,10 +31,6 @@ const deployAgentWorkflowScript = readFileSync(
   new URL("../../../scripts/deploy-agent-workflow", import.meta.url),
   "utf-8",
 );
-const checkFixSymlinksScript = readFileSync(
-  new URL("../../../scripts/check-fix-symlinks.sh", import.meta.url),
-  "utf-8",
-);
 const settingsSyncModule = readFileSync(
   new URL("../../../scripts/lib/pi-agent-settings-sync.mjs", import.meta.url),
   "utf-8",
@@ -82,8 +78,7 @@ describe("Pi settings consistency", () => {
   });
 
   test("keeps the Pi core skill list synchronized across bootstrap scripts", () => {
-    for (const source of [deployAgentWorkflowScript, checkFixSymlinksScript])
-      expect(source).toContain("skill_catalog_records");
+    expect(deployAgentWorkflowScript).toContain("skillRecords(repoDir)");
     expect(installScript).toContain('"$BOOTSTRAP_DIR/deploy-agent-workflow" --apply');
 
     for (const shelved of ["coolify", "react-doctor-100"]) {

@@ -1,6 +1,6 @@
 # Symlink layout
 
-Managed links installed by `scripts/deploy-agent-workflow` / `scripts/install.sh`; checked by `scripts/check-fix-symlinks.sh`.
+Managed links installed by `scripts/deploy-agent-workflow` / `scripts/install.sh`; checked by `scripts/check-fix-symlinks.sh` (`deploy-agent-workflow --check`). Both read one desired state in `scripts/lib/surfaces.mjs` (ADR-0038).
 
 - `~/.pi/agent/extensions/` -> `pi/extensions/`
 - `~/.pi/scripts/` -> `scripts/` (canonical modules imported by calibrated Pi extensions)
@@ -12,6 +12,7 @@ Managed links installed by `scripts/deploy-agent-workflow` / `scripts/install.sh
 - `~/.pi/agent/workflow/` -> `workflow/`
 - `~/.pi/settings.json` -> `pi/settings.json`
 - `~/.pi/themes/` -> `pi/themes/`
+- `~/.local/bin/fix-links` and `~/.local/bin/deploy-workflow` -> `scripts/`
 - `~/.claude/PLAN_TEMPLATE.md` / `PLAN_TEMPLATE_FULL.md` -> repo root templates
 - `~/.claude/workflow/` -> `workflow/`
 - `~/.claude/skills/<name>/` -> `skills/<scope>/<name>/` and vendored skills

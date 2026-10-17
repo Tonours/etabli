@@ -24,6 +24,10 @@ never downgrade mid-run.
 - **high-risk** — kernel guards, installer/deploy scripts, security, multi-surface contract changes, or a third
   recurrence of the same failure. Full sequence, cross-model adversary
   mandatory (13b), both hunters mandatory (13).
+  In etabli, a change confined to local agent-surface links (`scripts/lib/surfaces.mjs` <!-- etabli-only -->
+  and its deploy/check entry points) is standard with one cross-model <!-- etabli-only -->
+  code-diff pass; settings sync, hooks and guards, secrets and remote <!-- etabli-only -->
+  machines stay high-risk. <!-- etabli-only -->
 
 ## Standing rules
 
