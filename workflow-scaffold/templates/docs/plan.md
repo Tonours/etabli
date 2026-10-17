@@ -19,7 +19,8 @@ Use this shape:
 
 ## Metadata
 - Archived: YYYY-MM-DD
-- Source plan: <PLAN.md subject>
+- Source plan: `PLAN.md` — <subject>
+- Source plan SHA-256: `<sha256 of the exact root PLAN.md bytes>`
 - Status: IMPLEMENTED
 - Commit / branch: <when available>
 
