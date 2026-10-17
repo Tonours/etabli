@@ -275,6 +275,7 @@ describe("unified Claude verdicts", () => {
 		expect(collectCommentLines('r="$(case "$m" in\n  prod) printf p;;\nesac>/dev/null)"\n# added note\n', "shell")).toEqual(["# added note"]);
 		expect(collectCommentLines('v="$((case>0))"\n# added note\n', "shell")).toEqual(["# added note"]);
 		expect(collectCommentLines('r="$(( $(case "$m" in\n  prod) printf 1;;\n  staging) printf 2;;\n  *) printf 3 # added note\n  ;;\nesac) + 1 ))"\n', "shell")).toEqual(["# added note"]);
+		expect(collectCommentLines('t="$(( $(case "$q" in (case) printf 12;; (*) printf 1;; esac) + 1 ))"\n# added note\n', "shell")).toEqual(["# added note"]);
 	});
 
 	test("replace_all edits are judged on every occurrence", () => {
