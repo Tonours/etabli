@@ -1,5 +1,5 @@
 <!-- employer PRODUCT SPEC template (the "what/why"). The technical "how" has its own
-     template: SPEC-TEMPLATE.md. Follows the official employer Epic template (Linear Document).
+     template: template-technical.md. Follows the official employer Epic template (Linear Document).
      Fill the < >, delete the unused, STRIP comments before publishing. Write in English. -->
 
 # [Persona] want [outcome]
@@ -7,7 +7,7 @@
 **Owner:** <name>
 **Status:** Draft <!-- Draft → In review → Accepted -->
 **Productboard:** <link>
-**Tech spec:** <link to the technical Epic (SPEC-TEMPLATE.md)>
+**Tech spec:** <link to the technical Epic (template-technical.md)>
 
 **Problem:** <the user problem / frustration you're solving, one sentence.>
 **Goal:** <the state you want once solved, one sentence.>

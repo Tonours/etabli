@@ -1,5 +1,5 @@
 <!-- employer TECHNICAL EPIC template (the "how"). The product "what/why" has its own
-     template: SPEC-TEMPLATE-PRODUCT.md. Fill the < >, delete what you don't need, and STRIP every
+     template: template-product.md. Fill the < >, delete what you don't need, and STRIP every
      comment + unused "(optional)" sections before publishing. Write in English. -->
 
 # Epic - [Persona] want [outcome]
@@ -8,7 +8,7 @@
 **Owners:** <names>
 **Status:** Draft <!-- Draft → In review → Accepted -->
 **Approvers:** <who must read and sign off before dev>
-**Product spec:** <link — the source of the what/why (SPEC-TEMPLATE-PRODUCT.md)>
+**Product spec:** <link — the source of the what/why (template-product.md)>
 
 > **Warning**
 > Read the linked product spec first and challenge it. It must cover discovery, solution, screens, expected behavior, release and events. Without that, don't start the technical work.
