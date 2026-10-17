@@ -321,7 +321,7 @@ PATH="$(dirname "$smoke_node_bin"):$PATH"
 HOME="$smoke_home"
 REPO_DIR="$(cd "$BOOTSTRAP_DIR/.." >/dev/null 2>&1 && pwd)"
 smoke_pi_spec="$(pi_coding_agent_spec)"
-[ "$smoke_pi_spec" = "@earendil-works/pi-coding-agent@1.0.3" ] || {
+[ "$smoke_pi_spec" = "@earendil-works/pi-coding-agent@1.3.0" ] || {
   print_error "fresh Pi install does not use the tracked exact version"
   exit 1
 }
