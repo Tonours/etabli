@@ -5,20 +5,20 @@ Repo-specific instructions for this dotfiles repo.
 ## Architecture
 
 - `.github/workflows/` — CI workflows
-- `claude/` — Claude Code commands and local instructions
+- `claude/` — Claude Code instructions, agents, hooks, scripts and settings fragments
 - `docs/` — focused user docs
 - `mcp/` — sanitized shared MCP server template (see `docs/mcp-strategy.md`); repo `.mcp.json` is empty
 - `vendor/` — vendored upstream skills (`vendor/sources.tsv`; update with `scripts/update-vendor-skills`)
+- `skills/<scope>/` — first-party skills served to both Claude and Pi (`workflow/runtime/skill-surface.tsv`)
 - `skills-lock.json` — skill-tree integrity lock
 - `workflow-scaffold/templates/` — deployable project workflow scaffold files
-- `pi/` — Pi config, extensions, skills, themes
+- `pi/` — Pi config, extensions, themes
 - `pi/extensions/` — Pi extensions
 - `pi/extensions/lib/` — shared extension utilities
 - `pi/extensions/__tests__/` — extension tests
 - `pi/agent/settings.json` — Pi agent bootstrap settings
 - `pi/settings.json` — Pi root settings
 - `pi/models.json` — custom model definitions
-- `pi/skills/` — local Pi skills
 - `pi/themes/` — Pi themes
 - `scripts/` — installer, `deploy-agent-workflow`, and validation helpers
 - `tests/` — smoke tests
@@ -34,7 +34,7 @@ Full layout, scopes and managed surfaces: `docs/symlink-layout.md`.
 
 ## Workflow
 
-- Shared agent rules (code, review, git, memory, answers): `pi/AGENTS.md`
+- Shared agent rules (code, review, git, memory, answers): `workflow/agent-rules.md`
 - Human guide + schemas: `README.md` (docs consolidated there; see commit 9466974)
 - Workflow entry and canonical map (wins on conflict): `workflow/spec.md`
 - Long rules / commands: `workflow/contract-details.md`
@@ -57,4 +57,4 @@ bun test pi/extensions/__tests__/
 
 ## Git
 
-Branch names and commit messages: `workflow/git-contract.md` (summary in `pi/AGENTS.md`).
+Branch names and commit messages: `workflow/git-contract.md` (summary in `workflow/agent-rules.md`).

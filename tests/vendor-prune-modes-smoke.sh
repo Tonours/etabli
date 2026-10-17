@@ -24,20 +24,20 @@ write_skill() {
 REPO="$TMP_DIR/repo"
 HOME_DIR="$TMP_DIR/home"
 CATALOG="$REPO/catalog.tsv"
-mkdir -p "$REPO/vendor/suiteA/skills" "$REPO/vendor/suiteB/skills" "$REPO/pi/skills" \
+mkdir -p "$REPO/vendor/suiteA/skills" "$REPO/vendor/suiteB/skills" "$REPO/skills/shared" \
   "$HOME_DIR/.pi/agent/skills" "$HOME_DIR/.claude/skills"
 
 write_skill "$REPO/vendor/suiteA/skills/alpha" alpha
 write_skill "$REPO/vendor/suiteA/skills/beta" beta
 write_skill "$REPO/vendor/suiteB/skills/gamma" gamma
-write_skill "$REPO/pi/skills/core-one" core-one
+write_skill "$REPO/skills/shared/core-one" core-one
 
 printf 'suiteA\thttps://example.invalid/a.git\tmain\tshared\talpha,beta\nsuiteB\thttps://example.invalid/b.git\tmain\tshared\tgamma\n' >"$REPO/vendor/sources.tsv"
 
 write_catalog() {
   {
     printf '# fixture catalog\n'
-    printf 'core-one\tpi\t1\t1\n'
+    printf 'shared/core-one\tetabli\t1\t1\n'
     printf 'alpha\tsuiteA\t1\t1\n'
     printf 'beta\tsuiteA\t0\t1\n'
     printf 'gamma\tsuiteB\t1\t1\n'
@@ -46,7 +46,7 @@ write_catalog() {
 write_catalog
 
 run_deploy() {
-  REPO_DIR="$REPO" SKILL_CATALOG="$CATALOG" HOME_DIR="$HOME_DIR" DRY_RUN=0 ACTIVE_SCOPES="shared" deploy_vendor_skills
+  REPO_DIR="$REPO" SKILL_CATALOG="$CATALOG" HOME_DIR="$HOME_DIR" DRY_RUN=0 ACTIVE_SCOPES="shared" deploy_skills
 }
 
 link_count() {

@@ -6,6 +6,6 @@ Shelf for skills that are tracked in git but never deployed (see
 `pi_core=0`.
 
 - Use one: read `extras/skills/<name>/SKILL.md` directly.
-- Promote one: `git mv extras/skills/<name> pi/skills/<name>`, set its catalog
-  row back to source `pi` with the wanted flags, then regenerate
+- Promote one: `git mv extras/skills/<name> skills/<scope>/<name>`, rename its
+  catalog row to `<scope>/<name>` with source `etabli` and the wanted flags, then regenerate
   `skills-lock.json` and run `scripts/deploy-agent-workflow --apply`.

@@ -6,7 +6,6 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 . "$REPO_DIR/scripts/lib/claude-config-dir.sh"
 . "$REPO_DIR/scripts/lib/etabli-scope.sh"
 . "$REPO_DIR/scripts/lib/prefer-cursor-agent.sh"
-. "$REPO_DIR/scripts/lib/vendor-surfaces.sh"
 . "$REPO_DIR/scripts/lib/managed-surfaces.sh"
 FIX=0
 VERBOSE=0
@@ -19,20 +18,18 @@ SKILL_CATALOG="$REPO_DIR/workflow/runtime/skill-surface.tsv"
 SKILL_CATALOG_MISSING=0
 if [ -f "$REPO_DIR/scripts/lib/skill-catalog.sh" ] && [ -f "$SKILL_CATALOG" ]; then
   . "$REPO_DIR/scripts/lib/skill-catalog.sh"
-  PI_CORE_SKILLS=($(skill_catalog_names "$SKILL_CATALOG" pi pi_core))
   # A present-but-degenerate catalog is corruption, not degradation:
   # fail loudly. (A genuinely absent catalog keeps the missing-catalog
   # degraded mode below.)
-  if [ "${#PI_CORE_SKILLS[@]}" -eq 0 ] || { [ "${#PI_CORE_SKILLS[@]}" -eq 1 ] && [ -z "${PI_CORE_SKILLS[0]}" ]; }; then
-    printf 'check-fix-symlinks: skill catalog present but degenerate (empty pi_core); aborting\n' >&2
+  case "$(skill_catalog_records "$SKILL_CATALOG" "$REPO_DIR")" in
+  *$'\t'etabli*) ;;
+  *)
+    printf 'check-fix-symlinks: skill catalog present but degenerate (no first-party record); aborting\n' >&2
     exit 1
-  fi
+    ;;
+  esac
 else
   SKILL_CATALOG_MISSING=1
-fi
-if [ "$SKILL_CATALOG_MISSING" -eq 1 ]; then
-  # Bash 3 with `set -u` treats an empty array expansion as unbound.
-  PI_CORE_SKILLS=("")
 fi
 
 usage() {
@@ -95,8 +92,7 @@ check_absent() {
 
   if [ "$FIX" -eq 1 ]; then
     local backup_path
-    backup_path="$(managed_surface_backup_path "$path" "$TIMESTAMP")"
-    mv "$path" "$backup_path"
+    backup_path="$(managed_surface_move_aside "$path")" || return 1
     FIXED=$((FIXED + 1))
     status_line BACKUP "$type_label moved to $backup_path"
   fi
@@ -114,38 +110,30 @@ check_script_link() {
   check_link "$link_path" "$target_path" "script $script_name"
 }
 
-check_pi_skill_links() {
-  local skill_name
-  for skill_name in "${PI_CORE_SKILLS[@]}"; do
-    [ -n "$skill_name" ] || continue
-    check_link "$HOME/.pi/agent/skills/$skill_name" "$REPO_DIR/pi/skills/$skill_name" "pi skill $skill_name"
-  done
-  [ "$SKILL_CATALOG_MISSING" -eq 1 ] || managed_surface_prune_unlisted_source_skills \
-    check "$REPO_DIR" "$HOME" .pi/agent/skills Pi pi "${PI_CORE_SKILLS[@]}"
-}
+check_skill_links() {
+  local skill_name skill_dir active_scopes surface label skill_link
+  local record_scope record_pi_core _record_source
 
-check_vendor_skill_links() {
-  local skill_name skill_dir active_scopes surface label
-  local record_scope record_pi_core record_vendor
-
-  managed_surface_prune_pi_cross_surface_links check "$REPO_DIR" "$HOME"
+  managed_surface_prune_stale_skill_links check "$REPO_DIR" "$HOME"
   [ "$SKILL_CATALOG_MISSING" -eq 0 ] || return 0
 
   active_scopes="$(deployed_scopes)"
-  while IFS=$'\t' read -r record_scope skill_name skill_dir record_pi_core record_vendor; do
+  while IFS=$'\t' read -r record_scope skill_name skill_dir record_pi_core _record_source; do
     [ -n "$skill_name" ] || continue
     for surface in .claude/skills .pi/agent/skills; do
       managed_surface_selected "$surface" || continue
-      if vendor_surface_expected "$surface" "$record_scope" "$record_pi_core" "$active_scopes"; then
-        case "$surface" in
-        .claude/skills) label="claude" ;;
-        .pi/agent/skills) label="pi" ;;
-        esac
-        check_link "$(managed_surface_dir "$HOME" "$surface")/$skill_name" "$skill_dir" "$label vendor skill $skill_name"
-      fi
+      skill_surface_expected "$surface" "$record_scope" "$record_pi_core" "$active_scopes" || continue
+      case "$surface" in
+      .claude/skills)
+        managed_surface_skill_is_shadowed "$skill_name" "$active_scopes" && continue
+        label="claude"
+        ;;
+      .pi/agent/skills) label="pi" ;;
+      esac
+      check_link "$(managed_surface_dir "$HOME" "$surface")/$skill_name" "$skill_dir" "$label skill $skill_name"
     done
-  done < <(skill_catalog_vendor_records "$SKILL_CATALOG" "$REPO_DIR")
-  managed_surface_prune_vendor_skill_links check "$REPO_DIR" "$HOME" "$SKILL_CATALOG" "$active_scopes"
+  done < <(skill_catalog_records "$SKILL_CATALOG" "$REPO_DIR")
+  managed_surface_prune_skill_links check "$REPO_DIR" "$HOME" "$SKILL_CATALOG" "$active_scopes"
 }
 
 check_claude_root() {
@@ -154,59 +142,18 @@ check_claude_root() {
   check_link "$CLAUDE_ROOT/PLAN_TEMPLATE.md" "$REPO_DIR/PLAN_TEMPLATE.md" "claude PLAN_TEMPLATE.md"
   check_link "$CLAUDE_ROOT/PLAN_TEMPLATE_FULL.md" "$REPO_DIR/PLAN_TEMPLATE_FULL.md" "claude PLAN_TEMPLATE_FULL.md"
   check_link "$CLAUDE_ROOT/review-rubric.md" "$REPO_DIR/workflow/review-rubric.md" "claude review rubric"
-  check_claude_command_links
+  managed_surface_prune_repo_command_links check "$REPO_DIR" "$HOME"
   check_link "$CLAUDE_ROOT/settings.workflow-hooks.json" "$REPO_DIR/claude/settings.workflow-hooks.json" "claude workflow hook settings fragment"
   check_link "$CLAUDE_ROOT/statusline-command.sh" "$REPO_DIR/claude/statusline-command.sh" "claude statusline command"
   check_claude_hook_links
   check_stale_managed_claude_agent_links
   check_claude_agent_links
   check_claude_script_links
-  check_vendor_skill_links
-  check_claude_skill_links
+  check_skill_links
 }
 
 deployed_scopes() {
   etabli_active_scopes "$HOME"
-}
-
-check_claude_skill_links() {
-  local scope scope_root skill_dir skill_name active_scopes skill_link
-
-  active_scopes="$(deployed_scopes)"
-  for scope in $active_scopes; do
-    scope_root="$REPO_DIR/claude/scopes/$scope/skills"
-    [ -d "$scope_root" ] || continue
-    while IFS= read -r skill_dir; do
-      skill_name="$(basename "$skill_dir")"
-      if managed_surface_skill_is_shadowed "$skill_name" "$active_scopes"; then
-        skill_link="$CLAUDE_ROOT/skills/$skill_name"
-        if [ -L "$skill_link" ] && [ "$(readlink "$skill_link")" = "$skill_dir" ]; then
-          ISSUES=$((ISSUES + 1))
-          status_line WARN "shadowed claude skill $skill_name is still linked"
-          if [ "$FIX" -eq 1 ]; then
-            rm -f "$skill_link"
-            FIXED=$((FIXED + 1))
-            status_line FIXED "removed shadowed claude skill $skill_name"
-          fi
-        fi
-        continue
-      fi
-      check_link "$CLAUDE_ROOT/skills/$skill_name" "$skill_dir" "claude skill $skill_name"
-    done < <(find "$scope_root" -mindepth 1 -maxdepth 1 \( -type d -o -type l \) | sort)
-  done
-}
-
-check_claude_command_links() {
-  local scope scope_root command_file command_name
-
-  for scope in $(deployed_scopes); do
-    scope_root="$REPO_DIR/claude/scopes/$scope/commands"
-    [ -d "$scope_root" ] || continue
-    while IFS= read -r command_file; do
-      command_name="$(basename "$command_file")"
-      check_link "$CLAUDE_ROOT/commands/$command_name" "$command_file" "claude command $command_name"
-    done < <(find "$scope_root" -mindepth 1 -maxdepth 1 -type f -name '*.md' | sort)
-  done
 }
 
 check_claude_hook_links() {
@@ -255,7 +202,7 @@ check_stale_managed_claude_agent_links() {
 }
 
 # Env + herdr-skill links moved to dotfiles (scripts/fix-links); etabli owns core only.
-check_link "$HOME/.pi/agent/AGENTS.md" "$REPO_DIR/pi/AGENTS.md" "pi AGENTS.md"
+check_link "$HOME/.pi/agent/AGENTS.md" "$REPO_DIR/workflow/agent-rules.md" "pi AGENTS.md"
 check_link "$HOME/.pi/agent/workflow" "$REPO_DIR/workflow" "pi workflow sources"
 check_link "$HOME/.pi/agent/PLAN_TEMPLATE.md" "$REPO_DIR/PLAN_TEMPLATE.md" "pi PLAN_TEMPLATE.md"
 check_link "$HOME/.pi/agent/PLAN_TEMPLATE_FULL.md" "$REPO_DIR/PLAN_TEMPLATE_FULL.md" "pi PLAN_TEMPLATE_FULL.md"
@@ -265,7 +212,6 @@ check_link "$HOME/.pi/agent/extensions" "$REPO_DIR/pi/extensions" "pi extensions
 check_link "$REPO_DIR/pi/extensions/node_modules" "$(pi_agent_node_modules_dir "$HOME")" "pi extension node_modules"
 check_absent "$HOME/.pi/extensions" "legacy pi extensions"
 check_link "$HOME/.pi/agent/models.json" "$REPO_DIR/pi/models.json" "pi models.json"
-check_link "$HOME/.pi/agent/subagents.json" "$REPO_DIR/pi/agent/subagents.json" "pi subagents.json"
 for agent_file in "$REPO_DIR/pi/agents"/*.md; do
   if [ -f "$agent_file" ]; then
     agent_name="$(basename "$agent_file")"
@@ -277,7 +223,6 @@ check_link "$HOME/.pi/themes" "$REPO_DIR/pi/themes" "pi themes"
 CLAUDE_ROOT="$HOME/.claude"
 export MANAGED_CLAUDE_ROOT="$CLAUDE_ROOT"
 check_claude_root
-check_pi_skill_links
 if config_root="$(claude_config_dir_override)"; then
   CLAUDE_ROOT="$config_root"
   MANAGED_CLAUDE_ROOT="$CLAUDE_ROOT"

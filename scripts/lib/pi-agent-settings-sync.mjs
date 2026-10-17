@@ -34,6 +34,8 @@ const legacySources = new Set([
   "npm:pi-hooks",
   "npm:glimpseui",
   "npm:@zenspc/pi-pstack",
+  // etabli-only keeper list Pi never resolved; the catalog now owns it.
+  "local:etabli-workflow",
 ]);
 
 const deployLegacyModels = new Set([

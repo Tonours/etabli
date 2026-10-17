@@ -152,8 +152,9 @@ router: `/linear-work`, `/linear-ticket-create`, `/linear-project-setup`,
 commands require Linear MCP or stop with `LINEAR_MCP_UNAVAILABLE` — see
 `docs/mcp-strategy.md` § Linear MCP gap. Rationale: ADR-0027.
 
-`verify` is the contract route; the Claude command surface names it
-`/verify-workflow` and Pi presents `/skill:verify`.
+`verify` is the contract route; its skill is `verify-workflow` on both runtimes
+(`/verify-workflow`, `/skill:verify-workflow`), so Claude's native `/verify`
+stays free.
 
 A route says what to produce and when to stop; it does not say what the area
 already taught us. Where the runtime exposes skills, select the narrowest domain

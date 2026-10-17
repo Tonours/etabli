@@ -1,56 +1,6 @@
 {
   "version": 1,
   "skills": {
-    "plan-loop": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "172fe652d1769f407508a139805157d623935ca1e6a51962a6ba14c038d6a494"
-    },
-    "plan-implement": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "cbfc0bfa17a22913d12d226c0aff3f78bc768f14848c5cf4557282a4994de0f7"
-    },
-    "review": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "df5cb54a046b1a395d62472cb5b9f9a72e92e1a78a848408d60098e691719e6c"
-    },
-    "implement": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "343311204a472c3d3fe1a93f067b2cd29ca1a9f10fa1745fae6716307f59c402"
-    },
-    "verify": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "9ecf681fe5ec671949a17e760dd4d690dc6eb5dc83f9fd1a9c1affcf658fec5e"
-    },
-    "bug-check": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "1c3a437982e9e2d36fa1dbb3e34ab4ceef6b6e51b0cf657e4102c51920a2e622"
-    },
-    "linear-ticket-create": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "eb0f647fd050cff200999b274159097c4b6d6dfc2d2e612735ad09f26c6ccf94"
-    },
-    "linear-work": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "34acd6c14e259a0a0c220a32e2d332e65ca06178adfcde723034f6338874e99c"
-    },
-    "adversary": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "99fe8fbe2f7e1678987a48454f4dde08030a4cdbe247d7f7ac9854094a018761"
-    },
-    "linear-project-setup": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "8cc623354f5bcc1133a78fb27409e1a8a69829846d990e493a96d8cb58b5fdef"
-    },
     "react-doctor-100": {
       "source": "local",
       "sourceType": "repo",
@@ -60,11 +10,6 @@
       "source": "local",
       "sourceType": "repo",
       "computedHash": "84b6833e8ce2bbd34fdafb506afdf776ceb8ac15284eb28fa2ac112c4b724155"
-    },
-    "thermo-nuclear-code-quality-review": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "d62ae589f4f60273c363d8b3ac5a093d03fe7ae65f06691d37a4e4cae784c8b0"
     },
     "engineering/codebase-design": {
       "source": "local",
@@ -101,55 +46,105 @@
       "sourceType": "repo",
       "computedHash": "49298bed80e7f722b071ad5d64798c75eb705bbbe0635b9bbffd08cd6fb81647"
     },
-    "claude-scope/shared/adr": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "79a6be7834183ca0e51296734f966ffa58d8566ecc24d146b294b23cd71215b5"
-    },
-    "claude-scope/shared/spec": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "f92727231eda0c05d839d76cee5fbb403d536f9401e5f9ec4cd29a51288a3972"
-    },
-    "claude-scope/shared/write-direct": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "77e611eb10ed12e44a079f6e494ac5983fadbb72563faba9e6570a1bed79d766"
-    },
-    "claude-scope/work/bug-check": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "2442dd544608f8fc2829ebbb3fd0f52746252ba09e3552c6764318dd737946f2"
-    },
-    "claude-scope/work/employer-backend-suite": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "d9bc3d1ea0d8fbd8da279603232a2e7f8cc5bfe0ae476620f965a1222fe26fad"
-    },
     "no-ai-slop": {
       "source": "local",
       "sourceType": "repo",
       "computedHash": "77d287e3c8e09874e144ee35f6fb0ee1adcf609012c7c3273e9c8fe2054ce5af"
-    },
-    "claude-scope/work/employer-docs-writing": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "9a2e5f45b301310f726a2632cc114ff464cabb122ce61655a256021117895f2e"
     },
     "typesafe-ai": {
       "source": "local",
       "sourceType": "repo",
       "computedHash": "9cd84c5e535dec8dec59917c110f9c00b4a61faadb86b432ec7e41051170af12"
     },
-    "write-direct": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "77e611eb10ed12e44a079f6e494ac5983fadbb72563faba9e6570a1bed79d766"
-    },
     "productivity/grilling": {
       "source": "local",
       "sourceType": "repo",
       "computedHash": "ef1641a2047b71b60f1942cd35efb47d3afc9d584dff5a0b01f8c7db923aaa08"
+    },
+    "shared/plan-loop": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "510b35a09c06f1887b0c37a528d8dd107cd7537401b7395a4a66c2042b5f3c19"
+    },
+    "shared/plan-implement": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "a5c88bbd4bbc7febe476a62db738621c2f9cf367b8d69a56418af2b0a0ccc517"
+    },
+    "shared/adversary": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "ada4aec21b4ec709bf487e7f86110c8bbf0ba25d0b2c43c4dcef15914b4b42f6"
+    },
+    "shared/review": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "deb55a194b75df26478b6fb70a5c1ee6edc78e746bf6042c2606db1f3c64bd8f"
+    },
+    "shared/implement": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "388677e301e6ff3e91fff3f958c5587945a26b710425c70d4589d59f610f016f"
+    },
+    "shared/verify-workflow": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "488d9d74dbb3eda3a082764f288d8893cfaf0d22867b2b06d5e03c36198376c1"
+    },
+    "shared/write-direct": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "77e611eb10ed12e44a079f6e494ac5983fadbb72563faba9e6570a1bed79d766"
+    },
+    "shared/thermo-nuclear-code-quality-review": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "d62ae589f4f60273c363d8b3ac5a093d03fe7ae65f06691d37a4e4cae784c8b0"
+    },
+    "shared/adr": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "64b83ee0a9e8dd3a90145871e11348803cb1eeb9850f9dc958c54f269623a2a8"
+    },
+    "shared/spec": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "41f4f02f2f8a405e9768dd35f01f696bfa2a0fe7a3a65613a3041ff01d96f87d"
+    },
+    "work/bug-check": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "2d40832ce9498c703c286ddb6423b644405693cfa6711400acb86762e152fc08"
+    },
+    "work/linear-project-setup": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "bde1672d5ef24f6e56e60c203a7786f2bbc94052a883c854bc08bde05a324047"
+    },
+    "work/linear-ticket-create": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "c21e214991c683052430e0319a56cb751e120bf1097cb1ca552561574c275526"
+    },
+    "work/linear-work": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "93256efecaafac94f525e570a8ebe1f04cbe1725eb88b9f35b71e0d62f4291f8"
+    },
+    "work/employer-backend-suite": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "d9bc3d1ea0d8fbd8da279603232a2e7f8cc5bfe0ae476620f965a1222fe26fad"
+    },
+    "work/employer-docs-writing": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "9a2e5f45b301310f726a2632cc114ff464cabb122ce61655a256021117895f2e"
+    },
+    "work/pr-council-review": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "2e16f1b54fabe27f0661269060fe58e3d04d7039ab5d42019316a2825c005c2f"
     }
   }
 }

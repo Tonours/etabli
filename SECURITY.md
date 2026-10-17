@@ -12,7 +12,6 @@ the working tree that is pushed.
 | Copilot / editor auth DBs | `github-copilot/`, `*.db` | Gitignored |
 | Workflow runtime state | `.workflow/`, `.pi/` | Gitignored |
 | Private settings overlays | `*.local.json`, `settings.local.json` | Gitignored |
-| Local model overlays | `pi/models.local.json` | Gitignored; start from `pi/models.local.example.json` |
 
 ## Before every push
 

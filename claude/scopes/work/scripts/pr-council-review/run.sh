@@ -68,6 +68,8 @@ PROMPT_FILE="$HOME/.claude/scripts/pr-council-review/council-prompt.md"
 
 THERMO_SKILL_FILE=""
 for candidate in \
+  "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/thermo-nuclear-code-quality-review/SKILL.md" \
+  "$HOME/.claude/skills/thermo-nuclear-code-quality-review/SKILL.md" \
   "$HOME/.pi/agent/skills/thermo-nuclear-code-quality-review/SKILL.md"
 do
   [ -f "$candidate" ] && { THERMO_SKILL_FILE="$candidate"; break; }

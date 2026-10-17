@@ -1,11 +1,12 @@
 # CLAUDE.md - etabli
 
 Claude Code adapter. Shared identity, style, cognition, code, review, ticket,
-anti-sycophancy, contrarian, memory, answer and git rules live in `pi/AGENTS.md`,
-imported below through its deployed link `~/.pi/agent/AGENTS.md`.
+anti-sycophancy, contrarian, memory, answer and git rules live in
+`workflow/agent-rules.md`, imported below by a path relative to this file (Pi
+reads the same file as `~/.pi/agent/AGENTS.md`).
 
 ## Sources
-- Repo: `AGENTS.md`; shared rules: `pi/AGENTS.md`; workflow: `workflow/spec.md`
+- Repo: `AGENTS.md`; shared rules: `workflow/agent-rules.md`; workflow: `workflow/spec.md`
   (entry and map, wins on conflict); review: `workflow/review-rubric.md`;
   tickets: `workflow/ticket-template.md`; plans: `PLAN_TEMPLATE*.md`, root `PLAN.md`.
 
@@ -35,5 +36,5 @@ SOLUTION EFFICIENCY: stop at first level that applies:
 skip (YAGNI) → reuse codebase → stdlib → native platform → installed dep → one-line → minimum code.
 Never skip: validation, security, error handling.
 
-@~/.pi/agent/AGENTS.md
+@../workflow/agent-rules.md
 @RTK.md

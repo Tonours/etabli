@@ -14,7 +14,7 @@ Usage: $(basename "$0") [--home DIR] [--repo DIR] [--dry-run] [--check] [--list]
 Stamps disable-model-invocation: true into the frontmatter of listed
 specialist skills, hiding them from the model prompt while keeping
 /skill:name expansion working. Skills whose real path is under this
-repo are skipped (their flag is versioned in pi/skills instead).
+repo are skipped (their flag is versioned in skills/ instead).
 Absent skills are reported and tolerated.
 
   --home DIR  skill roots + npm root (default: \$HOME)

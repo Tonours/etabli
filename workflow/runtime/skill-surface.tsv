@@ -1,27 +1,35 @@
 # name	source	pi_core	locked
-# all-zero rows (0 0) are the opt-in shelf: catalog-tracked but not
-# deployed to any surface; invoke manually or promote flags before deploying.
+# First-party rows (source etabli) name skills/<scope>/<skill>: the first path
+# segment is the deploy scope; Claude receives every row of an active scope,
+# Pi only pi_core=1 rows of an active scope.
+# Rows with source extras are the shelf (extras/README.md): tracked and
+# locked, never deployed; promote one by moving it under skills/<scope>/.
 # Vendor rows honour pi_core: a vendor skill links to the Pi surface only
 # when pi_core=1; Claude stays scope-governed (workflow decision 3/4/5).
 # Provenance: rows with source mattpocock (Matt Pocock) are the vendored shared
 # suite — cataloged as engineering/<name> but deployed by
 # their frontmatter names (e.g. `research`, `wizard`). Suite map and
 # collision rules: vendor/README.md.
-plan-loop	pi	1	1
-plan-implement	pi	1	1
-adversary	pi	1	1
-review	pi	1	1
-implement	pi	1	1
-verify	pi	1	1
-bug-check	pi	1	1
-linear-project-setup	pi	0	1
-linear-ticket-create	pi	1	1
-linear-work	pi	1	1
-write-direct	pi	1	1
+shared/plan-loop	etabli	1	1
+shared/plan-implement	etabli	1	1
+shared/adversary	etabli	1	1
+shared/review	etabli	1	1
+shared/implement	etabli	1	1
+shared/verify-workflow	etabli	1	1
+shared/write-direct	etabli	1	1
+shared/code-quality	etabli	1	0
+shared/thermo-nuclear-code-quality-review	etabli	1	1
+shared/adr	etabli	0	1
+shared/spec	etabli	0	1
+work/bug-check	etabli	1	1
+work/linear-project-setup	etabli	0	1
+work/linear-ticket-create	etabli	1	1
+work/linear-work	etabli	1	1
+work/employer-backend-suite	etabli	0	1
+work/employer-docs-writing	etabli	0	1
+work/pr-council-review	etabli	0	1
 react-doctor-100	extras	0	1
-code-quality	pi	1	0
 coolify	extras	0	1
-thermo-nuclear-code-quality-review	pi	1	1
 engineering/codebase-design	mattpocock	0	1
 engineering/domain-modeling	mattpocock	0	1
 engineering/grill-with-docs	mattpocock	0	1

@@ -55,12 +55,6 @@ const skillCatalog = readFileSync(
     };
   });
 
-function localPackage(): LocalPackage {
-  const pkg = packageBySource("local:etabli-workflow");
-  if (!pkg) throw new Error("local:etabli-workflow package missing");
-  return pkg;
-}
-
 function packageBySource(source: string): LocalPackage | undefined {
   return settings.packages.find((entry): entry is LocalPackage => {
     return (
@@ -71,8 +65,8 @@ function packageBySource(source: string): LocalPackage | undefined {
 
 function installCoreSkills(): string[] {
   return skillCatalog
-    .filter((skill) => skill.source === "pi" && skill.piCore)
-    .map((skill) => skill.name);
+    .filter((skill) => skill.source === "etabli" && skill.piCore)
+    .map((skill) => skill.name.split("/")[1]);
 }
 
 function packageSources(): string[] {
@@ -82,20 +76,14 @@ function packageSources(): string[] {
 }
 
 describe("Pi settings consistency", () => {
-  test("quasi-vanilla local package has skills only (no extensions)", () => {
-    expect(localPackage().extensions).toEqual([]);
-    expect(localPackage().extensions ?? []).not.toContain("damage-control.ts");
-  });
-
-  test("installer links every configured local skill", () => {
-    expect(installCoreSkills().sort()).toEqual(
-      [...(localPackage().skills ?? [])].sort(),
-    );
+  test("Pi first-party skills come from the catalog, not a settings keeper list", () => {
+    expect(packageBySource("local:etabli-workflow")).toBeUndefined();
+    expect(settingsSyncModule).toContain('"local:etabli-workflow"');
   });
 
   test("keeps the Pi core skill list synchronized across bootstrap scripts", () => {
     for (const source of [deployAgentWorkflowScript, checkFixSymlinksScript])
-      expect(source).toContain("skill_catalog_names");
+      expect(source).toContain("skill_catalog_records");
     expect(installScript).toContain('"$BOOTSTRAP_DIR/deploy-agent-workflow" --apply');
 
     for (const shelved of ["coolify", "react-doctor-100"]) {
@@ -112,7 +100,7 @@ describe("Pi settings consistency", () => {
       "review",
       "code-quality",
       "implement",
-      "verify",
+      "verify-workflow",
       "bug-check",
       "linear-ticket-create",
       "linear-work",
@@ -120,16 +108,12 @@ describe("Pi settings consistency", () => {
       "thermo-nuclear-code-quality-review",
     ];
     expect(installCoreSkills().sort()).toEqual([...keepList].sort());
-    expect([...(localPackage().skills ?? [])].sort()).toEqual(
-      [...keepList].sort(),
-    );
     expect(
-      skillCatalog.find((skill) => skill.name === "code-quality"),
+      skillCatalog.find((skill) => skill.name === "shared/code-quality"),
     ).toMatchObject({ piCore: true });
     expect(keepList).toHaveLength(12);
     for (const banned of ["ponytail", "deslop", "code-simplifier"]) {
-      expect(skillCatalog.some((skill) => skill.name === banned)).toBe(false);
-      expect(localPackage().skills ?? []).not.toContain(banned);
+      expect(installCoreSkills()).not.toContain(banned);
     }
   });
 
@@ -143,7 +127,6 @@ describe("Pi settings consistency", () => {
       prompts: [],
       themes: [],
     });
-    expect(packageBySource("local:etabli-workflow")).toBeDefined();
     expect(packageBySource("git:github.com/badlogic/pi-skills")).toMatchObject({
       extensions: [],
       skills: [],

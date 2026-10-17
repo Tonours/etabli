@@ -15,7 +15,6 @@ full	shell-docs	pr-review-gates-smoke	tests/pr-review-gates-smoke.sh
 full	shell-docs	workflow-scaffold-smoke	tests/workflow-scaffold-smoke.sh
 full	shell-docs	claude-hooks-smoke	tests/claude-hooks-smoke.sh
 full	shell-docs	claude-agents-smoke	tests/claude-agents-smoke.sh
-full	shell-docs	claude-commands-smoke	tests/claude-commands-smoke.sh
 full	shell-docs	claude-skills-smoke	tests/claude-skills-smoke.sh
 full	shell-docs	adr-validate-smoke	tests/adr-validate-smoke.sh
 full	shell-docs	adr-validation-golden	tests/adr-validation-golden.sh
@@ -32,7 +31,7 @@ full	shell-docs	skill-tree-hash-smoke	tests/skill-tree-hash-smoke.sh
 full	shell-docs	sync-vendor-subpath-smoke	tests/sync-vendor-subpath-smoke.sh
 full	shell-docs	claude-skill-load-check-smoke	tests/claude-skill-load-check-smoke.sh
 full	shell-docs	pi-skill-load-check-smoke	tests/pi-skill-load-check-smoke.sh
-full	shell-docs	vendor-surface-policy-smoke	tests/vendor-surface-policy-smoke.sh
+full	shell-docs	skill-surface-policy-smoke	tests/skill-surface-policy-smoke.sh
 full	shell-docs	vendor-prune-modes-smoke	tests/vendor-prune-modes-smoke.sh
 full	shell-docs	skills-lock-coverage-smoke	tests/skills-lock-coverage-smoke.sh
 full	shell-docs	claude-statusline-smoke	tests/claude-statusline-smoke.sh

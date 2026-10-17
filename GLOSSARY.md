@@ -25,7 +25,7 @@ Skills tracked in git but never deployed (`extras/`); promote one by moving it.
 _Avoid_: opt-in, vendor, archive
 
 **Surface**:
-A location where a runtime loads skills or commands (`~/.pi`, `~/.claude`).
+A location where a runtime loads skills (`~/.pi/agent/skills`, `~/.claude/skills`).
 _Avoid_: target, destination
 
 **Scaffold**:

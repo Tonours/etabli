@@ -52,7 +52,7 @@ ambiguous rename, or unclassifiable → full review. Escalate to a
 FULL review (hunters + adversary) when delta > 50 lines (heuristic:
 past it, partial re-read no longer beats full; any doubt → full),
 or it touches contractual surfaces (`workflow/`, `scripts/`,
-`tests/`, `skills/`, `pi/skills/`, `claude/scopes/`, `.github/`,
+`tests/`, `skills/`, `claude/scopes/`, `.github/`,
 `AGENTS.md`, `PLAN_TEMPLATE*.md`, `docs/`, `.mcp.json`, locks,
 `*.policy.json`), or any rebase happened (proof invalidated).
 Generated-records row-only deltas (closed list:

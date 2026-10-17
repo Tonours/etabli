@@ -49,6 +49,7 @@ DEPLOY_PID=$!
 REFERENCES_INDEX="$TMP_DIR/contract-references.txt"
 grep -Roh --exclude-dir=node_modules -- 'workflow/skills/[A-Za-z0-9._-]*\.md' \
   "$ROOT_DIR/claude" \
+  "$ROOT_DIR/skills" \
   "$ROOT_DIR/pi" \
   "$ROOT_DIR/extras" \
   "$ROOT_DIR/docs" \

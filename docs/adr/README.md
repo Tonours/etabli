@@ -7,7 +7,7 @@ Decisions live in this directory. Run `/adr` to record one.
 - [0003](0003-use-hunk-as-the-default-review-surface.md) — Use Hunk as the default review surface [superseded by ADR-0012]
 - [0004](0004-use-a-sanitized-tracked-codex-organization-surface.md) — Use a sanitized tracked Codex organization surface [superseded by ADR-0011]
 - [0005](0005-deploy-workflow-scaffolds-as-self-contained-project-copies.md) — Deploy workflow scaffolds as self-contained project copies [accepted]
-- [0006](0006-keep-agent-surfaces-as-adapters-over-shared-workflow-contracts.md) — Keep agent surfaces as adapters over shared workflow contracts [accepted]
+- [0006](0006-keep-agent-surfaces-as-adapters-over-shared-workflow-contracts.md) — Keep agent surfaces as adapters over shared workflow contracts [accepted, amended by ADR-0037]
 - [0007](0007-gate-workflow-routing-with-deterministic-guards.md) — Gate workflow routing with deterministic guards [superseded by ADR-0032]
 - [0008](0008-record-adrs-through-a-deterministic-helper-and-validator.md) — Record ADRs through a deterministic helper and validator [accepted]
 - [0009](0009-remove-the-legacy-local-review-mirror.md) — Remove the legacy local review mirror [accepted]
@@ -38,3 +38,4 @@ Decisions live in this directory. Run `/adr` to record one.
 - [0034](0034-drop-the-eval-ledger-and-product-verification-tooling.md) — Drop the eval, ledger, product-verification and freeze tooling [accepted]
 - [0035](0035-strip-etabli-to-the-tooling-in-daily-use.md) — Strip Etabli to the tooling in daily use [accepted]
 - [0036](0036-drop-the-route-classifier-and-its-orphan-telemetry.md) — Drop the route classifier and its orphan telemetry [accepted]
+- [0037](0037-serve-one-skill-tree-to-both-runtimes.md) — Serve one skill tree to both runtimes [accepted]

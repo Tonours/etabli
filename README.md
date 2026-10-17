@@ -25,7 +25,8 @@ Then `scripts/verify-agentic-infra core` should PASS.
 ## What you get
 
 - **One contract, every harness.** Pi and Claude read the same route table
-  (`workflow/spec.md`) and shared contracts (`workflow/skills/`).
+  (`workflow/spec.md`), shared contracts (`workflow/skills/`) and skill tree
+  (`skills/<scope>/`).
 - **A few guards in code.** No-comments and rtk guards on writes and shell
   commands, and read-only reviewer shells; everything else runs without
   approval stops (ADR-0032).

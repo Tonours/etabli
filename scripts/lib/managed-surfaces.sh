@@ -14,11 +14,18 @@ managed_surface_emit() {
   fi
 }
 
+# A backup must not stay inside a skill discovery root: a skills/<name>.bak.*
+# copy would be discovered as a duplicate declared name. Skill entries back up
+# to the sibling <surface>.bak/ directory instead.
 managed_surface_backup_path() {
   local path="$1"
   local timestamp="$2"
-  local candidate="${path}.bak.${timestamp}"
-  local index=1
+  local candidate index=1
+
+  if [ "$(basename "$(dirname "$path")")" = skills ]; then
+    path="$(dirname "$path").bak/$(basename "$path")"
+  fi
+  candidate="${path}.bak.${timestamp}"
 
   while [ -e "$candidate" ] || [ -L "$candidate" ]; do
     candidate="${path}.bak.${timestamp}.${index}"
@@ -26,6 +33,37 @@ managed_surface_backup_path() {
   done
 
   printf '%s\n' "$candidate"
+}
+
+managed_surface_move_aside() {
+  local path="$1"
+  local backup
+
+  backup="$(managed_surface_backup_path "$path" "$TIMESTAMP")"
+  mkdir -p "$(dirname "$backup")" || return 1
+  mv "$path" "$backup" || return 1
+  printf '%s\n' "$backup"
+}
+
+# True for a normalized path under the repo: a `..`, `.` or `//` segment could
+# escape it, so such a path is never treated as the checkout's own.
+managed_surface_path_in_repo() {
+  local path="$1"
+  local repo_dir="$2"
+
+  [ -n "$repo_dir" ] || return 1
+  case "$path/" in
+  *"/../"* | *"/./"* | *"//"*) return 1 ;;
+  esac
+  [ "${path#"$repo_dir"/}" != "$path" ]
+}
+
+# A link into this checkout, or a link inside it (pi/extensions/node_modules),
+# is disposable; a real entry or any other link is user state.
+managed_surface_link_is_disposable() {
+  [ -L "$1" ] || return 1
+  managed_surface_path_in_repo "$1" "${REPO_DIR:-}" ||
+    managed_surface_path_in_repo "$(readlink "$1")" "${REPO_DIR:-}"
 }
 
 managed_surface_same_link() {
@@ -36,14 +74,8 @@ managed_surface_same_link() {
 }
 
 managed_surface_is_dangling_repo_link() {
-  local link_target
-
-  [ -L "$1" ] && [ ! -e "$1" ] && [ -n "${REPO_DIR:-}" ] || return 1
-  link_target="$(readlink "$1")"
-  case "$link_target/" in
-  *"/../"* | *"/./"* | *"//"*) return 1 ;;
-  esac
-  [ "${link_target#"$REPO_DIR"/}" != "$link_target" ]
+  [ -L "$1" ] && [ ! -e "$1" ] || return 1
+  managed_surface_path_in_repo "$(readlink "$1")" "${REPO_DIR:-}"
 }
 
 managed_surface_reconcile_link() {
@@ -98,8 +130,7 @@ managed_surface_reconcile_link() {
       if { [ "$mode" = install ] && [ -L "$destination_path" ]; } || managed_surface_is_dangling_repo_link "$destination_path"; then
         rm -f "$destination_path"
       else
-        backup="$(managed_surface_backup_path "$destination_path" "$TIMESTAMP")"
-        mv "$destination_path" "$backup"
+        backup="$(managed_surface_move_aside "$destination_path")" || return 1
         managed_surface_emit BACKUP "$backup"
       fi
     fi
@@ -119,12 +150,11 @@ managed_surface_reconcile_link() {
 
     if [ "${FIX:-0}" -eq 1 ]; then
       mkdir -p "$(dirname "$destination_path")"
-      if [ -e "$destination_path" ] && [ ! -L "$destination_path" ]; then
-        backup="$(managed_surface_backup_path "$destination_path" "$TIMESTAMP")"
-        mv "$destination_path" "$backup"
+      if managed_surface_link_is_disposable "$destination_path"; then
+        rm -f "$destination_path"
+      elif [ -e "$destination_path" ] || [ -L "$destination_path" ]; then
+        backup="$(managed_surface_move_aside "$destination_path")" || return 1
         managed_surface_emit BACKUP "$label moved to $backup"
-      else
-        rm -rf "$destination_path"
       fi
       ln -sfn "$source_path" "$destination_path"
       FIXED=$((FIXED + 1))
@@ -244,7 +274,10 @@ managed_surface_skill_roots() {
     resolved="$(cd "$candidate" >/dev/null 2>&1 && pwd -P)" || continue
     printf '%s\n' "$resolved"
   done < <(
+    # pi/skills and claude/scopes/*/skills are retired roots (ADR-0037): kept
+    # so a leftover directory still classifies its stale links as managed.
     printf '%s/pi/skills\n' "$repo_dir"
+    find "$repo_dir/skills" -mindepth 1 -maxdepth 1 -type d 2>/dev/null
     find "$repo_dir/vendor" "$repo_dir/claude/scopes" \
       -mindepth 1 -maxdepth 1 -type d 2>/dev/null |
       while IFS= read -r group_dir; do
@@ -269,7 +302,7 @@ managed_surface_skill_target_is_managed() {
   fi
 
   case "$skill_target" in
-  "$repo_dir/pi/skills/"?* | "$repo_dir/vendor/"?*"/skills/"?* | "$repo_dir/claude/scopes/"?*"/skills/"?*) return 0 ;;
+  "$repo_dir/skills/"?*"/"?* | "$repo_dir/pi/skills/"?* | "$repo_dir/vendor/"?*"/skills/"?* | "$repo_dir/claude/scopes/"?*"/skills/"?*) return 0 ;;
   esac
   return 1
 }
@@ -295,13 +328,8 @@ managed_surface_prune_stale_skill_links() {
       [ -e "$skill_target" ] && continue
 
       case "$mode" in
-      deploy)
-        if [ "${DRY_RUN:-1}" -eq 1 ]; then
-          managed_surface_emit WOULD_REMOVE "stale managed skill $(basename "$skill_link") from $surface"
-        else
-          rm -f "$skill_link"
-          managed_surface_emit REMOVE "stale managed skill $(basename "$skill_link") from $surface"
-        fi
+      deploy | check)
+        managed_surface_prune_link "$mode" "$skill_link" "stale managed skill $(basename "$skill_link") from $surface"
         ;;
       install)
         rm -f "$skill_link"
@@ -310,19 +338,6 @@ managed_surface_prune_stale_skill_links() {
       esac
     done < <(find "$surface" -mindepth 1 -maxdepth 1 -type l | sort)
   done
-}
-
-managed_surface_catalog_contains() {
-  local candidate="$1"
-  shift
-  local entry
-
-  [ -n "$candidate" ] || return 1
-  for entry in "$@"; do
-    [ -n "$entry" ] || continue
-    [ "$candidate" = "$entry" ] && return 0
-  done
-  return 1
 }
 
 managed_surface_prune_link() {
@@ -351,68 +366,24 @@ managed_surface_prune_link() {
   esac
 }
 
-managed_surface_prune_pi_cross_surface_links() {
-  local mode="$1"
-  local repo_dir="$2"
-  local home_dir="$3"
-  local surface skill_link
-
-  for surface in .claude/skills; do
-    managed_surface_selected "$surface" || continue
-    local surface_dir
-    surface_dir="$(managed_surface_dir "$home_dir" "$surface")"
-    [ -d "$surface_dir" ] || continue
-    for skill_link in "$surface_dir"/*; do
-      [ -L "$skill_link" ] || continue
-      case "$(readlink "$skill_link")" in
-      "$repo_dir/pi/skills/"*)
-        managed_surface_prune_link "$mode" "$skill_link" "Pi-sourced skill link $(basename "$skill_link") on $surface"
-        ;;
-      esac
-    done
-  done
-}
-
-managed_surface_prune_unlisted_source_skills() {
-  local mode="$1"
-  local repo_dir="$2"
-  local home_dir="$3"
-  local surface="$4"
-  local label="$5"
-  local source_policy="$6"
-  shift 6
-  local skill_link skill_target skill_name
-
-  local surface_dir
-  surface_dir="$(managed_surface_dir "$home_dir" "$surface")"
-  [ -d "$surface_dir" ] || return 0
-  for skill_link in "$surface_dir"/*; do
-    [ -L "$skill_link" ] || continue
-    skill_target="$(readlink "$skill_link")"
-    if [ "$source_policy" = pi ]; then
-      case "$skill_target" in "$repo_dir/pi/skills/"*) ;; *) continue ;; esac
-    else
-      case "$skill_target" in "$repo_dir/pi/skills/"* | "$repo_dir/vendor/"*) ;; *) continue ;; esac
-    fi
-    skill_name="$(basename "$skill_link")"
-    if ! managed_surface_catalog_contains "$skill_name" "$@"; then
-      managed_surface_prune_link "$mode" "$skill_link" "demoted $label skill $skill_name remains in $surface"
-    fi
-  done
-}
-
-managed_surface_prune_vendor_skill_links() {
+# Removes every skill link the catalog no longer expects on a surface: a
+# record link outside its scope, off Pi when not pi_core, or shadowed on
+# Claude; an orphan link into skills/ or vendor/ with no record; a broken
+# cross-surface mirror. A record link is the link name plus a target ending in
+# the record's path under its source root (this checkout or another clone, so
+# a relocated repo converges too); any other link is foreign and never touched.
+managed_surface_prune_skill_links() {
   local mode="$1"
   local repo_dir="$2"
   local home_dir="$3"
   local catalog="$4"
   local active_scopes="$5"
-  local surface skill_link skill_target link_name
-  local record_scope record_name record_pi_core record_vendor matched
+  local records surface surface_dir skill_link skill_target link_name
+  local record_scope record_name record_dir record_pi_core _record_source record_path matched
 
+  records="$(skill_catalog_records "$catalog" "$repo_dir")"
   for surface in .pi/agent/skills .claude/skills; do
     managed_surface_selected "$surface" || continue
-    local surface_dir
     surface_dir="$(managed_surface_dir "$home_dir" "$surface")"
     [ -d "$surface_dir" ] || continue
     for skill_link in "$surface_dir"/*; do
@@ -428,26 +399,46 @@ managed_surface_prune_vendor_skill_links() {
         ;;
       esac
       matched=""
-      while IFS=$'\t' read -r record_scope record_name _record_dir record_pi_core record_vendor; do
-        [ -z "$matched" ] || continue
+      while IFS=$'\t' read -r record_scope record_name record_dir record_pi_core _record_source; do
         [ "$record_name" = "$link_name" ] || continue
+        record_path="${record_dir#"$repo_dir"/}"
         case "$skill_target" in
-        *"/$record_vendor/skills/"*) ;;
+        "$record_dir" | *"/${record_path#vendor/}") ;;
         *) continue ;;
         esac
         matched=1
-        if ! vendor_surface_expected "$surface" "$record_scope" "$record_pi_core" "$active_scopes"; then
-          managed_surface_prune_link "$mode" "$skill_link" "vendor skill $link_name not expected in $surface"
+        if ! skill_surface_expected "$surface" "$record_scope" "$record_pi_core" "$active_scopes" ||
+          { [ "$surface" = .claude/skills ] && managed_surface_skill_is_shadowed "$link_name" "$active_scopes"; }; then
+          managed_surface_prune_link "$mode" "$skill_link" "skill $link_name not expected in $surface"
         fi
-      done < <(skill_catalog_vendor_records "$catalog" "$repo_dir")
-      if [ -z "$matched" ]; then
-        case "$skill_target" in
-        "$repo_dir"/vendor/*/skills/*)
-          managed_surface_prune_link "$mode" "$skill_link" "orphan vendor skill $link_name from $surface"
-          ;;
-        esac
-      fi
+        break
+      done <<<"$records"
+      [ -z "$matched" ] || continue
+      managed_surface_path_in_repo "$skill_target" "$repo_dir" || continue
+      case "$skill_target" in
+      "$repo_dir"/skills/*/* | "$repo_dir"/vendor/*/skills/*)
+        managed_surface_prune_link "$mode" "$skill_link" "orphan skill $link_name from $surface"
+        ;;
+      esac
     done
+  done
+}
+
+# Claude commands are retired (ADR-0037): every commands/* link into this
+# checkout goes; files and foreign links stay.
+managed_surface_prune_repo_command_links() {
+  local mode="$1"
+  local repo_dir="$2"
+  local home_dir="$3"
+  local commands_dir command_link
+
+  managed_surface_selected .claude/commands || return 0
+  commands_dir="$(managed_surface_dir "$home_dir" .claude/commands)"
+  [ -d "$commands_dir" ] || return 0
+  for command_link in "$commands_dir"/*; do
+    [ -L "$command_link" ] || continue
+    managed_surface_path_in_repo "$(readlink "$command_link")" "$repo_dir" || continue
+    managed_surface_prune_link "$mode" "$command_link" "retired Claude command $(basename "$command_link")"
   done
 }
 
