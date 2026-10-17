@@ -7,6 +7,7 @@
 - Status: IMPLEMENTED
 - Commit / branch: `main`, etabli `9a3b68a4..ec002663`; galerieclient `ed46bec`, `6776417`, `4fe7124`; lea-folio `bf73fbe`, `a7d8b56`, `2287808`, `629e840`; chantier-proof-change-orders `ddd5ae9`, `7c0d9a1`, `a22da16`; steam-demo-brief `29ebc7b`, `a8f6540`, `ccdad70`; anthonyguimard `aea9904`; kibun `92c5bcc`; saas-lab `b73b605`
 - Workflow initiative: none
+- Pushed hashes after rebase on origin/main: galerieclient `f75bda9`, `767ff30`, `f031db6`; lea-folio `3866404`, `eb3c2bd`, `a4f4024`, `dc1d022`; chantier `231896b`, `6db5717`, `73d7b61`; steam `9549ad2`, `3bbcfde`, `6dfbd82`; anthonyguimard, saas-lab unchanged; kibun has no remote (local only)
 
 ## Outcome
 - `scripts/deploy-workflow --prune` moves a retired path only when it is a non-empty regular file whose blob exists in etabli's object database; project-authored, empty, symlinked or directory paths are CONFLICT unless `--prune-foreign` (requires `--prune`).
