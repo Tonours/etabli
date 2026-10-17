@@ -11,18 +11,15 @@
 
 ## Workflow Contract
 - Route:
-- Pattern: direct | localize-repair-validate | react | self-refine | planner-builder-evaluator | parallel-sections | tree-search | scheduled-idempotent
 - Role:
-- Goal verifier:
-- Budget (iterations/time/tools; model-token totals are telemetry, never a stop condition):
-- Context reset:
-- Escalation:
+- Tier: small | standard | high-risk
+- Budget (iterations/time/tools; token totals are telemetry, never a stop condition):
 - Stop condition:
 - Required evidence:
 
 ## Acceptance Criteria
-Unique AC-ID [product|process|judgment]: ...; product Proof: action,result[,side_effect].
--
+One line each: `AC-n [product|process|judgment]: criterion`; a product AC adds `Proof: action, result[, side effect]`.
+- AC-1:
 
 ## Repos
 - Owner: this repo
@@ -55,8 +52,6 @@ Unique AC-ID [product|process|judgment]: ...; product Proof: action,result[,side
 
 ## Steps
 1.
-2.
-3.
 
 ## Checks
 - command:
@@ -70,10 +65,12 @@ Unique AC-ID [product|process|judgment]: ...; product Proof: action,result[,side
 - YYYY-MM-DD:
 
 ## Review Changes
-- Adversary deltas:
+- Plan adversary (model, `shasum -a 256 PLAN.md` at dispatch, verdict, deltas):
+- Code review and code-diff adversary (reviewers, rounds, verdicts):
+- simplify: / quality:
 
 ## Open Questions
 - None / ...
 
 ## Notes / Handoff
--
+- Branch, sha, done, pending, next action, do-not-redo:
