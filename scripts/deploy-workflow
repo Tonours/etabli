@@ -7,6 +7,7 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd)"
 DRY_RUN=0
 FORCE=0
 PRUNE=0
+PRUNE_FOREIGN=0
 REFRESH_TRACKED=0
 CHECK=0
 LIST=0
@@ -119,7 +120,7 @@ done < <(find "$REPO_DIR/workflow/skills" -maxdepth 1 -type f -name '*.md' -prin
 
 usage() {
   cat <<EOF
-Usage: $(basename "$0") [target-dir] [--dry-run] [--force] [--refresh-tracked] [--prune] [--check] [--list-files]
+Usage: $(basename "$0") [target-dir] [--dry-run] [--force] [--refresh-tracked] [--prune [--prune-foreign]] [--check] [--list-files]
 
 Deploy the Etabli workflow scaffold into a new or existing project.
 
@@ -129,7 +130,10 @@ Options:
   --refresh-tracked With --force, also overwrite tracked scaffold copies (git is the backup;
               AGENTS.md, docs/project-context.md, scripts, symlinks and files with
               uncommitted changes are kept)
-  --prune     Move retired scaffold files to backups; tracked ones also leave the index
+  --prune     Move retired scaffold files etabli shipped to backups; tracked ones also
+              leave the index. Project-authored copies, symlinks and directories at a
+              retired path are conflicts
+  --prune-foreign With --prune, also move those project-owned retired paths
   --check     Report drift between source templates and deployed files without writing
   --list-files List scaffold FILES entries as src|dest (repo-relative src) without writing
   -h, --help  Show this help
@@ -157,6 +161,9 @@ while [ "$#" -gt 0 ]; do
       ;;
     --prune)
       PRUNE=1
+      ;;
+    --prune-foreign)
+      PRUNE_FOREIGN=1
       ;;
     --check)
       CHECK=1
@@ -193,6 +200,11 @@ fi
 
 if [ "$REFRESH_TRACKED" -eq 1 ] && [ "$FORCE" -eq 0 ]; then
   printf -- '--refresh-tracked requires --force\n' >&2
+  exit 2
+fi
+
+if [ "$PRUNE_FOREIGN" -eq 1 ] && [ "$PRUNE" -eq 0 ]; then
+  printf -- '--prune-foreign requires --prune\n' >&2
   exit 2
 fi
 
@@ -454,11 +466,37 @@ write_file() {
   WRITTEN=$((WRITTEN + 1))
 }
 
+has_staged_change() {
+  if git -C "$TARGET_DIR" rev-parse --verify -q HEAD >/dev/null 2>&1; then
+    ! git -C "$TARGET_DIR" diff --cached --quiet HEAD -- "$1"
+  else
+    is_tracked "$1"
+  fi
+}
+
+shipped_by_etabli() {
+  local destination_path="$TARGET_DIR/$1"
+  local blob
+
+  [ -f "$destination_path" ] && [ ! -L "$destination_path" ] || return 1
+  blob="$(git hash-object --no-filters -- "$destination_path")" || return 1
+  git -C "$REPO_DIR" cat-file -e "$blob^{blob}" 2>/dev/null
+}
+
 preflight_prune() {
-  local relative_path parent_path physical_root physical_parent
+  local relative_path parent_path physical_root physical_parent destination_path
+  local in_work_tree=0
 
   physical_root="$(cd "$TARGET_DIR" >/dev/null 2>&1 && pwd -P)"
+  if git -C "$TARGET_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    in_work_tree=1
+  fi
   for relative_path in "${RETIRED_FILES[@]}"; do
+    if [ "$in_work_tree" -eq 1 ] && has_staged_change "$relative_path"; then
+      status_line CONFLICT "$relative_path has staged changes; commit or unstage them before --prune"
+      CONFLICTS=$((CONFLICTS + 1))
+      continue
+    fi
     parent_path="$TARGET_DIR/$(dirname "$relative_path")"
     [ -d "$parent_path" ] || continue
     physical_parent="$(cd "$parent_path" >/dev/null 2>&1 && pwd -P)"
@@ -470,8 +508,9 @@ preflight_prune() {
         continue
         ;;
     esac
-    if is_tracked "$relative_path" && ! git -C "$TARGET_DIR" diff --cached --quiet HEAD -- "$relative_path"; then
-      status_line CONFLICT "$relative_path has staged changes; commit or unstage them before --prune"
+    destination_path="$TARGET_DIR/$relative_path"
+    if [ "$PRUNE_FOREIGN" -eq 0 ] && { [ -e "$destination_path" ] || [ -L "$destination_path" ]; } && ! shipped_by_etabli "$relative_path"; then
+      status_line CONFLICT "$relative_path is not a copy etabli shipped; review it, then rerun with --prune-foreign"
       CONFLICTS=$((CONFLICTS + 1))
     fi
   done
@@ -482,7 +521,17 @@ prune_file() {
   local destination_path="$TARGET_DIR/$relative_path"
   local backup
 
-  [ -e "$destination_path" ] || [ -L "$destination_path" ] || return 0
+  if [ ! -e "$destination_path" ] && [ ! -L "$destination_path" ]; then
+    is_tracked "$relative_path" || return 0
+    if [ "$DRY_RUN" -eq 1 ]; then
+      status_line WOULD_UNINDEX "$relative_path"
+    else
+      git -C "$TARGET_DIR" rm -r -q --cached -- "$relative_path"
+      status_line UNINDEX "$relative_path"
+      REMOVED=$((REMOVED + 1))
+    fi
+    return 0
+  fi
 
   if [ "$DRY_RUN" -eq 1 ]; then
     if is_tracked "$relative_path"; then
@@ -494,7 +543,7 @@ prune_file() {
   fi
 
   if is_tracked "$relative_path"; then
-    git -C "$TARGET_DIR" rm -q --cached -- "$relative_path"
+    git -C "$TARGET_DIR" rm -r -q --cached -- "$relative_path"
     status_line GIT_RM "$relative_path"
   fi
   backup="$(backup_path "$destination_path")"
