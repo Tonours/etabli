@@ -1,13 +1,13 @@
 ---
 name: plan-implement
-description: Plan, review, then implement, shipping only a READY PLAN.md. Use for multi-step work that needs a plan; not for single-step tasks or plan-free fixes.
+description: Plans, reviews, then implements, shipping only a READY PLAN.md. Use for multi-step work that needs a plan; not for single-step tasks or plan-free fixes.
 ---
 <!-- GENERATED:adapter-sync:start -->
 skill: plan-implement
 harness: pi
 canonical: pi/skills/plan-implement/SKILL.md
 name: plan-implement
-description: Plan, review, then implement, shipping only a READY PLAN.md. Use for multi-step work that needs a plan; not for single-step tasks or plan-free fixes.
+description: Plans, reviews, then implements, shipping only a READY PLAN.md. Use for multi-step work that needs a plan; not for single-step tasks or plan-free fixes.
 <!-- GENERATED:adapter-sync:end -->
 
 # Plan Implement
@@ -26,6 +26,6 @@ Rules:
 - Do not create `REVIEW.md`.
 - After focused checks, run implementation-loop 12b on this diff and record
   `simplify: clean` or `simplify: removed N`. Then run 12c (`code-quality` when
-  exposed, else the narrowest domain skill or 1-3 local siblings) and append
-  `quality_completed` (`status: pass`, or `status: unavailable` and stop
-  before completion if no pass exists).
+  exposed, else the narrowest domain skill or 1-3 local siblings) and record
+  `quality: pass`, or `quality: unavailable` and stop before completion if no
+  pass exists.

@@ -1,6 +1,6 @@
 ---
 name: react-doctor-100
-description: Run react-doctor on React codebases and iteratively fix diagnosed issues until the project reaches a verified score of 100 without shortcuts. Use when the user asks to run `npx react-doctor@latest`, improve React project health, fix react-doctor findings, chase a react-doctor score, audit React performance/security/correctness/accessibility/bundle/architecture issues, or create a `/goal` to keep fixing a React project until react-doctor is clean.
+description: Runs react-doctor on React codebases and iteratively fixes diagnosed issues until the project reaches a verified score of 100 without shortcuts. Use when the user asks to run `npx react-doctor@latest`, improve React project health, fix react-doctor findings, chase a react-doctor score, audit React performance/security/correctness/accessibility/bundle/architecture issues, or create a `/goal` to keep fixing a React project until react-doctor is clean.
 ---
 
 # React Doctor 100

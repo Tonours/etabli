@@ -1,13 +1,13 @@
 ---
 name: code-quality
-description: Run the bounded convention and stack-quality pass. Use after implementation or during review; not for feature work or deep refactors.
+description: Runs the bounded convention and stack-quality pass on a diff. Use after implementation or during review; not for feature work or deep refactors.
 ---
 <!-- GENERATED:adapter-sync:start -->
 skill: code-quality
 harness: pi
 canonical: pi/skills/code-quality/SKILL.md
 name: code-quality
-description: Run the bounded convention and stack-quality pass. Use after implementation or during review; not for feature work or deep refactors.
+description: Runs the bounded convention and stack-quality pass on a diff. Use after implementation or during review; not for feature work or deep refactors.
 <!-- GENERATED:adapter-sync:end -->
 
 # Code Quality

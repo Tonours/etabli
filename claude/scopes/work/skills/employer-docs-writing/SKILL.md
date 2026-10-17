@@ -1,6 +1,6 @@
 ---
 name: employer-docs-writing
-description: Write or rewrite pages for the employer Mintlify documentation (~/work/docs) in the corpus voice; use for any new page, section, rewrite or review of employer docs content.
+description: Writes or rewrites pages for the employer Mintlify documentation (~/work/docs) in the corpus voice. Use for any new page, section, rewrite or review of employer docs content.
 ---
 
 # employer-docs-writing — voice and shape of the employer documentation

@@ -1,13 +1,13 @@
 ---
 name: implement
-description: Implement an existing READY PLAN.md without replanning. Use when a READY plan should be built; not for planning, design, or unplanned fixes.
+description: Implements an existing READY PLAN.md without replanning. Use when a READY plan should be built; not for planning, design, or unplanned fixes.
 ---
 <!-- GENERATED:adapter-sync:start -->
 skill: implement
 harness: pi
 canonical: pi/skills/implement/SKILL.md
 name: implement
-description: Implement an existing READY PLAN.md without replanning. Use when a READY plan should be built; not for planning, design, or unplanned fixes.
+description: Implements an existing READY PLAN.md without replanning. Use when a READY plan should be built; not for planning, design, or unplanned fixes.
 <!-- GENERATED:adapter-sync:end -->
 
 # Implement
@@ -26,6 +26,6 @@ Rules:
   task, run plan-loop first (implementation-loop.md steps 1–2).
 - After focused checks, run implementation-loop 12b on this diff and record
   `simplify: clean` or `simplify: removed N`. Then run 12c (`code-quality` when
-  exposed, else the narrowest domain skill or 1-3 local siblings) and append
-  `quality_completed` (`status: pass`, or `status: unavailable` and stop
-  before completion if no pass exists).
+  exposed, else the narrowest domain skill or 1-3 local siblings) and record
+  `quality: pass`, or `quality: unavailable` and stop before completion if no
+  pass exists.

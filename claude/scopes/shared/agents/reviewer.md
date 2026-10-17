@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: "Review a bounded diff in fresh read-only context. Parent names Axis: Logic or Axis: Spec. Use for correctness, regression, safety, plan-drift, convention/pattern fit, and validation findings that need concrete file:line evidence."
+description: "Reviews a bounded diff in fresh read-only context; the parent names Axis: Logic or Axis: Spec. Use for correctness, regression, safety, plan-drift, convention/pattern fit, and validation findings that need concrete file:line evidence."
 model: claude-sonnet-5-5
 effort: medium
 maxTurns: 24

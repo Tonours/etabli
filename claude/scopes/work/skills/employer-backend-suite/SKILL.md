@@ -1,6 +1,6 @@
 ---
 name: employer-backend-suite
-description: Route employer server, agent-nodejs, BFF, MCP, OAuth/JWT, permissions v4, workflow execution and Zendesk work to existing KB knowledge.
+description: Routes employer server, agent-nodejs, BFF, MCP, OAuth/JWT, permissions v4, workflow execution and Zendesk work to existing KB notes. Use before investigating or changing those backend areas; not for frontend Ember work.
 version: 0.1.0
 author: Anthony Guimard
 license: Proprietary

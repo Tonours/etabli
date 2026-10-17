@@ -1,6 +1,6 @@
 ---
 name: coolify
-description: Manage Coolify Cloud via its official CLI (servers, apps, databases, deployments, logs, env, backups). Use only when explicitly asked via /skill:coolify; not for non-Coolify infra.
+description: Manages Coolify Cloud via its official CLI (servers, apps, databases, deployments, logs, env, backups). Use only when explicitly asked via /skill:coolify; not for non-Coolify infra.
 disable-model-invocation: true
 ---
 

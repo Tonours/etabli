@@ -1,5 +1,5 @@
 ---
-description: Create or review a PLAN.md, stopping at CHALLENGED or READY. Use when starting planned work, drafting, hardening, or reviewing a draft plan; not for implementing.
+description: Creates or reviews a PLAN.md, stopping at CHALLENGED or READY. Use when starting planned work, drafting, hardening, or reviewing a draft plan; not for implementing.
 argument-hint: <task description>
 allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, Skill]
 ---
@@ -7,7 +7,7 @@ allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, Skill]
 skill: plan-loop
 harness: claude
 canonical: workflow/skills/plan-loop.md
-description: Create or review a PLAN.md, stopping at CHALLENGED or READY. Use when starting planned work, drafting, hardening, or reviewing a draft plan; not for implementing.
+description: Creates or reviews a PLAN.md, stopping at CHALLENGED or READY. Use when starting planned work, drafting, hardening, or reviewing a draft plan; not for implementing.
 pointer: Adapter for the `plan-loop` skill. Read and follow the shared contract in `workflow/skills/plan-loop.md`. If the contract is missing in the workspace, try `~/.pi/agent/` then `~/.claude/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 <!-- GENERATED:adapter-sync:end -->
 
