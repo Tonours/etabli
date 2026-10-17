@@ -90,6 +90,9 @@ grep -qF "unmapped-newcomer" "$FIX/repo/claude/settings.skill-overrides.json" &&
 expect_ok "personal skill governed in live settings" "$FIX/home" "$FIX/repo"
 set_live_state unmapped-newcomer on
 expect_fail "personal skill on in live settings" "$FIX/home" "$FIX/repo" 'personal skill unmapped-newcomer is "on"'
+printf '%s\n' '["unmapped-newcomer"]' >"$FIX/repo/claude/machine-local-skills.json"
+expect_ok "machine-local personal skill on in live settings" "$FIX/home" "$FIX/repo"
+rm "$FIX/repo/claude/machine-local-skills.json"
 set_live_state unmapped-newcomer user-invocable-only
 rm -rf "$FIX/home/.claude/skills/unmapped-newcomer"
 expect_fail "stale personal key" "$FIX/home" "$FIX/repo" "map key with no surface skill: unmapped-newcomer"
@@ -230,6 +233,11 @@ if (JSON.stringify(s.skillOverrides) !== want || s.theme !== "dark") { console.e
 second="$(node "$SYNC" "$FIX/sync/settings.json" "$FIX/sync/tracked.json" 0 t2 deploy)" || fail "settings sync second pass failed"
 printf '%s\n' "$second" | grep -q "^OK  *Claude tracked settings" || fail "settings sync second pass must be a no-op, got: $second"
 [ ! -e "$FIX/sync/settings.json.bak.t2" ] || fail "settings sync no-op pass must not write a backup"
+printf '%s\n' '["machine-on"]' >"$FIX/sync/machine-local-skills.json"
+printf '%s\n' '{"skillOverrides":{"machine-on":"on","personal-on":"on"}}' >"$FIX/sync/machine.json"
+node "$SYNC" "$FIX/sync/machine.json" "$FIX/sync/tracked.json" 0 t3 deploy >/dev/null || fail "settings sync machine-local pass failed"
+[ "$(jq -c .skillOverrides "$FIX/sync/machine.json")" = '{"machine-on":"on","repo-skill":"on"}' ] ||
+  fail "settings sync must keep listed machine-local on keys and drop other personal on keys: $(jq -c .skillOverrides "$FIX/sync/machine.json")"
 printf '%s\n' '{"skillOverrides":{"repo-skill":"on"},"autoMemoryEnabled":false}' >"$FIX/sync/tracked-memory.json"
 node "$SYNC" "$FIX/sync/settings.json" "$FIX/sync/tracked-memory.json" 0 t3 deploy >/dev/null || fail "settings sync must accept a tracked autoMemoryEnabled key"
 node -e '

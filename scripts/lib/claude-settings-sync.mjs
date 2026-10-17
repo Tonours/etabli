@@ -162,13 +162,15 @@ function surfaceSkillNames(skillsDir) {
 }
 
 const surfaceNames = surfaceSkillNames(path.join(path.dirname(localPath), "skills"));
+const machineLocalPath = path.join(path.dirname(trackedPath), "machine-local-skills.json");
+const machineLocalOn = new Set(fs.existsSync(machineLocalPath) ? readJson(machineLocalPath, "machine-local skill list") : []);
 const mergedMap = Object.fromEntries(
   [
     ...Object.entries(liveMap).filter(
       ([name, state]) =>
         !Object.hasOwn(trackedMap, name) &&
         STATES.has(state) &&
-        state !== "on" &&
+        (state !== "on" || machineLocalOn.has(name)) &&
         (surfaceNames === null || surfaceNames.has(name)),
     ),
     ...Object.entries(trackedMap),
