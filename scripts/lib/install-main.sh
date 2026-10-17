@@ -10,7 +10,6 @@ set -euo pipefail
 BOOTSTRAP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 . "$BOOTSTRAP_DIR/lib/pi-paths.sh"
 . "$BOOTSTRAP_DIR/lib/prefer-cursor-agent.sh"
-. "$BOOTSTRAP_DIR/lib/managed-surfaces.sh"
 
 # ============================================================================
 # VERSIONS (centralized for maintenance)
@@ -35,18 +34,9 @@ print_success() { printf "${GREEN}[ok]${NC} %s\n" "$1"; }
 print_warning() { printf "${YELLOW}[!]${NC} %s\n" "$1"; }
 print_error() { printf "${RED}[x]${NC} %s\n" "$1"; }
 
-managed_surface_status() {
-    local status="$1"
-    local message="$2"
-    case "$status" in
-    WARN | MISSING | KEEP) print_warning "$message" ;;
-    *) print_success "$message" ;;
-    esac
-}
-
 converge_agent_surfaces() {
     ETABLI_DEPLOY_CALLER=install ETABLI_SCOPE="${ETABLI_SCOPE:-}" \
-        "$BOOTSTRAP_DIR/deploy-agent-workflow" --apply --home "$HOME"
+        "${NODE_CMD[@]}" "$BOOTSTRAP_DIR/deploy-agent-workflow" --apply --home "$HOME"
 }
 
 has_valid_rtk() {
@@ -160,21 +150,6 @@ select_node_runtime() {
 
     print_error "Node.js and npm are required but were not found"
     print_error "Install them with asdf, then rerun: asdf plugin add nodejs; asdf install nodejs latest"
-    return 1
-}
-
-# Script install helper (symlink to repo)
-install_script() {
-    local script="$1"
-    local src="$SCRIPT_DIR/$script"
-    local dst="$HOME/.local/bin/$script"
-
-    if [ -f "$src" ]; then
-        chmod +x "$src"
-        ln -sf "$src" "$dst"
-        print_success "$script linked"
-        return 0
-    fi
     return 1
 }
 
@@ -411,9 +386,6 @@ print_step "Installing dev scripts..."
 mkdir -p ~/.local/bin
 
 append_path_entry "$HOME/.local/bin"
-
-install_script "fix-links" || true
-install_script "deploy-workflow" || true
 
 prefer_cursor_agent_remove_grok_collision "$HOME"
 for rcfile in ~/.bashrc ~/.zshrc; do

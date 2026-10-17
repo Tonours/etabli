@@ -1,6 +1,7 @@
 # profile	group	label	target
 core	pi	pi-tests	builtin:pi-tests
 core	shell-docs	deploy-agent-workflow-smoke	tests/deploy-agent-workflow-smoke.sh
+core	shell-docs	surfaces-test	tests/surfaces.test.mjs
 core	shell-docs	workflow-contract-coverage-smoke	tests/workflow-contract-coverage-smoke.sh
 core	shell-docs	plan-cleanup-smoke	tests/plan-cleanup-smoke.sh
 core	pi	pi-typecheck	tests/pi-typecheck-smoke.sh
@@ -26,12 +27,9 @@ full	shell-docs	pi-review-hunter-smoke	tests/pi-review-hunter-smoke.sh
 full	pi	pi-import-smoke	builtin:pi-import-smoke
 full	shell-docs	fix-links-smoke	tests/fix-links-smoke.sh
 full	shell-docs	install-smoke	tests/install-smoke.sh
-full	shell-docs	skill-catalog-name-smoke	tests/skill-catalog-name-smoke.sh
 full	shell-docs	skill-tree-hash-smoke	tests/skill-tree-hash-smoke.sh
 full	shell-docs	sync-vendor-subpath-smoke	tests/sync-vendor-subpath-smoke.sh
 full	shell-docs	claude-skill-load-check-smoke	tests/claude-skill-load-check-smoke.sh
 full	shell-docs	pi-skill-load-check-smoke	tests/pi-skill-load-check-smoke.sh
-full	shell-docs	skill-surface-policy-smoke	tests/skill-surface-policy-smoke.sh
-full	shell-docs	vendor-prune-modes-smoke	tests/vendor-prune-modes-smoke.sh
 full	shell-docs	skills-lock-coverage-smoke	tests/skills-lock-coverage-smoke.sh
 full	shell-docs	claude-statusline-smoke	tests/claude-statusline-smoke.sh

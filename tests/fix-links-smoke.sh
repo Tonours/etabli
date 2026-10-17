@@ -3,7 +3,9 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 SCRIPT="$ROOT_DIR/scripts/check-fix-symlinks.sh"
-TMP_HOME="$(mktemp -d)"
+# asdf shims resolve node from HOME, which the fixtures replace.
+PATH="$(dirname "$(node -e 'process.stdout.write(process.execPath)')"):$PATH"
+TMP_HOME="$(cd -P "$(mktemp -d)" && pwd)"
 ORIGINAL_NODE_MODULES_TARGET=""
 ORIGINAL_NODE_MODULES_EXISTS=0
 
@@ -150,17 +152,6 @@ assert_link "$TMP_HOME/.claude/skills/employer-backend-suite" "$ROOT_DIR/skills/
 assert_not_exists "$TMP_HOME/.pi/agent/skills/adonisjs-suite"
 assert_not_exists "$TMP_HOME/.claude/skills/adonisjs-suite"
 
-mkdir -p "$TMP_HOME/.grok/bin"
-printf 'grok-bin\n' >"$TMP_HOME/.grok/bin/grok-macos"
-ln -s grok-macos "$TMP_HOME/.grok/bin/grok"
-ln -s grok-macos "$TMP_HOME/.grok/bin/agent"
-HOME="$TMP_HOME" "$SCRIPT" --fix --verbose >/dev/null
-assert_not_exists "$TMP_HOME/.grok/bin/agent"
-if [ ! -L "$TMP_HOME/.grok/bin/grok" ]; then
-  printf 'expected ~/.grok/bin/grok to remain after removing colliding agent\n' >&2
-  exit 1
-fi
-
 mkdir -p "$TMP_HOME/.pi/extensions"
 printf 'legacy extension\n' >"$TMP_HOME/.pi/extensions/legacy.txt"
 HOME="$TMP_HOME" "$SCRIPT" --fix --verbose >/dev/null
@@ -188,13 +179,8 @@ FAKE_REPO="$TMP_HOME/fake-repo"
 FAKE_HOME="$TMP_HOME/fake-home"
 MISSING_SOURCE_OUTPUT="$TMP_HOME/missing-source.out"
 mkdir -p "$FAKE_REPO/scripts/lib" "$FAKE_HOME/.claude/skills"
-cp "$SCRIPT" "$FAKE_REPO/scripts/check-fix-symlinks.sh"
-cp "$ROOT_DIR/scripts/lib/pi-paths.sh" "$FAKE_REPO/scripts/lib/pi-paths.sh"
-cp "$ROOT_DIR/scripts/lib/claude-config-dir.sh" "$FAKE_REPO/scripts/lib/claude-config-dir.sh"
-cp "$ROOT_DIR/scripts/lib/etabli-scope.sh" "$FAKE_REPO/scripts/lib/etabli-scope.sh"
-cp "$ROOT_DIR/scripts/lib/prefer-cursor-agent.sh" "$FAKE_REPO/scripts/lib/prefer-cursor-agent.sh"
-cp "$ROOT_DIR/scripts/lib/managed-surfaces.sh" "$FAKE_REPO/scripts/lib/managed-surfaces.sh"
-chmod +x "$FAKE_REPO/scripts/check-fix-symlinks.sh"
+cp "$SCRIPT" "$ROOT_DIR/scripts/deploy-agent-workflow" "$FAKE_REPO/scripts/"
+cp "$ROOT_DIR/scripts/lib/surfaces.mjs" "$FAKE_REPO/scripts/lib/surfaces.mjs"
 ln -s "$FAKE_REPO/pi/skills/ghost" "$FAKE_HOME/.claude/skills/ghost"
 
 if HOME="$FAKE_HOME" "$FAKE_REPO/scripts/check-fix-symlinks.sh" --fix --verbose >"$MISSING_SOURCE_OUTPUT" 2>&1; then
@@ -207,51 +193,5 @@ assert_contains "$MISSING_SOURCE_OUTPUT" "script deploy-workflow source missing"
 assert_contains "$MISSING_SOURCE_OUTPUT" "unresolved"
 assert_not_exists "$FAKE_HOME/.config/nvim"
 assert_not_exists "$FAKE_HOME/.claude/skills/ghost"
-
-# A failed backup aborts the repair: the user's entry is never replaced.
-BLOCKED_HOME="$TMP_HOME/blocked-backup"
-mkdir -p "$BLOCKED_HOME/skills"
-printf 'mine\n' >"$BLOCKED_HOME/skills/plan-loop"
-printf 'not a directory\n' >"$BLOCKED_HOME/skills.bak"
-if (
-  FIX=1 TIMESTAMP=smoke ISSUES=0 FIXED=0 REPO_DIR="$ROOT_DIR"
-  . "$ROOT_DIR/scripts/lib/managed-surfaces.sh"
-  managed_surface_reconcile_link check "$ROOT_DIR/skills/shared/plan-loop" "$BLOCKED_HOME/skills/plan-loop" "blocked plan-loop"
-) >/dev/null 2>&1; then
-  printf 'expected --fix to fail when the backup cannot be written\n' >&2
-  exit 1
-fi
-[ -f "$BLOCKED_HOME/skills/plan-loop" ] && [ ! -L "$BLOCKED_HOME/skills/plan-loop" ] || {
-  printf 'failed backup still replaced the user entry\n' >&2
-  exit 1
-}
-
-# A target that only looks like the checkout (`$REPO_DIR/../x`) is foreign:
-# --fix moves it aside instead of deleting it.
-ESCAPE_HOME="$TMP_HOME/escape-link"
-mkdir -p "$ESCAPE_HOME/skills"
-ln -s "$ROOT_DIR/../personal-skill" "$ESCAPE_HOME/skills/plan-loop"
-(
-  FIX=1 TIMESTAMP=smoke ISSUES=0 FIXED=0 REPO_DIR="$ROOT_DIR"
-  . "$ROOT_DIR/scripts/lib/managed-surfaces.sh"
-  managed_surface_reconcile_link check "$ROOT_DIR/skills/shared/plan-loop" "$ESCAPE_HOME/skills/plan-loop" "escape plan-loop"
-) >/dev/null
-[ "$(readlink "$ESCAPE_HOME/skills.bak/plan-loop.bak.smoke")" = "$ROOT_DIR/../personal-skill" ] || {
-  printf 'expected --fix to move a ..-escaping link aside\n' >&2
-  exit 1
-}
-ln -s "$ROOT_DIR/skills/../../personal-skill" "$ESCAPE_HOME/skills/personal"
-mkdir -p "$ESCAPE_HOME/.claude"
-ln -s "$ESCAPE_HOME/skills" "$ESCAPE_HOME/.claude/skills"
-(
-  FIX=1 ISSUES=0 FIXED=0 REPO_DIR="$ROOT_DIR" MANAGED_CLAUDE_ROOT="$ESCAPE_HOME/.claude"
-  . "$ROOT_DIR/scripts/lib/skill-catalog.sh"
-  . "$ROOT_DIR/scripts/lib/managed-surfaces.sh"
-  managed_surface_prune_skill_links check "$ROOT_DIR" "$ESCAPE_HOME" "$ROOT_DIR/workflow/runtime/skill-surface.tsv" "shared"
-) >/dev/null
-[ -L "$ESCAPE_HOME/skills/personal" ] || {
-  printf 'orphan prune deleted a ..-escaping foreign link\n' >&2
-  exit 1
-}
 
 printf 'fix-links smoke test: ok\n'
