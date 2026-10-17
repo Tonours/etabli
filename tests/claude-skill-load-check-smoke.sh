@@ -180,6 +180,9 @@ fs.writeFileSync(
 );
 NODE
 expect_fail "enabled plugin ships skills" "$FIX/home" "$FIX/repo" "enabled plugin demo@marketplace ships skills"
+printf '%s\n' '["demo@marketplace"]' >"$FIX/repo/claude/machine-local-plugins.json"
+expect_ok "machine-local plugin may ship skills" "$FIX/home" "$FIX/repo"
+rm "$FIX/repo/claude/machine-local-plugins.json"
 
 build_fixture "$FIX/home" "$FIX/repo"
 node - "$FIX/home" <<'NODE'
