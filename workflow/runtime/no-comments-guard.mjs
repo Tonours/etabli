@@ -242,6 +242,11 @@ export function collectCommentLines(text, family) {
 				if (word === "esac" && caseDepth > 0) caseDepth -= 1;
 			}
 			if (closer === "`" && char === "`") return index + 1;
+			if (family === "shell" && source.startsWith("$(", index)) {
+				index = skipSubstitution(index);
+				lineCode += "S";
+				continue;
+			}
 			if (closer === ")" && char === "(") depth += 1;
 			if (closer === ")" && char === ")") {
 				if (depth === 0 && caseDepth === 0) return index + 1;
