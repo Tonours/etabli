@@ -341,7 +341,8 @@ printf 'witness\n' >"$FOREIGN_PROJECT/scripts/project-verification/witness"
 ln -s missing-target "$FOREIGN_PROJECT/scripts/lib/workflow-events.mjs"
 shipped_copy README.md "$TMP_DIR/shipped-readme"
 ln -s "$TMP_DIR/shipped-readme" "$FOREIGN_PROJECT/scripts/workflow-event"
-FOREIGN_SET="scripts/lib/predicates.mjs scripts/project-verification scripts/lib/workflow-events.mjs scripts/workflow-event"
+: >"$FOREIGN_PROJECT/scripts/lib/review-rounds.jq"
+FOREIGN_SET="scripts/lib/predicates.mjs scripts/project-verification scripts/lib/workflow-events.mjs scripts/workflow-event scripts/lib/review-rounds.jq"
 for mode in --dry-run ""; do
   if "$SCRIPT" "$FOREIGN_PROJECT" --prune $mode >"$TMP_DIR/foreign.out" 2>&1; then
     printf 'expected prune to refuse project-owned retired paths\n' >&2
@@ -368,7 +369,7 @@ for retired in workflow/events.md $FOREIGN_SET; do
   assert_not_exists "$FOREIGN_PROJECT/$retired"
   assert_backup "$FOREIGN_PROJECT/$retired"
 done
-assert_contains "$TMP_DIR/foreign-forced.out" "5 removed"
+assert_contains "$TMP_DIR/foreign-forced.out" "6 removed"
 assert_file "$TMP_DIR/shipped-readme"
 
 PRUNE_LINKED="$TMP_DIR/prune-linked"
@@ -470,6 +471,8 @@ if [ -n "$(git -C "$UNINDEX_PROJECT" ls-files workflow/events.md scripts/project
   exit 1
 fi
 assert_backup "$UNINDEX_PROJECT/scripts/project-verification"
+"$SCRIPT" "$UNINDEX_PROJECT" --prune >"$TMP_DIR/unindex-again.out"
+assert_contains "$TMP_DIR/unindex-again.out" "0 removed"
 
 GONE_PROJECT="$TMP_DIR/gone-project"
 "$SCRIPT" "$GONE_PROJECT" >/dev/null
