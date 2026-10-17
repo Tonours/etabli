@@ -1,6 +1,6 @@
 ---
 name: adversary
-description: Red-team a PLAN.md via Pi, or implementation diffs, under the shared risk-tiered independence rules. Use when this session needs a hostile sample (stress-test, devil's advocate); not for authoring plans, draft reviews, or the final verdict.
+description: Red-teams a PLAN.md via a cross-family model, or implementation diffs, under the shared risk-tiered independence rules. Use when this session needs a hostile sample (stress-test, devil's advocate); not for authoring plans, draft reviews, or the final verdict.
 argument-hint: "[optional: path to the plan file, defaults to ./PLAN.md; or --code-diff for post-implementation]"
 allowed-tools: [Read, Edit, Glob, Bash]
 ---
@@ -8,7 +8,7 @@ allowed-tools: [Read, Edit, Glob, Bash]
 skill: adversary
 harness: claude
 canonical: workflow/skills/adversary.md
-description: Red-team a PLAN.md via Pi, or implementation diffs, under the shared risk-tiered independence rules. Use when this session needs a hostile sample (stress-test, devil's advocate); not for authoring plans, draft reviews, or the final verdict.
+description: Red-teams a PLAN.md via a cross-family model, or implementation diffs, under the shared risk-tiered independence rules. Use when this session needs a hostile sample (stress-test, devil's advocate); not for authoring plans, draft reviews, or the final verdict.
 pointer: Adapter for the `adversary` skill. Read and follow the shared contract in `workflow/skills/adversary.md`. If the contract is missing in the workspace, try `~/.pi/agent/` then `~/.claude/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 <!-- GENERATED:adapter-sync:end -->
 

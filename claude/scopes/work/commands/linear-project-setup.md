@@ -1,5 +1,5 @@
 ---
-description: Create a Linear Project plus its prioritized Epics from a spec
+description: Creates a Linear Project plus its prioritized Epics from a spec. Use when a spec should become a Linear project backlog; not for one isolated ticket.
 argument-hint: [spec URL or path + project context]
 allowed-tools: [Read, Glob, Grep, Bash, AskUserQuestion]
 ---

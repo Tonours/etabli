@@ -1,6 +1,6 @@
 ---
 name: linear-project-setup
-description: Turn a tech spec into a Linear Project plus its prioritized Epics, following employer's Project->Epic conventions. Use when the user asks to set up a Linear project from a spec, create a project with epics, or stand up the backlog for a new initiative.
+description: Turns a tech spec into a Linear Project plus its prioritized Epics, following employer's Project->Epic conventions. Use when the user asks to set up a Linear project from a spec, create a project with epics, or stand up the backlog for a new initiative; not for one isolated ticket (linear-ticket-create).
 ---
 
 # Linear Project Setup

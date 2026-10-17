@@ -1,5 +1,5 @@
 ---
-description: Three-pass review of one PR (code-review + thermo-nuclear, then forest:validator as the council) with a dry-run by default
+description: Runs a three-pass review of one PR (code-review + thermo-nuclear, then forest:validator as the council), dry-run by default. Use when a GitHub PR needs the full council review; not for local diffs (review).
 argument-hint: "<PR number or URL> [owner/repo] [--post] [--codex] [--phase-a-model <alias>]"
 allowed-tools: [Bash, Read, Glob, Grep]
 ---

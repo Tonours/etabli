@@ -1,6 +1,6 @@
 ---
 name: worker
-description: "Implement one bounded step from a READY PLAN.md when isolating its file-reading and tool output will save parent context. Write, run the narrowest check, report, then stop."
+description: "Implements one bounded step from a READY PLAN.md: writes, runs the narrowest check, reports, then stops. Use when isolating its file reads and tool output saves parent context; not for planning or review."
 model: claude-sonnet-5-5
 effort: medium
 maxTurns: 40
