@@ -12,7 +12,7 @@ imported below through its deployed link `~/.pi/agent/AGENTS.md`.
 ## Claude Workflow
 - Follow the Etabli workflow (spec, then the route contract); infer the
   route yourself. Claude hooks guard
-  writes only; route classification is library-only (ADR-0014).
+  writes only; routing is the model's reading of `workflow/spec.md` (ADR-0036).
 - `/goal` only for measurable long loops with validation evidence and a cap.
 - Use `/verify-workflow` for workflow evidence; do not shadow native `/verify`.
 - Orchestration parity: `workflow/skills/orchestration.md`; Pi Task* state is

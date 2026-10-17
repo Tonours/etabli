@@ -171,13 +171,10 @@ no additional global skill router.
 
 None. Deletion, production, billing, history rewrite, pushes, and external
 write-back run without a stop (ADR-0032); secrets are never printed or
-committed. Adapter coverage: routes shared by Pi extension and Claude hooks;
-executable classifier `workflow/runtime/workflow-router-core.mjs` via
-runtime-specific adapters.
+committed.
 
-Routing is deterministic code only (the semantic judgment layer was removed);
-actual plan state and the remaining write gates (no-comments, read-only
-agents) stay authoritative code.
+The model routes from the table above (ADR-0036); actual plan state and the
+remaining write gates (no-comments, read-only agents) stay authoritative code.
 
 ## Runtime surfaces
 

@@ -16,7 +16,7 @@ duplicates="$(awk -F '\t' '!/^#/ && NF {print $3}' "$MANIFEST" | sort | uniq -d)
 [ -z "$duplicates" ] || fail "duplicate labels: $duplicates"
 
 while IFS=$'\t' read -r profile group label target; do
-	case "$profile" in core | full | live) ;; *) fail "unknown profile for $label: $profile" ;; esac
+	case "$profile" in core | full) ;; *) fail "unknown profile for $label: $profile" ;; esac
 	case "$group" in shell-docs | pi) ;; *) fail "unknown group for $label: $group" ;; esac
 	[ -n "$label" ] && [ -n "$target" ] || fail "empty label or target"
 	case "$target" in
@@ -27,8 +27,6 @@ while IFS=$'\t' read -r profile group label target; do
 done < <(sed '/^#/d; /^$/d' "$MANIFEST")
 
 for required in \
-	obvault-query-smoke \
-	workflow-autonomous-plan-loop-smoke \
 	shell-syntax \
 	json-config \
 	pi-typecheck; do
@@ -39,9 +37,6 @@ done
 awk -F '\t' '!/^#/ && $1 == "core" && $2 == "pi" && $3 == "pi-audit" && $4 == "builtin:pi-audit" {found=1} END {exit !found}' "$MANIFEST" ||
 	fail "Pi group must enforce bun audit"
 
-expected_live='workflow-cli-smoke
-workflow-real-agent-scenarios'
-
 # The runner must accumulate failures instead of aborting on the first one
 # (ADR-0014 lesson); pin the construct so a revert cannot pass silently.
 runner_source="$(cat "$ROOT_DIR/scripts/verify-agentic-infra")"
@@ -51,26 +46,11 @@ printf '%s\n' "$runner_source" | grep -Fq 'SUMMARY:' ||
 	fail "verify-agentic-infra lost the failure summary"
 printf '%s\n' "$runner_source" | grep -Fq 'fix-links-smoke' ||
 	fail "verify-agentic-infra must name the repo-mutating checks"
-actual_live="$(awk -F '\t' '!/^#/ && $1 == "live" {print $3}' "$MANIFEST")"
-[ "$actual_live" = "$expected_live" ] || fail "live profile membership/order drifted"
-
-actual_nvim="$(awk -F '\t' '!/^#/ && $1 != "live" && $2 == "nvim" {print $3}' "$MANIFEST")"
+actual_nvim="$(awk -F '\t' '!/^#/ && $2 == "nvim" {print $3}' "$MANIFEST")"
 [ -z "$actual_nvim" ] || fail "Nvim checks belong to dotfiles, not Etabli: $actual_nvim"
 
-live_output_file="$(mktemp)"
 stdin_root="$(mktemp -d)"
-trap 'rm -f "$live_output_file"; rm -rf "$stdin_root"' EXIT
-set +e
-env -u RUN_AGENT_CLI_SMOKE -u RUN_REAL_AGENT_SCENARIOS -u RUN_SKILL_RUNTIME_CANARY \
-	"$ROOT_DIR/scripts/verify-agentic-infra" live >"$live_output_file" 2>&1
-live_status=$?
-set -e
-[ "$live_status" -eq 3 ] || fail "live without opt-ins must exit 3, got $live_status"
-grep -Fq 'SKIP live agent proof' "$live_output_file" ||
-	fail "live without opt-ins must report SKIP"
-if grep -Eq '^(RUN|PASS) ' "$live_output_file"; then
-	fail "live without opt-ins must not run or pass a target"
-fi
+trap 'rm -rf "$stdin_root"' EXIT
 
 for group in shell-docs pi; do
 	count="$(grep -Fc "scripts/verify-agentic-infra $group" "$WORKFLOW")"

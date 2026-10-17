@@ -7,10 +7,8 @@ semantics, evidence requirements, stop conditions, and honesty labels.
 
 ## Runtime Adapters
 
-Current capability labels and proof commands: `workflow/runtime-capabilities.json`.
-
-The matrix describes Etabli's managed integrations, Pi and Claude, unless an
-entry explicitly discusses native host tools. Record any observed execution
+Capability claims cover Etabli's managed integrations, Pi and Claude, unless
+they explicitly discuss native host tools. Record any observed execution
 with its scope; a successful local dispatch does not establish support across
 all hosts. Missing general evidence is `unknown`, not proof that the native
 capability is unavailable. Source inspection can correct the scope of a claim
@@ -55,11 +53,6 @@ Prefer structured task state over text:
 3. If neither structured nor text evidence is parseable after a task tool call,
    attempt one recovery continuation, then stop as `blocked` or `unknown` with
    the evidence.
-
-With explicit provider-egress approval, `task-state-fallback` may classify the
-bounded text in step 2. Set `structured_state_available: false`; the runtime
-rejects the call otherwise. Its answer remains `proxy_supported` and cannot
-override structured state or completion evidence.
 
 ## Delegation
 
@@ -108,8 +101,6 @@ contract's completion evidence is present.
 
 ## Runtime Notes
 
-Current capability labels and proof commands: `workflow/runtime-capabilities.json`.
-
 Pi:
 
 - `TaskExecute` requires explicit subagent tracking capability; package presence
@@ -125,9 +116,7 @@ Claude:
 - `/goal` is the native till-done mechanism. Pair the measurable condition
   with an explicit cap (iterations or wall-clock) and record evidence in
   `PLAN.md`, as required by `workflow/spec.md`.
-- Route classification stays library-only
-  (`workflow/runtime/workflow-router-core.mjs`).
-- Hooks do not inject route context, and they do not replace task state or
+- Hooks do not route or inject context, and they do not replace task state or
   completion evidence.
 - Claude has no Pi Task* equivalent unless the active Claude runtime exposes one
   separately.

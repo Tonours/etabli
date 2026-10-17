@@ -67,7 +67,7 @@ It reads only the current repo, never writes, and never deletes. No `PLAN.md` is
 valid state and exits 0. It exits non-zero when any of these hold:
 
 - the plan is older than the threshold (`stale`);
-- the router cannot read its status (`gateVisible: false`) — an unknown word, a
+- the READY gate cannot read its status (`gateVisible: false`) — an unknown word, a
   decorated line such as `Status: READY — all slices done`, or no `Status:` line at
   all. The gate matches `- Status: DRAFT|CHALLENGED|READY` and nothing else; a
   decorated status is rejected until the root plan is repaired or discarded;

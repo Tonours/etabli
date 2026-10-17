@@ -118,7 +118,7 @@ assert_same "$ROOT_DIR/scripts/plan-cleanup" "$NEW_PROJECT/scripts/plan-cleanup"
 
 # Deployed docs must not dangle: every workflow/** reference resolves in the
 # scaffold unless the target is explicitly etabli-only.
-ETABLI_ONLY_REFS='^workflow/(runtime-capabilities\.json$|runtime/|run/|self-improvement/)'
+ETABLI_ONLY_REFS='^workflow/(runtime/|run/|self-improvement/)'
 deployed_refs="$(grep -rhEo --include='*.md' 'workflow/[A-Za-z0-9._/-]+\.(md|json)' "$NEW_PROJECT" | sort -u)"
 [ -n "$deployed_refs" ] || {
   printf 'reference scan found no workflow refs; the check is broken\n' >&2

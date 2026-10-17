@@ -51,20 +51,18 @@ json_config() {
   jq empty \
     "$ROOT_DIR/pi/settings.json" \
     "$ROOT_DIR/pi/agent/settings.json" \
-    "$ROOT_DIR/pi/models.json" \
-    "$ROOT_DIR/workflow/runtime-capabilities.json"
+    "$ROOT_DIR/pi/models.json"
 }
 
 pi_import_smoke() {
   cd "$ROOT_DIR/pi"
   bun -e 'for (const path of [
-    "./extensions/workflow-router.ts",
     "./extensions/prefer-ipv4-dns.ts",
     "./extensions/rtk.ts",
     "./extensions/no-comments.ts",
     "./extensions/lib/pi-runtime.ts",
     "./extensions/lib/rtk-runtime.ts",
-    "./extensions/lib/workflow-router-runtime.ts",
+    "./extensions/workflow-tools.ts",
   ]) await import(path)'
 }
 
@@ -98,8 +96,7 @@ run_selection() {
   out_root="$(mktemp -d "${TMPDIR:-/tmp}/agentic-infra.XXXXXX")"
 
   # Checks run concurrently, but oversubscribing the machine starves
-  # wall-clock-sensitive checks (e.g. the obvault metadata resolver's spawn
-  # budget), so concurrency is capped a couple of slots below the core count.
+  # wall-clock-sensitive checks, so concurrency is capped a couple of slots below the core count.
   local max_jobs
   max_jobs="${AGENTIC_INFRA_JOBS:-$(($(sysctl -n hw.ncpu 2>/dev/null || echo 10) - 2))}"
   [ "$max_jobs" -ge 1 ] || max_jobs=1
@@ -113,12 +110,7 @@ run_selection() {
     case "$selection_kind:$selection" in
       profile:core) [ "$profile" = "core" ] || continue ;;
       profile:full) [ "$profile" = "core" ] || [ "$profile" = "full" ] || continue ;;
-      profile:live) [ "$profile" = "live" ] || continue ;;
-      group:*)
-        if [ "$group" != "$selection" ] || [ "$profile" = "live" ]; then
-          continue
-        fi
-        ;;
+      group:*) [ "$group" = "$selection" ] || continue ;;
       *) printf 'Unknown selection: %s %s\n' "$selection_kind" "$selection" >&2; return 2 ;;
     esac
     found=1
@@ -167,26 +159,9 @@ run_selection() {
   printf 'SUMMARY: %d/%d checks passed\n' "$passed" "$passed"
 }
 
-run_live() {
-  if [ "${RUN_AGENT_CLI_SMOKE:-}" != "1" ] || [ "${RUN_REAL_AGENT_SCENARIOS:-}" != "1" ] || [ "${RUN_SKILL_RUNTIME_CANARY:-}" != "1" ]; then
-    printf 'SKIP live agent proof: set RUN_AGENT_CLI_SMOKE=1, RUN_REAL_AGENT_SCENARIOS=1, and RUN_SKILL_RUNTIME_CANARY=1\n'
-    printf 'live_agent_proof: skipped\n'
-    return 3
-  fi
-
-  if run_selection profile live; then
-    printf 'live_agent_proof: ran\n'
-    return 0
-  fi
-  local status=$?
-  printf 'live_agent_proof: ran\n'
-  return "$status"
-}
-
 case "${1:-all}" in
   core) run_selection profile core ;;
   full|all) run_selection profile full ;;
-  live) run_live ;;
   shell-docs|pi) run_selection group "$1" ;;
-  *) printf 'Usage: verify-agentic-infra [core|full|live|shell-docs|pi|all]\n' >&2; exit 2 ;;
+  *) printf 'Usage: verify-agentic-infra [core|full|shell-docs|pi|all]\n' >&2; exit 2 ;;
 esac

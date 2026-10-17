@@ -135,24 +135,8 @@ node_available() {
   command -v node >/dev/null 2>&1
 }
 
-json_list() {
-  local script="$1"
-
-  node -e "$script" "$REPO_DIR/pi/agent/settings.json"
-}
-
 pi_core_skills() {
   skill_catalog_names "$SKILL_CATALOG" pi pi_core
-}
-
-is_core_pi_skill() {
-  local candidate="$1"
-  local skill
-  local skills=()
-  while IFS= read -r skill; do
-    [ -n "$skill" ] && skills+=("$skill")
-  done < <(pi_core_skills)
-  managed_surface_catalog_contains "$candidate" "${skills[@]}"
 }
 
 sync_pi_agent_settings() {

@@ -34,7 +34,7 @@ which writes `docs/adr/YYYY-MM-DD-slug.md`; this repo's `scripts/validate-adrs`
 expects `docs/adr/NNNN-slug.md`, so record etabli ADRs from a `personal`
 machine or by hand.
 
-`scopes/work/scripts/` holds the cron routines and `claude-bin.sh`, which
+`scopes/work/scripts/` holds the PR review scripts and `claude-bin.sh`, which
 resolves the `claude` binary where no shell profile is loaded. Their launchd
 plists stay in `~/Library/LaunchAgents/`: linking a script does not schedule it.
 

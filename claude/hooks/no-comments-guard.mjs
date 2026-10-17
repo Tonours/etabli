@@ -9,5 +9,5 @@ try {
   process.exit(0);
 }
 
-const decision = noCommentsGuardDecision({ ...payload, harness: "claude" });
+const decision = noCommentsGuardDecision(payload);
 if (decision) process.stdout.write(JSON.stringify(decision));

@@ -2,13 +2,6 @@
 name: write-direct
 description: Writes or rewrites internal docs and messages in Anthony's direct, informal voice (French by default). Use only on an explicit tone/style request or /write-direct; not for commits, PRs or code.
 ---
-<!-- GENERATED:adapter-sync:start -->
-skill: write-direct
-harness: pi
-canonical: claude/scopes/shared/skills/write-direct/SKILL.md
-name: write-direct
-description: Writes or rewrites internal docs and messages in Anthony's direct, informal voice (French by default). Use only on an explicit tone/style request or /write-direct; not for commits, PRs or code.
-<!-- GENERATED:adapter-sync:end -->
 
 # write-direct: direct voice for internal docs and messages
 
