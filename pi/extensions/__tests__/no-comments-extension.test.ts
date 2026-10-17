@@ -313,6 +313,14 @@ describe("unified Claude verdicts", () => {
 			["ruby", 'EOS = "z"\nx = ?<<EOS\n# added note\nEOS\n', ["# added note"]],
 			["ruby", "x = ?#\n", []],
 			["ruby", "ok = list.empty?# added note\n", ["# added note"]],
+			["ruby", "x = ?= %(\n# added note\n2)\n", ["# added note"]],
+			["ruby", 'def a?; ""; end\na? %(\n# added note\n2)\n', ["# added note"]],
+			["ruby", "a?<<EOS\n# added note\nEOS\n", ["# added note"]],
+			["ruby", "x = c ? <<~EOS : 1\n  # data\nEOS\n", []],
+			["sql", "SELECT $$/* data */$$;\n", []],
+			["sql", "SELECT $body$\n-- data\n$body$; -- added note\n", ["-- added note"]],
+			["sql", "SELECT $1; -- added note\n", ["-- added note"]],
+			["sql", "SELECT a$x$ FROM t; -- added note\nSELECT b$x$;\n", ["-- added note"]],
 		];
 		for (const [family, text, expected] of cases) expect(collectCommentLines(text, family)).toEqual(expected);
 	});
