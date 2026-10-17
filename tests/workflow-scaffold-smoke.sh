@@ -27,6 +27,13 @@ assert_contains() {
   }
 }
 
+assert_not_contains() {
+  if grep -Fq -- "$2" "$1"; then
+    printf 'unexpected %s in %s\n' "$2" "$1" >&2
+    exit 1
+  fi
+}
+
 assert_not_exists() {
   [ ! -e "$1" ] || {
     printf 'expected path not to exist: %s\n' "$1" >&2
@@ -302,13 +309,17 @@ assert_backup() {
   }
 }
 
+shipped_copy() {
+  git -C "$ROOT_DIR" show "HEAD:$1" >"$2"
+}
+
 PRUNE_PROJECT="$TMP_DIR/prune-project"
 "$SCRIPT" "$PRUNE_PROJECT" >/dev/null
-RETIRED_SET="workflow/events.md scripts/workflow-event scripts/lib/workflow-events.mjs scripts/lib/predicates.mjs"
-for retired in $RETIRED_SET; do
-  printf 'retired copy\n' >"$PRUNE_PROJECT/$retired"
-done
-printf '\nlocal consumer edit\n' >>"$PRUNE_PROJECT/workflow/events.md"
+RETIRED_SET="workflow/events.md scripts/workflow-event workflow/verification/cli-app.mjs"
+mkdir -p "$PRUNE_PROJECT/workflow/verification"
+shipped_copy README.md "$PRUNE_PROJECT/workflow/events.md"
+shipped_copy scripts/deploy-workflow "$PRUNE_PROJECT/scripts/workflow-event"
+shipped_copy workflow/spec.md "$PRUNE_PROJECT/workflow/verification/cli-app.mjs"
 "$SCRIPT" "$PRUNE_PROJECT" --prune --dry-run >"$TMP_DIR/prune-dry.out"
 assert_contains "$TMP_DIR/prune-dry.out" "WOULD_REMOVE workflow/events.md"
 assert_file "$PRUNE_PROJECT/workflow/events.md"
@@ -317,9 +328,48 @@ for retired in $RETIRED_SET; do
   assert_not_exists "$PRUNE_PROJECT/$retired"
   assert_backup "$PRUNE_PROJECT/$retired"
 done
-assert_contains "$TMP_DIR/prune.out" "4 removed"
+assert_contains "$TMP_DIR/prune.out" "3 removed"
 "$SCRIPT" "$PRUNE_PROJECT" --prune >"$TMP_DIR/prune-again.out"
 assert_contains "$TMP_DIR/prune-again.out" "0 removed"
+
+FOREIGN_PROJECT="$TMP_DIR/foreign-project"
+"$SCRIPT" "$FOREIGN_PROJECT" >/dev/null
+shipped_copy README.md "$FOREIGN_PROJECT/workflow/events.md"
+printf 'project predicates\n' >"$FOREIGN_PROJECT/scripts/lib/predicates.mjs"
+mkdir -p "$FOREIGN_PROJECT/scripts/project-verification"
+printf 'witness\n' >"$FOREIGN_PROJECT/scripts/project-verification/witness"
+ln -s missing-target "$FOREIGN_PROJECT/scripts/lib/workflow-events.mjs"
+shipped_copy README.md "$TMP_DIR/shipped-readme"
+ln -s "$TMP_DIR/shipped-readme" "$FOREIGN_PROJECT/scripts/workflow-event"
+FOREIGN_SET="scripts/lib/predicates.mjs scripts/project-verification scripts/lib/workflow-events.mjs scripts/workflow-event"
+for mode in --dry-run ""; do
+  if "$SCRIPT" "$FOREIGN_PROJECT" --prune $mode >"$TMP_DIR/foreign.out" 2>&1; then
+    printf 'expected prune to refuse project-owned retired paths\n' >&2
+    exit 1
+  fi
+  for retired in $FOREIGN_SET; do
+    assert_contains "$TMP_DIR/foreign.out" "CONFLICT  $retired is not a copy etabli shipped"
+  done
+  assert_not_contains "$TMP_DIR/foreign.out" "workflow/events.md is not a copy"
+done
+assert_file "$FOREIGN_PROJECT/workflow/events.md"
+assert_file "$FOREIGN_PROJECT/scripts/lib/predicates.mjs"
+assert_file "$FOREIGN_PROJECT/scripts/project-verification/witness"
+[ -L "$FOREIGN_PROJECT/scripts/lib/workflow-events.mjs" ] || {
+  printf 'expected the project symlink to stay\n' >&2
+  exit 1
+}
+if "$SCRIPT" "$FOREIGN_PROJECT" --prune-foreign >/dev/null 2>&1; then
+  printf 'expected --prune-foreign without --prune to fail\n' >&2
+  exit 1
+fi
+"$SCRIPT" "$FOREIGN_PROJECT" --prune --prune-foreign >"$TMP_DIR/foreign-forced.out"
+for retired in workflow/events.md $FOREIGN_SET; do
+  assert_not_exists "$FOREIGN_PROJECT/$retired"
+  assert_backup "$FOREIGN_PROJECT/$retired"
+done
+assert_contains "$TMP_DIR/foreign-forced.out" "5 removed"
+assert_file "$TMP_DIR/shipped-readme"
 
 PRUNE_LINKED="$TMP_DIR/prune-linked"
 PRUNE_OUTSIDE="$TMP_DIR/prune-outside"
@@ -340,7 +390,7 @@ assert_file "$PRUNE_LINKED/workflow/events.md"
 TRACKED_PROJECT="$TMP_DIR/tracked-project"
 "$SCRIPT" "$TRACKED_PROJECT" >/dev/null
 printf '\nproject edit\n' >>"$TRACKED_PROJECT/workflow/spec.md"
-printf 'tracked retired\n' >"$TRACKED_PROJECT/scripts/workflow-event"
+shipped_copy scripts/deploy-workflow "$TRACKED_PROJECT/scripts/workflow-event"
 git -C "$TRACKED_PROJECT" init -q .
 printf '\nproject seed\n' >>"$TRACKED_PROJECT/docs/project-context.md"
 printf '\nold template\n' >>"$TRACKED_PROJECT/docs/agent-workflow.md"
@@ -396,5 +446,69 @@ fi
 assert_contains "$TMP_DIR/staged.out" "workflow/events.md has staged changes"
 assert_file "$STAGED_PROJECT/workflow/events.md"
 assert_file "$STAGED_PROJECT/scripts/workflow-event"
+
+index_snapshot() {
+  git -C "$1" ls-files --stage
+}
+
+UNINDEX_PROJECT="$TMP_DIR/unindex-project"
+"$SCRIPT" "$UNINDEX_PROJECT" >/dev/null
+shipped_copy README.md "$UNINDEX_PROJECT/workflow/events.md"
+mkdir -p "$UNINDEX_PROJECT/scripts/project-verification"
+printf 'tracked witness\n' >"$UNINDEX_PROJECT/scripts/project-verification/witness"
+git -C "$UNINDEX_PROJECT" init -q .
+git -C "$UNINDEX_PROJECT" add -f workflow/events.md scripts/project-verification/witness
+git -C "$UNINDEX_PROJECT" -c user.name=smoke -c user.email=smoke@example.invalid commit -q -m "track retired"
+rm "$UNINDEX_PROJECT/workflow/events.md"
+"$SCRIPT" "$UNINDEX_PROJECT" --prune --prune-foreign --dry-run >"$TMP_DIR/unindex-dry.out"
+assert_contains "$TMP_DIR/unindex-dry.out" "WOULD_UNINDEX workflow/events.md"
+"$SCRIPT" "$UNINDEX_PROJECT" --prune --prune-foreign >"$TMP_DIR/unindex.out"
+assert_contains "$TMP_DIR/unindex.out" "UNINDEX   workflow/events.md"
+assert_contains "$TMP_DIR/unindex.out" "GIT_RM    scripts/project-verification"
+if [ -n "$(git -C "$UNINDEX_PROJECT" ls-files workflow/events.md scripts/project-verification)" ]; then
+  printf 'expected missing and directory retired paths to leave the index\n' >&2
+  exit 1
+fi
+assert_backup "$UNINDEX_PROJECT/scripts/project-verification"
+
+GONE_PROJECT="$TMP_DIR/gone-project"
+"$SCRIPT" "$GONE_PROJECT" >/dev/null
+mkdir -p "$GONE_PROJECT/workflow/verification"
+shipped_copy README.md "$GONE_PROJECT/workflow/verification/cli-app.mjs"
+shipped_copy README.md "$GONE_PROJECT/workflow/events.md"
+git -C "$GONE_PROJECT" init -q .
+git -C "$GONE_PROJECT" add -f workflow/verification/cli-app.mjs workflow/events.md
+git -C "$GONE_PROJECT" -c user.name=smoke -c user.email=smoke@example.invalid commit -q -m "track retired"
+printf 'staged only\n' >"$GONE_PROJECT/workflow/verification/cli-app.mjs"
+git -C "$GONE_PROJECT" add -f workflow/verification/cli-app.mjs
+rm -r "$GONE_PROJECT/workflow/verification"
+git -C "$GONE_PROJECT" rm -q --cached workflow/events.md
+index_snapshot "$GONE_PROJECT" >"$TMP_DIR/gone-index.before"
+for mode in --dry-run "" --prune-foreign; do
+  if "$SCRIPT" "$GONE_PROJECT" --prune $mode >"$TMP_DIR/gone.out" 2>&1; then
+    printf 'expected prune to refuse staged retired paths\n' >&2
+    exit 1
+  fi
+  assert_contains "$TMP_DIR/gone.out" "workflow/verification/cli-app.mjs has staged changes"
+  assert_contains "$TMP_DIR/gone.out" "workflow/events.md has staged changes"
+done
+index_snapshot "$GONE_PROJECT" >"$TMP_DIR/gone-index.after"
+cmp -s "$TMP_DIR/gone-index.before" "$TMP_DIR/gone-index.after" || {
+  printf 'expected a refused prune to leave the index unchanged\n' >&2
+  exit 1
+}
+assert_file "$GONE_PROJECT/workflow/events.md"
+
+UNBORN_PROJECT="$TMP_DIR/unborn-project"
+"$SCRIPT" "$UNBORN_PROJECT" >/dev/null
+shipped_copy README.md "$UNBORN_PROJECT/workflow/events.md"
+git -C "$UNBORN_PROJECT" init -q .
+git -C "$UNBORN_PROJECT" add -f workflow/events.md
+if "$SCRIPT" "$UNBORN_PROJECT" --prune >"$TMP_DIR/unborn.out" 2>&1; then
+  printf 'expected prune to refuse a retired file staged before the first commit\n' >&2
+  exit 1
+fi
+assert_contains "$TMP_DIR/unborn.out" "workflow/events.md has staged changes"
+assert_file "$UNBORN_PROJECT/workflow/events.md"
 
 printf 'workflow scaffold smoke test: ok\n'

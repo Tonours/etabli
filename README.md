@@ -49,7 +49,8 @@ One writer at a time is a protocol, not an OS lock.
 
 To adopt the workflow in another project, deploy the current scaffold with
 `scripts/deploy-workflow /path/to/project` (review drift before `--force` on an
-existing project; `--prune` backs up scaffold files etabli retired,
+existing project; `--prune` backs up scaffold files etabli retired and stops
+on project-owned copies at those paths unless `--prune-foreign` is added,
 `--refresh-tracked` lets `--force` overwrite tracked scaffold docs except
 `AGENTS.md`, `docs/project-context.md`, scripts, symlinks and files with
 uncommitted changes; try both with `--dry-run` first). A recurring agent mistake becomes a rule in the project's
