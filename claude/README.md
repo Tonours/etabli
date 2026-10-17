@@ -68,7 +68,10 @@ a domain skill themselves; no hook suggests one (ADR-0014). Command
   adapter over `workflow/runtime/no-comments-guard.mjs`, the detector Pi uses
   too. It denies a write that adds a code comment; tool directives, shebangs
   and comments already on disk are kept. It cannot see files written through
-  `Bash`.
+  `Bash`. It is a per-language lexer, not a parser: shell grammar beyond
+  strings, heredocs, substitutions and `case`, comments inside Ruby `#{}`,
+  and Ruby heredoc or `%` literals in ambiguous positions (`puts <<~EOS`) are
+  lexed as plain code, which can miss or add a comment.
 - `rtk-guard.mjs` (`PreToolUse` on `Bash`) forwards a command to
   `rtk hook claude` only when `workflow/runtime/rtk-data-flow.mjs` allows
   compaction, and runs the rest raw.
