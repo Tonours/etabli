@@ -110,7 +110,7 @@ function isExemptComment(text) {
 
 const SHELL_COMMAND_POSITION = /(^|[;&|({]|\b(then|do|else))\s*$/;
 const REGEX_LITERAL_PREFIX = /[=(,:[!&|?{;+]\s*$/;
-const RUBY_LITERAL_PREFIX = /(^|[=(,[{|&?:;])\s*$/;
+const RUBY_LITERAL_PREFIX = /(^|[=(,[{|&:;]|\s\?)\s*$/;
 const RUBY_HEREDOC = /^<<([~-]?)(?:(['"`])([^'"`\n]+)\2|([A-Za-z_]\w*))/;
 const RUBY_PERCENT = /^%([qQwWiIrsx]?)([^\w\s])/;
 const PERCENT_PAIRS = { "(": ")", "[": "]", "{": "}", "<": ">" };
@@ -330,6 +330,15 @@ export function collectCommentLines(text, family) {
 					continue;
 				}
 			}
+			if (family === "sql" && char === "$" && !/\w/.test(source[index - 1] ?? "")) {
+				const tag = /^\$(?:[A-Za-z_]\w*)?\$/.exec(source.slice(index, index + 64))?.[0];
+				const end = tag ? source.indexOf(tag, index + tag.length) : -1;
+				if (end !== -1) {
+					index = end + tag.length;
+					lineCode += "S";
+					continue;
+				}
+			}
 			if (family === "lua" && char === "[") {
 				const stop = longBracketAt(source, index);
 				if (stop !== -1) {
@@ -345,7 +354,7 @@ export function collectCommentLines(text, family) {
 				index = stop === -1 ? source.length : stop;
 				continue;
 			}
-			if (family === "ruby" && char === "?" && /[%<#]/.test(source[index + 1] ?? "") && !/\w/.test(source[index - 1] ?? "")) {
+			if (family === "ruby" && char === "?" && /[^\w\s'"`]/.test(source[index + 1] ?? "") && !/\w/.test(source[index - 1] ?? "")) {
 				index += 2;
 				lineCode += "S";
 				continue;

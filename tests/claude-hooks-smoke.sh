@@ -222,6 +222,8 @@ const cases = [
   ["ruby percent words data", write("ar.rb", "w = %w[a\n# b]\n"), "allow"],
   ["ruby modulo is not a percent literal", write("as.rb", "n %(\n# added note\n2)\n"), "deny"],
   ["ruby character literal then comment", write("at.rb", "x = ?%# added note\n"), "deny"],
+  ["sql dollar-quoted data", write("au.sql", "SELECT $$/* data */$$;\n"), "allow"],
+  ["ruby predicate method before modulo", write("av.rb", "a? %(\n# added note\n2)\n"), "deny"],
   ["replace_all comment", { tool_name: "Edit", tool_input: { file_path: `${cwd}/apos.ts`, old_string: "const", new_string: "const/* added */", replace_all: true } }, "deny"],
 ];
 let failed = 0;
