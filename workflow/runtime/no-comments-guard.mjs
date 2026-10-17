@@ -211,6 +211,7 @@ export function collectCommentLines(text, family) {
 		let lineCode = "";
 		let depth = 0;
 		let caseDepth = 0;
+		const arithmetic = closer === ")" && source[start] === "(";
 		let index = start;
 		const heredocs = [];
 		while (index < source.length) {
@@ -235,7 +236,7 @@ export function collectCommentLines(text, family) {
 					continue;
 				}
 			}
-			if (family === "shell" && SHELL_COMMAND_POSITION.test(lineCode)) {
+			if (family === "shell" && !arithmetic && SHELL_COMMAND_POSITION.test(lineCode) && !/\(\(\s*$/.test(lineCode)) {
 				const word = /^(case|esac)(?=[\s;)&|<>]|$)/.exec(source.slice(index, index + 5))?.[1];
 				if (word === "case") caseDepth += 1;
 				if (word === "esac" && caseDepth > 0) caseDepth -= 1;
