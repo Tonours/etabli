@@ -1,6 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { recordGuardDenial } from "./guard-journal.mjs";
 
 function normalizeToolName(toolName) {
 	const raw = String(toolName || "");
@@ -491,8 +490,6 @@ export function noCommentsGuardDecision(event) {
 
 	const family = commentFamilyFor(filePath);
 	const cwd = event.cwd || process.cwd();
-	const record = () =>
-		recordGuardDenial({ cwd, harness: event.harness, guard: "no-comments", pattern: "code-comment-added", target: filePath, tool: toolName });
 
 	if (toolName === "Write") {
 		const content = writeContent(toolInput);
@@ -503,7 +500,6 @@ export function noCommentsGuardDecision(event) {
 			family,
 		);
 		if (added.length === 0) return null;
-		record();
 		return deny(denyReason(filePath, added));
 	}
 
@@ -513,6 +509,5 @@ export function noCommentsGuardDecision(event) {
 		? addedCommentLines(texts.previous, texts.next, family)
 		: pairs.flatMap((pair) => addedCommentLines(pair.oldStr, pair.newStr, family));
 	if (added.length === 0) return null;
-	record();
 	return deny(denyReason(filePath, added));
 }

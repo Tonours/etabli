@@ -10,7 +10,7 @@ git history or the working tree that is pushed.
 | MCP OAuth / API tokens | `~/.claude.json`, shell env | Template only: `mcp/servers.template.json` with `${VAR}` |
 | Provider API keys | shell / host secret store | Not in tracked config |
 | Copilot / editor auth DBs | `github-copilot/`, `*.db` | Gitignored |
-| Workflow runtime state (guard journal) | `.workflow/`, `.pi/` | Gitignored |
+| Workflow runtime state | `.workflow/`, `.pi/` | Gitignored |
 | Private settings overlays | `*.local.json`, `settings.local.json` | Gitignored |
 | Optional local LLM weights | host only (not tracked) | Use `pi/models.local.example.json` as a starting point if needed |
 

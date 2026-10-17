@@ -2,7 +2,7 @@
 
 Long-form rules and loop narrative for Etabli. The entry and short map is
 `workflow/spec.md`.
-Do not treat this file as a second routing table — the code and the map decide.
+Do not treat this file as a second routing table — the map decides.
 
 ## Agentic workflow loop
 
@@ -14,7 +14,7 @@ behavior in tracked workflow sources.
 Use the smallest workflow that can finish with evidence; the role chain is in
 `workflow/spec.md`. Roles are contracts, not mandatory separate agents:
 
-- `router`: classify the request into the smallest valid workflow.
+- `router`: pick the smallest valid route from the `workflow/spec.md` table (the model, not code).
 - `planner`: create or refresh `PLAN.md` and stop at `READY` or `CHALLENGED`.
 - `challenger`: reject vague scope, missing checks, hidden assumptions, and weak
   stop conditions before implementation.
@@ -34,8 +34,7 @@ it finishes, then takes the pen back between plan steps; never two writers in
 parallel.
 
 The deterministic multi-model council (scout / analyst / challenger /
-judge / fallback) was removed in ADR-0013; `classifyWorkflowRoute` always
-attaches parent-only `multiExecution`. Delegating to a subagent stays an
+judge / fallback) was removed in ADR-0013; execution is parent-only. Delegating to a subagent stays an
 ordinary tool call, judged case by case, not a routed profile. `scout` and
 `reviewer` combine an explicit read-only tool set, `dontAsk`, and a scoped Bash
 `PreToolUse` allowlist guard; this is stronger than prose but still not an OS
@@ -111,12 +110,8 @@ Pi and Claude wrappers are thin runtime adapters over the shared contract.
 - Investigation/evidence contract: `workflow/skills/investigation.md`
 - Claude optional hooks: `claude/hooks/` with
   `claude/settings.workflow-hooks.json`
-- Guard journal: `workflow/runtime/guard-journal.mjs` — wired guard denials append
-  `{ts, host, harness, guard, pattern, target, tool}` lines to `.workflow/guard-journal/`
-  (best-effort, never blocks the deny) <!-- etabli-only -->
 - Orchestration contract: `workflow/skills/orchestration.md`
 - Answer quality: `workflow/answer-quality.md`
-- Runtime capability matrix: `workflow/runtime-capabilities.json`
 - Plan templates: `PLAN_TEMPLATE.md`, `PLAN_TEMPLATE_FULL.md`
 - Implemented plan archives: `docs/plan/` in workflow-scaffolded projects (`workflow/plan-archive.md`)
 - Project context: `docs/project-context.md` in workflow-scaffolded projects
@@ -162,8 +157,7 @@ Claude-native loop:
   of recreating Pi's Task* continuation layer. The goal statement must pair the
   measurable condition with an explicit cap (iterations or wall-clock), and the
   run records its evidence in `PLAN.md`.
-- Claude orchestration parity labels: see `workflow/runtime-capabilities.json`.
-  Do not claim Claude has Pi Task* semantics.
+- Do not claim Claude has Pi Task* semantics (`workflow/skills/orchestration.md`).
 
 ## Daily loop
 

@@ -11,7 +11,6 @@ const repositoryExtensions = [
 	"no-comments.ts",
 	"prefer-ipv4-dns.ts",
 	"rtk.ts",
-	"workflow-router.ts",
 	"workflow-tools.ts",
 ];
 
@@ -64,11 +63,11 @@ describe("installed Pi extension loader", () => {
 
 			const baseline = join(cwd, "baseline/.pi/agent/extensions");
 			mkdirSync(baseline, { recursive: true });
-			writeFileSync(join(baseline, "workflow-router.ts"), 'import "../../scripts/lib/missing-module.mjs"; export default function () {}\n');
-			const baselineResult = loadWithNode(activeNodePath, loaderPath, [join(baseline, "workflow-router.ts")]);
+			writeFileSync(join(baseline, "broken.ts"), 'import "../../scripts/lib/missing-module.mjs"; export default function () {}\n');
+			const baselineResult = loadWithNode(activeNodePath, loaderPath, [join(baseline, "broken.ts")]);
 			expect(baselineResult.loaded).toEqual([]);
 			expect(baselineResult.errors).toHaveLength(1);
-			expect(baselineResult.errors.map((item: { path: string }) => item.path.split("/").at(-1))).toEqual(["workflow-router.ts"]);
+			expect(baselineResult.errors.map((item: { path: string }) => item.path.split("/").at(-1))).toEqual(["broken.ts"]);
 
 			const installedPaths = repositoryExtensions.map((name) => join(extensions, name));
 			const result = loadWithNode(activeNodePath, loaderPath, installedPaths);

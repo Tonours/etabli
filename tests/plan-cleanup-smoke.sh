@@ -192,10 +192,10 @@ case_status_decorated() {
   for decorated in 'READY (round 3)' 'Ready for review' 'DRAFT | CHALLENGED | READY'; do
     write_status_plan "$decorated" "$(date -u +%Y-%m-%d)"
     if decorated_out="$(status_json)"; then
-      fail "--status accepted a status the router cannot read: $decorated"
+      fail "--status accepted a status the READY gate cannot read: $decorated"
     fi
     printf '%s\n' "$decorated_out" | jq -e '.status == "invalid" and .gateVisible == false' >/dev/null ||
-      fail "--status did not mark a router-invisible status invalid: $decorated"
+      fail "--status did not mark a gate-invisible status invalid: $decorated"
   done
 }
 
@@ -209,7 +209,7 @@ case_status_headerless() {
     fail "--status accepted a plan with no Status line"
   fi
   printf '%s\n' "$headerless_out" | jq -e '.status == "missing-status" and .gateVisible == false' >/dev/null ||
-    fail "--status did not flag a headerless plan as router-invisible"
+    fail "--status did not flag a headerless plan as gate-invisible"
 }
 
 case_extra_arguments() {

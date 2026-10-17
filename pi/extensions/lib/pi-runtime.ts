@@ -2,7 +2,6 @@ import fs, { type FSWatcher } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
-export const UNKNOWN_MODEL_SPEC = "unknown";
 export type RtkMode = "always" | "off";
 export type RtkConfig = {
   enabled: boolean;
@@ -14,8 +13,6 @@ export type RtkConfig = {
 };
 
 type AgentSettings = {
-  defaultProvider?: unknown;
-  defaultModel?: unknown;
   rtk?: unknown;
 };
 
@@ -199,12 +196,6 @@ function loadSettingsEntry(settingsPath: string): FileCacheEntry | undefined {
   }
 }
 
-function readAgentSettings(settingsPath: string): AgentSettings | undefined {
-  const entry =
-    peekSettingsEntry(settingsPath) ?? loadSettingsEntry(settingsPath);
-  return entry?.value;
-}
-
 function asPositiveInteger(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isInteger(value) && value > 0
     ? value
@@ -213,21 +204,6 @@ function asPositiveInteger(value: unknown, fallback: number): number {
 
 function normalizeRtkMode(value: unknown): RtkMode {
   return value === "off" ? "off" : "always";
-}
-
-export function readDefaultModelSpec(
-  settingsPath: string,
-  fallback = UNKNOWN_MODEL_SPEC,
-): string {
-  const raw = readAgentSettings(settingsPath);
-  if (raw) {
-    const provider =
-      typeof raw.defaultProvider === "string" ? raw.defaultProvider.trim() : "";
-    const model =
-      typeof raw.defaultModel === "string" ? raw.defaultModel.trim() : "";
-    if (provider && model) return `${provider}/${model}`;
-  }
-  return fallback;
 }
 
 function deriveRtkConfig(raw: unknown): RtkConfig {

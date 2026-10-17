@@ -5,7 +5,7 @@ Harness agent : contrats de workflow partagés, adaptés pour Pi et Claude.
 ## Language
 
 **Route**:
-Résultat du routeur pour un prompt, avec un artefact et une condition d'arrêt.
+Ligne de la table de routage de `workflow/spec.md` : un déclencheur, un artefact et une condition d'arrêt.
 _Avoid_: workflow, mode
 
 **Cœur**:

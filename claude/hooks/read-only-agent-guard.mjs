@@ -32,10 +32,8 @@ const command = String(toolInput.command || toolInput.cmd || "");
 
 if (toolName === "Bash" && command !== "") {
 	let isReadOnlyBashCommand;
-	let recordGuardDenial;
 	try {
-		({ isReadOnlyBashCommand } = await import("./workflow-router-lib.mjs"));
-		({ recordGuardDenial } = await import("../../workflow/runtime/guard-journal.mjs"));
+		({ isReadOnlyBashCommand } = await import("../../workflow/runtime/read-only-bash.mjs"));
 	} catch (error) {
 		deny(
 			`read-only-agent-guard failed (${error?.message ?? error}); Bash stays blocked for this read-only agent. Repair the Etabli install with scripts/deploy-agent-workflow --apply from the etabli checkout.`,
@@ -49,16 +47,6 @@ if (toolName === "Bash" && command !== "") {
 		readOnly = false;
 	}
 	if (!readOnly) {
-		try {
-			recordGuardDenial({
-				cwd: input.cwd,
-				harness: "claude",
-				guard: "read-only-agent-guard",
-				pattern: "non-read-only-bash",
-				target: "Bash",
-				tool: "Bash",
-			});
-		} catch {}
 		deny(
 			"This agent is read-only. Use Read/Grep/Glob or a proven read-only Bash/Git command; return to the parent for mutations and validation runs.",
 		);

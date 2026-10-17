@@ -2,13 +2,6 @@
 name: implement
 description: Implements an existing READY PLAN.md without replanning. Use when a READY plan should be built; not for planning, design, or unplanned fixes.
 ---
-<!-- GENERATED:adapter-sync:start -->
-skill: implement
-harness: pi
-canonical: pi/skills/implement/SKILL.md
-name: implement
-description: Implements an existing READY PLAN.md without replanning. Use when a READY plan should be built; not for planning, design, or unplanned fixes.
-<!-- GENERATED:adapter-sync:end -->
 
 # Implement
 

@@ -18,7 +18,7 @@ graph database:
   durable cross-project memory. No dual-write of live tickets, raw PLAN.md, or
   transcripts into `kb/`.
 
-Vault selection (`workflow/runtime/obvault-topic-resolver.mjs`): exact GitHub
+Vault selection: exact GitHub
 remote organization ForestAdmin -> `~/work/brain`; every other project ->
 `~/work/obvault`. Use session cwd (including worktrees/subdirectories), not
 `~/.etabli-scope`. Missing brain is unavailable, never a personal-vault fallback.
@@ -74,11 +74,9 @@ After a retrieval outcome, record only aggregate feedback:
 ~/work/obvault/_meta/obvault feedback --status hit|miss|stale|wrong
 ```
 
-The generic Etabli `knowledge-passage` profile is a reusable advisory contract,
-not a second retrieval implementation. Semantic reranking belongs to the vault
-engine, which calls TypeSafe Jev by default and degrades to lexical results
-without a key (`health` reports `typesafe: active|degraded`). Etabli never adds a
-second provider path, and never copies raw private passages into its receipts.
+Semantic reranking belongs to the vault engine, which calls TypeSafe Jev by
+default and degrades to lexical results without a key (`health` reports
+`typesafe: active|degraded`). Etabli never adds a second provider path.
 
 Self-improvement contract: `kb/obvault-self-improvement-loop.md` (miss → review
 → promote → check). Multi-harness recipe: `kb/obvault-multi-harness-access.md`.
@@ -91,21 +89,6 @@ Self-improvement contract: `kb/obvault-self-improvement-loop.md` (miss → revie
 
 Do not retrieve for a trivial task, current worktree state, live production state,
 secrets, credentials, or a fact that is cheaper and safer to verify directly.
-
-## Topic-aware routing
-
-The shared Claude/Pi router may attach a `knowledgeContext` without changing the
-workflow route. It recognizes bounded topic families for SaaS, AI agents,
-frontend/CSS, web security, software design, voice, and second-brain work. Each
-family expands to a fixed retrieval query; raw prompt text must never be copied
-into the generated shell command. An unmatched `answer` route remains free of
-router injection.
-
-When no built-in family matches, the adapters may call `_meta/obvault route`
-through the shared argv-based resolver. Obvault rebuilds routing metadata from
-verified or accepted note tags, aliases, titles, and basenames on every call.
-The resolver has a short timeout, fails open, and constructs the final context
-command only from validated metadata-derived terms.
 
 ## Consume safely
 

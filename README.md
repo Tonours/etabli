@@ -24,14 +24,13 @@ Then `scripts/verify-agentic-infra core` should PASS.
 
 ## What you get
 
-- **One contract, every harness.** Pi and Claude share one route classifier
-  and its golden fixtures (`tests/router-evals/core.json`).
+- **One contract, every harness.** Pi and Claude read the same route table
+  (`workflow/spec.md`) and shared contracts (`workflow/skills/`).
 - **A few guards in code.** No-comments and rtk guards on writes and shell
   commands, and read-only reviewer shells; everything else runs without
   approval stops (ADR-0032).
 - **Locked skills.** Vendored packs carry `UPSTREAM_SHA` pins and an integrity
-  lock (`skills-lock.json`); `scripts/update-vendor-skills` refreshes them, and
-  routing stays deterministic code (ADR-0027).
+  lock (`skills-lock.json`); `scripts/update-vendor-skills` refreshes them.
 
 ## How work flows
 

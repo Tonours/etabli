@@ -121,7 +121,7 @@ ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$TMP_HOME/.claud
 ETABLI_SCOPE=work HOME="$TMP_HOME" "$SCRIPT" --fix --verbose >/dev/null
 assert_not_exists "$TMP_HOME/.claude/skills/adr"
 assert_link "$TMP_HOME/.claude/scripts/claude-bin.sh" "$ROOT_DIR/claude/scopes/work/scripts/claude-bin.sh"
-assert_link "$TMP_HOME/.claude/scripts/routines" "$ROOT_DIR/claude/scopes/work/scripts/routines"
+assert_link "$TMP_HOME/.claude/scripts/pr-review-watch" "$ROOT_DIR/claude/scopes/work/scripts/pr-review-watch"
 assert_link "$TMP_HOME/.claude/commands/linear-work.md" "$ROOT_DIR/claude/scopes/work/commands/linear-work.md"
 assert_link "$TMP_HOME/.claude/commands/pr-council-review.md" "$ROOT_DIR/claude/scopes/work/commands/pr-council-review.md"
 assert_not_exists "$TMP_HOME/.pi/agent/skills/employer-backend-suite"

@@ -21,7 +21,6 @@ export default function noComments(pi: ExtensionAPI): void {
 	pi.on("tool_call", (event) => {
 		const decision = noCommentsGuardDecision({
 			cwd: eventCwd(event),
-			harness: "pi",
 			tool_name: event.toolName,
 			tool_input: event.input || {},
 		}) as DenyDecision | null;

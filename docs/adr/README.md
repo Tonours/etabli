@@ -15,7 +15,7 @@ Decisions live in this directory. Run `/adr` to record one.
 - [0011](0011-remove-the-codex-and-kimi-code-harnesses-and-recenter-on-pi-and-claude.md) — Remove the Codex and Kimi Code harnesses and recenter on Pi and Claude [accepted]
 - [0012](0012-nvim-is-a-code-first-minimal-ide.md) — Neovim is a code-first minimal IDE [accepted]
 - [0013](0013-remove-the-multi-model-council-and-telemetry-reporters.md) — Remove the multi-model council and the telemetry reporters [accepted]
-- [0014](0014-stop-injecting-route-context-into-every-prompt.md) — Stop injecting route context into every prompt [accepted]
+- [0014](0014-stop-injecting-route-context-into-every-prompt.md) — Stop injecting route context into every prompt [superseded by ADR-0036]
 - [0015](0015-treat-codex-skills-as-a-managed-link-surface-without-restoring-the-harness.md) — Treat ~/.codex/skills as a managed link surface without restoring the Codex harness [superseded by ADR-0031]
 - [0016](0016-record-work-mcp-inventory-per-runtime.md) — Record the work MCP inventory per runtime [accepted]
 - [0017](0017-serve-the-work-knowledge-vault-through-a-standalone-brain-mcp.md) — Serve the work knowledge vault through a standalone brain MCP [accepted]
@@ -37,3 +37,4 @@ Decisions live in this directory. Run `/adr` to record one.
 - [0033](0033-prune-the-skill-surface-and-drop-pstack.md) — Prune the skill surface and drop pstack [accepted]
 - [0034](0034-drop-the-eval-ledger-and-product-verification-tooling.md) — Drop the eval, ledger, product-verification and freeze tooling [accepted]
 - [0035](0035-strip-etabli-to-the-tooling-in-daily-use.md) — Strip Etabli to the tooling in daily use [accepted]
+- [0036](0036-drop-the-route-classifier-and-its-orphan-telemetry.md) — Drop the route classifier and its orphan telemetry [accepted]

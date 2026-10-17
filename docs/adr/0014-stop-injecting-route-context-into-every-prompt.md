@@ -1,9 +1,11 @@
 ---
-status: accepted
+status: superseded by ADR-0036
 date: 2026-08-03
 tags: [workflow, routing, tokens, context]
 affected_components: [claude/hooks, pi/extensions, tests, docs/adr/0007]
+superseded_by: ADR-0036
 ---
+
 
 # Stop injecting route context into every prompt
 
@@ -87,3 +89,5 @@ the deleted `block-google-providers.ts`. The failure was invisible because
 review caught it. The lesson is that a known pre-existing failure can mask a new
 one: when a group already has a red check, run the specific target too, not just
 the group.
+
+Superseded by ADR-0036.

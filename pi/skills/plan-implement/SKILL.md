@@ -2,13 +2,6 @@
 name: plan-implement
 description: Plans, reviews, then implements, shipping only a READY PLAN.md. Use for multi-step work that needs a plan; not for single-step tasks or plan-free fixes.
 ---
-<!-- GENERATED:adapter-sync:start -->
-skill: plan-implement
-harness: pi
-canonical: pi/skills/plan-implement/SKILL.md
-name: plan-implement
-description: Plans, reviews, then implements, shipping only a READY PLAN.md. Use for multi-step work that needs a plan; not for single-step tasks or plan-free fixes.
-<!-- GENERATED:adapter-sync:end -->
 
 # Plan Implement
 

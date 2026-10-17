@@ -14,37 +14,6 @@ skill_catalog_names() {
   ' "$catalog"
 }
 
-skill_catalog_source_of() {
-  local catalog="$1"
-  local name="$2"
-
-  awk -F '\t' -v name="$name" '
-    $0 !~ /^#/ && NF >= 4 && $1 == name { print $2; exit }
-  ' "$catalog"
-}
-
-skill_source_root() {
-  local repo_dir="$1"
-  local source="$2"
-
-  if [ "$source" = "pi" ]; then
-    printf '%s/pi/skills\n' "$repo_dir"
-    return 0
-  fi
-
-  if [ "$source" = "extras" ]; then
-    printf '%s/extras/skills\n' "$repo_dir"
-    return 0
-  fi
-
-  if [ -d "$repo_dir/vendor/$source/skills" ]; then
-    printf '%s/vendor/%s/skills\n' "$repo_dir" "$source"
-    return 0
-  fi
-
-  return 1
-}
-
 skill_declared_name() {
   local skill_dir="$1"
   local declared
@@ -70,26 +39,6 @@ skill_declared_name() {
   fi
 }
 
-skill_vendor_scope() {
-  local repo_dir="$1"
-  local vendor="$2"
-
-  awk -F '\t' -v vendor="$vendor" '
-    $0 !~ /^#/ && NF >= 5 && $1 == vendor { print $4; exit }
-  ' "$repo_dir/vendor/sources.tsv"
-}
-
-skill_catalog_dir() {
-  local catalog="$1"
-  local repo_dir="$2"
-  local name="$3"
-  local source
-
-  source="$(skill_catalog_source_of "$catalog" "$name")"
-  [ -n "$source" ] || return 1
-  printf '%s/%s\n' "$(skill_source_root "$repo_dir" "$source")" "$name"
-}
-
 skill_catalog_vendor_records() {
   local catalog="$1"
   local repo_dir="$2"
@@ -109,29 +58,3 @@ skill_catalog_vendor_records() {
   done <"$repo_dir/vendor/sources.tsv"
 }
 
-skill_catalog_active_vendor_records() {
-  local catalog="$1"
-  local repo_dir="$2"
-  local active_scopes="$3"
-  local vendor_scope skill_name skill_dir pi_core vendor
-
-  while IFS=$'\t' read -r vendor_scope skill_name skill_dir pi_core vendor; do
-    case " $active_scopes " in
-    *" $vendor_scope "*) printf '%s\t%s\t%s\t%s\n' "$skill_name" "$skill_dir" "$pi_core" "$vendor" ;;
-    esac
-  done < <(skill_catalog_vendor_records "$catalog" "$repo_dir")
-}
-
-skill_catalog_inactive_vendor_records() {
-  local catalog="$1"
-  local repo_dir="$2"
-  local active_scopes="$3"
-  local vendor_scope skill_name skill_dir pi_core vendor
-
-  while IFS=$'\t' read -r vendor_scope skill_name skill_dir pi_core vendor; do
-    case " $active_scopes " in
-    *" $vendor_scope "*) ;;
-    *) printf '%s\t%s\t%s\t%s\n' "$skill_name" "$skill_dir" "$pi_core" "$vendor" ;;
-    esac
-  done < <(skill_catalog_vendor_records "$catalog" "$repo_dir")
-}
