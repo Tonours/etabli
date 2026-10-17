@@ -237,7 +237,7 @@ export function collectCommentLines(text, family) {
 				}
 			}
 			if (family === "shell" && !arithmetic && SHELL_COMMAND_POSITION.test(lineCode) && !/\(\(\s*$/.test(lineCode)) {
-				const word = /^(case|esac)(?=[\s;)&|<>]|$)/.exec(source.slice(index, index + 5))?.[1];
+				const word = /^(?:case(?=\s)|esac(?=[\s;)&|<>]|$))/.exec(source.slice(index, index + 5))?.[0];
 				if (word === "case") caseDepth += 1;
 				if (word === "esac" && caseDepth > 0) caseDepth -= 1;
 			}
