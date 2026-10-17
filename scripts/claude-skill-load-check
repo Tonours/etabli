@@ -32,7 +32,8 @@ skillOverrides map (claude/settings.skill-overrides.json):
       declared names rejected) is a map key, and every map key exists on the
       surface
   C3  effective on-set (state "on" and not frontmatter-dmi) equals the
-      pinned keep-set exactly, failing in both directions
+      pinned keep-set exactly, failing in both directions; personal skills
+      named in claude/machine-local-skills.json may also be "on" where present
   C4  zero dangling links; zero links into skills.disabled
   C5  repo/live map equality (deploy applied)
   C6  no enabled plugin ships SKILL.md files
@@ -230,6 +231,7 @@ if (trackedMap === null) {
 }
 
 const governedMap = trackedMap ?? {};
+const MACHINE_LOCAL_ON = new Set(JSON.parse(readText(path.join(repoDir, "claude/machine-local-skills.json")) ?? "[]"));
 const repoReal = (() => {
   try {
     return fs.realpathSync(repoDir);
@@ -249,8 +251,8 @@ const personalMap = {};
 for (const [name, state] of Object.entries(liveMap ?? {})) {
   if (Object.hasOwn(governedMap ?? {}, name) || (trackedMap && Object.hasOwn(trackedMap, name))) continue;
   if (byName.has(name) && !isPersonal(byName.get(name))) continue;
-  if (state === "on") {
-    errors.push(`personal skill ${name} is "on" in ${liveSettingsPath}; only the pinned repo keep-set is listed to the model (set it to user-invocable-only, name-only or off)`);
+  if (state === "on" && !MACHINE_LOCAL_ON.has(name)) {
+    errors.push(`personal skill ${name} is "on" in ${liveSettingsPath}; only the pinned repo keep-set and claude/machine-local-skills.json are listed to the model (set it to user-invocable-only, name-only or off)`);
     continue;
   }
   personalMap[name] = state;
@@ -344,7 +346,7 @@ const effectiveOn = new Set(
     .map((d) => d.name),
 );
 for (const name of effectiveOn) {
-  if (!PINNED_ON.has(name)) {
+  if (!PINNED_ON.has(name) && !(MACHINE_LOCAL_ON.has(name) && isPersonal(byName.get(name)))) {
     errors.push(`skill listed to the model beyond the pinned keep-set: ${name} (demote it in the map, or re-pin the keep-set via a CHALLENGED Decision Log entry)`);
   }
 }
