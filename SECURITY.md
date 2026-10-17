@@ -1,9 +1,9 @@
 # Security and public-repo hygiene
 
-This repository is designed to be shareable. Live credentials never belong in
-git history or the working tree that is pushed.
+This repository is public. Live credentials never belong in its history or in
+the working tree that is pushed.
 
-## What stays local (do not commit)
+## What stays local (never commit)
 
 | Surface | Location | Notes |
 |---------|----------|--------|
@@ -12,17 +12,18 @@ git history or the working tree that is pushed.
 | Copilot / editor auth DBs | `github-copilot/`, `*.db` | Gitignored |
 | Workflow runtime state | `.workflow/`, `.pi/` | Gitignored |
 | Private settings overlays | `*.local.json`, `settings.local.json` | Gitignored |
-| Optional local LLM weights | host only (not tracked) | Use `pi/models.local.example.json` as a starting point if needed |
+| Local model overlays | `pi/models.local.json` | Gitignored; start from `pi/models.local.example.json` |
 
-## Before flipping the GitHub repo to public
+## Before every push
 
-1. **Working tree scan** — no `.env`, `*.pem`, real `Bearer` tokens, or `ghp_` / `github_pat_` / `sk-ant-` values in tracked files.
-2. **MCP** — only `mcp/servers.template.json` (placeholders). Repo `.mcp.json`
-   is empty on purpose. See `docs/mcp-strategy.md`.
-3. **Install secrets** — never put production tokens in `scripts/` or CI YAML; use GitHub Actions secrets if needed later.
-4. **Optional history review** — if you ever committed a real token (none expected), rotate it and rewrite history before going public.
+- No `.env`, `*.pem`, real `Bearer` tokens, or `ghp_` / `github_pat_` /
+  `sk-ant-` values in tracked files.
+- MCP stays sanitized: only `mcp/servers.template.json` placeholders, and the
+  repo `.mcp.json` stays empty (`docs/mcp-strategy.md`).
+- Production tokens never go in `scripts/` or CI YAML; use GitHub Actions
+  secrets if CI ever needs one.
 
 ## Reporting
 
-If you find a credential in this repository, revoke/rotate it at the provider
-first, then open an issue or contact the maintainer.
+If you find a credential in this repository, revoke or rotate it at the
+provider first, then open an issue or contact the maintainer.

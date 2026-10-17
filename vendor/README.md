@@ -11,9 +11,13 @@ tree carries an `UPSTREAM_SHA` file with the commit it was taken from.
 
 | Vendor | Upstream | Scope | Skills |
 |---|---|---|---|
-| `mattpocock` | `mattpocock/skills` | `shared` | 7 — engineering pack (see `docs/vendor-skills.md`) |
+| `mattpocock` | `mattpocock/skills` | `shared` | 8 — engineering pack plus `productivity/grilling` (below) |
 | `petergyang` | `petergyang/no-ai-slop` | `shared` | 1 — `no-ai-slop`, AI-slop editing pass |
 | `typesafe-ai` | `typesafe-ai/skills` | `shared` | 1 — `typesafe-ai`, build with TypeSafe System One (Jev) |
+
+Pi receives a vendored skill only when its `workflow/runtime/skill-surface.tsv`
+row sets `pi_core=1` (today `typesafe-ai`); Claude visibility follows
+`claude/settings.skill-overrides.json`.
 
 pstack (ADR-0023, then removed by ADR-0033), ember-skills, adonisjs-skills,
 generic language packs (mcollina) and React packs (vercel, tanstack) were
@@ -29,6 +33,31 @@ inputs recoverable from git history — e.g.
 
 Scope follows `claude/README.md`: `shared` deploys everywhere, `work` and
 `personal` only where the machine declares that scope in `~/.etabli-scope`.
+
+## mattpocock pack
+
+`codebase-design`, `domain-modeling`, `grill-with-docs`,
+`improve-codebase-architecture`, `prototype`, `research`, `wizard`, plus
+`productivity/grilling`, which `grill-with-docs` calls with `domain-modeling`.
+Catalog rows use the upstream path (`engineering/<name>`); the skills deploy
+under their frontmatter names.
+
+Skipped on purpose, one canonical owner per name:
+
+- `engineering/code-review` → etabli's `review` route (`workflow/skills/review.md`).
+- `engineering/implement` → etabli's `implement` route.
+- `engineering/setup-matt-pocock-skills` → configures the suite's own installer
+  conventions; etabli's vendoring replaces it.
+
+Pruned 2026-10-16 (ADR-0033): `ask-matt`, `diagnosing-bugs`,
+`resolving-merge-conflicts`, `to-spec`, `to-tickets`, `triage`, `wayfinder`.
+
+Under etabli, suite references to skipped or pruned names resolve to the etabli
+equivalents, and the suite's own repo conventions degrade to Linear plus
+`workflow/`. `research` delegates reading to a background agent; parent-only Pi
+runs it as sequential reads. The etabli routes own gating and evidence; vendored
+skills are task-level entry points (repo research under the etabli contract
+stays `workflow/skills/investigation.md`).
 
 ## Updating
 

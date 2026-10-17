@@ -1,69 +1,69 @@
-# Profil de review — agent-nodejs (employer/agent-nodejs)
+# Review profile — agent-nodejs (employer/agent-nodejs)
 
-## Stack et commandes
+## Stack and commands
 
-- Gestionnaire : **yarn 1.22.19** (`package.json:4`). Monorepo **Lerna + yarn workspaces** (`package.json:52-55`, `workspaces: ["packages/*", "packages/workflow-executor/example"]`).
-- Node : `.nvmrc` = `24.10`. `workflow-executor` impose `"engines": {"node": ">=22.12.0"}` (`packages/workflow-executor/package.json:9-11`) ; `yarn workspace …` refuse sous ce seuil, contournement local `YARN_IGNORE_ENGINES=1`.
-- Test : **Jest** (`package.json:49`), config `jest.config.ts:11` : `testMatch: ['<rootDir>/packages/*/test/**/*.test.ts']` — tests **non colocalisés**, sous `test/` en miroir de `src/`. Setup global `jest-extended/all` (`jest.config.ts:12`).
-  - Package `agent` en ESM forcé : `"test": "NODE_OPTIONS=--experimental-vm-modules jest"` (`packages/agent/package.json:46`).
-  - Par package : `yarn workspace @employer/<pkg> test -- <path ou -t "nom">`.
-- Lint : `"lint": "lerna exec --parallel eslint src test"` (`package.json:46`), extends `airbnb-base`, `airbnb-typescript/base`, `plugin:@typescript-eslint/recommended`, `plugin:prettier/recommended`, `plugin:jest/recommended` (`.eslintrc.js:6-12`).
-- Build : `"build": "lerna run build"` (`package.json:43`), `tsc` par package.
-- Pas de script `typecheck` au root — le build fait office de vérification de types.
+- Package manager: **yarn 1.22.19** (`package.json:4`). **Lerna + yarn workspaces** monorepo (`package.json:52-55`, `workspaces: ["packages/*", "packages/workflow-executor/example"]`).
+- Node: `.nvmrc` = `24.10`. `workflow-executor` requires `"engines": {"node": ">=22.12.0"}` (`packages/workflow-executor/package.json:9-11`); `yarn workspace …` refuses below that threshold, local workaround `YARN_IGNORE_ENGINES=1`.
+- Test: **Jest** (`package.json:49`), config `jest.config.ts:11`: `testMatch: ['<rootDir>/packages/*/test/**/*.test.ts']` — tests **not colocated**, under `test/` mirroring `src/`. Global setup `jest-extended/all` (`jest.config.ts:12`).
+  - The `agent` package runs forced ESM: `"test": "NODE_OPTIONS=--experimental-vm-modules jest"` (`packages/agent/package.json:46`).
+  - Per package: `yarn workspace @employer/<pkg> test -- <path or -t "name">`.
+- Lint: `"lint": "lerna exec --parallel eslint src test"` (`package.json:46`), extends `airbnb-base`, `airbnb-typescript/base`, `plugin:@typescript-eslint/recommended`, `plugin:prettier/recommended`, `plugin:jest/recommended` (`.eslintrc.js:6-12`).
+- Build: `"build": "lerna run build"` (`package.json:43`), `tsc` per package.
+- No root `typecheck` script — the build doubles as type checking.
 
 ## Architecture
 
-24 packages sous `packages/*`.
+24 packages under `packages/*`.
 
-- `agent` — point d'entrée SDK, `createAgent()`, orchestre HTTP + customizer + services. Dépend de `datasource-customizer`, `datasource-toolkit`, `employer-client`, `mcp-server` (`packages/agent/package.json:16-20`).
-- `mcp-server` — serveur MCP OAuth, transport HTTP streamable, tools RPC vers l'agent live. Dépend de `agent-client`, jamais des données en direct.
-- `agent-client` — client RPC vers un agent en marche (consommé par `mcp-server`, `workflow-executor`).
-- `employer-client` — SDK vers l'API SaaS employer : permissions, scopes, OIDC, schema push, activity logs. Toute la couche HTTP passe par `ServerUtils`.
-- `workflow-executor` — exécute les steps de workflow côté infra client. Node ≥22.12.
-- `datasource-toolkit`, `datasource-customizer` — couche datasource de base + customisation.
-- `datasource-sql|sequelize|mongo|mongoose|replica|zendesk|dummy|demo-fintech` — implémentations.
-- `ai-proxy` — proxy LLM (jamais `@langchain/core` en direct depuis les consommateurs).
+- `agent` — SDK entry point, `createAgent()`, orchestrates HTTP + customizer + services. Depends on `datasource-customizer`, `datasource-toolkit`, `employer-client`, `mcp-server` (`packages/agent/package.json:16-20`).
+- `mcp-server` — OAuth MCP server, streamable HTTP transport, RPC tools toward the live agent. Depends on `agent-client`, never on the data directly.
+- `agent-client` — RPC client toward a running agent (consumed by `mcp-server`, `workflow-executor`).
+- `employer-client` — SDK toward the employer SaaS API: permissions, scopes, OIDC, schema push, activity logs. The whole HTTP layer goes through `ServerUtils`.
+- `workflow-executor` — runs workflow steps on the customer's infrastructure. Node ≥22.12.
+- `datasource-toolkit`, `datasource-customizer` — base datasource layer + customization.
+- `datasource-sql|sequelize|mongo|mongoose|replica|zendesk|dummy|demo-fintech` — implementations.
+- `ai-proxy` — LLM proxy (consumers never use `@langchain/core` directly).
 - `plugin-aws-s3`, `plugin-export-advanced`, `plugin-flattener`, `employer-cloud`, `agent-toolkit`, `agent-testing`, `_example`.
 
-Frontière qui compte : `agent` ne manipule jamais les collections directement, il délègue à `datasource-customizer`. Un changement de logique data dans `agent/src/routes` qui contourne le customizer est suspect.
+The boundary that matters: `agent` never handles collections directly; it delegates to `datasource-customizer`. A data logic change in `agent/src/routes` that bypasses the customizer is suspect.
 
-## Conventions vérifiées
+## Verified conventions
 
-- **Tests non colocalisés** sous `test/` miroir de `src/` (`jest.config.ts:11`).
-- **Assertions précises** : `toHaveBeenCalledWith` avec arguments exacts, pas `toHaveBeenCalled()` seul (`CLAUDE.md:63-73` ; exemple `packages/mcp-server/test/tools/get-action-form.test.ts:50-54`).
-- **Mocks de module entier** : `jest.mock('../../src/utils/agent-caller')` (`packages/mcp-server/test/tools/get-action-form.test.ts:11`).
-- **Export** : `export default class XxxRoute extends CollectionRoute` (`packages/agent/src/routes/access/list.ts:8`), un fichier = une route/un tool.
-- **Import order imposé** : groupes `type`, puis `[builtin, external]`, puis `[internal, sibling, parent, index, object]`, alphabétisé, ligne vide entre groupes (`.eslintrc.js:39-50`).
-- **Type-only imports forcés** : `@typescript-eslint/consistent-type-imports` en `error`, `fixStyle: separate-type-imports` (`.eslintrc.js:60-63`).
-- **`mcp-server` impose les extensions `.js`** sur les imports SDK MCP (`.eslintrc.js:124-146`). Un import sans `.js` est une régression, pas un choix de style.
+- **Tests not colocated**, under `test/` mirroring `src/` (`jest.config.ts:11`).
+- **Precise assertions**: `toHaveBeenCalledWith` with exact arguments, not a bare `toHaveBeenCalled()` (`CLAUDE.md:63-73`; example `packages/mcp-server/test/tools/get-action-form.test.ts:50-54`).
+- **Whole-module mocks**: `jest.mock('../../src/utils/agent-caller')` (`packages/mcp-server/test/tools/get-action-form.test.ts:11`).
+- **Export**: `export default class XxxRoute extends CollectionRoute` (`packages/agent/src/routes/access/list.ts:8`), one file = one route/one tool.
+- **Enforced import order**: groups `type`, then `[builtin, external]`, then `[internal, sibling, parent, index, object]`, alphabetized, a blank line between groups (`.eslintrc.js:39-50`).
+- **Type-only imports forced**: `@typescript-eslint/consistent-type-imports` at `error`, `fixStyle: separate-type-imports` (`.eslintrc.js:60-63`).
+- **`mcp-server` requires `.js` extensions** on MCP SDK imports (`.eslintrc.js:124-146`). An import without `.js` is a regression, not a style choice.
 
-## Cas tricky
+## Tricky cases
 
-1. **Trou d'autorisation `list` + projection de relation** — `packages/agent/src/routes/access/list.ts:14,16` ne vérifie `assertCanBrowse`/`getScope` que sur `this.collection`, jamais sur une collection liée projetée ; `list-related.ts:20,23` le fait correctement sur `foreignCollection`. **Reconfirmé sur HEAD.** Tout diff sur `list.ts` ajoutant une projection de relation doit être scruté. (kb `agent-list-relation-authz-gap`)
-2. **Casing operators snake_case vs PascalCase** — `packages/agent/src/routes/capabilities.ts:60-67,87-92` convertit en snake_case, `packages/mcp-server/src/schemas/filter.ts:3-48` attend un enum PascalCase (44 operators). Un changement d'un côté sans l'autre casse le filtrage MCP silencieusement. (kb `employer-capabilities-operators`)
-3. **Pas de validation operator-vs-champ dans `list.ts` du MCP** — `filterSchema` global, pas par champ. Gap assumé (YAGNI documenté), pas une omission à corriger.
-4. **Collision de slug d'action gatée par un flag** — `packages/agent/src/utils/employer-schema/generator-collection.ts:47-72` : `assertNoActionSlugCollision` ne tourne que si `useUnsafeActionEndpoint` est actif. (kb `action-slug-collision`)
-5. **Cache 24h du schéma MCP standalone** — `packages/mcp-server/src/utils/schema-fetcher.ts:31-48`, `ONE_DAY_MS` sans invalidation. Insérer une action au milieu du schéma peut faire exécuter la mauvaise action jusqu'à 24h.
-6. **workflow-executor, idempotence** : write-ahead log `idempotencyPhase: executing → done`. Une erreur héritant de `WorkflowExecutorError` au lieu d'une erreur de boundary est silencieusement avalée par `base-step-executor.ts`. Vérifier l'héritage de tout nouveau type d'erreur.
-7. **workflow-executor, config** : jamais de `process.env` hors `cli-core`/`tracing.ts`. Régression déjà survenue (`employer_EXECUTOR_ENCRYPTION_KEY` lu dans `crypto/`).
-8. **Deux stacks de customizer parallèles** (user-facing + no-code) : un changement dans `buildRouterAndSendSchema()` doit être vérifié sur les deux.
-9. **Ajouter un tool MCP = 3 éditions coordonnées** dans `server.ts` (`ToolName` union, `allTools`, `allToolNames`). Une PR qui n'en touche qu'une ou deux est incomplète.
+1. **Authorization gap in `list` + relation projection** — `packages/agent/src/routes/access/list.ts:14,16` checks `assertCanBrowse`/`getScope` only on `this.collection`, never on a projected related collection; `list-related.ts:20,23` does it correctly on `foreignCollection`. **Reconfirmed on HEAD.** Scrutinize any diff on `list.ts` that adds a relation projection. (kb `agent-list-relation-authz-gap`)
+2. **snake_case vs PascalCase operator casing** — `packages/agent/src/routes/capabilities.ts:60-67,87-92` converts to snake_case, `packages/mcp-server/src/schemas/filter.ts:3-48` expects a PascalCase enum (44 operators). A change on one side without the other silently breaks MCP filtering. (kb `employer-capabilities-operators`)
+3. **No operator-vs-field validation in the MCP `list.ts`** — `filterSchema` is global, not per field. An accepted gap (documented YAGNI), not an omission to fix.
+4. **Action slug collision gated by a flag** — `packages/agent/src/utils/employer-schema/generator-collection.ts:47-72`: `assertNoActionSlugCollision` runs only when `useUnsafeActionEndpoint` is on. (kb `action-slug-collision`)
+5. **24h cache of the standalone MCP schema** — `packages/mcp-server/src/utils/schema-fetcher.ts:31-48`, `ONE_DAY_MS` without invalidation. Inserting an action in the middle of the schema can run the wrong action for up to 24h.
+6. **workflow-executor, idempotency**: write-ahead log `idempotencyPhase: executing → done`. An error inheriting from `WorkflowExecutorError` instead of a boundary error is silently swallowed by `base-step-executor.ts`. Check the inheritance of any new error type.
+7. **workflow-executor, config**: never `process.env` outside `cli-core`/`tracing.ts`. This regression already happened (`employer_EXECUTOR_ENCRYPTION_KEY` read in `crypto/`).
+8. **Two parallel customizer stacks** (user-facing + no-code): a change in `buildRouterAndSendSchema()` must be checked on both.
+9. **Adding an MCP tool = 3 coordinated edits** in `server.ts` (`ToolName` union, `allTools`, `allToolNames`). A PR touching only one or two of them is incomplete.
 
-## Ce qu'on NE commente PAS
+## What we do NOT comment on
 
-- **Cycles d'import** : `'import/no-cycle': 'off'` (`.eslintrc.js:100`), assumé pour les types.
-- **`console.debug/info/warn/error`** : autorisés (`.eslintrc.js:91`). Seul `console.log` est interdit.
-- **`class-methods-use-this` désactivé** (`.eslintrc.js:78`) — une méthode qui n'utilise pas `this` est un choix assumé.
-- **`consistent-return` désactivé** (`.eslintrc.js:97`) au profit du typage TS.
-- **`mountOn*` prend `any`** volontairement : les frameworks HTTP sont des peer/dev deps, l'agent reste agnostique.
-- **Absence de validation operator-vs-champ** (`mcp-server/list.ts`) : YAGNI documenté.
-- **`UnsupportedActionFormError` jamais levée** dans `workflow-executor/src` : code mort assumé et documenté.
+- **Import cycles**: `'import/no-cycle': 'off'` (`.eslintrc.js:100`), accepted for types.
+- **`console.debug/info/warn/error`**: allowed (`.eslintrc.js:91`). Only `console.log` is forbidden.
+- **`class-methods-use-this` disabled** (`.eslintrc.js:78`) — a method that does not use `this` is a deliberate choice.
+- **`consistent-return` disabled** (`.eslintrc.js:97`) in favor of TS typing.
+- **`mountOn*` takes `any`** on purpose: the HTTP frameworks are peer/dev deps, so the agent stays agnostic.
+- **No operator-vs-field validation** (`mcp-server/list.ts`): documented YAGNI.
+- **`UnsupportedActionFormError` never thrown** in `workflow-executor/src`: accepted and documented dead code.
 
-## Signaux de review prioritaires
+## Priority review signals
 
-1. **Régression d'autorisation sur `access/`** — tout diff sur `packages/agent/src/routes/access/*.ts` ou `relation-route.ts` : vérifier `assertCanBrowse`/`getScope` sur **chaque** collection réellement lue, pas seulement celle de la route.
-2. **Ordre des routes et middlewares** — routes triées par `RouteType` pour que logger/error/auth chargent avant les routes privées. L'ordre porte du sens ; un tri alphabétique casse en prod sans échec de test.
-3. **Idempotence des steps mutants** (workflow-executor) — un nouveau chemin mutant qui ne passe pas par `checkIdempotency()` double les effets de bord en prod (paiement, action déclenchée deux fois).
-4. **Cache 24h mcp-server** — un changement d'ordre des actions dans le générateur de schéma agent casse le MCP jusqu'à 24h après déploiement, sans qu'aucun test agent ne le voie.
-5. **Casing operators capabilities ↔ filterSchema MCP** — changement d'un côté sans l'autre : pas d'erreur de compilation, pas d'échec de test, cassé en prod.
-6. **Cache de build stale `agent-client` → `workflow-executor`** — dist stale servi par le cache lerna/nx, produit des « no exported member » trompeurs. CI verte ≠ build frais.
+1. **Authorization regression in `access/`** — any diff on `packages/agent/src/routes/access/*.ts` or `relation-route.ts`: check `assertCanBrowse`/`getScope` on **every** collection actually read, not only the route's own.
+2. **Route and middleware order** — routes are sorted by `RouteType` so logger/error/auth load before private routes. The order carries meaning; an alphabetical sort breaks production without a failing test.
+3. **Idempotency of mutating steps** (workflow-executor) — a new mutating path that skips `checkIdempotency()` doubles side effects in production (payment, action fired twice).
+4. **mcp-server 24h cache** — reordering actions in the agent schema generator breaks the MCP for up to 24h after deploy, and no agent test sees it.
+5. **Operator casing capabilities ↔ MCP filterSchema** — a change on one side without the other: no compile error, no failing test, broken in production.
+6. **Stale `agent-client` → `workflow-executor` build cache** — a stale dist served by the lerna/nx cache produces misleading "no exported member" errors. Green CI ≠ fresh build.

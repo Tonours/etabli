@@ -1,57 +1,57 @@
-# Profil de review — employer (employer/employer, frontend)
+# Review profile — employer (employer/employer, frontend)
 
-## Stack et commandes
+## Stack and commands
 
 - **yarn 1.22.19** (`package.json:39`), Node **22.12.0** (`.nvmrc:1`, `package.json:91`).
-- **Ember** `ember-source: ~4.12.0`, édition **octane** (`package.json:238,94`).
-- **React 18 côté host** (`package.json:292-293`), **React 19 côté MFE** `user-settings-mfe` (`apps/user-settings-mfe/package.json:29-30`). Coexistence délibérée via `nohoist` (`package.json:19-20`).
-- **Tests host** : `EMBER_ENV=test ember exam` (`package.json:72`), filtrage `yarn ember exam --filter="..."`, coverage `yarn test:coverage` (`package.json:74`). QUnit + mirage + sinon.
-- **Tests MFE** : `vitest run` (`apps/user-settings-mfe/package.json:16`) + Testing Library + msw (`:44-56`). Pas de Jest/QUnit dans ce workspace.
-- **Lint host** : `yarn lint` agrège `lint:css` (stylelint sur `app/legacy/pods`, `app/features`, `app/shared`), `lint:hbs` (ember-template-lint), `lint:js` (`package.json:51-63`).
-- **Lint MFE** : `eslint src --max-warnings 0` (`apps/user-settings-mfe/package.json:12`) — zéro warning toléré, plus strict que le host.
-- **Typecheck** : `tsc --noEmit` avec heap étendu (`package.json:87`), multi-workspace `yarn typecheck:all` (`package.json:88`).
-- MFE et packages pilotés par **Nx** : `nx start|build|typecheck|test|lint <projet>` (`package.json:60-79`).
+- **Ember** `ember-source: ~4.12.0`, **octane** edition (`package.json:238,94`).
+- **React 18 on the host** (`package.json:292-293`), **React 19 in the MFE** `user-settings-mfe` (`apps/user-settings-mfe/package.json:29-30`). Deliberate coexistence through `nohoist` (`package.json:19-20`).
+- **Host tests**: `EMBER_ENV=test ember exam` (`package.json:72`), filter with `yarn ember exam --filter="..."`, coverage with `yarn test:coverage` (`package.json:74`). QUnit + mirage + sinon.
+- **MFE tests**: `vitest run` (`apps/user-settings-mfe/package.json:16`) + Testing Library + msw (`:44-56`). No Jest/QUnit in this workspace.
+- **Host lint**: `yarn lint` aggregates `lint:css` (stylelint on `app/legacy/pods`, `app/features`, `app/shared`), `lint:hbs` (ember-template-lint), `lint:js` (`package.json:51-63`).
+- **MFE lint**: `eslint src --max-warnings 0` (`apps/user-settings-mfe/package.json:12`) — zero warnings tolerated, stricter than the host.
+- **Typecheck**: `tsc --noEmit` with an extended heap (`package.json:87`), multi-workspace `yarn typecheck:all` (`package.json:88`).
+- MFEs and packages are driven by **Nx**: `nx start|build|typecheck|test|lint <project>` (`package.json:60-79`).
 
 ## Architecture
 
-- **Resolver custom à 5 niveaux**, ordre vérifié dans `app/resolver.ts:9-16` : `data → shared → features → routes → legacy`.
-- 39 dossiers sous `app/features/` (`inbox`, `workflow-editor`, `workflow-visualizer`, `mcp-server`, `role`, `authentication`…).
-- **Le legacy vit sous `app/legacy/pods/`** — pas `app/pods/` (ce chemin n'existe pas). `app/legacy` contient aussi `services/`, `mixins/`, `abstract-*`.
-- MFE React sous `apps/`, packages partagés sous `packages/*` (`package.json:12-14`).
-- ⚠️ Le détail des frontières (shared ne peut pas injecter de service, feature service seul mutateur d'état…) vient des skills, **non re-vérifié** sur une feature réelle au-delà du resolver et du lint. À traiter comme inféré.
+- **Custom 5-level resolver**, order verified in `app/resolver.ts:9-16`: `data → shared → features → routes → legacy`.
+- 39 folders under `app/features/` (`inbox`, `workflow-editor`, `workflow-visualizer`, `mcp-server`, `role`, `authentication`…).
+- **Legacy lives under `app/legacy/pods/`** — not `app/pods/` (that path does not exist). `app/legacy` also holds `services/`, `mixins/`, `abstract-*`.
+- React MFEs under `apps/`, shared packages under `packages/*` (`package.json:12-14`).
+- ⚠️ The boundary details (shared cannot inject a service, the feature service is the only state mutator…) come from the skills and were **not re-verified** on a real feature beyond the resolver and the lint. Treat them as inferred.
 
-## Conventions vérifiées
+## Verified conventions
 
-- **`employer-custom/dependency-rules`** en erreur (`eslint.config.mjs:97`), implémentation `eslint-custom-rules/dependency-rules.js:26-56` : interdit d'importer un service UI (`business/notification`, `services/toastr`, `services/ui/*`) depuis un `internal-business` ; interdit d'importer un `internal-business`/`internal-feature` hors du dossier `services` de sa feature.
-- **`employer-custom/class-naming-based-on-path`** en erreur (`eslint.config.mjs:315-345`) : `components/[path]/component.ts` → suffixe `Component`, `services/internal-business/[name].ts` → `InternalBusinessService`, `services/feature.ts` → `FeatureService`, `app/services/business/[name]` → `BusinessService`.
-  - ⚠️ **Écart réel** : les regex legacy ciblent `app/pods/...`, alors que le legacy vit sous `app/legacy/pods/...`. **La règle ne matche jamais un fichier legacy** — le nommage n'y est pas appliqué malgré la config apparente.
-- **Imports absolus `client/...` imposés**, `allowSameFolder: false` (`eslint.config.mjs:100-107`).
-- **`no-console`** autorise `debug|info|warn|error`, bloque `console.log` nu (`eslint.config.mjs:23-28`).
-- **`prop-types` nu interdit**, passer par `client/utils/prop-types-utils` (`eslint.config.mjs:79-83`). **`inject` de `@ember/service` interdit** au profit de `service` (`:88-93`).
-- **Template-lint** (`.template-lintrc.js`) : `no-action` et `no-action-modifiers` à `true` (`:32-33`), `no-implicit-this` avec allowlist nommée (`:46-60`), `template-length` max 250 lignes (`:79-82`). `no-route-action` en **`warn`** avec commentaire `// To clean up` (`:87`) — non bloquant.
-- **Sélecteurs de test `data-test-*`** — inféré depuis les skills, pas depuis un test réel lu.
-- ⚠️ Fichiers de test disproportionnés observés : `tests/features/inbox/services/feature-test.ts` **125 Ko**, `tests/features/inbox/components/creation-modal/component-test.ts` 39,8 Ko.
+- **`employer-custom/dependency-rules`** at error (`eslint.config.mjs:97`), implemented in `eslint-custom-rules/dependency-rules.js:26-56`: forbids importing a UI service (`business/notification`, `services/toastr`, `services/ui/*`) from an `internal-business`; forbids importing an `internal-business`/`internal-feature` outside the `services` folder of its feature.
+- **`employer-custom/class-naming-based-on-path`** at error (`eslint.config.mjs:315-345`): `components/[path]/component.ts` → `Component` suffix, `services/internal-business/[name].ts` → `InternalBusinessService`, `services/feature.ts` → `FeatureService`, `app/services/business/[name]` → `BusinessService`.
+  - ⚠️ **Real gap**: the legacy regexes target `app/pods/...`, while legacy lives under `app/legacy/pods/...`. **The rule never matches a legacy file** — naming is not enforced there despite the apparent config.
+- **Absolute `client/...` imports required**, `allowSameFolder: false` (`eslint.config.mjs:100-107`).
+- **`no-console`** allows `debug|info|warn|error` and blocks a bare `console.log` (`eslint.config.mjs:23-28`).
+- **Bare `prop-types` forbidden**, go through `client/utils/prop-types-utils` (`eslint.config.mjs:79-83`). **`inject` from `@ember/service` forbidden** in favor of `service` (`:88-93`).
+- **Template-lint** (`.template-lintrc.js`): `no-action` and `no-action-modifiers` set to `true` (`:32-33`), `no-implicit-this` with a named allowlist (`:46-60`), `template-length` max 250 lines (`:79-82`). `no-route-action` at **`warn`** with a `// To clean up` comment (`:87`) — not blocking.
+- **`data-test-*` test selectors** — inferred from the skills, not from a real test read.
+- ⚠️ Oversized test files observed: `tests/features/inbox/services/feature-test.ts` **125 KB**, `tests/features/inbox/components/creation-modal/component-test.ts` 39.8 KB.
 
-## Cas tricky
+## Tricky cases
 
-1. **Resolver à 5 niveaux** (`app/resolver.ts:9-16`) — un même nom peut se résoudre dans `data`, `shared`, `features`, `routes` ou `legacy`. Avant d'affirmer « quel fichier est utilisé », vérifier le pattern du type concerné (`app/resolver.ts:30-140`), pas un layout Ember classique.
-2. **`class-naming-based-on-path` ne matche pas le legacy réel** — ne pas bloquer une PR legacy sur un nommage de classe qui n'est pas lint-enforced.
-3. **Double instance React 18/19 en Module Federation** — isolation par `nohoist` (`package.json:19-20`). Un dédoublonnage ou hoist involontaire casse tout. (kb `mfe-dual-react-nohoist`, cité depuis `_index.md:50`, non relu en détail)
-4. **Notes KB MFE à consulter avant de juger un changement** (index `~/work/brain/kb/_index.md:47-54`) : routing MFE avec `createBrowserRouter`+`basename` → page blanche (fix `memoryRouter`) ; sérialisation des props Ember→React sans cache ; isolation CSS build-time sans shadow DOM ; `theme.css` v4 fait foi sur les tokens Tailwind ; réutilisation d'instance de router v6 fuitant du state entre routes.
-5. **`dependency-rules` casse silencieusement** si le chemin d'import ne matche pas exactement `/internal-business/` ou `/internal-feature/` (`eslint-custom-rules/dependency-rules.js:38-56`) — un renommage de dossier peut désactiver la règle sans erreur. À vérifier manuellement sur tout déplacement de service.
+1. **5-level resolver** (`app/resolver.ts:9-16`) — one name can resolve in `data`, `shared`, `features`, `routes` or `legacy`. Before asserting "which file is used", check the pattern for that type (`app/resolver.ts:30-140`), not a classic Ember layout.
+2. **`class-naming-based-on-path` does not match the real legacy** — do not block a legacy PR on a class name that is not lint-enforced.
+3. **Dual React 18/19 instance in Module Federation** — isolated through `nohoist` (`package.json:19-20`). An accidental dedupe or hoist breaks everything. (kb `mfe-dual-react-nohoist`, cited from `_index.md:50`, not reread in detail)
+4. **MFE KB notes to read before judging a change** (index `~/work/brain/kb/_index.md:47-54`): MFE routing with `createBrowserRouter`+`basename` → blank page (fix: `memoryRouter`); Ember→React prop serialization without a cache; build-time CSS isolation without shadow DOM; `theme.css` v4 is authoritative for Tailwind tokens; reusing a router v6 instance leaks state between routes.
+5. **`dependency-rules` breaks silently** when the import path does not exactly match `/internal-business/` or `/internal-feature/` (`eslint-custom-rules/dependency-rules.js:38-56`) — renaming a folder can disable the rule without an error. Check by hand on any service move.
 
-## Ce qu'on NE commente PAS
+## What we do NOT comment on
 
-- **Nommage de classe non conforme sous `app/legacy/pods/...`** — la règle ne matche pas ce chemin, ce n'est ni une violation détectable ni un signal réel.
-- **`no-route-action` et `require-presentational-children`** en `warn` avec `// To clean up` (`.template-lintrc.js:87-88`) — legacy accepté, ne pas exiger leur résolution dans une PR qui n'y touche pas.
-- **Divergence de stack host (QUnit/mirage/sinon) vs MFE (Vitest/Testing Library/msw)** — délibérée, pas un défaut à uniformiser.
-- ⚠️ Pas assez d'éléments vérifiés pour lister les zones générées ou les patterns Ember « datés mais corrects ». Ne pas remplir cette catégorie de généralités non sourcées.
+- **Non-conforming class names under `app/legacy/pods/...`** — the rule does not match that path, so it is neither a detectable violation nor a real signal.
+- **`no-route-action` and `require-presentational-children`** at `warn` with `// To clean up` (`.template-lintrc.js:87-88`) — accepted legacy; do not require fixing them in a PR that does not touch them.
+- **Host stack (QUnit/mirage/sinon) vs MFE stack (Vitest/Testing Library/msw)** — deliberate, not a defect to unify.
+- ⚠️ Not enough verified evidence to list generated areas or Ember patterns that are "dated but correct". Do not fill this category with unsourced generalities.
 
-## Signaux de review prioritaires
+## Priority review signals
 
-1. **Violation des frontières de couches contournée par un renommage/déplacement** qui échappe aux regex de `dependency-rules` (`eslint-custom-rules/dependency-rules.js:26-56`) — passe le lint, donc passe la CI, mais casse l'architecture en silence.
-2. **Changements Module Federation / chargement MFE** (`apps/*`, host `app/components/micro-frontend/*`) sans respecter l'isolation React 18/19 — double instance React, hook call invalide : invisible en test unitaire, casse en prod.
-3. **Modification de `app/resolver.ts` ou collision de nom entre `legacy` et un des 4 niveaux modernes** — silencieux à la compilation, visible seulement à l'exécution via le mauvais fichier résolu.
-4. **Ajout dans `services/internal-business|internal-feature` absent du mapping `class-naming-based-on-path`** (`eslint.config.mjs:315-345` — `internal-feature` n'y est pas) : le lint ne l'attrape pas, vérification manuelle du nommage.
-5. **Ajout dans un fichier de test déjà disproportionné** (125 Ko observé) — passe la CI mais dilue la couverture réelle. Vérifier que le test ajouté est ciblé, pas accolé à un fourre-tout.
-6. **PR MFE** : `--max-warnings 0` (`apps/user-settings-mfe/package.json:12`) — un warning local non résolu bloque le lint CI de ce workspace, contrairement au host.
+1. **Layer boundary violation hidden by a rename/move** that escapes the `dependency-rules` regexes (`eslint-custom-rules/dependency-rules.js:26-56`) — it passes lint, so it passes CI, but silently breaks the architecture.
+2. **Module Federation / MFE loading changes** (`apps/*`, host `app/components/micro-frontend/*`) that ignore the React 18/19 isolation — dual React instance, invalid hook call: invisible in unit tests, breaks in production.
+3. **A change to `app/resolver.ts` or a name collision between `legacy` and one of the 4 modern levels** — silent at compile time, visible only at runtime through the wrong resolved file.
+4. **An addition under `services/internal-business|internal-feature` missing from the `class-naming-based-on-path` mapping** (`eslint.config.mjs:315-345` — `internal-feature` is not in it): lint does not catch it, check the naming by hand.
+5. **An addition to an already oversized test file** (125 KB observed) — passes CI but dilutes real coverage. Check the added test is targeted, not appended to a catch-all.
+6. **MFE PR**: `--max-warnings 0` (`apps/user-settings-mfe/package.json:12`) — one unresolved local warning blocks this workspace's CI lint, unlike the host.

@@ -148,10 +148,9 @@ A plan is `READY` when it has:
 
 Work commands are explicit commands (work scope), never chosen by the
 router: `/linear-work`, `/linear-ticket-create`, `/linear-project-setup`,
-`/bug-check`, `/pr-council-review`. Slash prompts bypass the classifier, so each runs
-under its own contract. Linear commands
-require Linear MCP or stop with `LINEAR_MCP_UNAVAILABLE` — see
-`docs/mcp-strategy.md`. Rationale: ADR-0027.
+`/bug-check`, `/pr-council-review`. Each runs under its own contract. Linear
+commands require Linear MCP or stop with `LINEAR_MCP_UNAVAILABLE` — see
+`docs/mcp-strategy.md` § Linear MCP gap. Rationale: ADR-0027.
 
 `verify` is the contract route; the Claude command surface names it
 `/verify-workflow` and Pi presents `/skill:verify`.

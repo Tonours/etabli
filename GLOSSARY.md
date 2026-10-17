@@ -1,37 +1,37 @@
 # Etabli
 
-Harness agent : contrats de workflow partagés, adaptés pour Pi et Claude.
+Agent harness: shared workflow contracts, adapted for Pi and Claude.
 
 ## Language
 
 **Route**:
-Ligne de la table de routage de `workflow/spec.md` : un déclencheur, un artefact et une condition d'arrêt.
+A row of the routing table in `workflow/spec.md`: one trigger, one artifact and one stop condition.
 _Avoid_: workflow, mode
 
-**Cœur**:
-Routes et contrats dont dépend le gate READY.
-_Avoid_: core skills, essentiels
+**Core**:
+The routes and contracts the READY gate depends on.
+_Avoid_: core skills, essentials
 
-**Commande explicite**:
-Skill ou commande invoquée par son nom, jamais choisie par le routeur.
-_Avoid_: opt-in, route secondaire
+**Explicit command**:
+A skill or command invoked by name, never chosen by the router.
+_Avoid_: opt-in, secondary route
 
 **Scope**:
-Partition de déploiement (shared, work, personal) qui décide quelles surfaces reçoivent une skill.
-_Avoid_: profil, environnement
+The deployment partition (shared, work, personal) that decides which surfaces receive a skill.
+_Avoid_: profile, environment
 
-**Étagère**:
-Skills suivies dans git mais jamais déployées (extras/) ; on les promeut en les déplaçant.
+**Shelf**:
+Skills tracked in git but never deployed (`extras/`); promote one by moving it.
 _Avoid_: opt-in, vendor, archive
 
 **Surface**:
-Emplacement où un runtime charge des skills ou des commandes (~/.pi, ~/.claude).
+A location where a runtime loads skills or commands (`~/.pi`, `~/.claude`).
 _Avoid_: target, destination
 
 **Scaffold**:
-Fichiers de workflow copiés dans un projet par `scripts/deploy-workflow` (spec, templates, scripts de plan).
+Workflow files copied into a project by `scripts/deploy-workflow` (spec, templates, plan scripts).
 _Avoid_: template, bootstrap
 
-**Surface retirée**:
-Surface qu'etabli ne gère plus (ADR-0031) ; ses liens périmés sont laissés en place, jamais nettoyés.
-_Avoid_: surface legacy, ancienne surface
+**Retired surface**:
+A surface etabli no longer manages (ADR-0031); its stale links are left in place, never cleaned up.
+_Avoid_: legacy surface, old surface
