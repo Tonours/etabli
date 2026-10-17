@@ -6,7 +6,7 @@
 # Provenance: rows with source mattpocock (Matt Pocock) are the vendored shared
 # suite — cataloged as engineering/<name> but deployed by
 # their frontmatter names (e.g. `research`, `wizard`). Suite map and
-# collision rules: docs/vendor-skills.md.
+# collision rules: vendor/README.md.
 plan-loop	pi	1	1
 plan-implement	pi	1	1
 adversary	pi	1	1

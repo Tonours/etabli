@@ -56,6 +56,26 @@ and `adversary` (read-only plan or diff review). They declare `Skill` and pick
 a domain skill themselves; no hook suggests one (ADR-0014). Command
 `allowed-tools` entries are pre-approvals, not a sandbox.
 
+## Skill governance
+
+`settings.skill-overrides.json` holds the skill map: every repo and vendored
+skill, plus `herdr` (linked from the dotfiles repo), is `on` (listed to the
+model) or `user-invocable-only` (slash only).
+`scripts/claude-skill-load-check` runs after each live deploy (skipped by
+`ETABLI_SKIP_LIVE_CHECKS=1`) and fails when the
+model-facing index outgrows its gate, a skill on the surface is missing from
+the map, the `on` set drifts from the pinned keep-set, or an enabled plugin
+ships skills. `--fix` adds new skills as `user-invocable-only`.
+
+Personal skills (outside the repo) are governed in the live
+`~/.claude/settings.json`; deploy keeps their states, drops entries whose skill
+is gone from the surface, and drops a personal `on` unless the skill is named
+in `machine-local-skills.json` (today the
+`alambic-brain` and `alambic-obvault` memory skills, `on` on the machines that
+have them). Plugins named in `machine-local-plugins.json` (`datadog`, `forest`)
+may ship skills: they bring an MCP server, hooks or agents that vendoring would
+break, so their skills stay ungoverned and outside the index gate.
+
 ## Hooks
 
 - `read-only-agent-guard.mjs` is wired by `scout`, `reviewer` and `adversary`

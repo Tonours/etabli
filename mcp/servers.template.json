@@ -1,22 +1,5 @@
 {
-  "$comment": "Sanitized reference inventory for the active Etabli work scope. It is not deployed and contains no credentials. Live definitions remain runtime-local; copy only the server required by that runtime. See docs/mcp-strategy.md.",
-  "scope": "work",
-  "runtimeAssignments": {
-    "claude": [
-      "chrome-devtools",
-      "brain"
-    ],
-    "pi": [
-      "brain"
-    ],
-    "codex": [
-      "chrome-devtools",
-      "datadog",
-      "linear",
-      "brain"
-    ],
-    "grok": []
-  },
+  "$comment": "Sanitized reference inventory. It is not deployed and contains no credentials. Live definitions remain runtime-local; copy only the server a runtime needs. See docs/mcp-strategy.md.",
   "mcpServers": {
     "chrome-devtools": {
       "type": "stdio",
@@ -26,14 +9,26 @@
       ],
       "env": {}
     },
-    "brain": {
+    "alambic-brain": {
       "type": "stdio",
       "command": "node",
       "args": [
-        "${HOME}/work/brain/_meta/mcp/server.mjs"
+        "${HOME}/work/alambic/_meta/mcp/server.mjs"
       ],
       "env": {
-        "OBVAULT_ROOT": "${HOME}/work/brain"
+        "ALAMBIC_ROOT": "${HOME}/work/brain",
+        "ALAMBIC_STATE_DIR": "${HOME}/.local/state/alambic-brain"
+      }
+    },
+    "alambic-obvault": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "${HOME}/work/alambic/_meta/mcp/server.mjs"
+      ],
+      "env": {
+        "ALAMBIC_ROOT": "${HOME}/work/obvault",
+        "ALAMBIC_STATE_DIR": "${HOME}/.local/state/alambic-obvault"
       }
     },
     "datadog": {

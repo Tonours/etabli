@@ -87,8 +87,8 @@ CI runs `agentic-infra` on GitHub-hosted `ubuntu-24.04`
 - [`docs/symlink-layout.md`](docs/symlink-layout.md): every managed link and the
   `shared`/`work`/`personal` scopes.
 - [`claude/README.md`](claude/README.md): Claude hooks and settings.
-- [`docs/mcp-strategy.md`](docs/mcp-strategy.md): sanitized MCP inventory and scope;
-  [`docs/vendor-skills.md`](docs/vendor-skills.md): vendored skills and update path.
+- [`docs/mcp-strategy.md`](docs/mcp-strategy.md): MCP ownership, memory vaults and drift checks;
+  [`vendor/README.md`](vendor/README.md): vendored skills and update path.
 - History: [`docs/adr/`](docs/adr/) (decisions) and [`docs/plan/`](docs/plan/)
   (implemented plan archives) are records, not runtime instructions.
 
