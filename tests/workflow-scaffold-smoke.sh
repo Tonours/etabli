@@ -502,6 +502,44 @@ cmp -s "$TMP_DIR/gone-index.before" "$TMP_DIR/gone-index.after" || {
 }
 assert_file "$GONE_PROJECT/workflow/events.md"
 
+BLIND_PROJECT="$TMP_DIR/blind-project"
+"$SCRIPT" "$BLIND_PROJECT" >/dev/null
+shipped_copy README.md "$BLIND_PROJECT/workflow/events.md"
+git -C "$BLIND_PROJECT" init -q .
+printf 'workflow/events.md diff=blind\n' >"$BLIND_PROJECT/.gitattributes"
+git -C "$BLIND_PROJECT" config diff.blind.textconv true
+git -C "$BLIND_PROJECT" add -f workflow/events.md .gitattributes
+git -C "$BLIND_PROJECT" -c user.name=smoke -c user.email=smoke@example.invalid commit -q -m "track retired"
+printf 'unique staged content\n' >"$BLIND_PROJECT/workflow/events.md"
+git -C "$BLIND_PROJECT" add -f workflow/events.md
+rm "$BLIND_PROJECT/workflow/events.md"
+index_snapshot "$BLIND_PROJECT" >"$TMP_DIR/blind-index.before"
+if "$SCRIPT" "$BLIND_PROJECT" --prune >"$TMP_DIR/blind.out" 2>&1; then
+  printf 'expected prune to see staged content through a textconv driver\n' >&2
+  exit 1
+fi
+assert_contains "$TMP_DIR/blind.out" "workflow/events.md has staged changes"
+index_snapshot "$BLIND_PROJECT" | cmp -s - "$TMP_DIR/blind-index.before" || {
+  printf 'expected a refused prune to keep the staged entry\n' >&2
+  exit 1
+}
+
+SPARSE_PROJECT="$TMP_DIR/sparse-project"
+mkdir -p "$SPARSE_PROJECT/src" "$SPARSE_PROJECT/workflow"
+printf 'keep\n' >"$SPARSE_PROJECT/src/keep"
+shipped_copy README.md "$SPARSE_PROJECT/workflow/events.md"
+git -C "$SPARSE_PROJECT" init -q .
+git -C "$SPARSE_PROJECT" add src/keep workflow/events.md
+git -C "$SPARSE_PROJECT" -c user.name=smoke -c user.email=smoke@example.invalid commit -q -m "track retired"
+git -C "$SPARSE_PROJECT" sparse-checkout set --cone src
+assert_not_exists "$SPARSE_PROJECT/workflow/events.md"
+"$SCRIPT" "$SPARSE_PROJECT" --prune >"$TMP_DIR/sparse.out"
+assert_contains "$TMP_DIR/sparse.out" "UNINDEX   workflow/events.md"
+if [ -n "$(git -C "$SPARSE_PROJECT" ls-files workflow/events.md)" ]; then
+  printf 'expected the sparse retired entry to leave the index\n' >&2
+  exit 1
+fi
+
 UNBORN_PROJECT="$TMP_DIR/unborn-project"
 "$SCRIPT" "$UNBORN_PROJECT" >/dev/null
 shipped_copy README.md "$UNBORN_PROJECT/workflow/events.md"

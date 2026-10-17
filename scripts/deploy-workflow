@@ -469,7 +469,7 @@ write_file() {
 has_staged_change() {
   if git -C "$TARGET_DIR" rev-parse --verify -q HEAD >/dev/null 2>&1; then
     { is_tracked "$1" || [ -e "$TARGET_DIR/$1" ] || [ -L "$TARGET_DIR/$1" ]; } &&
-      ! git -C "$TARGET_DIR" diff --cached --quiet HEAD -- "$1"
+      ! git -C "$TARGET_DIR" diff --cached --quiet --no-textconv --no-ext-diff HEAD -- "$1"
   else
     is_tracked "$1"
   fi
@@ -527,7 +527,7 @@ prune_file() {
     if [ "$DRY_RUN" -eq 1 ]; then
       status_line WOULD_UNINDEX "$relative_path"
     else
-      git -C "$TARGET_DIR" rm -r -q --cached -- "$relative_path"
+      git -C "$TARGET_DIR" rm -r -q --cached --sparse -- "$relative_path"
       status_line UNINDEX "$relative_path"
       REMOVED=$((REMOVED + 1))
     fi
@@ -544,7 +544,7 @@ prune_file() {
   fi
 
   if is_tracked "$relative_path"; then
-    git -C "$TARGET_DIR" rm -r -q --cached -- "$relative_path"
+    git -C "$TARGET_DIR" rm -r -q --cached --sparse -- "$relative_path"
     status_line GIT_RM "$relative_path"
   fi
   backup="$(backup_path "$destination_path")"
