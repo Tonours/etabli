@@ -1,7 +1,8 @@
-# PLAN.md Full Template
+# PLAN.md
 
-Use this for broad, risky, UI-heavy, multi-surface, or long-running work.
-Keep it as a restartable working contract, not a research essay.
+Full template for broad, risky, UI-heavy, multi-surface or long-running work.
+Keep it a restartable working contract, not a research essay. Delete sections
+marked optional when they do not apply.
 
 ## Meta
 - Subject:
@@ -13,27 +14,19 @@ Keep it as a restartable working contract, not a research essay.
 - Archive: pending until implemented and validated
 
 ## Goal
-Describe in 1-3 sentences what will change and why it matters.
+What changes and why it matters, in 1-3 sentences.
 
 ## Workflow Contract
-- Router decision:
+- Route:
 - Role:
-- Pattern:
-- Goal verifier:
-- Budget (iterations/time/tools; model-token totals are telemetry, never a stop condition):
-- Context reset threshold:
-- Escalation:
-- Planner output:
-- Challenger focus:
-- Implementer boundaries:
-- Verifier checks:
-- Reporter artifact:
-- Stop conditions:
+- Tier: small | standard | high-risk
+- Budget (iterations/time/tools; token totals are telemetry, never a stop condition):
+- Stop condition:
 - Required evidence:
 
 ## Acceptance Criteria
-Unique AC-ID [product|process|judgment]: ...; product Proof: action,result[,side_effect].
-- [ ] ...
+One line each: `AC-n [product|process|judgment]: criterion`; a product AC adds `Proof: action, result[, side effect]`.
+- [ ] AC-1:
 
 ## Problem
 - Current behavior:
@@ -45,19 +38,19 @@ Unique AC-ID [product|process|judgment]: ...; product Proof: action,result[,side
 - Satellite: none / `<repo-name>` — <what changes there>
 
 ## Scope
-### In scope
+### In
 -
 
 (Risky? Name files/areas; required for READY.)
 
-### Out of scope / Non-goals
+### Out
 -
 
 ## Facts And Assumptions
 ### Observed Facts
 - file/path/command/source:
 
-### Assumptions To Verify
+### Assumptions
 - None / ...
 
 ## Context Map
@@ -72,12 +65,11 @@ Unique AC-ID [product|process|judgment]: ...; product Proof: action,result[,side
 | | | | | |
 
 ## Approach
-Name the input domain, bounds, and regression family.
-Include failing, valid and invalid neighbors; justify the selected approach.
+- Input domain / bounds:
+- Regression family; failing, valid and invalid neighbors:
+- Why this approach over the alternatives:
 
-## Product Dogfood
-Use this section only for user-facing/UI/browser-impacting work.
-
+## Product Dogfood (optional: user-facing, UI or browser work)
 ### User Flows
 - Flow:
   - Entry point:
@@ -102,20 +94,6 @@ Use this section only for user-facing/UI/browser-impacting work.
 - Execution provenance: parent_observed_execution | proxy_supported | blocked
 - Blocked external legs:
 
-## Large Program Manifest
-Use only when the READY plan explicitly authorizes sidecars and independently
-ownable units. Otherwise delete this section.
-
-- Manifest path:
-- Coordinator / `PLAN.md` writer:
-- Artifact root:
-- Positive max in flight:
-- Unit DAG and non-overlapping scopes:
-- Worktree policy:
-- Independent verifier policy:
-- Retry / zombie reconciliation:
-- Runtime capability: confirmed | proxy_supported | blocked | unknown
-
 ## Execution Slices
 ### Slice 1
 - Goal:
@@ -123,45 +101,32 @@ ownable units. Otherwise delete this section.
 - Checks:
 - Rollback point:
 
-### Slice 2
-- Goal:
-- Files / areas:
-- Checks:
-- Rollback point:
-
-## Validation Plan
-- Automated checks:
-- Manual checks:
-- UI/browser checks:
-- Regression risks to watch:
-- Evidence required for done:
-
-## Progress Log
-- Operational progress: Checks `last run` and task markers; avoid material edits after approval.
-
-## Decision Log
-- YYYY-MM-DD:
-
-## Review Changes
-- Adversary deltas:
-
-## Handoff State
-- Operational handoff: branch, sha, done, pending, next action, do-not-redo.
-- Contract changes: reconcile and obtain fresh plan approval.
+## Checks
+- command:
+  - expected:
+  - last run:
+- Manual or UI check:
+  - expected:
+  - last run:
 
 ## Risks
 - Risk:
   - Impact:
   - Mitigation:
 
+## Decision Log
+- YYYY-MM-DD:
+
+## Review Changes
+- Plan adversary (model, `shasum -a 256 PLAN.md` at dispatch, verdict, deltas):
+- Code review and code-diff adversary (reviewers, rounds, verdicts):
+- simplify: / quality:
+
 ## Open Questions
 - None / ...
 
 ## Ready Gate
-- [ ] Goal and acceptance criteria are concrete
-- [ ] Scope and non-goals are bounded
-- [ ] Observed facts are separated from assumptions
-- [ ] Steps/slices are executable in order
-- [ ] Checks are named and proportionate
-- [ ] Risks are identified or explicitly none
-- [ ] No blocking open questions remain
+- READY only when `workflow/spec.md` § Minimal READY gate holds.
+
+## Notes / Handoff
+- Branch, sha, done, pending, next action, do-not-redo:
