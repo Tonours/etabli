@@ -426,6 +426,16 @@ deploy_claude() {
       link_path "$script_entry" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/scripts/$script_name" "Claude script $script_name"
     done
   done
+  for script_link in "${CLAUDE_ROOT:-$HOME_DIR/.claude}/scripts"/*; do
+    [ -L "$script_link" ] || continue
+    script_target="$(readlink "$script_link")"
+    case "$script_target" in
+    "$REPO_DIR"/claude/scopes/*/scripts/*) ;;
+    *) continue ;;
+    esac
+    [ -e "$script_target" ] && continue
+    remove_exact_managed_link "$script_link" "stale Claude script $(basename "$script_link")" "$script_target"
+  done
 
   link_path "$REPO_DIR/workflow/review-rubric.md" "${CLAUDE_ROOT:-$HOME_DIR/.claude}/review-rubric.md" "Claude review-rubric.md"
 

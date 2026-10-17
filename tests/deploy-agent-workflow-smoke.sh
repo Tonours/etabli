@@ -228,12 +228,17 @@ fi
   mkdir -p \
     "$WORK_HOME_DIR/.pi/agent/skills" \
     "$WORK_HOME_DIR/.claude/skills" \
+    "$WORK_HOME_DIR/.claude/scripts" \
     "$WORK_HOME_DIR/external-skill"
+  ln -s "$ROOT_DIR/claude/scopes/work/scripts/retired-routine" "$WORK_HOME_DIR/.claude/scripts/retired-routine"
+  ln -s "$TMP_DIR/personal-missing-script" "$WORK_HOME_DIR/.claude/scripts/personal-missing-script"
   ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$WORK_HOME_DIR/.pi/agent/skills/adonisjs-suite"
   ln -s "$ROOT_DIR/vendor/adonisjs-skills/skills/adonisjs-suite" "$WORK_HOME_DIR/.claude/skills/adonisjs-suite"
 
   ETABLI_SCOPE=work "$DEPLOY_SCRIPT" --apply --home "$WORK_HOME_DIR" >/dev/null
   assert_link "$WORK_HOME_DIR/.claude/scripts/claude-bin.sh" "$ROOT_DIR/claude/scopes/work/scripts/claude-bin.sh"
+  assert_absent "$WORK_HOME_DIR/.claude/scripts/retired-routine"
+  assert_link "$WORK_HOME_DIR/.claude/scripts/personal-missing-script" "$TMP_DIR/personal-missing-script"
   assert_link "$WORK_HOME_DIR/.claude/scripts/pr-autoreview" "$ROOT_DIR/claude/scopes/work/scripts/pr-autoreview"
   assert_link "$WORK_HOME_DIR/.claude/scripts/pr-review-watch" "$ROOT_DIR/claude/scopes/work/scripts/pr-review-watch"
   assert_link "$WORK_HOME_DIR/.claude/skills/employer-backend-suite" "$ROOT_DIR/claude/scopes/work/skills/employer-backend-suite"
