@@ -330,8 +330,8 @@ export function collectCommentLines(text, family) {
 					continue;
 				}
 			}
-			if (family === "sql" && char === "$" && !/\w/.test(source[index - 1] ?? "")) {
-				const tag = /^\$(?:[A-Za-z_]\w*)?\$/.exec(source.slice(index, index + 64))?.[0];
+			if (family === "sql" && char === "$" && !/[\p{L}\p{N}_$]/u.test(source[index - 1] ?? "")) {
+				const tag = /^\$(?:[\p{L}_][\p{L}\p{N}_]*)?\$/u.exec(source.slice(index, index + 64))?.[0];
 				const end = tag ? source.indexOf(tag, index + tag.length) : -1;
 				if (end !== -1) {
 					index = end + tag.length;
@@ -354,7 +354,7 @@ export function collectCommentLines(text, family) {
 				index = stop === -1 ? source.length : stop;
 				continue;
 			}
-			if (family === "ruby" && char === "?" && /[^\w\s'"`]/.test(source[index + 1] ?? "") && !/\w/.test(source[index - 1] ?? "")) {
+			if (family === "ruby" && char === "?" && /[^\w\s'"`]/.test(source[index + 1] ?? "") && !/[\w$]/.test(source[index - 1] ?? "")) {
 				index += 2;
 				lineCode += "S";
 				continue;

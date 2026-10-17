@@ -321,6 +321,10 @@ describe("unified Claude verdicts", () => {
 			["sql", "SELECT $body$\n-- data\n$body$; -- added note\n", ["-- added note"]],
 			["sql", "SELECT $1; -- added note\n", ["-- added note"]],
 			["sql", "SELECT a$x$ FROM t; -- added note\nSELECT b$x$;\n", ["-- added note"]],
+			["sql", "SELECT 1 AS a$$x$$; -- added note\nSELECT 2 AS b$$x$$;\n", ["-- added note"]],
+			["sql", "SELECT é$x$; -- added note\nSELECT b$x$;\n", ["-- added note"]],
+			["sql", "SELECT $é$/* data */$é$;\n", []],
+			["ruby", "status = $?# added note\n", ["# added note"]],
 		];
 		for (const [family, text, expected] of cases) expect(collectCommentLines(text, family)).toEqual(expected);
 	});
