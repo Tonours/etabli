@@ -36,7 +36,8 @@ skillOverrides map (claude/settings.skill-overrides.json):
       named in claude/machine-local-skills.json may also be "on" where present
   C4  zero dangling links; zero links into skills.disabled
   C5  repo/live map equality (deploy applied)
-  C6  no enabled plugin ships SKILL.md files
+  C6  no enabled plugin ships SKILL.md files, except plugins named in
+      claude/machine-local-plugins.json (their skills stay ungoverned)
 
 
 --home  skill root + settings root for the assertions (fixture homes);
@@ -378,8 +379,9 @@ const pluginsFile = path.join(claudeDir, "plugins/installed_plugins.json");
 const plugins = JSON.parse(readText(pluginsFile) ?? "{}");
 const enabled =
 	liveSettings.enabledPlugins ?? {};
+const MACHINE_LOCAL_PLUGINS = new Set(JSON.parse(readText(path.join(repoDir, "claude/machine-local-plugins.json")) ?? "[]"));
 for (const [key, on] of Object.entries(enabled)) {
-  if (on !== true) continue;
+  if (on !== true || MACHINE_LOCAL_PLUGINS.has(key)) continue;
   const records = plugins.plugins?.[key] ?? [];
   for (const record of records) {
     if (!record.installPath) continue;
@@ -402,7 +404,7 @@ for (const [key, on] of Object.entries(enabled)) {
       return false;
     })(skillsDir, 0);
     if (shipped) {
-      errors.push(`enabled plugin ${key} ships skills, which skillOverrides cannot govern (disable the plugin or vendor its skills)`);
+      errors.push(`enabled plugin ${key} ships skills, which skillOverrides cannot govern (disable the plugin, vendor its skills, or list it in claude/machine-local-plugins.json)`);
     }
   }
 }
