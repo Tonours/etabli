@@ -212,6 +212,15 @@ const cases = [
   ["shell case variable in arithmetic", write("ah.sh", 'v="$((case>0))"\n# added note\n'), "deny"],
   ["shell case in substitution inside arithmetic", write("ai.sh", 'r="$(( $(case "$m" in\n  prod) printf 1;;\n  staging) printf 2;;\n  *) printf 3 # added note\n  ;;\nesac) + 1 ))"\n'), "deny"],
   ["shell case word as a pattern", write("aj.sh", 't="$(( $(case "$q" in (case) printf 12;; (*) printf 1;; esac) + 1 ))"\n# added note\n'), "deny"],
+  ["sql block comment", write("ak.sql", "SELECT 1;\n/* added\nnote */\n"), "deny"],
+  ["lua long string data", write("al.lua", "s = [[\n-- data\n]]\n"), "allow"],
+  ["ruby embedded doc", write("am.rb", "=begin\nnote\n=end\n"), "deny"],
+  ["ruby heredoc data", write("an.rb", "x = <<~EOS\n  # data\nEOS\n"), "allow"],
+  ["ruby heredoc apostrophe then comment", write("ao.rb", "x = <<~EOS\n  it's\nEOS\n# added note\n"), "deny"],
+  ["ruby shift operator is not a heredoc", write("ap.rb", "a <<ID\n# added note\nID\n"), "deny"],
+  ["ruby percent string apostrophe then comment", write("aq.rb", "x = %q(it's)\n# added note\n"), "deny"],
+  ["ruby percent words data", write("ar.rb", "w = %w[a\n# b]\n"), "allow"],
+  ["ruby modulo is not a percent literal", write("as.rb", "n %(\n# added note\n2)\n"), "deny"],
   ["replace_all comment", { tool_name: "Edit", tool_input: { file_path: `${cwd}/apos.ts`, old_string: "const", new_string: "const/* added */", replace_all: true } }, "deny"],
 ];
 let failed = 0;
