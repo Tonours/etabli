@@ -468,7 +468,8 @@ write_file() {
 
 has_staged_change() {
   if git -C "$TARGET_DIR" rev-parse --verify -q HEAD >/dev/null 2>&1; then
-    ! git -C "$TARGET_DIR" diff --cached --quiet HEAD -- "$1"
+    { is_tracked "$1" || [ -e "$TARGET_DIR/$1" ] || [ -L "$TARGET_DIR/$1" ]; } &&
+      ! git -C "$TARGET_DIR" diff --cached --quiet HEAD -- "$1"
   else
     is_tracked "$1"
   fi
@@ -478,7 +479,7 @@ shipped_by_etabli() {
   local destination_path="$TARGET_DIR/$1"
   local blob
 
-  [ -f "$destination_path" ] && [ ! -L "$destination_path" ] || return 1
+  [ -f "$destination_path" ] && [ -s "$destination_path" ] && [ ! -L "$destination_path" ] || return 1
   blob="$(git hash-object --no-filters -- "$destination_path")" || return 1
   git -C "$REPO_DIR" cat-file -e "$blob^{blob}" 2>/dev/null
 }
