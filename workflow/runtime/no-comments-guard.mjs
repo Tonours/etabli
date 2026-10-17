@@ -345,6 +345,11 @@ export function collectCommentLines(text, family) {
 				index = stop === -1 ? source.length : stop;
 				continue;
 			}
+			if (family === "ruby" && char === "?" && /[%<#]/.test(source[index + 1] ?? "") && !/\w/.test(source[index - 1] ?? "")) {
+				index += 2;
+				lineCode += "S";
+				continue;
+			}
 			const rubyLiteral = family === "ruby" && (char === "%" || source.startsWith("<<", index)) && !/(^|[^\w]):$/.test(lineCode) && RUBY_LITERAL_PREFIX.test(lineCode.trim() ? lineCode : previousCode);
 			if (rubyLiteral && source.startsWith("<<", index)) {
 				const match = RUBY_HEREDOC.exec(source.slice(index, index + 200));
