@@ -209,6 +209,7 @@ const cases = [
   ["shell heredoc data after substitution", write("ae.sh", "cat <<EOF\n$(cat test-case.json)\n# Heading\nEOF\n"), "allow"],
   ["shell case after brace group", write("af.sh", 'r="$({ case "$m" in\n  prod) printf p # added note\n  ;;\nesac; })"\n'), "deny"],
   ["shell esac glued to redirect", write("ag.sh", 'r="$(case "$m" in\n  prod) printf p;;\nesac>/dev/null)"\n# added note\n'), "deny"],
+  ["shell case variable in arithmetic", write("ah.sh", 'v="$((case>0))"\n# added note\n'), "deny"],
   ["replace_all comment", { tool_name: "Edit", tool_input: { file_path: `${cwd}/apos.ts`, old_string: "const", new_string: "const/* added */", replace_all: true } }, "deny"],
 ];
 let failed = 0;
