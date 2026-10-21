@@ -56,6 +56,14 @@ usage_line() {
   jq -r --arg label "$2" '"=== usage \($label): " + ([.modelUsage // {} | to_entries[] | "\(.key) in=\(.value.inputTokens) cache_write=\(.value.cacheCreationInputTokens) cache_read=\(.value.cacheReadInputTokens) out=\(.value.outputTokens)"] | join(" | ")) + " | api_equiv_usd=\(.total_cost_usd // "?")"' "$1" 2>/dev/null
 }
 
+# $1 session JSON, $2 the pass's exit code: a denied pass always vetoes the
+# council; an unverified one only when its report is used (exit 0).
+denial_veto() {
+  local rc=0
+  check_denials "$1" || rc=$?
+  [ "$rc" -eq 1 ] || { [ "$rc" -eq 2 ] && [ "$2" -eq 0 ]; }
+}
+
 record_usage() {
   local raw="$1" label="$2" target="$3" line
   line="$(usage_line "$raw" "$label")" || return 0
