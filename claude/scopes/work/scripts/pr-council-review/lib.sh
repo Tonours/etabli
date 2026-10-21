@@ -41,7 +41,11 @@ extract_result() {
 
 check_denials() {
   local denials
-  denials="$(jq -r '.permission_denials[]? | "\(.tool_name): \(.tool_input.command // .tool_input.file_path // (.tool_input | tostring))"' "$1" 2>/dev/null)" || { echo "=== cannot read permission denials from $1, the pass is unverified" >&2; return 1; }
+  if ! jq -e 'type == "object"' "$1" >/dev/null 2>&1 \
+    || ! denials="$(jq -r '.permission_denials[]? | "\(.tool_name): \(.tool_input.command // .tool_input.file_path // (.tool_input | tostring))"' "$1" 2>/dev/null)"; then
+    echo "=== cannot read permission denials from $1, the pass is unverified" >&2
+    return 2
+  fi
   [ -n "$denials" ] || return 0
   echo "=== $(printf '%s\n' "$denials" | wc -l | tr -d ' ') permission denial(s), the pass is incomplete:" >&2
   printf '%s\n' "$denials" >&2
