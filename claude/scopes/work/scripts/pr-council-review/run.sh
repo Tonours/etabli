@@ -198,11 +198,8 @@ wait "$PID_THERMO" || RC_THERMO=$?
 extract_result "$RAW_QUALITY" >"$REPORT_QUALITY" || RC_QUALITY=1
 extract_result "$RAW_THERMO" >"$REPORT_THERMO" || RC_THERMO=1
 PHASE_A_DENIED=0
-for raw in "$RAW_QUALITY" "$RAW_THERMO"; do
-  rc=0
-  check_denials "$raw" || rc=$?
-  [ "$rc" -ne 1 ] || PHASE_A_DENIED=1
-done
+denial_veto "$RAW_QUALITY" "$RC_QUALITY" && PHASE_A_DENIED=1
+denial_veto "$RAW_THERMO" "$RC_THERMO" && PHASE_A_DENIED=1
 record_usage "$RAW_QUALITY" "code-review" "$REPO#$PR_NUMBER"
 record_usage "$RAW_THERMO" "thermo" "$REPO#$PR_NUMBER"
 
@@ -223,7 +220,7 @@ if [ "$USE_CODEX" = 1 ]; then
 fi
 
 if [ "$PHASE_A_DENIED" -ne 0 ]; then
-  echo "a phase A pass hit a permission denial; not running the validator" >&2
+  echo "a phase A pass hit a permission denial or its denials are unreadable; not running the validator" >&2
   exit 1
 fi
 if [ "$RC_QUALITY" -ne 0 ] && [ "$RC_THERMO" -ne 0 ]; then
