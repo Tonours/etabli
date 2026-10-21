@@ -129,11 +129,14 @@ while kill -0 "$AGENT_PID" 2>/dev/null; do
 done
 [ "$RC" -eq 0 ] && { wait "$AGENT_PID" || RC=$?; }
 record_usage "$RAW" "autoreview" "$REPO#$PR_NUMBER"
-check_denials "$RAW" || true
+DENIED=0
+check_denials "$RAW" || DENIED=1
 
-if [ "$RC" -eq 0 ] && [ -f "$DONE_FILE" ]; then
+if [ "$RC" -eq 0 ] && [ -f "$DONE_FILE" ] && [ "$DENIED" -eq 0 ]; then
   echo "$SEEN_KEY" >> "$SEEN"
   echo "=== $(date '+%F %T') delivered PR #$PR_NUMBER ==="
+elif [ "$RC" -eq 0 ] && [ -f "$DONE_FILE" ]; then
+  echo "=== $(date '+%F %T') delivered PR #$PR_NUMBER after a permission denial, not marked seen ==="
 elif [ "$RC" -eq 0 ]; then
   echo "=== $(date '+%F %T') session ended without delivering the Slack report for PR #$PR_NUMBER, not marked seen ==="
 else
