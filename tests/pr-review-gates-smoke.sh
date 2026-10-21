@@ -95,6 +95,8 @@ expect "denials: unreadable output leaves the pass unverified" "2" "$(lib "check
 expect "denials: empty output leaves the pass unverified" "2" "$(lib "check_denials '$TMP_DIR/denials-empty.json' 2>/dev/null; echo \$?")"
 expect "denials: none passes silently" "0" "$(lib "check_denials '$TMP_DIR/denials-none.json' 2>&1; echo \$?")"
 printf '{"result":"r","permission_denials":[{"tool_name":"Bash","tool_input":{"command":"curl x"}},"bad"]}' >"$TMP_DIR/denials-mixed.json"
+printf '{"result":"r"}' >"$TMP_DIR/denials-missing.json"
+expect "denials: a missing denials array leaves the pass unverified" "2" "$(lib "check_denials '$TMP_DIR/denials-missing.json' 2>/dev/null; echo \$?")"
 expect "veto: a denial vetoes even a failed pass" "0" "$(lib "denial_veto '$TMP_DIR/denials-some.json' 1 2>/dev/null; echo \$?")"
 expect "veto: unreadable denials veto a used pass" "0" "$(lib "denial_veto '$TMP_DIR/denials-mixed.json' 0 2>/dev/null; echo \$?")"
 expect "veto: unreadable output of a failed pass stays a gap" "1" "$(lib "denial_veto '$TMP_DIR/denials-empty.json' 1 2>/dev/null; echo \$?")"
