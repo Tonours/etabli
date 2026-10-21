@@ -49,7 +49,7 @@
 - review: plan adversary 4 codex passes (folded). T1: Logic and Spec GO WITH NOTES, codex CHALLENGED (dry-run mutation with `--fix`, EACCES lexical fallback removing a foreign link, installer bypassing `NODE_CMD`) — fixed. D1: codex MEDIUM staged settings `0644` leftover — fixed. T2: Logic GO, Spec GO WITH NOTES, codex MEDIUM `--home <alias>/..` lexical — fixed. D2: Logic GO WITH NOTES, codex MEDIUM (non-blocking) listed below.
 
 ## Follow-up State
-- Remaining risks: with a `HOME` env shaped `<alias>/..`, `activeScopes` and `claudeConfigOverride` join `HOME` lexically, so the child load check may read another scope file than the deployer and fail after links are written (no data loss; never seen on real machines). Fix: resolve `homeDir` with `physicalPath` inside those two functions and the `skill-names` CLI.
+- Remaining risks: none open. The D2 follow-up (`activeScopes` and `claudeConfigOverride` joining `HOME` lexically) was fixed in the next commit via `physicalHome`; codex READY.
 - Other machines: run `scripts/deploy-agent-workflow --apply` once; `check-fix-symlinks.sh` now requires Node on PATH.
 - Superseded docs/specs: bash-library mechanics of ADR-0018/0031 superseded by ADR-0038 (scope decisions kept).
 - Next links: `docs/adr/0038-reconcile-agent-surfaces-from-one-node-manifest.md`

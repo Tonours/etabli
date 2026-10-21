@@ -111,8 +111,14 @@ export function isShadowed(name, scopes) {
   return SHADOWS.some(([scope, skill]) => skill === name && scopes.includes(scope));
 }
 
+export function physicalHome(path) {
+  return path ? physicalPath(path.startsWith("/") ? path : `${process.cwd()}/${path}`) : null;
+}
+
 export function activeScopes(homeDir, env = process.env) {
-  const scopeFile = join(homeDir, ".etabli-scope");
+  const home = physicalHome(homeDir);
+  if (home === null) throw new Error(`cannot resolve home directory: ${homeDir}`);
+  const scopeFile = join(home, ".etabli-scope");
   let declared = env.ETABLI_SCOPE ?? "";
   if (!declared && existsSync(scopeFile) && statSync(scopeFile).isFile()) {
     declared = readFileSync(scopeFile, "utf8").replace(/\s/g, "");
@@ -140,7 +146,7 @@ export function claudeConfigOverride(env = process.env) {
   const configDir = physicalDir(env.CLAUDE_CONFIG_DIR);
   const homeDir = physicalDir(env.HOME);
   if (!configDir || !homeDir || configDir === join(homeDir, ".claude")) return null;
-  if (configDir === physicalDir(join(env.HOME, ".claude"))) return null;
+  if (configDir === physicalDir(join(homeDir, ".claude"))) return null;
   if (configDir.startsWith(homeDir + sep)) return configDir;
   return homeDir === loginHome() ? configDir : null;
 }
