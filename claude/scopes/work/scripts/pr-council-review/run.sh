@@ -198,8 +198,8 @@ wait "$PID_THERMO" || RC_THERMO=$?
 extract_result "$RAW_QUALITY" >"$REPORT_QUALITY" || RC_QUALITY=1
 extract_result "$RAW_THERMO" >"$REPORT_THERMO" || RC_THERMO=1
 PHASE_A_DENIED=0
-check_denials "$RAW_QUALITY" || PHASE_A_DENIED=1
-check_denials "$RAW_THERMO" || PHASE_A_DENIED=1
+[ "$RC_QUALITY" -ne 0 ] || check_denials "$RAW_QUALITY" || PHASE_A_DENIED=1
+[ "$RC_THERMO" -ne 0 ] || check_denials "$RAW_THERMO" || PHASE_A_DENIED=1
 
 echo
 echo "----- /code-review (exit $RC_QUALITY) -----"
