@@ -89,6 +89,8 @@ printf '{"result":"r","permission_denials":[{"tool_name":"Bash","tool_input":{"c
 printf '{"result":"r","permission_denials":[]}' >"$TMP_DIR/denials-none.json"
 expect "denials: a denied call fails the pass" "1" "$(lib "check_denials '$TMP_DIR/denials-some.json' 2>/dev/null; echo \$?")"
 expect "denials: the denied call is listed" "Bash: curl x" "$(lib "check_denials '$TMP_DIR/denials-some.json'" 2>&1 >/dev/null | tail -1)"
+printf '{"result":"r","permission_denials":[]}\ntrailer\n' >"$TMP_DIR/denials-unreadable.json"
+expect "denials: unreadable output fails the pass" "1" "$(lib "check_denials '$TMP_DIR/denials-unreadable.json' 2>/dev/null; echo \$?")"
 expect "denials: none passes silently" "0" "$(lib "check_denials '$TMP_DIR/denials-none.json' 2>&1; echo \$?")"
 printf '<!-- claudine:v1 {"kind":"run","run":"r","pr":7,"sha":"abc","findings":0,"floor":"should-fix"} -->\n' >"$TMP_DIR/council.log"
 expect "run marker: findings for the reviewed sha" "0" "$(lib "validator_run_findings '$TMP_DIR/council.log' abc")"
