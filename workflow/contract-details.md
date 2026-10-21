@@ -36,9 +36,11 @@ parallel.
 The deterministic multi-model council (scout / analyst / challenger /
 judge / fallback) was removed in ADR-0013; execution is parent-only. Delegating to a subagent stays an
 ordinary tool call, judged case by case, not a routed profile. `scout` and
-`reviewer` combine an explicit read-only tool set, `dontAsk`, and a scoped Bash
-`PreToolUse` allowlist guard; this is stronger than prose but still not an OS
-sandbox. Shared workflow and evidence invariants stay in
+`reviewer` rely on an explicit read-only tool set and a scoped Bash
+`PreToolUse` allowlist guard in their frontmatter, which also fires under
+bypass; their `dontAsk` applies only outside bypass, since a bypass session
+overrides a subagent's `permissionMode`. This is stronger than prose but still
+not an OS sandbox. Shared workflow and evidence invariants stay in
 `workflow/skills/orchestration.md`.
 
 ## Rules (detail)
