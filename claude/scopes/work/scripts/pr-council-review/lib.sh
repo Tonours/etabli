@@ -39,6 +39,15 @@ extract_result() {
   fi
 }
 
+check_denials() {
+  local denials
+  denials="$(jq -r '.permission_denials[]? | "\(.tool_name): \(.tool_input.command // .tool_input.file_path // (.tool_input | tostring))"' "$1" 2>/dev/null)" || return 0
+  [ -n "$denials" ] || return 0
+  echo "=== $(printf '%s\n' "$denials" | wc -l | tr -d ' ') permission denial(s), the pass is incomplete:" >&2
+  printf '%s\n' "$denials" >&2
+  return 1
+}
+
 usage_line() {
   jq -r --arg label "$2" '"=== usage \($label): " + ([.modelUsage // {} | to_entries[] | "\(.key) in=\(.value.inputTokens) cache_write=\(.value.cacheCreationInputTokens) cache_read=\(.value.cacheReadInputTokens) out=\(.value.outputTokens)"] | join(" | ")) + " | api_equiv_usd=\(.total_cost_usd // "?")"' "$1" 2>/dev/null
 }

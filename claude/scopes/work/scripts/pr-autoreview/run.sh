@@ -109,7 +109,7 @@ PROMPT="$(render_template "$PROMPT_FILE" REPO="$REPO" PR_NUMBER="$PR_NUMBER" PR_
 echo "reviewing PR #$PR_NUMBER ($PR_URL) at ${SHA:0:8} with $MODEL"
 cd "$HOME"
 perl -e 'setpgrp(0, 0); exec @ARGV or die "exec: $!"' \
-  "$CLAUDE" -p "$PROMPT" --dangerously-skip-permissions --output-format json --model "$MODEL" --effort "$EFFORT" \
+  "$CLAUDE" -p "$PROMPT" --permission-mode auto --disallowedTools=Edit,Write,NotebookEdit --output-format json --model "$MODEL" --effort "$EFFORT" \
   </dev/null >"$RAW" 2>"$RAW.err" &
 AGENT_PID=$!
 
@@ -129,6 +129,7 @@ while kill -0 "$AGENT_PID" 2>/dev/null; do
 done
 [ "$RC" -eq 0 ] && { wait "$AGENT_PID" || RC=$?; }
 record_usage "$RAW" "autoreview" "$REPO#$PR_NUMBER"
+check_denials "$RAW" || true
 
 if [ "$RC" -eq 0 ] && [ -f "$DONE_FILE" ]; then
   echo "$SEEN_KEY" >> "$SEEN"
