@@ -23,5 +23,4 @@
   `workflow/project-constraints.md`.
 
 ## Safety
-- No push, rewrite, deploy, secrets, production mutation, or destructive cleanup
-  without approval.
+- Never print or commit secrets.
