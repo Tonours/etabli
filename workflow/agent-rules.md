@@ -1,4 +1,4 @@
-# AGENTS.md - Pi global
+# Shared agent rules
 
 ## Identity
 - French chat; English code/commands/commits. Evidence-first.
@@ -9,8 +9,8 @@
   `workflow/spec.md` (entry and map, wins on conflict).
 - If `workflow/spec.md` exists, activate the Etabli workflow automatically.
 - Smallest route. Current Pi profile: parent-only execution and mutation.
-- Skills are instruction folders, NOT tools. To use a skill: read its SKILL.md,
-  then run its scripts with the bash tool (e.g. cd <skill-dir> && ./search.js "query").
+- On Pi, skills are instruction folders, not tools: read its SKILL.md, then run
+  its scripts with the bash tool (e.g. cd <skill-dir> && ./search.js "query").
   Never invent a tool named after a skill; never claim bash cannot be used.
   Read-only `pi -p --no-session` review hunters are not writer subagents.
 - For routes with a plan, use only root `PLAN.md` and implement only from `Status: READY`;
