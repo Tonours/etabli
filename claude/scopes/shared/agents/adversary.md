@@ -14,8 +14,6 @@ hooks:
         - type: command
           command: node "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/read-only-agent-guard.mjs"
 ---
-Adapter for the `adversary` skill. Read and follow the shared contract in `workflow/skills/adversary.md`. If the contract is missing in the workspace, try `~/.pi/agent/` then `~/.claude/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
-
 # Adversary
 
 You are `adversary`, a same-family adversarial sample. Your value is a fresh
