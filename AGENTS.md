@@ -1,6 +1,6 @@
 # AGENTS.md — etabli
 
-Repo-specific instructions for this dotfiles repo.
+Repo-specific instructions for this agent workflow repo.
 
 ## Architecture
 
@@ -35,7 +35,7 @@ Full layout, scopes and managed surfaces: `docs/symlink-layout.md`.
 ## Workflow
 
 - Shared agent rules (code, review, git, memory, answers): `workflow/agent-rules.md`
-- Human guide + schemas: `README.md` (docs consolidated there; see commit 9466974)
+- Human guide + schemas: `README.md`
 - Workflow entry and canonical map (wins on conflict): `workflow/spec.md`
 - Long rules / commands: `workflow/contract-details.md`
 - Default plan: `PLAN_TEMPLATE.md`
