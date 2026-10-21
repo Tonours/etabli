@@ -7,14 +7,18 @@ import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, test } from "node:test";
 import {
   activeScopes,
+  claudeConfigOverride,
   declaredName,
   isShadowed,
+  physicalHome,
   physicalPath,
   reconcile,
   seedPiSettings,
   skillRecords,
   surfaceExpected,
 } from "../scripts/lib/surfaces.mjs";
+
+const ROOT_SKIP = process.getuid?.() === 0 && "root ignores permission bits";
 
 let tmp;
 beforeEach(() => {
@@ -159,7 +163,7 @@ describe("physical paths", () => {
     assert.equal(physicalPath(join(repo, "loop-a/skill")), null);
   });
 
-  test("an unreadable component is indeterminate, never resolved lexically", () => {
+  test("an unreadable component is indeterminate, never resolved lexically", { skip: ROOT_SKIP }, () => {
     const repo = join(tmp, "repo");
     mkdirSync(join(repo, "private"), { recursive: true });
     chmodSync(join(repo, "private"), 0o000);
@@ -168,6 +172,26 @@ describe("physical paths", () => {
     } finally {
       chmodSync(join(repo, "private"), 0o755);
     }
+  });
+});
+
+describe("homes", () => {
+  test("a home given as `<alias>/..` reads the scope file the kernel would", () => {
+    mkdirSync(join(tmp, "real/sub"), { recursive: true });
+    symlinkSync(join(tmp, "real/sub"), join(tmp, "alias"));
+    writeFileSync(join(tmp, "real/.etabli-scope"), "work\n");
+    const aliased = `${join(tmp, "alias")}/..`;
+    assert.equal(physicalHome(aliased), join(tmp, "real"));
+    assert.deepEqual(activeScopes(aliased, {}), ["shared", "work"]);
+  });
+
+  test("the Claude config override compares against the physical home", () => {
+    mkdirSync(join(tmp, "real/sub"), { recursive: true });
+    mkdirSync(join(tmp, "real/claude-config"));
+    symlinkSync(join(tmp, "real/sub"), join(tmp, "alias"));
+    symlinkSync(join(tmp, "real/claude-config"), join(tmp, "real/.claude"));
+    const env = { HOME: `${join(tmp, "alias")}/..`, CLAUDE_CONFIG_DIR: join(tmp, "real/claude-config") };
+    assert.equal(claudeConfigOverride(env), null);
   });
 });
 
@@ -286,7 +310,7 @@ describe("reconcile", () => {
     assert.equal(readlinkSync(join(home, ".claude/skills.bak/alpha.bak.smoke")), "../../../repo/alias/alpha");
   });
 
-  test("a link through an unreadable in-repo directory is foreign and moved aside", () => {
+  test("a link through an unreadable in-repo directory is foreign and moved aside", { skip: ROOT_SKIP }, () => {
     const repo = vendorRepo();
     const home = join(tmp, "home");
     mkdirSync(join(repo, "private"));
@@ -301,7 +325,7 @@ describe("reconcile", () => {
     assert.equal(readlinkSync(join(home, ".claude/skills.bak/alpha.bak.smoke")), "../../../repo/private/alias/alpha");
   });
 
-  test("a failed backup leaves the user entry in place and counts as unresolved", () => {
+  test("a failed backup leaves the user entry in place and counts as unresolved", { skip: ROOT_SKIP }, () => {
     const repo = vendorRepo();
     for (const [name, block] of [
       ["mkdir", (home) => writeFileSync(join(home, ".claude/skills.bak"), "not a directory\n")],

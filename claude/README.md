@@ -30,8 +30,7 @@ row of `workflow/runtime/skill-surface.tsv`; Pi links only `pi_core=1` rows.
 
 A `shared` surface is withheld from a scope when something else on that machine
 owns its name: `SHADOWS` in `scripts/lib/surfaces.mjs` holds `<scope>:<skill>`
-pairs, currently
-`work:adr`. On a `work` machine `/adr` therefore comes from the employer plugin,
+pairs, currently `work:adr`. On a `work` machine `/adr` therefore comes from the employer plugin,
 which writes `docs/adr/YYYY-MM-DD-slug.md`; this repo's `scripts/validate-adrs`
 expects `docs/adr/NNNN-slug.md`, so record etabli ADRs from a `personal`
 machine or by hand.

@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { accessSync, constants, existsSync, writeSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { activeScopes, claudeConfigOverride, physicalPath, reconcile, seedPiSettings, skillRecords } from "./lib/surfaces.mjs";
+import { activeScopes, claudeConfigOverride, physicalHome, reconcile, seedPiSettings, skillRecords } from "./lib/surfaces.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoDir = dirname(scriptDir);
@@ -58,10 +58,6 @@ function parseArgs(argv) {
   options.homeDir = home;
   if (!options.check && (options.fix || options.verbose)) exit("--fix and --verbose require --check", 2);
   return options;
-}
-
-function physicalHome(path) {
-  return physicalPath(path.startsWith("/") ? path : `${process.cwd()}/${path}`);
 }
 
 function timestamp() {
@@ -127,7 +123,7 @@ const records = skillRecords(repoDir);
 if (records && !records.some((record) => record.source === "etabli")) {
   exit("deploy-agent-workflow: skill catalog present but degenerate (no first-party record); aborting", 1);
 }
-const homeIsLive = Boolean(process.env.HOME) && options.homeDir === physicalHome(process.env.HOME);
+const homeIsLive = options.homeDir === physicalHome(process.env.HOME);
 const base = {
   repoDir,
   homeDir: options.homeDir,
