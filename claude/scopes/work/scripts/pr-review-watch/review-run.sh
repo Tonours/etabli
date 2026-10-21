@@ -124,7 +124,7 @@ run_verify_fixes() {
   base="$(verify_merge_base)" && [ -n "$base" ] || { echo "cannot resolve the merge base for the verify pass"; return 1; }
   git worktree add -q --detach "$tree" "$SHA" || { echo "cannot create verify worktree"; return 1; }
   neutralize_author_config "$tree" "$SHA" "$base"
-  (cd "$tree" && run_with_timeout "$claude" -p --permission-mode auto --disallowedTools=Edit,Write,NotebookEdit --output-format json \
+  (cd "$tree" && run_with_timeout "$claude" -p --permission-mode auto --permission-prompts none --disallowedTools=Edit,Write,NotebookEdit --output-format json \
     --model "$VERIFY_MODEL" --effort "$VERIFY_EFFORT" --settings '{"disableAllHooks":true}' \
     --strict-mcp-config --setting-sources project,local "$(verify_prompt)" </dev/null) >"$raw" 2>"$raw.err"
   rc=$?

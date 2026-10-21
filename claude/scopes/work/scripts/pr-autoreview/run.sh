@@ -109,7 +109,7 @@ PROMPT="$(render_template "$PROMPT_FILE" REPO="$REPO" PR_NUMBER="$PR_NUMBER" PR_
 echo "reviewing PR #$PR_NUMBER ($PR_URL) at ${SHA:0:8} with $MODEL"
 cd "$HOME"
 perl -e 'setpgrp(0, 0); exec @ARGV or die "exec: $!"' \
-  "$CLAUDE" -p "$PROMPT" --permission-mode auto --disallowedTools=Edit,Write,NotebookEdit --output-format json --model "$MODEL" --effort "$EFFORT" \
+  "$CLAUDE" -p "$PROMPT" --permission-mode auto --permission-prompts none --disallowedTools=Edit,Write,NotebookEdit --output-format json --model "$MODEL" --effort "$EFFORT" \
   </dev/null >"$RAW" 2>"$RAW.err" &
 AGENT_PID=$!
 
