@@ -85,6 +85,11 @@ printf 'DELTA_FINDINGS 0\nDELTA_CONFIDENT value=false\n' >"$TMP_DIR/delta.log"
 expect "clean: unconfident delta blocks" "reviewer not confident" "$(run_gates "clean_blocker '$TMP_DIR/delta.log' 0")"
 
 lib() { bash -c ". '$SCRIPTS/pr-council-review/lib.sh'; $1"; }
+printf '{"result":"r","permission_denials":[{"tool_name":"Bash","tool_input":{"command":"curl x"}}]}' >"$TMP_DIR/denials-some.json"
+printf '{"result":"r","permission_denials":[]}' >"$TMP_DIR/denials-none.json"
+expect "denials: a denied call fails the pass" "1" "$(lib "check_denials '$TMP_DIR/denials-some.json' 2>/dev/null; echo \$?")"
+expect "denials: the denied call is listed" "Bash: curl x" "$(lib "check_denials '$TMP_DIR/denials-some.json'" 2>&1 >/dev/null | tail -1)"
+expect "denials: none passes silently" "0" "$(lib "check_denials '$TMP_DIR/denials-none.json' 2>&1; echo \$?")"
 printf '<!-- claudine:v1 {"kind":"run","run":"r","pr":7,"sha":"abc","findings":0,"floor":"should-fix"} -->\n' >"$TMP_DIR/council.log"
 expect "run marker: findings for the reviewed sha" "0" "$(lib "validator_run_findings '$TMP_DIR/council.log' abc")"
 expect "run marker: other sha is not clean" "" "$(lib "validator_run_findings '$TMP_DIR/council.log' def")"

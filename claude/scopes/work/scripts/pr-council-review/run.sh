@@ -157,7 +157,7 @@ $(cat "$THERMO_SKILL_FILE")"
 CLAUDE_ARGS=(--dangerously-skip-permissions --output-format json)
 [ -n "$MODEL" ] && CLAUDE_ARGS+=(--model "$MODEL")
 [ -n "$EFFORT" ] && CLAUDE_ARGS+=(--effort "$EFFORT")
-PHASE_A_ARGS=(--dangerously-skip-permissions --output-format json
+PHASE_A_ARGS=(--permission-mode auto --disallowedTools=Edit,Write,NotebookEdit --output-format json
   --settings '{"disableAllHooks":true}' --strict-mcp-config --setting-sources project,local)
 [ -n "$PHASE_A_MODEL" ] && PHASE_A_ARGS+=(--model "$PHASE_A_MODEL")
 [ -n "$PHASE_A_EFFORT" ] && PHASE_A_ARGS+=(--effort "$PHASE_A_EFFORT")
@@ -197,6 +197,8 @@ wait "$PID_THERMO" || RC_THERMO=$?
 [ -n "$PID_CODEX" ] && { wait "$PID_CODEX" || RC_CODEX=$?; }
 extract_result "$RAW_QUALITY" >"$REPORT_QUALITY" || RC_QUALITY=1
 extract_result "$RAW_THERMO" >"$REPORT_THERMO" || RC_THERMO=1
+check_denials "$RAW_QUALITY" || RC_QUALITY=1
+check_denials "$RAW_THERMO" || RC_THERMO=1
 
 echo
 echo "----- /code-review (exit $RC_QUALITY) -----"
