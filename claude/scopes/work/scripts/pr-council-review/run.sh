@@ -197,8 +197,9 @@ wait "$PID_THERMO" || RC_THERMO=$?
 [ -n "$PID_CODEX" ] && { wait "$PID_CODEX" || RC_CODEX=$?; }
 extract_result "$RAW_QUALITY" >"$REPORT_QUALITY" || RC_QUALITY=1
 extract_result "$RAW_THERMO" >"$REPORT_THERMO" || RC_THERMO=1
-check_denials "$RAW_QUALITY" || RC_QUALITY=1
-check_denials "$RAW_THERMO" || RC_THERMO=1
+PHASE_A_DENIED=0
+check_denials "$RAW_QUALITY" || PHASE_A_DENIED=1
+check_denials "$RAW_THERMO" || PHASE_A_DENIED=1
 
 echo
 echo "----- /code-review (exit $RC_QUALITY) -----"
@@ -216,6 +217,10 @@ if [ "$USE_CODEX" = 1 ]; then
   fi
 fi
 
+if [ "$PHASE_A_DENIED" -ne 0 ]; then
+  echo "a phase A pass hit a permission denial; not running the validator" >&2
+  exit 1
+fi
 if [ "$RC_QUALITY" -ne 0 ] && [ "$RC_THERMO" -ne 0 ]; then
   echo "both Claude phase A passes failed; not running the validator" >&2
   exit 1
