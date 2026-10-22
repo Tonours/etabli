@@ -82,8 +82,10 @@ break, so their skills stay ungoverned and outside the index gate.
 - `read-only-agent-guard.mjs` is wired by `scout`, `reviewer` and `adversary`
   frontmatter. It allows only Bash it can prove read-only, including an
   allowlisted set of read-only `gh` commands, and fails closed: on shell tricks
-  it cannot prove harmless, on executables outside system bin directories, and
-  on every call if its modules fail to load.
+  it cannot prove harmless, on executables outside system bin directories, on
+  every call if its modules fail to load, and on unreadable hook input (exit 2).
+  The frontmatter command ends with `|| exit 2`, so a missing script or a
+  crashed `node` blocks Bash too.
   `tests/claude-hooks-smoke.sh` holds the accepted and refused cases.
 - `no-comments-guard.mjs` (`PreToolUse` on `Edit|Write|MultiEdit`) is a thin
   adapter over `workflow/runtime/no-comments-guard.mjs`, the detector Pi uses
@@ -96,6 +98,8 @@ break, so their skills stay ungoverned and outside the index gate.
 - `rtk-guard.mjs` (`PreToolUse` on `Bash`) forwards a command to
   `rtk hook claude` only when `workflow/runtime/rtk-data-flow.mjs` allows
   compaction, and runs the rest raw.
+- `no-comments-guard.mjs` and `rtk-guard.mjs` fail open: a crash lets the write
+  or the raw command through, since neither guards a read-only boundary.
 
 `settings.workflow-hooks.json` is a merge fragment, linked but not merged by
 the installer because the live settings file can hold secrets. Run
