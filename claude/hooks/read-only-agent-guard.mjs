@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 
 function commandForPolicy(command) {
-	return command.replace(/^rtk\s+/, "");
+	return command.replace(/^rtk\s+(?=(?:git|gh|ls|wc)(?:\s|$))/, "");
 }
 
 function readInput() {

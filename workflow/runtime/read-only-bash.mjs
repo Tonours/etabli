@@ -16,14 +16,12 @@ const READ_ONLY_BASH_COMMANDS = new Set([
 	"shasum",
 	"stat",
 	"tail",
-	"test",
 	"tr",
 	"uniq",
 	"wc",
 	"which",
 ]);
 const ALWAYS_READ_ONLY_GIT_SUBCOMMANDS = new Set([
-	"--help",
 	"--version",
 	"diff",
 	"grep",
@@ -68,13 +66,14 @@ const READ_ONLY_GIT_BRANCH_ARGS = new Set([
 	"-v",
 	"-vv",
 ]);
-const UNSAFE_GIT_INSPECTION_ARG =
-	/^(?:--output(?:=|$)|--ext-diff$|--textconv$|--open-files-in-pager(?:=|$)|-O)/;
+// Git accepts any unambiguous prefix of a long option, so `--open-files-in-page`
+// runs a pager command too.
+const UNSAFE_GIT_LONG_OPTIONS = ["output", "ext-diff", "textconv", "open-files-in-pager", "show-signature", "help"];
 const SYSTEM_BIN_EXECUTABLE =
 	/^\/(?:s?bin|usr\/s?bin|usr\/local\/bin|opt\/homebrew\/bin)\/[^/]+$/;
-const RG_EXEC_OPTION = /^--(?:pre|hostname-bin)(?:=|$)/;
-const GH_SHORT_WRITE_CLUSTER = /^-[^-]*[XfF]/;
-const EXPANDING_DOLLAR = /^[A-Za-z_{@*#?!$0-9'-]/;
+const RG_EXEC_OPTION = /^--(?:pre|hostname-bin|search-zip)(?:=|$)|^-[^-]*z/;
+const GH_SHORT_WRITE_CLUSTER = /^-[^-]*[XfFw]/;
+const EXPANDING_DOLLAR = /^[A-Za-z_{@*#?!$0-9'[-]/;
 const ARGV_SENSITIVE_READERS = new Set(["diff", "rg", "uniq"]);
 
 /** Split a simple shell pipeline while respecting quoted search expressions. */
@@ -93,7 +92,7 @@ function splitReadOnlyPipeline(command) {
 			escaped = false;
 			continue;
 		}
-		if (character === "\\") {
+		if (character === "\\" && quote !== "'") {
 			current += character;
 			escaped = true;
 			continue;
@@ -130,11 +129,16 @@ function splitReadOnlyPipeline(command) {
 			current = "";
 			continue;
 		}
+		// Unquoted `#` starts a comment that can hide a quote; `(` and `)` open
+		// subshells and zsh process substitutions or glob qualifiers.
 		if (
 			character === "&" ||
 			character === "`" ||
 			character === "<" ||
 			character === ">" ||
+			character === "#" ||
+			character === "(" ||
+			character === ")" ||
 			(character === "$" && value[index + 1] === "(")
 		) {
 			return null;
@@ -165,7 +169,7 @@ function splitShellWords(segment) {
 			escaped = false;
 			continue;
 		}
-		if (character === "\\") {
+		if (character === "\\" && quote !== "'") {
 			escaped = true;
 			continue;
 		}
@@ -211,6 +215,17 @@ function isReadOnlyGitFetch(args) {
 	return true;
 }
 
+// In a `git grep` cluster, `-O` takes the rest of the word as a pager command
+// unless an option that takes a value (`-e`, `-f`, `-A`, `-B`, `-C`, `-m`) comes first.
+function isUnsafeGitInspectionArg(argument, subcommand) {
+	if (argument.startsWith("-O")) return true;
+	if (subcommand === "grep" && /^-[^-efABCm]*O/.test(argument)) return true;
+	// `%G` placeholders in a format run the signature verifier.
+	if (/%G/.test(argument)) return true;
+	const name = /^--([^=]+)/.exec(argument)?.[1];
+	return Boolean(name) && UNSAFE_GIT_LONG_OPTIONS.some((option) => option.startsWith(name));
+}
+
 function isReadOnlyGitSegment(segment) {
 	const words = splitShellWords(segment);
 	if (!words || words[0].replace(/^.*\//, "") !== "git") return false;
@@ -223,8 +238,7 @@ function isReadOnlyGitSegment(segment) {
 	const subcommand = words[index];
 	if (!subcommand) return false;
 	const args = words.slice(index + 1);
-	if (args.some((argument) => UNSAFE_GIT_INSPECTION_ARG.test(argument)))
-		return false;
+	if (args.some((argument) => isUnsafeGitInspectionArg(argument, subcommand))) return false;
 
 	if (ALWAYS_READ_ONLY_GIT_SUBCOMMANDS.has(subcommand)) return true;
 	if (subcommand === "fetch") return isReadOnlyGitFetch(args);
@@ -259,6 +273,9 @@ function isReadOnlyGhSegment(segment) {
 	const isAllowlistedCommand =
 		READ_ONLY_GH_COMMANDS.has(twoWord) || READ_ONLY_GH_COMMANDS.has(args[0]);
 	if (!isAllowlistedCommand && args[0] !== "api") return false;
+	if (twoWord === "auth status" && args.some((argument) => /^--show-token(?:=|$)/.test(argument) || /^-[^-]*t/.test(argument))) {
+		return false;
+	}
 
 	return !args.some((argument, index) => {
 		if (argument === "--method" || argument === "-X") {
@@ -267,13 +284,6 @@ function isReadOnlyGhSegment(segment) {
 		if (GH_SHORT_WRITE_CLUSTER.test(argument)) return true;
 		return GH_WRITE_ARG.test(argument.replace(/=.*$/, ""));
 	});
-}
-
-function awkProgramCanEscapeReadOnly(segment) {
-	const words = splitShellWords(segment);
-	if (!words) return true;
-	if (words.slice(1).includes("-f")) return true;
-	return /system\s*\(|ENVIRON|>|\|/.test(words.slice(1).join(" "));
 }
 
 function hasPotentialWriteOption(segment, shortOption, longOption) {
@@ -306,7 +316,7 @@ function shellHazards(segment) {
 			quote = "'";
 		} else if (character === "$" && (EXPANDING_DOLLAR.test(segment[index + 1] ?? "") || (!quote && segment[index + 1] === '"'))) {
 			hazards.expansion = true;
-		} else if (!quote && character === "{") {
+		} else if (!quote && (character === "{" || (character === "=" && /^\s?$/.test(segment[index - 1] ?? "")))) {
 			hazards.expansion = true;
 		} else if (!quote && /[*?[]/.test(character)) {
 			hazards.glob = true;
@@ -330,7 +340,6 @@ function isReadOnlyPipelineSegment(segment) {
 			: `${executable}${trimmed.slice(invoked.length)}`;
 	if (executable === "git") return isReadOnlyGitSegment(basenamed);
 	if (executable === "gh") return isReadOnlyGhSegment(basenamed);
-	if (executable === "awk") return !awkProgramCanEscapeReadOnly(basenamed);
 	if (executable === "find") {
 		const words = splitShellWords(trimmed);
 		if (!words) return false;
@@ -347,15 +356,16 @@ function isReadOnlyPipelineSegment(segment) {
 		]);
 		return !words.slice(1).some((word) => mutatingFindActions.has(word));
 	}
-	// sed programs can write (`w`) or execute (`e`) without an in-place flag.
-	// The read-only agents already have Read/Grep, so deny sed rather than parse
-	// its full command language here.
-	if (executable === "sed") return false;
+	// sed and awk programs can write or execute without an in-place flag. The
+	// read-only agents already have Read/Grep, so deny them rather than parse
+	// their command languages here.
+	if (executable === "sed" || executable === "awk") return false;
 	// sort may spill temporary files or execute --compress-program. Deny it
 	// instead of maintaining a fragile option denylist.
 	if (executable === "sort") return false;
 	if (executable === "diff") {
-		return !hasPotentialWriteOption(basenamed, "o", "output");
+		// `-l` (`--paginate`) pipes the output through `pr`.
+		return !hasPotentialWriteOption(basenamed, "o", "output") && !hasPotentialWriteOption(basenamed, "l", "paginate");
 	}
 	if (executable === "rg") {
 		const words = splitShellWords(basenamed);
@@ -370,10 +380,16 @@ function isReadOnlyPipelineSegment(segment) {
 		return start === -1 || rest.length - start <= 1;
 	}
 	if (executable === "node" || executable === "nodejs") {
-		return /^(?:node|nodejs)\s+(?:--check\b|--version\b)/.test(basenamed);
+		return /^(?:node|nodejs)\s+--version$/.test(basenamed);
+	}
+	if (executable === "jq") {
+		// jq reads the environment through `env` and `$ENV`, also from a program file.
+		const words = splitShellWords(basenamed);
+		return Boolean(words) && !words.slice(1).some((word) => /\benv\b|\$ENV\b|^-[^-]*f|^--from-file(?:=|$)/.test(word));
 	}
 	if (executable === "bash" || executable === "sh") {
-		return /^(?:bash|sh)\s+(?:-n\b|--version\b)/.test(basenamed);
+		// `-n` alone: an extra option such as `-i` makes the shell run the script.
+		return /^(?:bash|sh)\s+(?:-n\s+[^-+\s]\S*|--version)$/.test(basenamed);
 	}
 	return READ_ONLY_BASH_COMMANDS.has(executable);
 }
