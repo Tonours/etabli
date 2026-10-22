@@ -21,7 +21,7 @@ LAUNCH_GRACE_SECONDS=180
 CLONE_ROOTS=("$HOME/work" "$HOME/work/zendesk")
 TEMP_CLONES="$STATE_DIR/clones"
 
-export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 . "$HERE/herdr.sh"
 . "$HERE/../pr-council-review/lib.sh"
 . "$HERE/clones.sh"

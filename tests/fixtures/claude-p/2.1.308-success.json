@@ -1,0 +1,93 @@
+{
+  "api_error_status": null,
+  "fast_mode_disabled_reason": "sdk_opt_in_required",
+  "fast_mode_state": "off",
+  "is_error": false,
+  "modelUsage": {
+    "claude-haiku-5-5": {
+      "cacheCreationInputTokens": 5908,
+      "cacheReadInputTokens": 10644,
+      "canonicalModel": "claude-haiku-5-5",
+      "contextWindow": 1000000,
+      "costBasis": "list",
+      "costUSD": 0,
+      "inputTokens": 2,
+      "maxOutputTokens": 128000,
+      "outputTokens": 4,
+      "provider": "firstParty",
+      "thinkingTokens": 0,
+      "webSearchRequests": 0
+    }
+  },
+  "num_turns": 1,
+  "permission_denials": [],
+  "queued_turn_count": 0,
+  "result": "OK",
+  "result_index": 0,
+  "safety_stops": 0,
+  "session_id": "00000000-0000-4000-8000-000000000000",
+  "stop_reason": "end_turn",
+  "subagent_stats": {
+    "by_type": {},
+    "completed": 0,
+    "failed": 0,
+    "killed": {
+      "parent": 0,
+      "system": 0,
+      "user": 0
+    },
+    "max_depth": 0,
+    "refused": {
+      "budget": 0,
+      "concurrency_limit": 0,
+      "depth_limit": 0
+    },
+    "requested": {
+      "background": 0,
+      "foreground": 0,
+      "unset": 0
+    },
+    "spawned": 0,
+    "spawned_by_subagents": 0,
+    "started_in_background": 0
+  },
+  "subtype": "success",
+  "terminal_reason": "completed",
+  "total_cost_usd": 0,
+  "type": "result",
+  "usage": {
+    "cache_creation": {
+      "ephemeral_1h_input_tokens": 5908,
+      "ephemeral_5m_input_tokens": 0
+    },
+    "cache_creation_input_tokens": 5908,
+    "cache_read_input_tokens": 10644,
+    "fallback_credit": null,
+    "inference_geo": "global",
+    "input_tokens": 2,
+    "iterations": [
+      {
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 5908,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "cache_creation_input_tokens": 5908,
+        "cache_read_input_tokens": 10644,
+        "input_tokens": 2,
+        "output_tokens": 4,
+        "type": "message"
+      }
+    ],
+    "output_tokens": 4,
+    "output_tokens_details": {
+      "thinking_tokens": 0
+    },
+    "server_tool_use": {
+      "web_fetch_requests": 0,
+      "web_search_requests": 0
+    },
+    "service_tier": "standard",
+    "speed": "standard"
+  },
+  "uuid": "00000000-0000-4000-8000-000000000001"
+}
