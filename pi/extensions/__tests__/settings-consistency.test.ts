@@ -51,10 +51,16 @@ const skillCatalog = readFileSync(
     };
   });
 
+function packageIdentity(source: string): string {
+  return /^(npm:(?:@[^/]+\/)?[^@]+)@/.exec(source)?.[1] ?? source.replace(/@[^/@]*$/, "");
+}
+
 function packageBySource(source: string): LocalPackage | undefined {
   return settings.packages.find((entry): entry is LocalPackage => {
     return (
-      typeof entry === "object" && entry !== null && entry.source === source
+      typeof entry === "object" &&
+      entry !== null &&
+      packageIdentity(entry.source) === packageIdentity(source)
     );
   });
 }

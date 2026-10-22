@@ -355,7 +355,8 @@ for (const entry of rendered) {
     if (isLens) continue;
     const pkg = entry.location.split("/npm/node_modules/")[1].split("/skills/")[0];
     const pkgEntry = (settings.packages ?? []).find(
-      (candidate) => candidate && typeof candidate === "object" && candidate.source === `npm:${pkg}`,
+      (candidate) =>
+        candidate && typeof candidate === "object" && /^npm:((?:@[^/]+\/)?[^@]+)/.exec(candidate.source ?? "")?.[1] === pkg,
     );
     if (!Array.isArray(pkgEntry?.skills) || !pkgEntry.skills.includes(entry.name)) {
       errors.push(`B2(i): rendered package skill ${entry.name} outside its ${pkg} filter`);

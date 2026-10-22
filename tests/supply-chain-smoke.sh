@@ -75,6 +75,11 @@ while IFS= read -r -d '' entry; do
   esac
 done < <(git -C "$ROOT_DIR" ls-files -s -z)
 
+unpinned_pi_packages="$(jq -r '.packages[] | (if type == "string" then . else .source end)
+  | select(test("^npm:(@[^/@]+/)?[^@/]+@[0-9]+[.][0-9]+[.][0-9]+$|^git:[^@]+@[0-9a-f]{40}$") | not)' "$ROOT_DIR/pi/agent/settings.json")"
+[ -z "$unpinned_pi_packages" ] ||
+  fail "tracked Pi packages must pin npm:<name>@<x.y.z> or git:<repo>@<40-hex>: $(printf '%s ' $unpinned_pi_packages)"
+
 grep -Fq 'gitleaks_8.30.1_linux_x64.tar.gz' "$WORKFLOW" &&
   grep -Eq '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb +gitleaks_8.30.1_linux_x64.tar.gz" [|] sha256sum -c -$' "$WORKFLOW" &&
   grep -Fq 'gitleaks git --no-banner --redact --log-opts="--all --full-history --diff-merges=first-parent" .' "$WORKFLOW" ||
