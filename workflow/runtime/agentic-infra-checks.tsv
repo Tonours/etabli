@@ -13,6 +13,7 @@ core	pi	skill-lock	builtin:skill-lock
 core	shell-docs	guards-active	tests/guards-active-smoke.sh
 core	shell-docs	skill-hygiene	tests/skill-hygiene-smoke.sh
 full	shell-docs	pr-review-gates-smoke	tests/pr-review-gates-smoke.sh
+full	shell-docs	pr-review-flow-smoke	tests/pr-review-flow-smoke.sh
 full	shell-docs	workflow-scaffold-smoke	tests/workflow-scaffold-smoke.sh
 full	shell-docs	claude-hooks-smoke	tests/claude-hooks-smoke.sh
 full	shell-docs	claude-agents-smoke	tests/claude-agents-smoke.sh

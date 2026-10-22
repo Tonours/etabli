@@ -15,7 +15,7 @@ TIMEOUT="${PR_REVIEW_WATCH_TIMEOUT:-2700}"
 VERIFY_MODEL="${PR_REVIEW_WATCH_VERIFY_MODEL:-opus}"
 VERIFY_EFFORT="${PR_REVIEW_WATCH_VERIFY_EFFORT:-low}"
 
-export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 . "$HERE/../pr-council-review/lib.sh"
 . "$HERE/gates.sh"
 
