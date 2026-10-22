@@ -32,7 +32,7 @@ for managed_script in "${managed_scripts[@]}"; do
   }
 done
 
-if rg -n '\.pi/agent/npm' "${managed_scripts[@]}"; then
+if grep -nF '.pi/agent/npm' "${managed_scripts[@]}"; then
   printf 'managed scripts must not duplicate the Pi npm path\n' >&2
   exit 1
 fi
