@@ -82,7 +82,7 @@ while IFS=$'\t' read -r vendor repo ref scope skills subpath; do
   fi
 
   printf '%s\n' "$sha" >"$VENDOR_ROOT/$vendor/UPSTREAM_SHA"
-  printf '    %d skills at %s\n' "${#wanted[@]}" "${sha:0:12}"
+  printf '    %d skills at %s\n' "${#wanted[@]}" "$sha"
   synced=$((synced + 1))
 done <"$MANIFEST"
 

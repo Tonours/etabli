@@ -8,20 +8,21 @@ MANIFEST="$VENDOR_ROOT/sources.tsv"
 
 usage() {
   cat <<EOF
-Usage: $(basename "$0") [--commit] [vendor]
+Usage: $(basename "$0") [vendor]
 
 Update vendored skills in one step: sync every vendor (or one) from upstream,
-refresh skills-lock.json, run the skill checks, and print what moved.
-
---commit  commit vendor/ and skills-lock.json when something changed
+refresh skills-lock.json, run the skill checks, and print what moved. Review
+the diff, then commit vendor/ and skills-lock.json yourself.
 EOF
 }
 
-COMMIT=0
 ONLY=""
 while [ "$#" -gt 0 ]; do
   case "$1" in
-  --commit) COMMIT=1 ;;
+  --commit)
+    printf '%s: --commit was removed; review the diff, then commit vendor/ and skills-lock.json yourself\n' "$(basename "$0")" >&2
+    exit 2
+    ;;
   -h | --help)
     usage
     exit 0
@@ -70,7 +71,7 @@ while IFS=$'\t' read -r vendor repo; do
   old="$(awk -F '\t' -v v="$vendor" '$1 == v {print $2}' "$BEFORE")"
   [ "$old" = "$after" ] && continue
   changed+=("$vendor")
-  line="  $vendor ${old:0:12} -> ${after:0:12}"
+  line="  $vendor $old -> $after"
   case "$repo" in
   https://github.com/*)
     url="${repo%.git}"
@@ -81,11 +82,4 @@ while IFS=$'\t' read -r vendor repo; do
 done < <(vendors)
 [ "${#changed[@]}" -gt 0 ] || printf '  none (only local adaptation drift)\n'
 
-if [ "$COMMIT" -eq 1 ]; then
-  git -C "$REPO_DIR" add -- "$VENDOR_ROOT" "$REPO_DIR/skills-lock.json"
-  label="${changed[*]:-vendor skills}"
-  git -C "$REPO_DIR" commit -q -m "chore(vendor): update ${label// /, }"
-  git -C "$REPO_DIR" log --oneline -1
-else
-  printf '\nreview the diff, then commit (or rerun with --commit)\n'
-fi
+printf '\nreview the diff, then commit vendor/ and skills-lock.json yourself\n'

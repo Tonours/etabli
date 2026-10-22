@@ -346,7 +346,7 @@ else
     if [[ "$OS" == "mac" ]] && command -v brew &>/dev/null; then
         brew install rtk || print_warning "RTK brew install failed"
     else
-        curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/refs/heads/master/install.sh | sh ||
+        curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/4ef8730cf3a0dea11c8d64a9b90bc0616fe52100/install.sh | RTK_VERSION=v0.39.0 sh ||
             print_warning "RTK install script failed"
     fi
 

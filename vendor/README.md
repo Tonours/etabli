@@ -64,7 +64,6 @@ stays `workflow/skills/investigation.md`).
 ```bash
 scripts/update-vendor-skills                 # every vendor, review then commit
 scripts/update-vendor-skills mattpocock      # one vendor
-scripts/update-vendor-skills --commit        # commit vendor/ + skills-lock.json
 ```
 
 One step: it runs `scripts/sync-vendor-skills`, refreshes `skills-lock.json`,
