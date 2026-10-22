@@ -32,7 +32,7 @@ chmod +x "$TMP_DIR/bin/gh"
 
 run_gates() {
   PATH="$TMP_DIR/bin:$PATH" PR_REVIEW_WATCH_STATE_DIR="$TMP_DIR/state" PR_REVIEW_WATCH_CI_WAIT=0 \
-    REPO=owner/repo NUMBER=7 ME=me SHA=abc bash -c ". '$SCRIPTS/pr-review-watch/gates.sh'; $1"
+    REPO=owner/repo NUMBER=7 ME=me SHA=abc KEY="$TMP_DIR/state/key" bash -c ". '$SCRIPTS/pr-review-watch/gates.sh'; $1"
 }
 
 pr_json() {
@@ -65,7 +65,10 @@ expect "verify: settled and confident approves" "" "$(run_gates "verify_blocker 
 expect "verify: delta findings block" "delta review posted 1 findings" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 1")"
 expect "verify: unknown delta count blocks" "delta review posted unknown findings" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' ''")"
 verdict 0 0 0 true true
+expect "verify: empty finding set without a clean review blocks" "no finding was verified" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0")"
+mkdir -p "$TMP_DIR/state" && touch "$TMP_DIR/state/key.council-clean"
 expect "verify: empty finding set after a clean review approves" "" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0")"
+rm -f "$TMP_DIR/state/key.council-clean"
 verdict 2 1 0 true true
 expect "verify: reopened blocks" "findings reopened" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0")"
 verdict 2 0 1 true true
@@ -102,16 +105,18 @@ expect "veto: unreadable denials veto a used pass" "0" "$(lib "denial_veto '$TMP
 expect "veto: unreadable output of a failed pass stays a gap" "1" "$(lib "denial_veto '$TMP_DIR/denials-empty.json' 1 2>/dev/null; echo \$?")"
 expect "veto: a clean pass does not veto" "1" "$(lib "denial_veto '$TMP_DIR/denials-none.json' 0 2>/dev/null; echo \$?")"
 printf '<!-- claudine:v1 {"kind":"run","run":"r","pr":7,"sha":"abc","findings":0,"floor":"should-fix"} -->\n' >"$TMP_DIR/council.log"
+expect "run marker: a marker before phase B is ignored" "" "$(lib "validator_run_findings '$TMP_DIR/council.log' abc")"
+printf '=== phase B: /validator\n<!-- claudine:v1 {"kind":"run","run":"r","pr":7,"sha":"abc","findings":0,"floor":"should-fix"} -->\n' >"$TMP_DIR/council.log"
 expect "run marker: findings for the reviewed sha" "0" "$(lib "validator_run_findings '$TMP_DIR/council.log' abc")"
 expect "run marker: other sha is not clean" "" "$(lib "validator_run_findings '$TMP_DIR/council.log' def")"
 marker='{"kind":"run","run":"7-x-me","pr":7,"sha":"abc","findings":0,"floor":"should-fix","suppressed":1,"security":"clean","lenses":{"linear":"ran","conventions":"narrowed"}}'
-printf '=== run marker: claudine:v1 %s --\n' "$marker" >"$TMP_DIR/clean.log"
+printf '=== phase B: /validator\n=== run marker: claudine:v1 %s --\n' "$marker" >"$TMP_DIR/clean.log"
 expect "approval body: validator format with its run marker" \
   "$(printf 'Approved after /validator run 7-x-me: nothing at or above `should-fix` posted, 1 suppressed.\n<!-- claudine:v1 %s -->' "$marker")" \
   "$(lib "validator_approval_body '$TMP_DIR/clean.log' abc")"
-printf '<!-- claudine:v1 %s -->\n' "${marker/\"conventions\":\"narrowed\"/\"conventions\":\"pending\"}" >"$TMP_DIR/pending.log"
+printf '=== phase B: /validator\n<!-- claudine:v1 %s -->\n' "${marker/\"conventions\":\"narrowed\"/\"conventions\":\"pending\"}" >"$TMP_DIR/pending.log"
 expect "approval body: pending lens withholds" "a validator lens is still pending" "$(lib "validator_approval_body '$TMP_DIR/pending.log' abc" 2>&1)"
-printf '<!-- claudine:v1 %s -->\n' "${marker/\"security\":\"clean\"/\"security\":\"ticketed\"}" >"$TMP_DIR/ticketed.log"
+printf '=== phase B: /validator\n<!-- claudine:v1 %s -->\n' "${marker/\"security\":\"clean\"/\"security\":\"ticketed\"}" >"$TMP_DIR/ticketed.log"
 expect "approval body: ticketed security withholds" "a security finding waits on a ticket" "$(lib "validator_approval_body '$TMP_DIR/ticketed.log' abc" 2>&1)"
 printf 'a={{A}} b={{B}} c={{C}}\n' >"$TMP_DIR/template.md"
 expect "template: special characters survive" 'a=R&D|x b=$HOME c={{C}}' "$(lib "render_template '$TMP_DIR/template.md' 'A=R&D|x' 'B=\$HOME'")"

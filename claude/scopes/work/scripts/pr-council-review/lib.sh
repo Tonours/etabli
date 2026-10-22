@@ -1,6 +1,7 @@
 #!/bin/bash
 
 PR_REVIEW_USAGE_LOG="${PR_REVIEW_USAGE_LOG:-$HOME/.claude/logs/pr-review-usage.log}"
+REVIEW_INCOMPLETE_RC=4
 AUTHOR_CONFIG_PATHS=(CLAUDE.md AGENTS.md .mcp.json .claude ':(glob)**/CLAUDE.md' ':(glob)**/AGENTS.md' ':(glob)**/.claude/**')
 
 render_template() {
@@ -32,11 +33,19 @@ neutralize_author_config() {
 }
 
 extract_result() {
-  if ! jq -er '.result // empty' "$1" 2>/dev/null; then
+  local outcome
+  if ! outcome="$(jq -r 'if .is_error == false and .subtype == "success" and (.result | type) == "string" and .result != ""
+      then "complete" else "is_error=\(.is_error) subtype=\(.subtype)" end' "$1" 2>/dev/null)"; then
     echo "=== could not parse the session output as JSON; raw output follows" >&2
     cat "$1"
     return 1
   fi
+  if [ "$outcome" != complete ]; then
+    echo "=== the session ended without a complete result ($outcome)" >&2
+    jq -r '.result // empty' "$1"
+    return 1
+  fi
+  jq -r .result "$1"
 }
 
 check_denials() {
@@ -97,22 +106,17 @@ notify() {
   return 0
 }
 
-validator_run_findings() {
-  grep -o '"kind":"run"[^>]*' "$1" 2>/dev/null | grep -F "\"sha\":\"$2\"" | tail -1 | sed -n 's/.*"findings":\([0-9]*\).*/\1/p'
+phase_b_output() {
+  awk '/^=== phase B: / { text = ""; seen = 1; next } seen { text = text $0 "\n" } END { printf "%s", text }' "$1" 2>/dev/null
 }
 
-session_run_marker() {
-  local raw="$1" sha="$2" session transcript
-  session="$(jq -r '.session_id // empty' "$raw" 2>/dev/null)"
-  [ -n "$session" ] || return 0
-  transcript="$(find "$HOME/.claude/projects" -maxdepth 2 -name "$session.jsonl" 2>/dev/null | head -1)"
-  [ -n "$transcript" ] || return 0
-  grep -o '"kind\\":\\"run\\"[^>]*' "$transcript" | sed 's/\\"/"/g' | grep -F "\"sha\":\"$sha\"" | tail -1 | sed 's/^/claudine:v1 {/'
+validator_run_findings() {
+  phase_b_output "$1" | grep -o '"kind":"run"[^>]*' | grep -F "\"sha\":\"$2\"" | tail -1 | sed -n 's/.*"findings":\([0-9]*\).*/\1/p'
 }
 
 validator_marker_json() {
   local raw
-  raw="$(grep -o '"kind":"run"[^>]*' "$1" 2>/dev/null | grep -F "\"sha\":\"$2\"" | tail -1)"
+  raw="$(phase_b_output "$1" | grep -o '"kind":"run"[^>]*' | grep -F "\"sha\":\"$2\"" | tail -1)"
   [ -n "$raw" ] || return 1
   raw="{$raw"
   raw="$(printf '%s' "$raw" | sed -E 's/[[:space:]-]+$//')"

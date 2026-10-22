@@ -143,7 +143,6 @@ pr_snapshot() {
     | jq -r --arg me "$3" '[
       .state, .isDraft, .headRefOid, .url,
       ((([.reviewRequests[].login] + [.latestReviews[].author.login]) | index($me)) != null),
-      ([.latestReviews[] | select(.author.login == $me)] | length > 0),
       ([.latestReviews[] | select(.author.login == $me and .state == "APPROVED")] | length > 0)
     ] | @tsv'
 }
@@ -198,7 +197,7 @@ retry_pending_approval() {
 }
 
 consider() {
-  local me="$1" repo="$2" number="$3" sha="$4" url="$5" reviewed="$6" key attempt age size mode since
+  local me="$1" repo="$2" number="$3" sha="$4" url="$5" key attempt age size mode since
   key="$(run_key "$repo" "$number")"
   run_alive "$key" && { log "$repo#$number review still running, wait"; return; }
   if [ -f "$key.approval-pending" ]; then
@@ -225,7 +224,7 @@ consider() {
   [ "$(launched_today)" -lt "$MAX_RUNS_PER_DAY" ] || { log "$repo#$number queued: daily cap $MAX_RUNS_PER_DAY reached"; return; }
   mode=council
   since="-"
-  if [ "$reviewed" = "true" ] || [ -f "$key.council-done" ]; then
+  if [ -f "$key.council-done" ]; then
     mode=verify
     since="$(cat "$key.watermark" 2>/dev/null)"
     [ -n "$since" ] || since="$(last_review_sha "$repo" "$number" "$me" 2>/dev/null)"
@@ -235,12 +234,12 @@ consider() {
 }
 
 process_watched() {
-  local me="$1" repo number state draft sha url involved reviewed approved
+  local me="$1" repo number state draft sha url involved approved
   local next="$WATCHED.next"
   : >"$next"
   while IFS=$'\t' read -r repo number _; do
     [ -n "$repo" ] || continue
-    IFS=$'\t' read -r state draft sha url involved reviewed approved <<<"$(pr_snapshot "$repo" "$number" "$me" 2>/dev/null)"
+    IFS=$'\t' read -r state draft sha url involved approved <<<"$(pr_snapshot "$repo" "$number" "$me" 2>/dev/null)"
     if [ -z "${state:-}" ]; then
       printf '%s\t%s\n' "$repo" "$number" >>"$next"
       continue
@@ -251,7 +250,7 @@ process_watched() {
       [ "$state" = OPEN ] || rm -f "$(run_key "$repo" "$number")".{status,seen,watermark,council-done,council-clean,approval-pending,approval-body,too-big}
       continue
     fi
-    [ "$draft" = "false" ] && consider "$me" "$repo" "$number" "$sha" "$url" "$reviewed" </dev/null
+    [ "$draft" = "false" ] && consider "$me" "$repo" "$number" "$sha" "$url" </dev/null
     printf '%s\t%s\n' "$repo" "$number" >>"$next"
   done <"$WATCHED"
   mv "$next" "$WATCHED"

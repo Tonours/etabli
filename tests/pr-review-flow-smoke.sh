@@ -71,10 +71,10 @@ case "$prompt" in
   *) echo "fake claude: unknown prompt" >&2; exit 1 ;;
 esac
 printf 'claude %s %s\n' "$role" "${flags[*]}" >>"$FAKE_LOG"
-envelope_var="FAKE_${role}_ENVELOPE" text_var="FAKE_${role}_TEXT" rc_var="FAKE_${role}_RC"
+envelope_var="FAKE_${role}_ENVELOPE" text_var="FAKE_${role}_TEXT" rc_var="FAKE_${role}_RC" patch_var="FAKE_${role}_PATCH"
 envelope="$FAKE_FIXTURES/2.1.308-${!envelope_var:-success}.json"
 text="${!text_var:-}"
-out="$(jq --arg t "${text//\{\{SHA\}\}/$FAKE_HEAD}" 'if (.result | type) == "string" and $t != "" then .result = $t else . end' "$envelope")"
+out="$(jq --arg t "${text//\{\{SHA\}\}/$FAKE_HEAD}" 'if (.result | type) == "string" and $t != "" then .result = $t else . end' "$envelope" | jq "${!patch_var:-.}")"
 printf '%s\n' "$out"
 if [ -n "${!rc_var:-}" ]; then exit "${!rc_var}"; fi
 [ "$(printf '%s' "$out" | jq -r .is_error)" = false ]
@@ -125,6 +125,7 @@ run_review() {
   (cd "$CLONE" && PR_REVIEW_WATCH_STATE_DIR="$STATE" /bin/bash "$SCRIPTS/pr-review-watch/review-run.sh" \
     "$1" o/r 7 "$2" "$3" https://github.invalid/o/r/pull/7 "$TMP_DIR/report-$1.md" "$KEY") \
     >"$TMP_DIR/run.out" 2>&1 || RC=$?
+  echo "$RC" >"$TMP_DIR/rc"
 }
 
 reset_state() { rm -rf "$STATE"; }
@@ -191,10 +192,62 @@ case_verify_after_findings_approves() {
   check "verify: one approval" [ "$(approvals)" = 1 ]
 }
 
+incomplete_council() {
+  local label="$1"
+  shift
+  reset_state
+  set_head "$HEAD1"
+  (export "$@"; run_review council "$HEAD1" -)
+  RC="$(cat "$TMP_DIR/rc")"
+  check "$label: fakes answered" called "claude VALIDATOR"
+  check "$label: review-incomplete exit" rc_is 4
+  check "$label: no council-done" no_file "$KEY.council-done"
+  check "$label: no approval" [ "$(approvals)" = 0 ]
+}
+
+case_incomplete_reviews() {
+  incomplete_council "marker missing" FAKE_VALIDATOR_TEXT="Review posted, run marker lost."
+  incomplete_council "is_error" FAKE_VALIDATOR_TEXT="$(marker 0)" FAKE_VALIDATOR_PATCH='.is_error = true' FAKE_VALIDATOR_RC=0
+  incomplete_council "error_max_turns" FAKE_VALIDATOR_ENVELOPE=error-max-turns
+  incomplete_council "marker only in phase A" FAKE_QUALITY_TEXT="quoted: $(marker 0)" FAKE_VALIDATOR_TEXT="Review posted."
+}
+
+case_ticketed_then_clean_delta_waits() {
+  reset_state
+  set_head "$HEAD1"
+  FAKE_VALIDATOR_TEXT="Nothing posted. $(marker 0 ticketed)" run_review council "$HEAD1" -
+  check "ticketed: no approval at head 1" [ "$(approvals)" = 0 ]
+  check "ticketed: not recorded clean" no_file "$KEY.council-clean"
+  set_head "$HEAD2"
+  FAKE_DELTA_TEXT=$'no findings, nothing posted\nDELTA_FINDINGS 0\nDELTA_CONFIDENT value=true' \
+    FAKE_VERIFY_TEXT=$'nothing to verify\nVERIFY_VERDICT reviewed=0 reopened=0 regressions=0 complete=true confident=true\nCONFIDENCE ok' \
+    run_review verify "$HEAD2" "$HEAD1"
+  check "ticketed then clean delta: fakes answered" called "claude DELTA"
+  check "ticketed then clean delta: no approval" [ "$(approvals)" = 0 ]
+}
+
+watch_mode() {
+  (cd "$CLONE" && PR_REVIEW_WATCH_STATE_DIR="$STATE" PR_REVIEW_WATCH_SETTLE=0 /bin/bash -c \
+    ". '$SCRIPTS/pr-review-watch/watch.sh'; launch() { echo \"\$5\"; }; consider me o/r 7 '$HEAD2' url true" 2>&1 | tail -1)
+}
+
+case_watch_mode() {
+  reset_state
+  mkdir -p "$STATE/runs"
+  : >"$FAKE_LOG"
+  check "watch: a review of mine without a council marker gets a full council" [ "$(watch_mode)" = council ]
+  check "watch: fakes answered" called "gh pr view"
+  echo "$HEAD1" >"$KEY.council-done"
+  check "watch: a council marker selects verify" [ "$(watch_mode)" = verify ]
+}
+
 case_clean_council_approves
 case_council_findings_wait
 case_phase_a_denial_vetoes
 case_verify_after_findings_approves
+case_incomplete_reviews
+case_ticketed_then_clean_delta_waits
+case_watch_mode
 
 if [ "$failures" -ne 0 ]; then
   printf 'PR review flow smoke test: %s failure(s)\n' "$failures"
