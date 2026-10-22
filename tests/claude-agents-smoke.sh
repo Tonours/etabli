@@ -91,6 +91,9 @@ paths.each do |path|
     unless hook_text.include?("${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/read-only-agent-guard.mjs")
       raise "#{path}: read-only guard must resolve through CLAUDE_CONFIG_DIR. Remediation: use \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/read-only-agent-guard.mjs\"."
     end
+    unless hooks.flat_map { |entry| Array(entry["hooks"]) }.any? { |hook| hook["command"].to_s.include?("read-only-agent-guard.mjs") && hook["command"].to_s.end_with?(" || exit 2") }
+      raise "#{path}: the read-only guard command must end with ' || exit 2' so a crashed or missing guard blocks Bash."
+    end
     unless body.include?("workflow/skills/obvault-memory.md")
       raise "#{path}: memory routing must point to workflow/skills/obvault-memory.md."
     end

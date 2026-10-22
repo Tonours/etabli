@@ -8,8 +8,9 @@ function commandForPolicy(command) {
 function readInput() {
 	try {
 		return JSON.parse(readFileSync(0, "utf8") || "{}") || {};
-	} catch {
-		return {};
+	} catch (error) {
+		process.stderr.write(`read-only-agent-guard: unreadable hook input (${error?.message ?? error}); Bash stays blocked for this read-only agent.\n`);
+		process.exit(2);
 	}
 }
 

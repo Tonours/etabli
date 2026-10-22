@@ -320,10 +320,21 @@ broken_reader_output="$(
 assert_contains "$broken_reader_output" '"permissionDecision":"deny"'
 assert_contains "$broken_reader_output" 'Bash stays blocked'
 
-for hook in read-only-agent-guard; do
-	malformed_output="$(printf 'not json{' | node "$ROOT_DIR/claude/hooks/$hook.mjs")"
-	assert_empty "$malformed_output" "$hook on malformed stdin"
-done
+malformed_status=0
+printf 'not json{' | node "$ROOT_DIR/claude/hooks/read-only-agent-guard.mjs" >/dev/null 2>"$TMP_DIR/malformed.err" || malformed_status=$?
+[ "$malformed_status" -eq 2 ] || {
+	printf 'read-only-agent-guard must exit 2 on malformed stdin, got %s\n' "$malformed_status" >&2
+	exit 1
+}
+assert_contains "$(cat "$TMP_DIR/malformed.err")" 'read-only-agent-guard'
+
+frontmatter_command="$(sed -n 's/^ *command: //p' "$ROOT_DIR/claude/scopes/shared/agents/scout.md")"
+missing_guard_status=0
+printf '{}' | CLAUDE_CONFIG_DIR="$TMP_DIR/no-such-config" sh -c "$frontmatter_command" >/dev/null 2>&1 || missing_guard_status=$?
+[ "$missing_guard_status" -eq 2 ] || {
+	printf 'read-only agent hook command must exit 2 when the guard script is missing, got %s\n' "$missing_guard_status" >&2
+	exit 1
+}
 
 jq -e '[.hooks.PreToolUse[] | select(.matcher == "Write|Edit|MultiEdit") | .hooks[] | select(.command | contains("no-comments-guard.mjs"))] | length == 1' "$ROOT_DIR/claude/settings.workflow-hooks.json" >/dev/null || {
 	printf 'settings.workflow-hooks.json must wire no-comments-guard on Write|Edit|MultiEdit\n' >&2
