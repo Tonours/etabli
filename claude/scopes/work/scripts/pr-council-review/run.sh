@@ -248,9 +248,7 @@ echo
 echo "=== phase B: /validator with phase A findings as extra step 6 candidates"
 "$CLAUDE" -p "$PROMPT" "${CLAUDE_ARGS[@]}" </dev/null >"$RAW_VALIDATOR" 2>"$RAW_VALIDATOR.err"
 RC_VALIDATOR=$?
-extract_result "$RAW_VALIDATOR" || RC_VALIDATOR=1
-RUN_MARKER="$(session_run_marker "$RAW_VALIDATOR" "$HEAD_SHA")"
-[ -z "$RUN_MARKER" ] || echo "=== run marker: $RUN_MARKER"
+extract_result "$RAW_VALIDATOR" || RC_VALIDATOR="$REVIEW_INCOMPLETE_RC"
 
 echo
 record_usage "$RAW_VALIDATOR" "validator" "$REPO#$PR_NUMBER"

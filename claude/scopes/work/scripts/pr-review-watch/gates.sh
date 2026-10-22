@@ -85,6 +85,7 @@ verify_blocker() {
   grep -qE '^VERIFY_VERDICT ' "$log" || { echo "no VERIFY_VERDICT line"; return; }
   reviewed="$(field "$log" VERIFY_VERDICT reviewed)"
   [ "$reviewed" -ge 0 ] 2>/dev/null || { echo "unreadable finding count"; return; }
+  [ "$reviewed" -ge 1 ] || [ -f "$KEY.council-clean" ] || { echo "no finding was verified"; return; }
   [ "$(field "$log" VERIFY_VERDICT reopened)" = 0 ] || { echo "findings reopened"; return; }
   [ "$(field "$log" VERIFY_VERDICT regressions)" = 0 ] || { echo "regressions raised"; return; }
   [ "$(field "$log" VERIFY_VERDICT complete)" = true ] || { echo "finding set incomplete"; return; }

@@ -87,15 +87,18 @@ decide_and_approve() {
 }
 
 run_council() {
-  local body
+  local rc body findings
   run_with_timeout "$COUNCIL" "$NUMBER" "$REPO" --post </dev/null 2>&1 | tee "$REPORT"
-  [ "${PIPESTATUS[0]}" -eq 0 ] || return 1
+  rc="${PIPESTATUS[0]}"
+  [ "$rc" -eq 0 ] || return "$rc"
+  findings="$(validator_run_findings "$REPORT" "$SHA")"
+  [ -n "$findings" ] || { echo "=== no validator run marker for ${SHA:0:8}: the review is incomplete"; return "$REVIEW_INCOMPLETE_RC"; }
   echo "$SHA" >"$KEY.council-done"
-  [ "$(validator_run_findings "$REPORT" "$SHA")" = 0 ] || return 0
-  echo "$SHA" >"$KEY.council-clean"
-  echo "=== validator run marker reports 0 findings: PR recorded as clean at ${SHA:0:8}"
+  [ "$findings" = 0 ] || return 0
   echo "=== approval"
   body="$(validator_approval_body "$REPORT" "$SHA" 2>&1)" || { decide_and_approve "$body" ""; return 0; }
+  echo "$SHA" >"$KEY.council-clean"
+  echo "=== validator run marker reports 0 findings: PR recorded as clean at ${SHA:0:8}"
   decide_and_approve "" "$body"
 }
 
