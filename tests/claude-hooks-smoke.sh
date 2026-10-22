@@ -89,7 +89,6 @@ for allowed_readonly_command in \
 	"gh pr view 42 --json files,title" \
 	"gh pr diff 42" \
 	"gh auth status" \
-	"awk '{ print \$1 }' registry.yaml" \
 	"/bin/bash -n script.sh" \
 	"/usr/bin/git diff HEAD" \
 	"/usr/bin/cat input.txt" \
@@ -112,6 +111,7 @@ for unsafe_readonly_command in \
 	"gh api repos/o/r/pulls/42/reviews --method POST --input r.json" \
 	"gh api repos/o/r/issues/1/comments -f body=x" \
 	"gh repo clone o/r" \
+	"awk '{ print \$1 }' registry.yaml" \
 	"awk -f program.awk registry.yaml" \
 	"awk '{ system(\"touch changed.txt\") }' input.txt" \
 	"awk '{ print > \"changed.txt\" }' input.txt" \
@@ -154,6 +154,75 @@ for unsafe_readonly_command in \
 	unsafe_readonly_output="$(readonly_guard_output "$unsafe_readonly_command")"
 	assert_contains "$unsafe_readonly_output" '"permissionDecision":"deny"'
 done
+
+read_only_probes=(
+	"rtk test touch x"
+	"rtk test rm x"
+	"echo 'a\' ; rm x ; echo 'b\'"
+	$'git status # \'\nrm x\n# \''
+	"echo =(touch x)"
+	"ls *(e:'touch p':)"
+	"node --check --require ./evil.js a.js"
+	"node --check --import ./evil.mjs a.js"
+	"gh auth status --show-token"
+	"gh auth status -t"
+	"jq -n env"
+	"awk -fevil.awk f"
+	"gh auth token"
+	"jq -n \$ENV"
+	"git -c core.pager=touch\\ x log"
+	"find . -delete"
+	"bash -n -i -c 'touch x'"
+	"echo env | jq -nf /dev/stdin"
+	"bash -n +n x"
+	"git grep --open-files-in-page=touch x"
+	"gh auth status --show-token=true"
+	"git grep -nOtouch x"
+	"rtk grep x f -- --pre=touch"
+	"test -v 'BASH_VERSINFO[\$(touch x)]'"
+	"gh pr view 1 -w"
+	"git --help --web status"
+	"git log --show-signature -1"
+	"echo \"\$[BASH_VERSINFO[\\\$(touch x)]]\""
+	"git log -1 --format=%GG"
+	"git log --help"
+	"diff -l a b"
+	"rg -z foo a.gz"
+)
+read_only_controls=(
+	"git status"
+	"rtk git log --oneline -3"
+	"grep -n 'a#b' file"
+	"node --version"
+	"find . \\( -name a -o -name b \\) -print"
+	"git log --format='%h (%s)' -3"
+	"gh pr view 1"
+	"jq '.a' f.json"
+	"ls -la"
+	"git log --output-indicator-new=x"
+	"git diff --no-ext-diff"
+	"git grep -eFOO x"
+	"git log -GTODO"
+)
+probes_allowed=0
+for probe in "${read_only_probes[@]}"; do
+	if ! readonly_guard_output "$probe" | grep -Fq '"permissionDecision":"deny"'; then
+		printf 'read-only guard allowed probe: %s\n' "$probe" >&2
+		probes_allowed=$((probes_allowed + 1))
+	fi
+done
+controls_denied=0
+for control in "${read_only_controls[@]}"; do
+	if ! control_output="$(readonly_guard_output "$control")" || [ -n "$control_output" ]; then
+		printf 'read-only guard denied control: %s\n' "$control" >&2
+		controls_denied=$((controls_denied + 1))
+	fi
+done
+[ "$probes_allowed" -eq 0 ] && [ "$controls_denied" -eq 0 ] || {
+	printf 'read-only guard: %d of %d probes allowed, %d of %d controls denied\n' \
+		"$probes_allowed" "${#read_only_probes[@]}" "$controls_denied" "${#read_only_controls[@]}" >&2
+	exit 1
+}
 
 parity_dir="$TMP_DIR/no-comments-parity"
 mkdir -p "$parity_dir"
