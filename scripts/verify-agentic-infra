@@ -23,7 +23,7 @@ shell_syntax() {
   # (was: a head+grep fork pair per file), and bash -n runs concurrently.
   local parallel
   parallel="$(sysctl -n hw.ncpu 2>/dev/null || echo 4)"
-  find "$ROOT_DIR/scripts" "$ROOT_DIR/tests" -type f -print0 |
+  find "$ROOT_DIR/scripts" "$ROOT_DIR/tests" "$ROOT_DIR/claude" -type f -print0 |
     xargs -0 -n 16 -P "$parallel" bash -c '
       err=0
       for file do
