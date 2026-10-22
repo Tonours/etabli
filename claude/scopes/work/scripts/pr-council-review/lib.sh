@@ -1,6 +1,7 @@
 #!/bin/bash
 
 PR_REVIEW_USAGE_LOG="${PR_REVIEW_USAGE_LOG:-$HOME/.claude/logs/pr-review-usage.log}"
+REVIEW_VETO_RC=3
 REVIEW_INCOMPLETE_RC=4
 AUTHOR_CONFIG_PATHS=(CLAUDE.md AGENTS.md .mcp.json .claude ':(glob)**/CLAUDE.md' ':(glob)**/AGENTS.md' ':(glob)**/.claude/**')
 

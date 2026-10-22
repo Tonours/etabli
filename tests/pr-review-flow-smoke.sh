@@ -175,6 +175,7 @@ case_phase_a_denial_vetoes() {
   FAKE_QUALITY_ENVELOPE=denied FAKE_VALIDATOR_TEXT="$(marker 0)" run_review council "$HEAD1" -
   check "phase A denial: fakes answered" called "claude QUALITY"
   check "phase A denial: validator not run" not_called "claude VALIDATOR"
+  check "phase A denial: veto exit" rc_is 3
   check "phase A denial: no council-done" no_file "$KEY.council-done"
   check "phase A denial: no approval" [ "$(approvals)" = 0 ]
 }
@@ -241,6 +242,63 @@ case_watch_mode() {
   check "watch: a council marker selects verify" [ "$(watch_mode)" = verify ]
 }
 
+watch_fn() {
+  (cd "$CLONE" && PR_REVIEW_WATCH_STATE_DIR="$STATE" PR_REVIEW_WATCH_SETTLE=0 /bin/bash -c \
+    ". '$SCRIPTS/pr-review-watch/watch.sh'; launch() { echo \"launch \$5\"; }; $1" 2>&1)
+}
+
+attempt_after() {
+  printf '%s\tcouncil\t%s\t%s\n' "${4:-$HEAD1}" "$1" "$2" >"$KEY.status"
+  touch -t "$3" "$KEY.status"
+  watch_fn "next_attempt '$KEY' '$HEAD1'"
+}
+
+case_next_attempt() {
+  reset_state
+  mkdir -p "$STATE/runs"
+  local old=202001010000 now
+  now="$(date +%Y%m%d%H%M)"
+  check "attempt: success is done" [ "$(attempt_after 0 1 "$old")" = done ]
+  check "attempt: a veto is not retried" [ "$(attempt_after 3 1 "$old")" = stopped ]
+  check "attempt: an incomplete review is not retried" [ "$(attempt_after 4 1 "$old")" = stopped ]
+  check "attempt: a failure retries after the backoff" [ "$(attempt_after 1 1 "$old")" = 2 ]
+  check "attempt: a timeout retries after the backoff" [ "$(attempt_after 124 1 "$old")" = 2 ]
+  check "attempt: a TERM retries after the backoff" [ "$(attempt_after 143 2 "$old")" = 3 ]
+  check "attempt: a fresh failure waits for the backoff" [ "$(attempt_after 1 1 "$now")" = wait ]
+  check "attempt: the cap exhausts" [ "$(attempt_after 1 3 "$old")" = exhausted ]
+  check "attempt: a new sha starts over" [ "$(attempt_after 3 3 "$old" "$HEAD2")" = 1 ]
+  check "attempt: a fresh run waits" [ "$(attempt_after running 1 "$now")" = wait ]
+  attempt_after 4 1 "$old" >/dev/null
+  set_head "$HEAD1"
+  : >"$FAKE_LOG"
+  check "attempt: a stopped sha is logged once" [ "$(watch_fn "consider me o/r 7 '$HEAD1' url; consider me o/r 7 '$HEAD1' url" | grep -c 'not retried')" = 1 ]
+}
+
+case_approval_post_failure_stays_pending() {
+  reset_state
+  set_head "$HEAD1"
+  FAKE_GH_POST_FAIL=1 FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "approval POST failure: fakes answered" called "claude VALIDATOR"
+  check "approval POST failure: pending for the sha" [ "$(cat "$KEY.approval-pending" 2>/dev/null)" = "$HEAD1" ]
+  check "approval POST failure: body kept" [ -s "$KEY.approval-body" ]
+}
+
+case_verify_retry_skips_delta() {
+  reset_state
+  set_head "$HEAD1"
+  FAKE_VALIDATOR_TEXT="Review posted. $(marker 2)" run_review council "$HEAD1" -
+  set_head "$HEAD2" '[{"state":"COMMENTED","author":{"login":"me"}}]'
+  export FAKE_DELTA_TEXT=$'no findings, nothing posted\nDELTA_FINDINGS 0\nDELTA_CONFIDENT value=true'
+  FAKE_VERIFY_ENVELOPE=error-max-turns run_review verify "$HEAD2" "$HEAD1"
+  check "verify retry: first attempt failed" [ "$RC" != 0 ]
+  FAKE_VERIFY_TEXT=$'all fixed\nVERIFY_VERDICT reviewed=2 reopened=0 regressions=0 complete=true confident=true\nCONFIDENCE fixed' \
+    run_review verify "$HEAD2" "$HEAD1"
+  unset FAKE_DELTA_TEXT
+  check "verify retry: fakes answered" called "claude VERIFY"
+  check "verify retry: delta not rerun" not_called "claude DELTA"
+  check "verify retry: one approval" [ "$(approvals)" = 1 ]
+}
+
 case_clean_council_approves
 case_council_findings_wait
 case_phase_a_denial_vetoes
@@ -248,6 +306,9 @@ case_verify_after_findings_approves
 case_incomplete_reviews
 case_ticketed_then_clean_delta_waits
 case_watch_mode
+case_next_attempt
+case_approval_post_failure_stays_pending
+case_verify_retry_skips_delta
 
 if [ "$failures" -ne 0 ]; then
   printf 'PR review flow smoke test: %s failure(s)\n' "$failures"
