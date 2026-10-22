@@ -5,7 +5,7 @@ core	shell-docs	surfaces-test	tests/surfaces.test.mjs
 core	shell-docs	workflow-contract-coverage-smoke	tests/workflow-contract-coverage-smoke.sh
 core	shell-docs	plan-cleanup-smoke	tests/plan-cleanup-smoke.sh
 core	pi	pi-typecheck	tests/pi-typecheck-smoke.sh
-core	pi	pi-audit	builtin:pi-audit
+full	pi	pi-audit	builtin:pi-audit
 core	shell-docs	shell-syntax	builtin:shell-syntax
 core	shell-docs	json-config	builtin:json-config
 core	shell-docs	supply-chain-smoke	tests/supply-chain-smoke.sh
