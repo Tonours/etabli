@@ -7,6 +7,7 @@ import { dirname, join, resolve } from "node:path";
 const root = resolve(import.meta.dir, "../../..");
 const piLookup = spawnSync("which", ["pi"], { encoding: "utf8" });
 const piLauncher = piLookup.status === 0 ? piLookup.stdout.trim() : "";
+const pinnedPackageRoot = join(root, "pi/node_modules/@earendil-works/pi-coding-agent");
 const repositoryExtensions = [
 	"no-comments.ts",
 	"prefer-ipv4-dns.ts",
@@ -30,17 +31,25 @@ function resolveActiveTargets() {
 	return { activeNode: nodeLookup.stdout.trim(), activeCli: linkedCli, version: versionRun.stdout.trim() };
 }
 
-function resolveInstalledRuntime() {
-	const { activeNode, activeCli, version } = resolveActiveTargets();
-	const activeNodePath = realpathSync(activeNode);
-	let packageRoot = dirname(realpathSync(activeCli));
-	while (!existsSync(join(packageRoot, "package.json")) && dirname(packageRoot) !== packageRoot) packageRoot = dirname(packageRoot);
+function runtimeAt(activeNode: string, packageRoot: string) {
 	return {
-		activeNodePath,
-		activePiVersion: version,
+		activeNodePath: realpathSync(activeNode),
 		loaderPath: join(packageRoot, "dist/core/extensions/loader.js"),
 		packageVersion: JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8")).version as string,
 	};
+}
+
+function resolveInstalledRuntime() {
+	const { activeNode, activeCli, version } = resolveActiveTargets();
+	let packageRoot = dirname(realpathSync(activeCli));
+	while (!existsSync(join(packageRoot, "package.json")) && dirname(packageRoot) !== packageRoot) packageRoot = dirname(packageRoot);
+	return { ...runtimeAt(activeNode, packageRoot), activePiVersion: version };
+}
+
+function resolvePinnedRuntime() {
+	const nodeLookup = spawnSync("which", ["node"], { encoding: "utf8" });
+	if (nodeLookup.status !== 0) throw new Error("unable to resolve node for the pinned Pi runtime");
+	return runtimeAt(nodeLookup.stdout.trim(), pinnedPackageRoot);
 }
 
 function loadWithNode(activeNodePath: string, loaderPath: string, paths: string[]) {
@@ -50,8 +59,7 @@ function loadWithNode(activeNodePath: string, loaderPath: string, paths: string[
 
 describe("installed Pi extension loader", () => {
 	test("reproduces the logical-path failure and loads every extension with the managed layout", () => {
-		if (!piLauncher) return;
-		const { activeNodePath, activePiVersion, loaderPath, packageVersion } = resolveInstalledRuntime();
+		const { activeNodePath, loaderPath, packageVersion } = piLauncher ? resolveInstalledRuntime() : resolvePinnedRuntime();
 		const cwd = mkdtempSync(join(tmpdir(), "etabli-pi-loader-"));
 		try {
 			const agent = join(cwd, ".pi/agent");
@@ -75,9 +83,13 @@ describe("installed Pi extension loader", () => {
 			expect(result.loaded.sort()).toEqual(installedPaths.sort());
 			expect(installedPaths).toHaveLength(repositoryExtensions.length);
 			expect(packageVersion).toMatch(/^\d+\.\d+\.\d+$/);
-			expect(activePiVersion).toBe(packageVersion);
 		} finally {
 			rmSync(cwd, { recursive: true, force: true });
 		}
+	}, 60000);
+
+	test.skipIf(!piLauncher)("the pi launcher runs the version of the runtime it resolves to", () => {
+		const { activePiVersion, packageVersion } = resolveInstalledRuntime();
+		expect(activePiVersion).toBe(packageVersion);
 	}, 60000);
 });
