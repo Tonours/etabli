@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  printf 'pre-push: gitleaks is not installed, push blocked. Install it (macOS: brew install gitleaks, or rerun scripts/install.sh), then push again.\n' >&2
+  exit 1
+fi
+
+status=0
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+  case "$local_sha" in *[!0]*) ;; *) continue ;; esac
+  range="$local_sha"
+  case "$remote_sha" in *[!0]*) git cat-file -e "$remote_sha^{commit}" 2>/dev/null && range="$remote_sha..$local_sha" ;; esac
+  gitleaks git --no-banner --redact --log-opts="$range --diff-merges=first-parent" . || status=1
+done
+
+if [ "$status" -ne 0 ]; then
+  printf 'pre-push: gitleaks flagged the pushed commits, push blocked. Remove the secret from history, or add the fingerprint of a verified false positive to .gitleaksignore.\n' >&2
+fi
+exit "$status"

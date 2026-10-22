@@ -75,4 +75,62 @@ while IFS= read -r -d '' entry; do
   esac
 done < <(git -C "$ROOT_DIR" ls-files -s -z)
 
+grep -Fq 'gitleaks_8.30.1_linux_x64.tar.gz' "$WORKFLOW" &&
+  grep -Eq '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb +gitleaks_8.30.1_linux_x64.tar.gz" [|] sha256sum -c -$' "$WORKFLOW" &&
+  grep -Fq 'gitleaks git --no-banner --redact --log-opts="--all --full-history --diff-merges=first-parent" .' "$WORKFLOW" ||
+  fail "CI must scan history with gitleaks 8.30.1 checked against its pinned sha256"
+
+command -v gitleaks >/dev/null 2>&1 ||
+  fail "gitleaks is missing; the pre-push secret scan needs it (macOS: brew install gitleaks, or rerun scripts/install.sh)"
+hook_tmp="$(mktemp -d)"
+trap 'rm -rf "$hook_tmp"' EXIT
+hook_clone="$hook_tmp/clone"
+git init -q --bare "$hook_tmp/remote.git"
+git init -q "$hook_clone"
+cp -R "$ROOT_DIR/.githooks" "$hook_clone/.githooks"
+git -C "$hook_clone" config core.hooksPath .githooks
+git -C "$hook_clone" remote add origin "$hook_tmp/remote.git"
+commit_file() {
+  printf '%s\n' "$2" >"$hook_clone/$1"
+  git -C "$hook_clone" add "$1"
+  git -C "$hook_clone" -c user.name=t -c user.email=t@example.invalid commit -q -m "add $1"
+}
+commit_file clean.txt 'nothing secret'
+git -C "$hook_clone" push -q origin HEAD:refs/heads/main 2>"$hook_tmp/clean.err" ||
+  fail "pre-push blocked a clean push: $(cat "$hook_tmp/clean.err")"
+commit_file config.env "GITHUB_TOKEN=$(printf 'gh%s_%s' p "$(openssl rand -hex 18)")"
+if git -C "$hook_clone" push -q origin HEAD:refs/heads/main 2>"$hook_tmp/secret.err"; then
+  fail "pre-push let a commit with a GitHub token through"
+fi
+grep -Fq 'push blocked' "$hook_tmp/secret.err" || fail "pre-push secret rejection lacks its remediation line"
+if git -C "$hook_clone" push -q origin HEAD:refs/heads/topic 2>"$hook_tmp/new-ref.err"; then
+  fail "pre-push let a new ref carrying a GitHub token through"
+fi
+git -C "$hook_clone" update-ref refs/remotes/origin/retired HEAD
+if git -C "$hook_clone" push -q origin HEAD:refs/heads/revived 2>"$hook_tmp/stale.err"; then
+  fail "pre-push trusted a stale remote-tracking ref and let a GitHub token through"
+fi
+git -C "$hook_clone" update-ref -d refs/remotes/origin/retired
+git -C "$hook_clone" reset -q --hard origin/main
+git -C "$hook_clone" checkout -q -b side
+commit_file side.txt 'side branch'
+git -C "$hook_clone" checkout -q -
+commit_file mainline.txt 'main line'
+git -C "$hook_clone" merge -q --no-ff --no-commit side >/dev/null
+printf 'GITHUB_TOKEN=%s\n' "$(printf 'gh%s_%s' p "$(openssl rand -hex 18)")" >"$hook_clone/merge.env"
+git -C "$hook_clone" add merge.env
+git -C "$hook_clone" -c user.name=t -c user.email=t@example.invalid commit -q -m "merge side"
+if git -C "$hook_clone" push -q origin HEAD:refs/heads/main 2>"$hook_tmp/merge.err"; then
+  fail "pre-push let a GitHub token added only in a merge commit through"
+fi
+mkdir "$hook_tmp/bin"
+ln -s "$(command -v git)" "$hook_tmp/bin/git"
+[ -z "$(PATH="$hook_tmp/bin:/usr/bin:/bin" command -v gitleaks)" ] || fail "cannot build a PATH without gitleaks for the fail-closed case"
+git -C "$hook_clone" reset -q --hard origin/main
+commit_file other.txt 'still nothing secret'
+if PATH="$hook_tmp/bin:/usr/bin:/bin" git -C "$hook_clone" push -q origin HEAD:refs/heads/main 2>"$hook_tmp/missing.err"; then
+  fail "pre-push let a push through without gitleaks"
+fi
+grep -Fq 'gitleaks is not installed' "$hook_tmp/missing.err" || fail "pre-push without gitleaks lacks its remediation line"
+
 printf 'supply chain smoke test: ok\n'
