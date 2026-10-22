@@ -34,8 +34,8 @@ for required in \
 		fail "required check is absent: $required"
 done
 
-awk -F '\t' '!/^#/ && $1 == "core" && $2 == "pi" && $3 == "pi-audit" && $4 == "builtin:pi-audit" {found=1} END {exit !found}' "$MANIFEST" ||
-	fail "Pi group must enforce bun audit"
+awk -F '\t' '!/^#/ && $1 == "full" && $2 == "pi" && $3 == "pi-audit" && $4 == "builtin:pi-audit" {found=1} END {exit !found}' "$MANIFEST" ||
+	fail "Pi group must enforce bun audit outside the offline core profile"
 
 # The runner must accumulate failures instead of aborting on the first one
 # (ADR-0014 lesson); pin the construct so a revert cannot pass silently.
