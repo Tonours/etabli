@@ -59,10 +59,19 @@ verify_prompt() {
   render_template "$HERE/../pr-council-review/verify-prompt.md" PR_NUMBER="$NUMBER" REPO="$REPO" SINCE_SHORT="${SINCE:0:8}"
 }
 
+keep_pending_approval() {
+  echo "$SHA" >"$KEY.approval-pending"
+  printf '%s' "$1" >"$KEY.approval-body"
+}
+
 post_approval() {
   local body="$1" url
-  url="$(gh api "repos/$REPO/pulls/$NUMBER/reviews" -f event=APPROVE -f commit_id="$SHA" -f body="$body" --jq .html_url)" \
-    || { echo "=== approval POST failed"; return 1; }
+  if ! url="$(gh api "repos/$REPO/pulls/$NUMBER/reviews" -f event=APPROVE -f commit_id="$SHA" -f body="$body" --jq .html_url)"; then
+    keep_pending_approval "$body"
+    echo "=== approval pending: the approval POST failed (retried by the watcher without a new review)"
+    notify "PR approval pending" "$REPO#$NUMBER: the approval POST failed" "$URL"
+    return 0
+  fi
   rm -f "$KEY.approval-pending" "$KEY.approval-body"
   echo "=== approved: $url"
   notify "PR approved" "$REPO#$NUMBER @${SHA:0:8}" "$URL"
@@ -77,8 +86,7 @@ decide_and_approve() {
   fi
   blocker="$(objective_blocker)"
   if [ -n "$blocker" ]; then
-    echo "$SHA" >"$KEY.approval-pending"
-    printf '%s' "$body" >"$KEY.approval-body"
+    keep_pending_approval "$body"
     echo "=== approval pending: $blocker (retried by the watcher without a new review)"
     notify "PR approval pending" "$REPO#$NUMBER: $blocker" "$URL"
     return 0
@@ -134,17 +142,23 @@ run_verify_fixes() {
   git worktree remove --force "$tree" >/dev/null 2>&1
   extract_result "$raw" | tee "$REPORT"
   [ "${PIPESTATUS[0]}" -eq 0 ] || rc=1
-  check_denials "$raw" || rc=1
+  denial_veto "$raw" "$rc" && rc="$REVIEW_VETO_RC"
   record_usage "$raw" "verify" "$REPO#$NUMBER"
   return "$rc"
 }
 
 run_verify() {
   local delta_log="${REPORT%.md}-delta.md" delta_findings reviewed
-  echo "=== step 1: /code-review on the commits since ${SINCE:0:8}, findings posted"
-  run_delta "$delta_log" || return 1
+  if [ "$(head -1 "$KEY.delta-done" 2>/dev/null)" = "$SHA" ]; then
+    echo "=== step 1: skipped, the commits since ${SINCE:0:8} were already reviewed for ${SHA:0:8}"
+    tail -n +2 "$KEY.delta-done" >"$delta_log"
+  else
+    echo "=== step 1: /code-review on the commits since ${SINCE:0:8}, findings posted"
+    run_delta "$delta_log" || return 1
+    grep -q '^=== nothing new since' "$delta_log" && printf 'DELTA_FINDINGS 0\nDELTA_CONFIDENT value=true\n' >>"$delta_log"
+    { echo "$SHA"; grep -E '^DELTA_(FINDINGS|CONFIDENT) ' "$delta_log"; } >"$KEY.delta-done"
+  fi
   delta_findings="$(sed -n 's/^DELTA_FINDINGS \([0-9]*\).*/\1/p' "$delta_log" | tail -1)"
-  grep -q '^=== nothing new since' "$delta_log" && { delta_findings=0; echo "DELTA_CONFIDENT value=true" >>"$delta_log"; }
 
   if [ -f "$KEY.council-clean" ] && [ "$(my_review_count)" = 0 ]; then
     echo "=== step 2: skipped, the full review found nothing to verify"

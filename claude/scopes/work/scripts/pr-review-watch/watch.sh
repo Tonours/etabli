@@ -1,7 +1,7 @@
 #!/bin/bash
 set -uo pipefail
 
-HERE="$(cd "$(dirname "$0")" && pwd)"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STATE_DIR="${PR_REVIEW_WATCH_STATE_DIR:-$HOME/.claude/state/pr-review-watch}"
 WATCHED="$STATE_DIR/watched.tsv"
 REPORTS="$STATE_DIR/reports"
@@ -17,6 +17,7 @@ MAX_ATTEMPTS="${PR_REVIEW_WATCH_MAX_ATTEMPTS:-3}"
 MAX_RUNS_PER_DAY="${PR_REVIEW_WATCH_MAX_RUNS_PER_DAY:-20}"
 SETTLE_SECONDS="${PR_REVIEW_WATCH_SETTLE:-600}"
 MAX_DIFF_LINES="${PR_REVIEW_WATCH_MAX_DIFF_LINES:-5000}"
+RETRY_BACKOFF_SECONDS="${PR_REVIEW_WATCH_RETRY_BACKOFF:-600}"
 LAUNCH_GRACE_SECONDS=180
 CLONE_ROOTS=("$HOME/work" "$HOME/work/zendesk")
 TEMP_CLONES="$STATE_DIR/clones"
@@ -99,7 +100,7 @@ read_status() {
 }
 
 status_age() {
-  echo $(( $(date +%s) - $(stat -f %m "$1.status" 2>/dev/null || date +%s) ))
+  echo $(( $(date +%s) - $(perl -e 'print((stat $ARGV[0])[9] // time)' "$1.status") ))
 }
 
 last_review_sha() {
@@ -160,7 +161,11 @@ next_attempt() {
       if [ "$(status_age "$key")" -lt "$LAUNCH_GRACE_SECONDS" ]; then echo wait
       elif [ "$s_attempts" -ge "$MAX_ATTEMPTS" ]; then echo exhausted
       else echo $((s_attempts + 1)); fi ;;
-    *) [ "$s_attempts" -ge "$MAX_ATTEMPTS" ] && echo exhausted || echo $((s_attempts + 1)) ;;
+    "$REVIEW_VETO_RC"|"$REVIEW_INCOMPLETE_RC") echo stopped ;;
+    *)
+      if [ "$s_attempts" -ge "$MAX_ATTEMPTS" ]; then echo exhausted
+      elif [ "$(status_age "$key")" -lt "$RETRY_BACKOFF_SECONDS" ]; then echo wait
+      else echo $((s_attempts + 1)); fi ;;
   esac
 }
 
@@ -207,7 +212,13 @@ consider() {
   attempt="$(next_attempt "$key" "$sha")"
   case "$attempt" in
     done|wait) return ;;
-    exhausted) log "$repo#$number @${sha:0:8} failed $MAX_ATTEMPTS times, giving up on this sha"; return ;;
+    exhausted|stopped)
+      if [ "$(cat "$key.exhausted" 2>/dev/null)" != "$sha" ]; then
+        echo "$sha" >"$key.exhausted"
+        if [ "$attempt" = stopped ]; then log "$repo#$number @${sha:0:8} vetoed or incomplete, not retried on this sha"
+        else log "$repo#$number @${sha:0:8} failed $MAX_ATTEMPTS times, giving up on this sha"; fi
+      fi
+      return ;;
   esac
   age="$(seen_age "$key" "$sha")"
   [ "${age:-0}" -ge "$SETTLE_SECONDS" ] || { log "$repo#$number @${sha:0:8} first seen ${age}s ago, settling"; return; }
@@ -247,7 +258,7 @@ process_watched() {
     if [ "$state" != "OPEN" ] || [ "$involved" != "true" ] || [ "$approved" = "true" ]; then
       herdr_available && close_review_tab "${repo#*/}#$number"
       log "unwatching $repo#$number ($state, involved=$involved, approved=$approved)"
-      [ "$state" = OPEN ] || rm -f "$(run_key "$repo" "$number")".{status,seen,watermark,council-done,council-clean,approval-pending,approval-body,too-big}
+      [ "$state" = OPEN ] || rm -f "$(run_key "$repo" "$number")".{status,seen,watermark,council-done,council-clean,approval-pending,approval-body,too-big,exhausted,delta-done}
       continue
     fi
     [ "$draft" = "false" ] && consider "$me" "$repo" "$number" "$sha" "$url" </dev/null

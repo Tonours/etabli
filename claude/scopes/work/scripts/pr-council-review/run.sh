@@ -221,7 +221,7 @@ fi
 
 if [ "$PHASE_A_DENIED" -ne 0 ]; then
   echo "a phase A pass hit a permission denial or its denials are unreadable; not running the validator" >&2
-  exit 1
+  exit "$REVIEW_VETO_RC"
 fi
 if [ "$RC_QUALITY" -ne 0 ] && [ "$RC_THERMO" -ne 0 ]; then
   echo "both Claude phase A passes failed; not running the validator" >&2
