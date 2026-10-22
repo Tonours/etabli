@@ -59,18 +59,11 @@ HUMAN_REVIEWERS=$(printf '%s' "${PR_REVIEWERS:-}" | tr ',' '\n' | grep -vxF "$ME
 
 LOCK="$LOCKS/${REPO//\//_}_$PR_NUMBER"
 WAITED=0
-until mkdir "$LOCK" 2>/dev/null; do
-  HOLDER="$(cat "$LOCK/pid" 2>/dev/null)"
-  if [ -n "$HOLDER" ] && ! kill -0 "$HOLDER" 2>/dev/null; then
-    echo "=== stale lock of #$PR_NUMBER (pid $HOLDER gone), taking it over"
-    rm -rf "$LOCK"
-    continue
-  fi
+until acquire_lock "$LOCK" 'pr-autoreview/run\.sh'; do
   [ "$WAITED" -lt "$TIMEOUT" ] || { echo "another review of #$PR_NUMBER still holds the lock, skip"; exit 0; }
   sleep 15
   WAITED=$((WAITED + 15))
 done
-echo "$$" >"$LOCK/pid"
 trap 'rm -rf "$LOCK"' EXIT
 
 SEEN_KEY="$REPO#$PR_NUMBER@$SHA"
@@ -95,8 +88,6 @@ PROFILE="$PROFILE_DIR/$PROFILE_NAME.md"
 PROMPT_FILE="$HERE/prompt.md"
 [ -f "$PROMPT_FILE" ] || { echo "prompt missing, skip"; exit 0; }
 
-CLAUDE=""
-[ -r "$HOME/.claude/scripts/claude-bin.sh" ] && . "$HOME/.claude/scripts/claude-bin.sh"
 [ -n "$CLAUDE" ] || { echo "claude binary not found"; exit 1; }
 
 purge_old_dirs "${TMPDIR:-/tmp}" "pr-autoreview-*" 7
@@ -108,35 +99,16 @@ PROMPT="$(render_template "$PROMPT_FILE" REPO="$REPO" PR_NUMBER="$PR_NUMBER" PR_
 
 echo "reviewing PR #$PR_NUMBER ($PR_URL) at ${SHA:0:8} with $MODEL"
 cd "$HOME"
-perl -e 'setpgrp(0, 0); exec @ARGV or die "exec: $!"' \
-  "$CLAUDE" -p "$PROMPT" --permission-mode auto --permission-prompts none --disallowedTools=Edit,Write,NotebookEdit --output-format json --model "$MODEL" --effort "$EFFORT" \
-  </dev/null >"$RAW" 2>"$RAW.err" &
-AGENT_PID=$!
-
-WAITED=0
+CLAUDE_PASS_TIMEOUT="$TIMEOUT"
+USAGE_TARGET="$REPO#$PR_NUMBER"
 RC=0
-while kill -0 "$AGENT_PID" 2>/dev/null; do
-  if [ "$WAITED" -ge "$TIMEOUT" ]; then
-    echo "TIMEOUT after ${WAITED}s, killing process group $AGENT_PID"
-    kill -TERM -- "-$AGENT_PID" 2>/dev/null
-    sleep 5
-    kill -KILL -- "-$AGENT_PID" 2>/dev/null
-    RC=124
-    break
-  fi
-  sleep 15
-  WAITED=$((WAITED + 15))
-done
-[ "$RC" -eq 0 ] && { wait "$AGENT_PID" || RC=$?; }
-record_usage "$RAW" "autoreview" "$REPO#$PR_NUMBER"
-DENIED=0
-check_denials "$RAW" || DENIED=1
+claude_pass autoreview "$RAW" read-only "$PROMPT" --model "$MODEL" --effort "$EFFORT" >"$RUN_DIR/result.md" || RC=$?
 
-if [ "$RC" -eq 0 ] && [ -f "$DONE_FILE" ] && [ "$DENIED" -eq 0 ]; then
+if [ "$RC" -eq 0 ] && [ -f "$DONE_FILE" ]; then
   echo "$SEEN_KEY" >> "$SEEN"
   echo "=== $(date '+%F %T') delivered PR #$PR_NUMBER ==="
-elif [ "$RC" -eq 0 ] && [ -f "$DONE_FILE" ]; then
-  echo "=== $(date '+%F %T') delivered PR #$PR_NUMBER after a permission denial, not marked seen ==="
+elif [ "$RC" -eq "$REVIEW_VETO_RC" ]; then
+  echo "=== $(date '+%F %T') PR #$PR_NUMBER hit a permission denial, not marked seen ==="
 elif [ "$RC" -eq 0 ]; then
   echo "=== $(date '+%F %T') session ended without delivering the Slack report for PR #$PR_NUMBER, not marked seen ==="
 else

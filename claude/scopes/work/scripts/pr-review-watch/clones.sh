@@ -10,7 +10,7 @@ ensure_clone() {
     rm -rf "$dir"
     mkdir -p "$TEMP_CLONES"
     log "cloning $repo into $dir" >&2
-    gh repo clone "$repo" "$dir" -- --quiet --filter=blob:none </dev/null >/dev/null 2>&1 || { rm -rf "$dir"; return 1; }
+    command gh repo clone "$repo" "$dir" -- --quiet --filter=blob:none </dev/null >/dev/null 2>&1 || { rm -rf "$dir"; return 1; }
   fi
   printf '%s' "$dir"
 }

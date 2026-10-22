@@ -3,6 +3,15 @@
 PR_REVIEW_USAGE_LOG="${PR_REVIEW_USAGE_LOG:-$HOME/.claude/logs/pr-review-usage.log}"
 REVIEW_VETO_RC=3
 REVIEW_INCOMPLETE_RC=4
+CLAUDE_PASS_TIMEOUT="${PR_REVIEW_PASS_TIMEOUT:-2700}"
+CLAUDE_MAX_TURNS="${PR_REVIEW_MAX_TURNS:-200}"
+CLAUDE_MAX_BUDGET_USD="${PR_REVIEW_MAX_BUDGET_USD:-25}"
+READ_ONLY_PROFILE=(--permission-mode auto --permission-prompts none --disallowedTools=Edit,Write,NotebookEdit)
+ISOLATED_SETTINGS=(--settings '{"disableAllHooks":true}' --strict-mcp-config --setting-sources project,local)
+USAGE_TARGET="${USAGE_TARGET:-}"
+export GIT_TERMINAL_PROMPT=0
+. "$(dirname "${BASH_SOURCE[0]}")/../claude-bin.sh"
+CLAUDE="${PR_COUNCIL_CLAUDE:-$CLAUDE}"
 AUTHOR_CONFIG_PATHS=(CLAUDE.md AGENTS.md .mcp.json .claude ':(glob)**/CLAUDE.md' ':(glob)**/AGENTS.md' ':(glob)**/.claude/**')
 
 render_template() {
@@ -44,26 +53,26 @@ extract_result() {
   if [ "$outcome" != complete ]; then
     echo "=== the session ended without a complete result ($outcome)" >&2
     jq -r '.result // empty' "$1"
-    return 1
+    return 2
   fi
   jq -r .result "$1"
 }
 
 check_denials() {
-  local denials
-  if ! jq -e '.permission_denials | type == "array"' "$1" >/dev/null 2>&1 \
+  local count denials
+  if ! count="$(jq -e '.permission_denials | length' "$1" 2>/dev/null)" \
     || ! denials="$(jq -r '.permission_denials[] | "\(.tool_name): \(.tool_input.command // .tool_input.file_path // (.tool_input | tostring))"' "$1" 2>/dev/null)"; then
     echo "=== cannot read permission denials from $1, the pass is unverified" >&2
     return 2
   fi
-  [ -n "$denials" ] || return 0
-  echo "=== $(printf '%s\n' "$denials" | wc -l | tr -d ' ') permission denial(s), the pass is incomplete:" >&2
+  [ "$count" -gt 0 ] || return 0
+  echo "=== $count permission denial(s), the pass is incomplete:" >&2
   printf '%s\n' "$denials" >&2
   return 1
 }
 
 usage_line() {
-  jq -r --arg label "$2" '"=== usage \($label): " + ([.modelUsage // {} | to_entries[] | "\(.key) in=\(.value.inputTokens) cache_write=\(.value.cacheCreationInputTokens) cache_read=\(.value.cacheReadInputTokens) out=\(.value.outputTokens)"] | join(" | ")) + " | api_equiv_usd=\(.total_cost_usd // "?")"' "$1" 2>/dev/null
+  jq -r --arg label "$2" --arg version "$3" '"=== usage \($label): claude_version=\($version) turns=\(.num_turns // "?") subtype=\(.subtype // "?") cost=\(.total_cost_usd // "?") denials=\(.permission_denials | length? // "?") | " + ([.modelUsage // {} | to_entries[] | "\(.key) in=\(.value.inputTokens) cache_write=\(.value.cacheCreationInputTokens) cache_read=\(.value.cacheReadInputTokens) out=\(.value.outputTokens)"] | join(" | "))' "$1" 2>/dev/null
 }
 
 # $1 session JSON, $2 the pass's exit code: a denied pass always vetoes the
@@ -76,11 +85,70 @@ denial_veto() {
 
 record_usage() {
   local raw="$1" label="$2" target="$3" line
-  line="$(usage_line "$raw" "$label")" || return 0
+  [ -n "${CLAUDE_VERSION:-}" ] || CLAUDE_VERSION="$("$CLAUDE" --version 2>/dev/null | awk 'NR == 1 { print $1 }')"
+  line="$(usage_line "$raw" "$label" "${CLAUDE_VERSION:-unknown}")" || return 0
   [ -n "$line" ] || return 0
   echo "$line"
   mkdir -p "$(dirname "$PR_REVIEW_USAGE_LOG")"
   printf '%s\t%s\t%s\n' "$(date '+%F %T')" "$target" "${line#=== usage }" >>"$PR_REVIEW_USAGE_LOG"
+}
+
+run_with_timeout() {
+  local timeout="$1"
+  shift
+  perl -e 'setpgrp(0, 0); exec @ARGV or die "exec: $!"' "$@" &
+  local pid=$! waited=0
+  while kill -0 "$pid" 2>/dev/null; do
+    if [ "$waited" -ge "$timeout" ]; then
+      echo "=== timeout after ${timeout}s, killing process group $pid" >&2
+      kill -TERM -- "-$pid" 2>/dev/null
+      sleep 5
+      kill -KILL -- "-$pid" 2>/dev/null
+      return 124
+    fi
+    sleep 10
+    waited=$((waited + 10))
+  done
+  wait "$pid"
+}
+
+# claude_pass <label> <session json> <read-only|bypass> <prompt> [flags]: prints the result; returns 0,
+# REVIEW_VETO_RC on a denial, REVIEW_INCOMPLETE_RC on an error or cap hit, else the claude exit code.
+claude_pass() {
+  local label="$1" raw="$2" profile="$3" prompt="$4" rc=0 result_rc=0
+  shift 4
+  [ -n "$CLAUDE" ] || { echo "=== $label: claude binary not found" >&2; return 1; }
+  case "$profile" in
+    read-only) set -- "${READ_ONLY_PROFILE[@]}" "$@" ;;
+    bypass) set -- --dangerously-skip-permissions "$@" ;;
+    *) echo "=== $label: unknown profile $profile" >&2; return 1 ;;
+  esac
+  run_with_timeout "$CLAUDE_PASS_TIMEOUT" "$CLAUDE" -p "$prompt" --output-format json \
+    --max-turns "$CLAUDE_MAX_TURNS" --max-budget-usd "$CLAUDE_MAX_BUDGET_USD" "$@" </dev/null >"$raw" 2>"$raw.err" || rc=$?
+  if [ "$rc" -ne 0 ]; then
+    echo "=== $label: claude exited $rc; stderr tail:" >&2
+    tail -n 20 "$raw.err" >&2
+  fi
+  extract_result "$raw" || result_rc=$?
+  record_usage "$raw" "$label" "$USAGE_TARGET" >&2
+  if denial_veto "$raw" "$rc"; then return "$REVIEW_VETO_RC"; fi
+  [ "$result_rc" -ne 2 ] || return "$REVIEW_INCOMPLETE_RC"
+  [ "$rc" -eq 0 ] || return "$rc"
+  [ "$result_rc" -eq 0 ] || return 1
+}
+
+acquire_lock() {
+  local lock="$1" holder_pattern="$2" holder
+  for _ in 1 2; do
+    if mkdir "$lock" 2>/dev/null; then
+      echo $$ >"$lock/pid"
+      return 0
+    fi
+    holder="$(cat "$lock/pid" 2>/dev/null)"
+    [ -n "$holder" ] && ps -p "$holder" -o command= 2>/dev/null | grep -q -- "$holder_pattern" && return 1
+    rm -rf "$lock"
+  done
+  return 1
 }
 
 kill_tree() {

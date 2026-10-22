@@ -19,6 +19,8 @@ SETTLE_SECONDS="${PR_REVIEW_WATCH_SETTLE:-600}"
 MAX_DIFF_LINES="${PR_REVIEW_WATCH_MAX_DIFF_LINES:-5000}"
 RETRY_BACKOFF_SECONDS="${PR_REVIEW_WATCH_RETRY_BACKOFF:-600}"
 LAUNCH_GRACE_SECONDS=180
+GH_TIMEOUT="${PR_REVIEW_WATCH_GH_TIMEOUT:-60}"
+CLI_MISMATCH="$STATE_DIR/cli-mismatch"
 CLONE_ROOTS=("$HOME/work" "$HOME/work/zendesk")
 TEMP_CLONES="$STATE_DIR/clones"
 
@@ -29,19 +31,19 @@ export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PA
 
 log() { echo "$(date '+%F %T') $*"; }
 
-acquire_lock() {
-  if mkdir "$LOCK_DIR" 2>/dev/null; then
-    echo $$ >"$LOCK_DIR/pid"
-    trap 'rm -rf "$LOCK_DIR"' EXIT
+gh() { perl -e 'alarm shift; exec @ARGV or die "exec: $!"' "$GH_TIMEOUT" gh "$@"; }
+
+check_claude_cli() {
+  if "$CLAUDE" --help 2>/dev/null | grep -q -- --permission-prompts; then
+    rm -f "$CLI_MISMATCH"
     return 0
   fi
-  local holder
-  holder="$(cat "$LOCK_DIR/pid" 2>/dev/null)"
-  if [ -n "$holder" ] && ps -p "$holder" -o command= 2>/dev/null | grep -q 'watch\.sh'; then
-    return 1
+  log "claude at ${CLAUDE:-<none>} has no --permission-prompts flag, not reviewing"
+  if [ ! -f "$CLI_MISMATCH" ]; then
+    touch "$CLI_MISMATCH"
+    notify "PR review watcher stopped" "claude at ${CLAUDE:-<none>} has no --permission-prompts flag: update Claude Code" ""
   fi
-  rm -rf "$LOCK_DIR"
-  acquire_lock
+  return 1
 }
 
 discover_requested() {
@@ -128,7 +130,7 @@ write_launcher() {
   shift
   {
     echo '#!/bin/bash'
-    env | grep -E '^(PR_REVIEW_WATCH_|PR_COUNCIL_|PR_REVIEW_USAGE_LOG=)' | while IFS='=' read -r name value; do
+    env | grep -E '^(PR_REVIEW_|PR_COUNCIL_)' | while IFS='=' read -r name value; do
       printf 'export %s=%q\n' "$name" "$value"
     done
     printf 'export PR_REVIEW_WATCH_STATE_DIR=%q\n' "$STATE_DIR"
@@ -287,7 +289,9 @@ main() {
   touch "$WATCHED"
   exec >>"$LOG" 2>&1
   [ -f "$KILL_SWITCH" ] && exit 0
-  acquire_lock || { log "previous tick still running, skip"; exit 0; }
+  acquire_lock "$LOCK_DIR" 'watch\.sh' || { log "previous tick still running, skip"; exit 0; }
+  trap 'rm -rf "$LOCK_DIR"' EXIT
+  check_claude_cli || exit 1
   [ -x "$COUNCIL" ] || { log "pr-council-review not found at $COUNCIL"; exit 1; }
   [ -x "$RUNNER" ] || { log "review runner not found at $RUNNER"; exit 1; }
   local me

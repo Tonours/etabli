@@ -57,9 +57,6 @@ GH="$(command -v gh || echo /opt/homebrew/bin/gh)"
 [ -x "$GH" ] || { echo "gh not found" >&2; exit 1; }
 "$GH" auth status >/dev/null 2>&1 || { echo "gh is not authenticated" >&2; exit 1; }
 
-CLAUDE=""
-[ -r "$HOME/.claude/scripts/claude-bin.sh" ] && . "$HOME/.claude/scripts/claude-bin.sh"
-CLAUDE="${PR_COUNCIL_CLAUDE:-$CLAUDE}"
 [ -n "$CLAUDE" ] || { echo "claude binary not found" >&2; exit 1; }
 
 PROMPT_FILE="$HOME/.claude/scripts/pr-council-review/council-prompt.md"
@@ -101,6 +98,7 @@ IFS=$'\t' read -r PR_NUMBER HEAD_SHA BASE_REF PR_URL PR_STATE PR_TITLE <<< "$MET
 case "$PR_NUMBER" in
   ''|*[!0-9]*) echo "gh returned no usable PR number for $PR_ARG on $REPO" >&2; exit 1 ;;
 esac
+USAGE_TARGET="$REPO#$PR_NUMBER"
 [ "$PR_STATE" = "OPEN" ] || { echo "$REPO#$PR_NUMBER is $PR_STATE, nothing to review" >&2; exit 1; }
 
 echo "=== pr-council-review $REPO#$PR_NUMBER ($PR_STATE) @${HEAD_SHA:0:8}"
@@ -154,11 +152,10 @@ THERMO_PROMPT="Run the thermo-nuclear code quality review defined below on the P
 
 $(cat "$THERMO_SKILL_FILE")"
 
-CLAUDE_ARGS=(--dangerously-skip-permissions --output-format json)
+CLAUDE_ARGS=()
 [ -n "$MODEL" ] && CLAUDE_ARGS+=(--model "$MODEL")
 [ -n "$EFFORT" ] && CLAUDE_ARGS+=(--effort "$EFFORT")
-PHASE_A_ARGS=(--permission-mode auto --permission-prompts none --disallowedTools=Edit,Write,NotebookEdit --output-format json
-  --settings '{"disableAllHooks":true}' --strict-mcp-config --setting-sources project,local)
+PHASE_A_ARGS=("${ISOLATED_SETTINGS[@]}")
 [ -n "$PHASE_A_MODEL" ] && PHASE_A_ARGS+=(--model "$PHASE_A_MODEL")
 [ -n "$PHASE_A_EFFORT" ] && PHASE_A_ARGS+=(--effort "$PHASE_A_EFFORT")
 
@@ -166,13 +163,13 @@ echo
 echo "=== phase A: /code-review, /thermo-nuclear-code-quality-review$([ "$USE_CODEX" = 1 ] && echo " and codex") (parallel, no GitHub write)"
 (
   cd "$WORKTREE" || exit 1
-  "$CLAUDE" -p "/code-review $REVIEW_LEVEL" "${PHASE_A_ARGS[@]}" </dev/null
-) >"$RAW_QUALITY" 2>"$RAW_QUALITY.err" &
+  claude_pass code-review "$RAW_QUALITY" read-only "/code-review $REVIEW_LEVEL" "${PHASE_A_ARGS[@]}"
+) >"$REPORT_QUALITY" &
 PID_QUALITY=$!
 (
   cd "$WORKTREE" || exit 1
-  "$CLAUDE" -p "$THERMO_PROMPT" "${PHASE_A_ARGS[@]}" </dev/null
-) >"$RAW_THERMO" 2>"$RAW_THERMO.err" &
+  claude_pass thermo "$RAW_THERMO" read-only "$THERMO_PROMPT" "${PHASE_A_ARGS[@]}"
+) >"$REPORT_THERMO" &
 PID_THERMO=$!
 
 RC_CODEX=0
@@ -195,13 +192,9 @@ RC_QUALITY=0; RC_THERMO=0
 wait "$PID_QUALITY" || RC_QUALITY=$?
 wait "$PID_THERMO" || RC_THERMO=$?
 [ -n "$PID_CODEX" ] && { wait "$PID_CODEX" || RC_CODEX=$?; }
-extract_result "$RAW_QUALITY" >"$REPORT_QUALITY" || RC_QUALITY=1
-extract_result "$RAW_THERMO" >"$REPORT_THERMO" || RC_THERMO=1
 PHASE_A_DENIED=0
-denial_veto "$RAW_QUALITY" "$RC_QUALITY" && PHASE_A_DENIED=1
-denial_veto "$RAW_THERMO" "$RC_THERMO" && PHASE_A_DENIED=1
-record_usage "$RAW_QUALITY" "code-review" "$REPO#$PR_NUMBER"
-record_usage "$RAW_THERMO" "thermo" "$REPO#$PR_NUMBER"
+[ "$RC_QUALITY" -ne "$REVIEW_VETO_RC" ] || PHASE_A_DENIED=1
+[ "$RC_THERMO" -ne "$REVIEW_VETO_RC" ] || PHASE_A_DENIED=1
 
 echo
 echo "----- /code-review (exit $RC_QUALITY) -----"
@@ -246,12 +239,8 @@ PROMPT="$(render_template "$PROMPT_FILE" \
 
 echo
 echo "=== phase B: /validator with phase A findings as extra step 6 candidates"
-"$CLAUDE" -p "$PROMPT" "${CLAUDE_ARGS[@]}" </dev/null >"$RAW_VALIDATOR" 2>"$RAW_VALIDATOR.err"
-RC_VALIDATOR=$?
-extract_result "$RAW_VALIDATOR" || RC_VALIDATOR="$REVIEW_INCOMPLETE_RC"
-
-echo
-record_usage "$RAW_VALIDATOR" "validator" "$REPO#$PR_NUMBER"
+RC_VALIDATOR=0
+claude_pass validator "$RAW_VALIDATOR" bypass "$PROMPT" "${CLAUDE_ARGS[@]}" || RC_VALIDATOR=$?
 
 echo
 echo "=== done (validator exit $RC_VALIDATOR)"
