@@ -302,7 +302,7 @@ if [[ "$OS" == "mac" ]]; then
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     fi
 
-    brew install git ripgrep fd jq || {
+    brew install git ripgrep fd jq gitleaks || {
         print_warning "Some brew packages may have failed"
     }
 
@@ -327,6 +327,13 @@ elif [[ "$OS" == "arch" ]]; then
 fi
 
 print_success "Dependencies installed"
+
+if git -C "$REPO_DIR" rev-parse --git-dir >/dev/null 2>&1; then
+    git -C "$REPO_DIR" config core.hooksPath .githooks
+    print_success "Secret scan pre-push hook enabled (core.hooksPath .githooks)"
+    command -v gitleaks &>/dev/null ||
+        print_warning "gitleaks missing: pushes from this clone stay blocked until it is installed"
+fi
 
 # ============================================================================
 # INSTALL RTK

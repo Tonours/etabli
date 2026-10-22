@@ -57,5 +57,6 @@ jq -r '.mcpServers | keys[]' .mcp.json mcp/servers.template.json
 When a vault returns nothing, check its engine before blaming a skill
 (`vault_health` through the MCP, or the vault's own validator). When the
 intended server set changes, update the template and this doc together and run
-the repository secret scan. A local mismatch alone never authorizes copying a
-live file into Git.
+the repository secret scan (`gitleaks git --no-banner --redact .`, also run by
+the `.githooks/pre-push` hook and the `agentic-infra` CI job). A local mismatch
+alone never authorizes copying a live file into Git.

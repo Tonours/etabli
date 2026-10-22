@@ -1,0 +1,9 @@
+26b6a80143b425df43d544ca183f47a3c9418eb4:pi/extensions/__tests__/filter-output.test.ts:generic-api-key:247
+591b15394907fca27f1ca41011cb767cf8b93e21:pi/extensions/__tests__/filter-output.test.ts:generic-api-key:283
+591b15394907fca27f1ca41011cb767cf8b93e21:pi/extensions/__tests__/filter-output.test.ts:generic-api-key:96
+7954325d4f3de35ce13cc0c104c23e12d7af7bed:tests/jev-shadow-smoke.sh:curl-auth-header:23
+7d2e20b6ee2cda4f38c3ffe507f40d1b30902879:docs/ux-ui-code-flow-loop.md:generic-api-key:17
+cf7178da6e81fa5e8ac199215ae4e6dd92742135:claude/benchmarks/token-budget/manifest.v2.json:generic-api-key:231
+cf7178da6e81fa5e8ac199215ae4e6dd92742135:claude/benchmarks/token-budget/manifest.v2.json:generic-api-key:250
+d350541c8b7e71b30df3d101cfab0f394064b519:pi/extensions/__tests__/filter-output.test.ts:generic-api-key:81
+d5c38f08ba7244622112be07e226cbd4c9929689:t8b-runs/2026-09-25/campaign-freeze.json:generic-api-key:94
