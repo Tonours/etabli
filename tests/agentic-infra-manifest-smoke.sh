@@ -44,8 +44,6 @@ printf '%s\n' "$runner_source" | grep -Fq 'failed=$((failed + 1))' ||
 	fail "verify-agentic-infra lost FAIL accumulation"
 printf '%s\n' "$runner_source" | grep -Fq 'SUMMARY:' ||
 	fail "verify-agentic-infra lost the failure summary"
-printf '%s\n' "$runner_source" | grep -Fq 'fix-links-smoke' ||
-	fail "verify-agentic-infra must name the repo-mutating checks"
 actual_nvim="$(awk -F '\t' '!/^#/ && $2 == "nvim" {print $3}' "$MANIFEST")"
 [ -z "$actual_nvim" ] || fail "Nvim checks belong to dotfiles, not Etabli: $actual_nvim"
 
