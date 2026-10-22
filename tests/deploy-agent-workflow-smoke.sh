@@ -356,7 +356,7 @@ if (packages.some((entry) => typeof entry === "string" && entry === "npm:pi-suba
   throw new Error("pi-subagents must converge to the tracked object entry, tintinweb variants dropped");
 }
 
-const piSubagents = packageBySource("npm:pi-subagents");
+const piSubagents = packageBySource("npm:pi-subagents@0.77.0");
 if (!piSubagents || JSON.stringify(piSubagents.skills) !== "[]") {
   throw new Error("tracked npm:pi-subagents entry missing or not skill-silenced");
 }
@@ -449,8 +449,24 @@ for mode in deploy install; do
   jq -e '.defaultProvider == "zai" and .defaultModel == "glm-5.3" and (.enabledModels | index("custom/provider-model")) != null and (.enabledModels | index("zai/glm-5.3-flash")) != null and (.enabledModels | index("cursor/claude-sonnet-5@300k")) == null' "$local_settings" >/dev/null
 done
 
-# An unrelated local default retains its existing install semantics.
 local_settings="$TMP_DIR/custom-default.json"
+printf '%s\n' '{"packages":["npm:mitsupi",{"source":"npm:pi-lens","skills":["lens"]},{"source":"npm:pi-lens@4.0.0"},{"source":"git:github.com/badlogic/pi-skills@feature/topic","skills":["danger"]},"https://github.com/badlogic/pi-skills.git@main","npm:@zhushanwen/pi-ask-user"]}' >"$local_settings"
+node "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" "$local_settings" "$ROOT_DIR/pi/agent/settings.json" 0 smoke deploy >/dev/null
+node - "$local_settings" "$ROOT_DIR/pi/agent/settings.json" <<'NODE'
+const fs = require("node:fs");
+const [local, tracked] = process.argv.slice(2).map((path) => JSON.parse(fs.readFileSync(path, "utf8")));
+const sources = local.packages.map((entry) => (typeof entry === "string" ? entry : entry.source));
+const identity = (source) => /^(npm:(?:@[^/]+\/)?[^@]+)@/.exec(source)?.[1] ?? source.replace(/@[^/@]*$/, "");
+const identities = sources.map(identity);
+if (new Set(identities).size !== identities.length) throw new Error(`pinned sync duplicated a package: ${sources.join(", ")}`);
+for (const entry of tracked.packages) {
+  if (!sources.includes(entry.source)) throw new Error(`pinned sync did not install the tracked ${entry.source}`);
+}
+if (!sources.includes("npm:@zhushanwen/pi-ask-user")) throw new Error("pinned sync dropped a local-only package");
+if (sources.length !== tracked.packages.length + 1) throw new Error(`pinned sync kept ${sources.length} entries for ${tracked.packages.length} tracked plus 1 local`);
+NODE
+
+# An unrelated local default retains its existing install semantics.
 printf '%s\n' '{"defaultProvider":"local-mlx","defaultModel":"personal-model","enabledModels":["custom/provider-model"],"packages":[]}' >"$local_settings"
 node "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" "$local_settings" "$ROOT_DIR/pi/agent/settings.json" 0 smoke install >/dev/null
 jq -e '.defaultProvider == "local-mlx" and .defaultModel == "personal-model"' "$local_settings" >/dev/null

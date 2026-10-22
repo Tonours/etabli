@@ -30,7 +30,6 @@ const trackedSettings = readSettings(trackedPath, "tracked");
 const legacySources = new Set([
   "npm:pi-interview",
   "npm:@tintinweb/pi-subagents",
-  "npm:@tintinweb/pi-tasks",
   "npm:pi-hooks",
   "npm:glimpseui",
   "npm:@zenspc/pi-pstack",
@@ -82,12 +81,26 @@ function sourceOf(entry) {
   return null;
 }
 
+// A pinned source (`npm:name@1.2.3`, `git:host/repo@<ref>`) and its unpinned
+// form are one package. Git sources reduce to host/path as Pi's
+// getPackageIdentity does, so ssh, https and `.git` spellings match too.
+function packageIdentity(source) {
+  const npm = /^npm:((?:@[^/]+\/)?[^@]+)/.exec(source);
+  if (npm) return `npm:${npm[1]}`;
+  const url = source.replace(/^git:/, "");
+  const [, host, path] =
+    /^git@([^:]+):(.+)$/.exec(url) ??
+    /^(?:https?|ssh|git):\/\/(?:[^@/]+@)?([^/]+)\/(.+)$/.exec(url) ??
+    /^([^/.][^/]*\.[^/]+)\/(.+)$/.exec(url) ??
+    [];
+  if (!host) return source;
+  return `git:${host}/${path.split("@")[0].replace(/\.git$/, "")}`;
+}
+
 function isLegacySource(source) {
   return (
     legacySources.has(source) ||
     source.startsWith("npm:@tintinweb/pi-subagents@") ||
-    (source.startsWith("npm:@tintinweb/pi-tasks@") &&
-      source !== "npm:@tintinweb/pi-tasks@0.7.1") ||
     source === "npm:@agwab/pi-workflow" ||
     source.startsWith("npm:@agwab/pi-workflow@")
   );
@@ -126,10 +139,11 @@ localPackages = localPackages.filter((entry) => {
 for (const trackedEntry of trackedPackages) {
   const source = sourceOf(trackedEntry);
   if (!source) continue;
-  const localIndex = localPackages.findIndex(
-    (entry) => sourceOf(entry) === source,
+  const identity = packageIdentity(source);
+  const [localIndex, ...duplicates] = localPackages.flatMap((entry, index) =>
+    packageIdentity(sourceOf(entry) ?? "") === identity ? [index] : [],
   );
-  if (localIndex === -1) {
+  if (localIndex === undefined) {
     localPackages.push(trackedEntry);
     changes.push(`add ${source}`);
     continue;
@@ -139,6 +153,10 @@ for (const trackedEntry of trackedPackages) {
   ) {
     localPackages[localIndex] = trackedEntry;
     changes.push(`sync ${source}`);
+  }
+  if (duplicates.length > 0) {
+    localPackages = localPackages.filter((_, index) => !duplicates.includes(index));
+    changes.push(`remove duplicate ${identity}`);
   }
 }
 

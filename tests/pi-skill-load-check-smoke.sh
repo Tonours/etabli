@@ -36,7 +36,7 @@ write_skill "$HOME_FIX/.agents/skills/find-skills" find-skills 0
 write_skill "$HOME_FIX/.pi/agent/npm/node_modules/mitsupi/skills/github" github 0
 
 write_settings() {
-  printf '%s\n' "{ \"skills\": [$1], \"packages\": [ { \"source\": \"npm:mitsupi\", \"skills\": [\"github\"] } ] }" >"$HOME_FIX/.pi/agent/settings.json"
+  printf '%s\n' "{ \"skills\": [$1], \"packages\": [ { \"source\": \"npm:mitsupi@1.6.0\", \"skills\": [\"github\"] } ] }" >"$HOME_FIX/.pi/agent/settings.json"
 }
 
 cat >"$TMP_DIR/dump.txt" <<DUMP
