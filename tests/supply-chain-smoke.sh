@@ -126,20 +126,22 @@ const walk = (path) => {
 };
 for (const dir of dirs) walk(join(root, dir));
 for (const hit of hits) console.error(hit);
-process.exit(hits.length ? 1 : 0);
+process.exit(hits.length ? 3 : 0);
 NODE
 }
 scan_dirs=(skills vendor workflow claude pi/agents)
-hidden_unicode_scan "$ROOT_DIR" "${scan_dirs[@]}" ||
-  fail "hidden or bidirectional Unicode in agent-facing text (lines above); remove it"
+scan_rc=0
+hidden_unicode_scan "$ROOT_DIR" "${scan_dirs[@]}" || scan_rc=$?
+[ "$scan_rc" -ne 3 ] || fail "hidden or bidirectional Unicode in agent-facing text (lines above); remove it"
+[ "$scan_rc" -eq 0 ] || fail "the Unicode scan could not run (node exit $scan_rc)"
 mkdir -p "$check_tmp/scan/skills"
 printf 'Pas d\xc2\xa0espace ins\xc3\xa9cable\xe2\x80\xafici.\n' >"$check_tmp/scan/skills/french.md"
 hidden_unicode_scan "$check_tmp/scan" skills || fail "the Unicode scan rejects U+00A0 or U+202F"
 for planted in '\xe2\x80\x8b' '\xe2\x80\xae'; do
   printf 'ok\nrun this%b now\n' "$planted" >"$check_tmp/scan/skills/planted.md"
-  if hidden_unicode_scan "$check_tmp/scan" skills 2>"$check_tmp/scan.err"; then
-    fail "the Unicode scan missed a planted hidden character"
-  fi
+  scan_rc=0
+  hidden_unicode_scan "$check_tmp/scan" skills 2>"$check_tmp/scan.err" || scan_rc=$?
+  [ "$scan_rc" -eq 3 ] || fail "the Unicode scan missed a planted hidden character (exit $scan_rc)"
   grep -Fq 'skills/planted.md:2:' "$check_tmp/scan.err" || fail "the Unicode scan does not report file:line"
 done
 
@@ -152,11 +154,13 @@ git init -q --bare "$hook_tmp/remote.git"
 git init -q "$hook_clone"
 cp -R "$ROOT_DIR/.githooks" "$hook_clone/.githooks"
 git -C "$hook_clone" config core.hooksPath .githooks
+git -C "$hook_clone" config user.name t
+git -C "$hook_clone" config user.email t@example.invalid
 git -C "$hook_clone" remote add origin "$hook_tmp/remote.git"
 commit_file() {
   printf '%s\n' "$2" >"$hook_clone/$1"
   git -C "$hook_clone" add "$1"
-  git -C "$hook_clone" -c user.name=t -c user.email=t@example.invalid commit -q -m "add $1"
+  git -C "$hook_clone" commit -q -m "add $1"
 }
 commit_file clean.txt 'nothing secret'
 git -C "$hook_clone" push -q origin HEAD:refs/heads/main 2>"$hook_tmp/clean.err" ||
@@ -182,7 +186,7 @@ commit_file mainline.txt 'main line'
 git -C "$hook_clone" merge -q --no-ff --no-commit side >/dev/null
 printf 'GITHUB_TOKEN=%s\n' "$(printf 'gh%s_%s' p "$(openssl rand -hex 18)")" >"$hook_clone/merge.env"
 git -C "$hook_clone" add merge.env
-git -C "$hook_clone" -c user.name=t -c user.email=t@example.invalid commit -q -m "merge side"
+git -C "$hook_clone" commit -q -m "merge side"
 if git -C "$hook_clone" push -q origin HEAD:refs/heads/main 2>"$hook_tmp/merge.err"; then
   fail "pre-push let a GitHub token added only in a merge commit through"
 fi
