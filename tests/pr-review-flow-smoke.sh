@@ -18,7 +18,7 @@ export GH_ENTERPRISE_TOKEN=invalid-flow-token GITHUB_ENTERPRISE_TOKEN=invalid-fl
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 export PR_REVIEW_WATCH_COUNCIL="$SCRIPTS/pr-council-review/run.sh"
-export PR_COUNCIL_CLAUDE="$HOME/.local/bin/claude" PR_REVIEW_WATCH_CLAUDE="$HOME/.local/bin/claude"
+export PR_COUNCIL_CLAUDE="$HOME/.local/bin/claude" PR_REVIEW_WATCH_LOG="$TMP_DIR/watch.log"
 export PR_REVIEW_WATCH_CI_WAIT=0 PR_REVIEW_USAGE_LOG="$TMP_DIR/usage.log"
 mkdir -p "$TMPDIR" "$HOME/.local/bin" "$HOME/.claude/skills/thermo-nuclear-code-quality-review" "$FAKE_DIR" "$GH_CONFIG_DIR"
 echo "thermo stub" >"$HOME/.claude/skills/thermo-nuclear-code-quality-review/SKILL.md"
@@ -26,6 +26,7 @@ echo "thermo stub" >"$HOME/.claude/skills/thermo-nuclear-code-quality-review/SKI
 cat >"$HOME/.local/bin/gh" <<'GH'
 #!/bin/bash
 printf 'gh %s\n' "$*" >>"$FAKE_LOG"
+[ -z "${FAKE_GH_SLEEP:-}" ] || sleep "$FAKE_GH_SLEEP"
 filter="" prev="" write=0
 for arg in "$@"; do
   [ "$prev" = --jq ] && filter="$arg"
@@ -56,6 +57,10 @@ GH
 
 cat >"$HOME/.local/bin/claude" <<'CLAUDE'
 #!/bin/bash
+case "$1" in
+  --version) echo "2.1.308 (Claude Code)"; exit 0 ;;
+  --help) [ -n "${FAKE_CLAUDE_OLD:-}" ] && echo "usage: claude" || echo "  --permission-prompts <mode>"; exit 0 ;;
+esac
 prompt="" prev="" flags=()
 for arg in "$@"; do
   if [ "$prev" = -p ] && [ "${arg#-}" = "$arg" ]; then prompt="$arg"; else [ "$arg" = -p ] || flags+=("$arg"); fi
@@ -70,7 +75,9 @@ case "$prompt" in
   /forest:verify-fixes*) role=VERIFY ;;
   *) echo "fake claude: unknown prompt" >&2; exit 1 ;;
 esac
-printf 'claude %s %s\n' "$role" "${flags[*]}" >>"$FAKE_LOG"
+printf 'claude %s GIT_TERMINAL_PROMPT=%s %s\n' "$role" "${GIT_TERMINAL_PROMPT:-unset}" "${flags[*]}" >>"$FAKE_LOG"
+stderr_var="FAKE_${role}_STDERR"
+[ -z "${!stderr_var:-}" ] || echo "${!stderr_var}" >&2
 envelope_var="FAKE_${role}_ENVELOPE" text_var="FAKE_${role}_TEXT" rc_var="FAKE_${role}_RC" patch_var="FAKE_${role}_PATCH"
 envelope="$FAKE_FIXTURES/2.1.308-${!envelope_var:-success}.json"
 text="${!text_var:-}"
@@ -289,7 +296,7 @@ case_verify_retry_skips_delta() {
   FAKE_VALIDATOR_TEXT="Review posted. $(marker 2)" run_review council "$HEAD1" -
   set_head "$HEAD2" '[{"state":"COMMENTED","author":{"login":"me"}}]'
   export FAKE_DELTA_TEXT=$'no findings, nothing posted\nDELTA_FINDINGS 0\nDELTA_CONFIDENT value=true'
-  FAKE_VERIFY_ENVELOPE=error-max-turns run_review verify "$HEAD2" "$HEAD1"
+  FAKE_VERIFY_RC=1 run_review verify "$HEAD2" "$HEAD1"
   check "verify retry: first attempt failed" [ "$RC" != 0 ]
   FAKE_VERIFY_TEXT=$'all fixed\nVERIFY_VERDICT reviewed=2 reopened=0 regressions=0 complete=true confident=true\nCONFIDENCE fixed' \
     run_review verify "$HEAD2" "$HEAD1"
@@ -297,6 +304,47 @@ case_verify_retry_skips_delta() {
   check "verify retry: fakes answered" called "claude VERIFY"
   check "verify retry: delta not rerun" not_called "claude DELTA"
   check "verify retry: one approval" [ "$(approvals)" = 1 ]
+}
+
+argv_of() { grep "^claude $1 " "$FAKE_LOG" | tail -1; }
+
+case_pass_caps_and_diagnostics() {
+  reset_state
+  set_head "$HEAD1"
+  FAKE_VALIDATOR_TEXT="Review posted. $(marker 2)" run_review council "$HEAD1" -
+  local role
+  for role in QUALITY THERMO VALIDATOR; do
+    check "caps: $role has the default turn cap" eval 'argv_of $role | grep -q -- "--max-turns 200 "'
+    check "caps: $role has the default budget cap" eval 'argv_of $role | grep -q -- "--max-budget-usd 25 "'
+    check "caps: $role runs with GIT_TERMINAL_PROMPT=0" eval 'argv_of $role | grep -q "GIT_TERMINAL_PROMPT=0 "'
+  done
+  check "diagnostics: usage line fields" grep -q 'claude_version=2.1.308 turns=1 subtype=success cost=0 denials=0' "$TMP_DIR/run.out"
+  PR_REVIEW_MAX_TURNS=7 PR_REVIEW_MAX_BUDGET_USD=3 FAKE_VALIDATOR_RC=1 FAKE_VALIDATOR_STDERR="validator stderr tail" \
+    FAKE_VALIDATOR_TEXT="$(marker 0)" run_review council "$HEAD1" -
+  check "caps: env overrides the turn cap" eval 'argv_of VALIDATOR | grep -q -- "--max-turns 7 --max-budget-usd 3 "'
+  check "diagnostics: a non-zero exit logs the stderr tail" grep -q '^validator stderr tail$' "$TMP_DIR/run.out"
+  check "diagnostics: a failed pass does not approve" [ "$(approvals)" = 0 ]
+}
+
+case_tick_guards() {
+  reset_state
+  mkdir -p "$STATE/runs"
+  : >"$FAKE_LOG"
+  local started elapsed
+  started="$(date +%s)"
+  check "tick: a hung gh call dies at the timeout" eval '! FAKE_GH_SLEEP=5 PR_REVIEW_WATCH_GH_TIMEOUT=1 watch_fn "gh api user" >/dev/null'
+  elapsed=$(( $(date +%s) - started ))
+  check "tick: the hung call took under 4s" [ "$elapsed" -lt 4 ]
+  : >"$FAKE_LOG"
+  RC=0
+  FAKE_CLAUDE_OLD=1 PR_REVIEW_WATCH_STATE_DIR="$STATE" /bin/bash "$SCRIPTS/pr-review-watch/watch.sh" || RC=$?
+  FAKE_CLAUDE_OLD=1 PR_REVIEW_WATCH_STATE_DIR="$STATE" /bin/bash "$SCRIPTS/pr-review-watch/watch.sh" || true
+  check "tick: an old claude stops the tick" rc_is 1
+  check "tick: an old claude notifies once" [ "$(grep -c '^notify .*permission-prompts' "$FAKE_LOG")" = 1 ]
+  check "tick: an old claude makes no gh call" not_called "gh "
+  mkdir -p "$TMP_DIR/ro" && chmod 555 "$TMP_DIR/ro"
+  check "lock: a read-only state dir gives up" eval '! watch_fn "acquire_lock \"$TMP_DIR/ro/lock\" watch" >/dev/null'
+  chmod 755 "$TMP_DIR/ro"
 }
 
 case_clean_council_approves
@@ -309,6 +357,8 @@ case_watch_mode
 case_next_attempt
 case_approval_post_failure_stays_pending
 case_verify_retry_skips_delta
+case_pass_caps_and_diagnostics
+case_tick_guards
 
 if [ "$failures" -ne 0 ]; then
   printf 'PR review flow smoke test: %s failure(s)\n' "$failures"

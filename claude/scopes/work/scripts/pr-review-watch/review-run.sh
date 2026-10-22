@@ -28,28 +28,6 @@ finish() {
   [ "$rc" -eq 0 ] || notify "PR review failed ($MODE, $rc)" "$REPO#$NUMBER @${SHA:0:8}" "file://$REPORT"
 }
 
-run_with_timeout() {
-  perl -e 'setpgrp(0, 0); exec @ARGV or die "exec: $!"' "$@" &
-  local pid=$! waited=0
-  while kill -0 "$pid" 2>/dev/null; do
-    if [ "$waited" -ge "$TIMEOUT" ]; then
-      echo "=== timeout after ${TIMEOUT}s, killing process group $pid"
-      kill -TERM -- "-$pid" 2>/dev/null
-      sleep 5
-      kill -KILL -- "-$pid" 2>/dev/null
-      return 124
-    fi
-    sleep 10
-    waited=$((waited + 10))
-  done
-  wait "$pid"
-}
-
-claude_bin() {
-  [ -r "$HOME/.claude/scripts/claude-bin.sh" ] && . "$HOME/.claude/scripts/claude-bin.sh"
-  printf '%s' "${PR_REVIEW_WATCH_CLAUDE:-${CLAUDE:-}}"
-}
-
 my_review_count() {
   gh pr view "$NUMBER" --repo "$REPO" --json latestReviews \
     | jq --arg me "$ME" '[.latestReviews[] | select(.author.login == $me)] | length'
@@ -96,7 +74,7 @@ decide_and_approve() {
 
 run_council() {
   local rc body findings
-  run_with_timeout "$COUNCIL" "$NUMBER" "$REPO" --post </dev/null 2>&1 | tee "$REPORT"
+  run_with_timeout "$TIMEOUT" "$COUNCIL" "$NUMBER" "$REPO" --post </dev/null 2>&1 | tee "$REPORT"
   rc="${PIPESTATUS[0]}"
   [ "$rc" -eq 0 ] || return "$rc"
   findings="$(validator_run_findings "$REPORT" "$SHA")"
@@ -112,7 +90,7 @@ run_council() {
 
 run_delta() {
   local log="$1" rc
-  run_with_timeout "$HERE/delta-review.sh" "$REPO" "$NUMBER" "$SINCE" </dev/null >"$log" 2>&1
+  run_with_timeout "$TIMEOUT" "$HERE/delta-review.sh" "$REPO" "$NUMBER" "$SINCE" </dev/null >"$log" 2>&1
   rc=$?
   cat "$log"
   return "$rc"
@@ -127,23 +105,16 @@ verify_merge_base() {
 }
 
 run_verify_fixes() {
-  local claude tree raw rc base
-  claude="$(claude_bin)"
-  [ -n "$claude" ] || { echo "claude binary not found"; return 1; }
+  local tree raw rc base
   tree="$(mktemp -d "${TMPDIR:-/tmp}/pr-verify-$NUMBER.XXXXXX")/tree"
   raw="${REPORT%.md}.json"
   base="$(verify_merge_base)" && [ -n "$base" ] || { echo "cannot resolve the merge base for the verify pass"; return 1; }
   git worktree add -q --detach "$tree" "$SHA" || { echo "cannot create verify worktree"; return 1; }
   neutralize_author_config "$tree" "$SHA" "$base"
-  (cd "$tree" && run_with_timeout "$claude" -p --permission-mode auto --permission-prompts none --disallowedTools=Edit,Write,NotebookEdit --output-format json \
-    --model "$VERIFY_MODEL" --effort "$VERIFY_EFFORT" --settings '{"disableAllHooks":true}' \
-    --strict-mcp-config --setting-sources project,local "$(verify_prompt)" </dev/null) >"$raw" 2>"$raw.err"
-  rc=$?
+  (cd "$tree" && claude_pass verify "$raw" read-only "$(verify_prompt)" \
+    --model "$VERIFY_MODEL" --effort "$VERIFY_EFFORT" "${ISOLATED_SETTINGS[@]}") | tee "$REPORT"
+  rc="${PIPESTATUS[0]}"
   git worktree remove --force "$tree" >/dev/null 2>&1
-  extract_result "$raw" | tee "$REPORT"
-  [ "${PIPESTATUS[0]}" -eq 0 ] || rc=1
-  denial_veto "$raw" "$rc" && rc="$REVIEW_VETO_RC"
-  record_usage "$raw" "verify" "$REPO#$NUMBER"
   return "$rc"
 }
 
@@ -193,6 +164,7 @@ run_pending_approval() {
 echo $$ >"$KEY.pid"
 trap finish EXIT
 trap 'exit 143' TERM INT
+USAGE_TARGET="$REPO#$NUMBER"
 ME="$(gh api user --jq .login)" || exit 1
 echo "=== $MODE $REPO#$NUMBER @${SHA:0:8} — $URL"
 case "$MODE" in

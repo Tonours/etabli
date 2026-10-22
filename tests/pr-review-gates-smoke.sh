@@ -96,6 +96,8 @@ printf '{"result":"r","permission_denials":[]}\ntrailer\n' >"$TMP_DIR/denials-un
 expect "denials: unreadable output leaves the pass unverified" "2" "$(lib "check_denials '$TMP_DIR/denials-unreadable.json' 2>/dev/null; echo \$?")"
 : >"$TMP_DIR/denials-empty.json"
 expect "denials: empty output leaves the pass unverified" "2" "$(lib "check_denials '$TMP_DIR/denials-empty.json' 2>/dev/null; echo \$?")"
+printf '{"result":"r","permission_denials":[{"tool_name":"Bash","tool_input":{"command":"a\\nb"}},{"tool_name":"Edit","tool_input":{"file_path":"f"}}]}' >"$TMP_DIR/denials-two.json"
+expect "denials: the count is the array length" "=== 2 permission denial(s), the pass is incomplete:" "$(lib "check_denials '$TMP_DIR/denials-two.json'" 2>&1 >/dev/null | head -1)"
 expect "denials: none passes silently" "0" "$(lib "check_denials '$TMP_DIR/denials-none.json' 2>&1; echo \$?")"
 printf '{"result":"r","permission_denials":[{"tool_name":"Bash","tool_input":{"command":"curl x"}},"bad"]}' >"$TMP_DIR/denials-mixed.json"
 printf '{"result":"r"}' >"$TMP_DIR/denials-missing.json"
@@ -147,8 +149,9 @@ expect "config: verify pass resets config to the merge base" "trusted|none|none|
 expect "config: verify pass keeps the PR code" "b" "$(cat "$TMP_DIR/verify-tree/app.txt")"
 verify_fn="$(sed -n '/^run_verify_fixes() {/,/^}/p' "$SCRIPTS/pr-review-watch/review-run.sh")"
 expect "verify: neutralizes author config before claude" "1" "$(printf '%s\n' "$verify_fn" | grep -c 'neutralize_author_config "\$tree"')"
-expect "verify: hooks, mcp and setting sources restricted" "1" \
-  "$(printf '%s\n' "$verify_fn" | tr -d '\\\n' | grep -c "disableAllHooks.*--strict-mcp-config.*--setting-sources project,local")"
+expect "verify: hooks, mcp and setting sources restricted" "1" "$(printf '%s\n' "$verify_fn" | grep -c '"\${ISOLATED_SETTINGS\[@\]}"')"
+expect "isolation: hooks, mcp and setting sources" "1" \
+  "$(grep -c "^ISOLATED_SETTINGS=(--settings '{\"disableAllHooks\":true}' --strict-mcp-config --setting-sources project,local)$" "$SCRIPTS/pr-council-review/lib.sh")"
 
 fake_home="$TMP_DIR/home"
 mkdir -p "$fake_home/.claude/scripts/pr-autoreview" "$fake_home/.claude/state/pr-autoreview"

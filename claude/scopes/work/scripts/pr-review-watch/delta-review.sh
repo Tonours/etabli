@@ -10,9 +10,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 PROMPT_FILE="$HERE/delta-prompt.md"
 . "$HERE/../pr-council-review/lib.sh"
 
-[ -r "$HOME/.claude/scripts/claude-bin.sh" ] && . "$HOME/.claude/scripts/claude-bin.sh"
-CLAUDE="${PR_REVIEW_WATCH_CLAUDE:-${CLAUDE:-}}"
-[ -n "$CLAUDE" ] || { echo "claude binary not found" >&2; exit 1; }
+USAGE_TARGET="$REPO#$NUMBER"
 
 META="$(gh pr view "$NUMBER" --repo "$REPO" --json headRefOid,baseRefName,url \
   --jq '[.headRefOid, .baseRefName, .url] | @tsv')" || { echo "cannot read $REPO#$NUMBER" >&2; exit 1; }
@@ -39,11 +37,5 @@ echo "=== delta ${SINCE:0:8}..${HEAD_SHA:0:8}: $(git -C "$WORKTREE" diff --cache
 PROMPT="$(render_template "$PROMPT_FILE" REPO="$REPO" PR_NUMBER="$NUMBER" PR_URL="$PR_URL" \
   SINCE_SHA="$SINCE" HEAD_SHA="$HEAD_SHA" SINCE_SHORT="${SINCE:0:8}" HEAD_SHORT="${HEAD_SHA:0:8}" REVIEW_LEVEL="$LEVEL")"
 
-RAW="$WORK_DIR/delta.json"
-(cd "$WORKTREE" && "$CLAUDE" -p "$PROMPT" --dangerously-skip-permissions --output-format json \
-  --model "$MODEL" --settings '{"disableAllHooks":true}' --strict-mcp-config \
-  --setting-sources project,local </dev/null) >"$RAW" 2>"$RAW.err"
-RC=$?
-extract_result "$RAW" || RC=1
-record_usage "$RAW" "delta" "$REPO#$NUMBER"
-exit "$RC"
+cd "$WORKTREE" || exit 1
+claude_pass delta "$WORK_DIR/delta.json" bypass "$PROMPT" --model "$MODEL" "${ISOLATED_SETTINGS[@]}"
