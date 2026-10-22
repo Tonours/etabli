@@ -91,6 +91,7 @@ if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
 fi
 git -C "$up_sub" rev-parse --verify --quiet "$sha" >/dev/null ||
      fail "UPSTREAM_SHA does not resolve in the fixture upstream"
+assert_contains "$out" "3 skills at $sha"
 
 out="$("$consumer/scripts/sync-vendor-skills" legacy)"
 assert_contains "$out" "1 skills at"

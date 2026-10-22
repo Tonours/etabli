@@ -85,10 +85,68 @@ grep -Fq 'gitleaks_8.30.1_linux_x64.tar.gz' "$WORKFLOW" &&
   grep -Fq 'gitleaks git --no-banner --redact --log-opts="--all --full-history --diff-merges=first-parent" .' "$WORKFLOW" ||
   fail "CI must scan history with gitleaks 8.30.1 checked against its pinned sha256"
 
+if grep -nE 'curl[^|]*refs/heads/[^|]*[|]' "$ROOT_DIR/scripts/install.sh" "$ROOT_DIR"/scripts/lib/*.sh; then
+  fail "an installer pipes a script from a moving branch into a shell; pin it to a commit SHA"
+fi
+
+check_tmp="$(mktemp -d)"
+trap 'rm -rf "$check_tmp"' EXIT
+# A scratch copy: a regressed --commit must not sync or commit this checkout.
+mkdir -p "$check_tmp/vendor-repo/scripts"
+cp "$ROOT_DIR/scripts/update-vendor-skills" "$check_tmp/vendor-repo/scripts/"
+if "$check_tmp/vendor-repo/scripts/update-vendor-skills" --commit >/dev/null 2>"$check_tmp/commit.err"; then
+  fail "update-vendor-skills --commit must refuse and leave the commit to the user"
+fi
+grep -Fq 'commit vendor/ and skills-lock.json yourself' "$check_tmp/commit.err" ||
+  fail "update-vendor-skills --commit lacks the manual-commit hint"
+
+# Zero-width, bidirectional, invisible-operator and tag characters can hide
+# instructions from a human reviewer. U+00A0 and U+202F stay allowed for French.
+hidden_unicode_scan() {
+  node --input-type=module - "$@" <<'NODE'
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
+const [root, ...dirs] = process.argv.slice(2);
+const hidden = /[\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF\u{E0000}-\u{E007F}]/gu;
+const hits = [];
+const walk = (path) => {
+  const stat = statSync(path, { throwIfNoEntry: false });
+  if (!stat) return;
+  if (stat.isDirectory()) {
+    for (const name of readdirSync(path)) if (name !== "node_modules" && name !== ".git") walk(join(path, name));
+    return;
+  }
+  if (!stat.isFile()) return;
+  const bytes = readFileSync(path);
+  if (bytes.includes(0)) return;
+  bytes.toString("utf8").replace(/^\uFEFF/, "").split("\n").forEach((line, index) => {
+    const found = [...line.matchAll(hidden)];
+    if (found.length) hits.push(`${path.slice(root.length + 1)}:${index + 1}: ${found.map(([c]) => `U+${c.codePointAt(0).toString(16).toUpperCase().padStart(4, "0")}`).join(" ")}`);
+  });
+};
+for (const dir of dirs) walk(join(root, dir));
+for (const hit of hits) console.error(hit);
+process.exit(hits.length ? 1 : 0);
+NODE
+}
+scan_dirs=(skills vendor workflow claude pi/agents)
+hidden_unicode_scan "$ROOT_DIR" "${scan_dirs[@]}" ||
+  fail "hidden or bidirectional Unicode in agent-facing text (lines above); remove it"
+mkdir -p "$check_tmp/scan/skills"
+printf 'Pas d\xc2\xa0espace ins\xc3\xa9cable\xe2\x80\xafici.\n' >"$check_tmp/scan/skills/french.md"
+hidden_unicode_scan "$check_tmp/scan" skills || fail "the Unicode scan rejects U+00A0 or U+202F"
+for planted in '\xe2\x80\x8b' '\xe2\x80\xae'; do
+  printf 'ok\nrun this%b now\n' "$planted" >"$check_tmp/scan/skills/planted.md"
+  if hidden_unicode_scan "$check_tmp/scan" skills 2>"$check_tmp/scan.err"; then
+    fail "the Unicode scan missed a planted hidden character"
+  fi
+  grep -Fq 'skills/planted.md:2:' "$check_tmp/scan.err" || fail "the Unicode scan does not report file:line"
+done
+
 command -v gitleaks >/dev/null 2>&1 ||
   fail "gitleaks is missing; the pre-push secret scan needs it (macOS: brew install gitleaks, or rerun scripts/install.sh)"
-hook_tmp="$(mktemp -d)"
-trap 'rm -rf "$hook_tmp"' EXIT
+hook_tmp="$check_tmp/hook"
+mkdir "$hook_tmp"
 hook_clone="$hook_tmp/clone"
 git init -q --bare "$hook_tmp/remote.git"
 git init -q "$hook_clone"
