@@ -237,7 +237,8 @@ PROMPT="$(render_template "$PROMPT_FILE" \
 echo
 echo "=== phase B: /validator with phase A findings as extra step 6 candidates"
 RC_VALIDATOR=0
-claude_pass validator "$RAW_VALIDATOR" bypass "$PROMPT" "${CLAUDE_ARGS[@]}" || RC_VALIDATOR=$?
+claude_pass validator "$RAW_VALIDATOR" auto "$PROMPT" --allowedTools "Bash(gh api repos/$REPO/pulls/$PR_NUMBER/reviews:*)" \
+  "${CLAUDE_ARGS[@]}" || RC_VALIDATOR=$?
 
 echo
 echo "=== done (validator exit $RC_VALIDATOR)"
