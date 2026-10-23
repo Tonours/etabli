@@ -308,6 +308,29 @@ for (const [label, event, expected] of cases) {
 if (failed) process.exit(1);
 NODE
 
+ROOT_DIR="$ROOT_DIR" PARITY_DIR="$parity_dir" node --input-type=module <<'NODE'
+const { noCommentsGuardDecision } = await import(`${process.env.ROOT_DIR}/workflow/runtime/no-comments-guard.mjs`);
+const write = (content) => ({ cwd: process.env.PARITY_DIR, tool_name: "Write", tool_input: { file_path: "long.sh", content } });
+const started = performance.now();
+const long = noCommentsGuardDecision(write(`echo ${"ab ".repeat(53334)}\n`));
+const elapsed = performance.now() - started;
+if (long || elapsed > 150) {
+  console.error(`no-comments lexer: 160k one-line write took ${Math.round(elapsed)} ms (want under 150) or was denied`);
+  process.exit(1);
+}
+let nested;
+try {
+  nested = noCommentsGuardDecision(write(`x=${'"$('.repeat(5000)}\n# added note\n`));
+} catch (error) {
+  console.error(`no-comments lexer: 5000 nested substitutions threw ${error.name}`);
+  process.exit(1);
+}
+if (nested) {
+  console.error("no-comments lexer: past the nesting cap the write must be allowed");
+  process.exit(1);
+}
+NODE
+
 broken_hooks="$TMP_DIR/broken-hooks"
 broken_free="$TMP_DIR/broken-free"
 mkdir -p "$broken_hooks" "$broken_free"
