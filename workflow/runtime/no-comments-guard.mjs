@@ -90,7 +90,7 @@ export function commentFamilyFor(filePath) {
 }
 
 const TOOL_DIRECTIVE =
-	/(eslint-disable|eslint-enable|@ts-expect-error|@ts-ignore|@ts-nocheck|biome-ignore|prettier-ignore|stylelint-disable|c8 ignore|istanbul ignore|v8 ignore|@jsxImportSource)/;
+	/(eslint-disable|eslint-enable|@ts-expect-error|@ts-ignore|@ts-nocheck|@ts-check|biome-ignore|prettier-ignore|stylelint-disable|c8 ignore|istanbul ignore|v8 ignore|@jsxImportSource|^\/\/\/\s*<reference\b|^\/\/go:[a-z]|type:\s*ignore|\bnoqa\b|\bshellcheck\s+(disable|enable|source|shell)=)/;
 
 function isExemptComment(text) {
 	const trimmed = String(text || "").trim();
@@ -108,7 +108,7 @@ function isExemptComment(text) {
 }
 
 const SHELL_COMMAND_POSITION = /(^|[;&|({]|\b(then|do|else))\s*$/;
-const REGEX_LITERAL_PREFIX = /[=(,:[!&|?{;+]\s*$/;
+const REGEX_LITERAL_PREFIX = /(^|[=(,:[!&|?{;+]|=>|\breturn)\s*$/;
 const RUBY_LITERAL_PREFIX = /(^|[=(,[{|&:;]|\s\?)\s*$/;
 const RUBY_HEREDOC = /^<<([~-]?)(?:(['"`])([^'"`\n]+)\2|([A-Za-z_]\w*))/;
 const RUBY_PERCENT = /^%([qQwWiIrsx]?)([^\w\s])/;
@@ -228,6 +228,10 @@ export function collectCommentLines(text, family) {
 				cursor = substitution;
 				continue;
 			}
+			if (quote === "`" && family === "clike" && source.startsWith("${", cursor)) {
+				cursor = scanNested(cursor + 2, "}");
+				continue;
+			}
 			if (source[cursor] === "\n" && !spansLines) return cursor;
 			cursor += 1;
 		}
@@ -259,21 +263,27 @@ export function collectCommentLines(text, family) {
 
 	let nesting = 0;
 	let capped = false;
-	const skipSubstitution = (cursor) => {
-		const opener = source.startsWith("$(", cursor) ? 2 : source[cursor] === "`" ? 1 : 0;
-		if (!opener) return -1;
+	const scanNested = (start, closer) => {
 		if (nesting >= MAX_NESTING) {
 			capped = true;
 			return source.length;
 		}
 		nesting += 1;
-		const end = scanCode(cursor + opener, opener === 2 ? ")" : "`");
+		const end = scanCode(start, closer);
 		nesting -= 1;
 		return end;
 	};
 
+	const skipSubstitution = (cursor) => {
+		if (source.startsWith("$(", cursor)) return scanNested(cursor + 2, ")");
+		if (source[cursor] === "`") return scanNested(cursor + 1, "`");
+		return -1;
+	};
+
 	const pushBlock = (start, stop) => {
-		for (const chunk of source.slice(start, stop).split("\n")) push(chunk);
+		const block = source.slice(start, stop);
+		if (isExemptComment(block)) return;
+		for (const chunk of block.split("\n")) push(chunk);
 	};
 
 	const scanCode = (start, closer) => {
@@ -282,6 +292,7 @@ export function collectCommentLines(text, family) {
 		let depth = 0;
 		let caseDepth = 0;
 		const arithmetic = closer === ")" && source[start] === "(";
+		const opener = { ")": "(", "}": "{" }[closer];
 		let index = start;
 		const heredocs = [];
 		const appendCode = (text) => {
@@ -322,8 +333,8 @@ export function collectCommentLines(text, family) {
 				appendCode("S");
 				continue;
 			}
-			if (closer === ")" && char === "(") depth += 1;
-			if (closer === ")" && char === ")") {
+			if (opener && char === opener) depth += 1;
+			if (opener && char === closer) {
 				if (depth === 0 && caseDepth === 0) return index + 1;
 				if (depth > 0) depth -= 1;
 			}
