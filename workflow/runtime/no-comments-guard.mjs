@@ -104,7 +104,7 @@ function isExemptComment(text) {
 	return false;
 }
 
-const REGEX_LITERAL_PREFIX = /(^|[=(,:[!&|?{;+]|=>|\breturn)\s*$/;
+const REGEX_LITERAL_PREFIX = /(^|[=(,:[!&|?{;+]|=>|(?:^|[^.\w$])(?:return|throw|typeof|case|yield|await|else|void|delete))\s*$/;
 const MAX_NESTING = 64;
 
 function normalizeComment(text) {
