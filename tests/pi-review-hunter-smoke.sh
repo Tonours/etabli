@@ -68,6 +68,7 @@ case "${FAKE_PI:-ok}" in
   ok) printf 'GO\n' ;;
   empty) : ;;
   slow) sleep 5 ;;
+  killwatch) pkill -KILL -f "^perl .* $$\$"; sleep 2; printf 'GO\n' ;;
 esac
 FAKE
 chmod +x "$TMP_DIR/bin/pi"
@@ -95,5 +96,8 @@ chmod +x "$TMP_DIR/broken-perl/perl"
 broken_rc=0
 PATH="$TMP_DIR/broken-perl:$TMP_DIR/bin:$PATH" "$HELPER" --prompt-file "$PROMPT_FILE" --patch "$PATCH_FILE" >/dev/null 2>&1 || broken_rc=$?
 [ "$broken_rc" -eq 3 ] || fail "a failed watchdog must not accept the report, got $broken_rc"
+killed_rc=0
+FAKE_PI=killwatch PATH="$TMP_DIR/bin:$PATH" "$HELPER" --prompt-file "$PROMPT_FILE" --patch "$PATCH_FILE" --timeout 1 >/dev/null 2>&1 || killed_rc=$?
+[ "$killed_rc" -eq 3 ] || fail "a watchdog killed by someone else must not accept the report, got $killed_rc"
 
 printf 'pi-review-hunter smoke test: ok\n'

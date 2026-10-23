@@ -122,6 +122,7 @@ fi
 build_pi_args
 out="$(mktemp "${TMPDIR:-/tmp}/etabli-hunter.XXXXXX")"
 trap 'rm -f "$out"' EXIT
+started=$SECONDS
 pi "${PI_ARGS[@]}" </dev/null >"$out" &
 pi_pid=$!
 perl -e 'sleep shift; kill "TERM", shift' "$TIMEOUT_SECS" "$pi_pid" </dev/null >/dev/null 2>&1 &
@@ -133,7 +134,7 @@ kill -KILL "$watchdog" 2>/dev/null
 wait "$watchdog" 2>/dev/null
 watchdog_status=$?
 set -e
-if [ "$watchdog_status" -ne 137 ]; then
+if [ "$watchdog_status" -ne 137 ] || [ $((SECONDS - started)) -ge "$TIMEOUT_SECS" ]; then
   printf 'HUNTER_TIMEOUT\n' >&2
   exit 3
 fi
