@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -404,6 +404,43 @@ describe("reconcile", () => {
     assert.equal(readlinkSync(join(home, ".claude/skills/alpha")), join(repo, "vendor/suiteA/skills/alpha"));
     assert.ok(!existsSync(join(home, ".claude/skills.bak/alpha.bak.smoke")));
     assert.ok(lstatSync(join(home, ".claude/skills.bak/beta.bak.smoke")).isFile());
+  });
+
+  test("two concurrent replacements of a stale link end valid, with no crash and no EEXIST", async () => {
+    const repo = fixtureRepo(join(tmp, "repo"), [["shared/core-one", "etabli", "1", "1"]], []);
+    writeSkill(join(repo, "skills/shared/core-one"), "name: core-one");
+    const home = join(tmp, "home");
+    const dest = join(home, ".claude/skills/core-one");
+    const stale = "../../../repo/skills/shared/core-one";
+    link(stale, dest);
+    const racer = join(tmp, "racer.mjs");
+    writeFileSync(
+      racer,
+      [
+        'import { renameSync, symlinkSync } from "node:fs";',
+        `const { reconcile, skillRecords } = await import(${JSON.stringify(join(dirname(fileURLToPath(import.meta.url)), "../scripts/lib/surfaces.mjs"))});`,
+        `const [repo, home, dest, stale] = ${JSON.stringify([repo, home, dest, stale])};`,
+        "const fails = [];",
+        "for (let round = 0; round < 200; round += 1) {",
+        "  symlinkSync(stale, `${home}/.claude/skills/.reset.${process.pid}`);",
+        "  renameSync(`${home}/.claude/skills/.reset.${process.pid}`, dest);",
+        '  reconcile({ repoDir: repo, homeDir: home, claudeRoot: `${home}/.claude`, claudeOnly: true, scopes: ["shared"], records: skillRecords(repo), mode: "deploy", apply: true, install: false, verbose: false, timestamp: "race", live: false }, (status, message) => status === "FAIL" && fails.push(message));',
+        "}",
+        "const clashes = fails.filter((message) => message.includes(\"EEXIST\"));",
+        "if (clashes.length) throw new Error(clashes.join(\"; \"));",
+        "",
+      ].join("\n"),
+    );
+    const race = () =>
+      new Promise((resolve) => {
+        const child = spawn(process.execPath, [racer], { stdio: ["ignore", "ignore", "pipe"] });
+        let stderr = "";
+        child.stderr.on("data", (chunk) => (stderr += chunk));
+        child.on("close", (status) => resolve({ status, stderr }));
+      });
+    for (const { status, stderr } of await Promise.all([race(), race()])) assert.equal(status, 0, stderr);
+    assert.equal(readlinkSync(dest), join(repo, "skills/shared/core-one"));
+    assert.deepEqual(readdirSync(join(home, ".claude/skills")), ["core-one"]);
   });
 
   test("dry run reports drift without touching the home", () => {
