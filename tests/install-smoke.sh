@@ -219,6 +219,9 @@ const fs = require("node:fs");
 const settings = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
 const tracked = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
 const sourceOf = (entry) => typeof entry === "string" ? entry : entry.source;
+if (!tracked.packages.length || !tracked.enabledModels.length) {
+  throw new Error("tracked Pi settings list no package or no model to sync");
+}
 const sources = settings.packages.map(sourceOf);
 if (!tracked.packages.map(sourceOf).every((source) => sources.includes(source))) {
   throw new Error("settings sync did not add every tracked source");
