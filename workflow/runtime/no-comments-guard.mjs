@@ -254,19 +254,19 @@ export function collectCommentLines(text, family) {
 	};
 
 	const scanCode = (start, closer) => {
-		let lineCode = "";
+		let codeTail = "";
 		let depth = 0;
 		const opener = { ")": "(", "}": "{" }[closer];
 		let index = start;
 		const heredocs = [];
 		const appendCode = (text) => {
-			if (lineCode.length > 128) lineCode = lineCode.slice(-32);
-			if (!/^\s$/.test(text) || !/\s$/.test(lineCode)) lineCode += text;
+			if (codeTail.length > 128) codeTail = codeTail.slice(-32);
+			if (!/^\s$/.test(text) || !/\s$/.test(codeTail)) codeTail += text;
 		};
 		while (index < source.length) {
 			const char = source[index];
 			if (char === "\n") {
-				lineCode = "";
+				appendCode(" ");
 				index += 1;
 				for (const heredoc of heredocs.splice(0)) index = skipHeredoc(index, heredoc);
 				continue;
@@ -341,7 +341,7 @@ export function collectCommentLines(text, family) {
 				appendCode("S");
 				continue;
 			}
-			if (family === "clike" && char === "/" && REGEX_LITERAL_PREFIX.test(lineCode)) {
+			if (family === "clike" && char === "/" && REGEX_LITERAL_PREFIX.test(codeTail)) {
 				const stop = skipRegexLiteral(source, index);
 				if (stop !== -1) {
 					index = stop;
