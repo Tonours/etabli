@@ -13,6 +13,8 @@ Managed links installed by `scripts/deploy-agent-workflow` / `scripts/install.sh
 - `~/.pi/settings.json` -> `pi/settings.json`
 - `~/.pi/themes/` -> `pi/themes/`
 - `~/.local/bin/fix-links` and `~/.local/bin/deploy-workflow` -> `scripts/`
+- `~/.claude/CLAUDE.md` -> `claude/claude-global.md`; the name keeps a session
+  that reads files under `claude/` from loading it again as nested memory
 - `~/.claude/PLAN_TEMPLATE.md` / `PLAN_TEMPLATE_FULL.md` -> repo root templates
 - `~/.claude/workflow/` -> `workflow/`
 - `~/.claude/skills/<name>/` -> `skills/<scope>/<name>/` and vendored skills

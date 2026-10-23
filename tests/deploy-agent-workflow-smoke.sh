@@ -124,7 +124,7 @@ assert_absent() {
   fi
 }
 
-assert_link "$HOME_DIR/.claude/CLAUDE.md" "$ROOT_DIR/claude/CLAUDE.md"
+assert_link "$HOME_DIR/.claude/CLAUDE.md" "$ROOT_DIR/claude/claude-global.md"
 assert_link "$HOME_DIR/.claude/workflow" "$ROOT_DIR/workflow"
 assert_link "$HOME_DIR/.claude/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
 assert_link "$HOME_DIR/.claude/PLAN_TEMPLATE_FULL.md" "$ROOT_DIR/PLAN_TEMPLATE_FULL.md"
@@ -182,7 +182,7 @@ if ls "$RELOCATED_CLAUDE_DIR/commands"/plan-loop.md.bak.* >/dev/null 2>&1; then
   printf 'deploy backed up a dangling managed link\n' >&2
   exit 1
 fi
-assert_link "$RELOCATED_CLAUDE_DIR/CLAUDE.md" "$ROOT_DIR/claude/CLAUDE.md"
+assert_link "$RELOCATED_CLAUDE_DIR/CLAUDE.md" "$ROOT_DIR/claude/claude-global.md"
 assert_link "$RELOCATED_CLAUDE_DIR/skills/adr" "$ROOT_DIR/skills/shared/adr"
 CLAUDE_CONFIG_DIR="$RELOCATED_CLAUDE_DIR" "$ROOT_DIR/scripts/claude-hooks-check" >/dev/null
 backups=( "$RELOCATED_CLAUDE_DIR"/CLAUDE.md.bak.* )
@@ -207,7 +207,7 @@ if [ -n "$(ls -A "$OUTSIDE_CLAUDE_DIR")" ]; then
   printf 'deploy under a disposable HOME wrote into an outside CLAUDE_CONFIG_DIR\n' >&2
   exit 1
 fi
-assert_link "$ISOLATED_HOME_DIR/.claude/CLAUDE.md" "$ROOT_DIR/claude/CLAUDE.md"
+assert_link "$ISOLATED_HOME_DIR/.claude/CLAUDE.md" "$ROOT_DIR/claude/claude-global.md"
 assert_link "$HOME_DIR/.claude/hooks/read-only-agent-guard.mjs" "$ROOT_DIR/claude/hooks/read-only-agent-guard.mjs"
 assert_link "$HOME_DIR/.claude/settings.workflow-hooks.json" "$ROOT_DIR/claude/settings.workflow-hooks.json"
 assert_link "$HOME_DIR/.claude/statusline-command.sh" "$ROOT_DIR/claude/statusline-command.sh"

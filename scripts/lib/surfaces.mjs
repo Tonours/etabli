@@ -526,7 +526,7 @@ function reconcileClaudeScopes(ctx) {
 function reconcileClaude(ctx) {
   const { repoDir, claudeRoot } = ctx;
   ctx.emit("SECTION", "Claude");
-  ensureLink(ctx, join(repoDir, "claude/CLAUDE.md"), join(claudeRoot, "CLAUDE.md"), "Claude CLAUDE.md");
+  ensureLink(ctx, join(repoDir, "claude/claude-global.md"), join(claudeRoot, "CLAUDE.md"), "Claude CLAUDE.md");
   ensureLink(ctx, join(repoDir, "workflow"), join(claudeRoot, "workflow"), "Claude workflow");
   for (const template of ["PLAN_TEMPLATE.md", "PLAN_TEMPLATE_FULL.md"]) {
     ensureLink(ctx, join(repoDir, template), join(claudeRoot, template), `Claude ${template}`);
