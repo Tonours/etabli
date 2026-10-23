@@ -178,6 +178,15 @@ assert_contains "$NEW_PROJECT/.git/info/exclude" "/scripts/lib/hash.sh"
 for managed in scripts/lib/plan-status.mjs scripts/lib/plan-cleanup-command.mjs scripts/vendor/commonmark/commonmark.cjs; do
   git -C "$NEW_PROJECT" check-ignore -q -- "$managed" || { printf 'managed tooling exposed to project Git: %s\n' "$managed" >&2; exit 1; }
 done
+LINKED_MAIN="$TMP_DIR/linked-main"
+LINKED_WORKTREE="$TMP_DIR/linked-worktree"
+git init -q "$LINKED_MAIN"
+git -C "$LINKED_MAIN" -c user.name=test -c user.email=test@example.com commit -q --allow-empty -m base
+git -C "$LINKED_MAIN" worktree add -q "$LINKED_WORKTREE"
+"$SCRIPT" "$LINKED_WORKTREE" >/dev/null
+assert_contains "$LINKED_MAIN/.git/info/exclude" "etabli personal workflow ignores"
+linked_status="$(git -C "$LINKED_WORKTREE" status --porcelain --untracked-files=all)"
+[ -z "$linked_status" ] || { printf 'scaffold files exposed in a linked worktree:\n%s\n' "$linked_status" >&2; exit 1; }
 printf '// changed managed helper\n' >>"$NEW_PROJECT/scripts/lib/plan-status.mjs"
 "$SCRIPT" "$NEW_PROJECT" --force >/dev/null
 assert_same "$ROOT_DIR/scripts/lib/plan-status.mjs" "$NEW_PROJECT/scripts/lib/plan-status.mjs"

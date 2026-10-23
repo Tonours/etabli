@@ -609,14 +609,13 @@ warn_plan_gitignore() {
 }
 
 ensure_local_exclude() {
-  local git_dir exclude_path desired current tmp
+  local exclude_path desired tmp
 
-  if ! git_dir="$(git -C "$TARGET_DIR" rev-parse --absolute-git-dir 2>/dev/null)"; then
+  if ! exclude_path="$(git -C "$TARGET_DIR" rev-parse --path-format=absolute --git-path info/exclude 2>/dev/null)"; then
     status_line SKIP "not a git repository - no .git/info/exclude to manage"
     return 0
   fi
 
-  exclude_path="$git_dir/info/exclude"
   desired="$(exclude_block)"
 
   if [ -f "$exclude_path" ] && [ "$(awk -v b="$EXCLUDE_BEGIN" -v e="$EXCLUDE_END" 'index($0,b){f=1} f{print} index($0,e){f=0}' "$exclude_path")" = "$desired" ]; then
@@ -632,8 +631,8 @@ ensure_local_exclude() {
     return 0
   fi
 
-  mkdir -p "$git_dir/info"
-  tmp="$(mktemp)"
+  mkdir -p "$(dirname "$exclude_path")"
+  tmp="$(mktemp "$exclude_path.XXXXXX")"
   if [ -f "$exclude_path" ]; then
     awk -v b="$EXCLUDE_BEGIN" -v e="$EXCLUDE_END" 'index($0,b){f=1} !f{print} index($0,e){f=0}' "$exclude_path" >"$tmp"
   fi
@@ -664,6 +663,7 @@ if [ "$CONFLICTS" -eq 0 ]; then
 fi
 
 if [ "$CONFLICTS" -eq 0 ]; then
+  ensure_local_exclude
   for entry in "${FILES[@]}"; do
     write_file "${entry%%|*}" "${entry#*|}"
   done
@@ -672,7 +672,6 @@ if [ "$CONFLICTS" -eq 0 ]; then
       prune_file "$relative_path"
     done
   fi
-  ensure_local_exclude
 fi
 
 printf '\nSummary: %d written, %d removed, %d unchanged, %d conflict(s)\n' "$WRITTEN" "$REMOVED" "$UNCHANGED" "$CONFLICTS"
