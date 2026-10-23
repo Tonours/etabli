@@ -129,7 +129,7 @@ watchdog=$!
 set +e
 wait "$pi_pid"
 status=$?
-kill "$watchdog" 2>/dev/null
+kill -KILL "$watchdog" 2>/dev/null
 wait "$watchdog"
 watchdog_status=$?
 set -e
