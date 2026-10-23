@@ -15,6 +15,9 @@ core	shell-docs	skill-hygiene	tests/skill-hygiene-smoke.sh
 full	shell-docs	pr-review-gates-smoke	tests/pr-review-gates-smoke.sh
 full	shell-docs	pr-review-flow-smoke	tests/pr-review-flow-smoke.sh
 full	shell-docs	workflow-scaffold-smoke	tests/workflow-scaffold-smoke.sh
+full	shell-docs	workflow-scaffold-check-smoke	tests/workflow-scaffold-check-smoke.sh
+full	shell-docs	workflow-scaffold-prune-smoke	tests/workflow-scaffold-prune-smoke.sh
+full	shell-docs	workflow-scaffold-prune-index-smoke	tests/workflow-scaffold-prune-index-smoke.sh
 full	shell-docs	claude-hooks-smoke	tests/claude-hooks-smoke.sh
 full	shell-docs	claude-agents-smoke	tests/claude-agents-smoke.sh
 full	shell-docs	claude-skills-smoke	tests/claude-skills-smoke.sh
