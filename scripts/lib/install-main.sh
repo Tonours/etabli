@@ -39,8 +39,16 @@ converge_agent_surfaces() {
         "${NODE_CMD[@]}" "$BOOTSTRAP_DIR/deploy-agent-workflow" --apply --home "$HOME"
 }
 
+RTK_MIN_VERSION=0.39.0
+
 has_valid_rtk() {
-    command -v rtk &>/dev/null && rtk gain >/dev/null 2>&1
+    local version
+
+    command -v rtk &>/dev/null && rtk gain >/dev/null 2>&1 || return 1
+    version="$(rtk --version 2>/dev/null)"
+    print_step "rtk --version: ${version:-none}"
+    version="${version##* }"
+    [ "$(printf '%s\n' "$RTK_MIN_VERSION" "$version" | sort -t. -k1,1n -k2,2n -k3,3n | head -1)" = "$RTK_MIN_VERSION" ]
 }
 
 node_available() {
@@ -343,14 +351,14 @@ else
     if [[ "$OS" == "mac" ]] && command -v brew &>/dev/null; then
         brew install rtk || print_warning "RTK brew install failed"
     else
-        curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/4ef8730cf3a0dea11c8d64a9b90bc0616fe52100/install.sh | RTK_VERSION=v0.39.0 sh ||
+        curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/4ef8730cf3a0dea11c8d64a9b90bc0616fe52100/install.sh | RTK_VERSION="v$RTK_MIN_VERSION" sh ||
             print_warning "RTK install script failed"
     fi
 
     if has_valid_rtk; then
         print_success "RTK installed"
     else
-        print_warning "RTK not available or wrong binary installed; verify with: rtk gain"
+        print_warning "RTK not available, wrong binary or older than $RTK_MIN_VERSION; verify with: rtk --version && rtk gain"
     fi
 fi
 
