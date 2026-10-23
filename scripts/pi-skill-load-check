@@ -107,7 +107,7 @@ export default function (pi: {
   });
 }
 EXT
-  PI_SKILLS_DUMP="$DUMP_FILE" pi -p --no-session --offline -e "$TMP_DIR/measure.ts" ok >/dev/null 2>&1 || true
+  PI_SKILLS_DUMP="$DUMP_FILE" pi -p --no-session --offline -e "$TMP_DIR/measure.ts" ok </dev/null >/dev/null 2>&1 || true
   [ -s "$DUMP_FILE" ] || {
     printf 'pi-skill-load-check: native dump failed or empty (pi run produced no system prompt)\n' >&2
     exit 1

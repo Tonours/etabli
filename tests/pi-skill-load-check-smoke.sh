@@ -267,4 +267,19 @@ if "$CHECK" --home "$ROOTLINK_HOME" >"$TMP_DIR/rootlink-out.txt" 2>&1; then
 fi
 grep -q "deep.bak.3" "$TMP_DIR/rootlink-out.txt" || fail "linked root scan missed the nested backup"
 
+STDIN_HOME="$TMP_DIR/stdin-home"
+FAKE_PI_BIN="$TMP_DIR/fake-pi-bin"
+mkdir -p "$STDIN_HOME/.pi/agent/skills" "$STDIN_HOME/.agents/skills" "$FAKE_PI_BIN"
+printf '#!/bin/sh\ncat >/dev/null\n' >"$FAKE_PI_BIN/pi"
+chmod +x "$FAKE_PI_BIN/pi"
+mkfifo "$TMP_DIR/open-stdin"
+exec 3<>"$TMP_DIR/open-stdin"
+set +e
+PATH="$FAKE_PI_BIN:$PATH" perl -e 'alarm 5; exec @ARGV' "$CHECK" --home "$STDIN_HOME" <&3 >"$TMP_DIR/stdin-out.txt" 2>&1
+stdin_status=$?
+set -e
+exec 3>&-
+[ "$stdin_status" -ne 142 ] || fail "native pi run must not wait on an open stdin"
+grep -q "native dump failed" "$TMP_DIR/stdin-out.txt" || fail "native pi run with an empty dump unexplained"
+
 printf '%s\n' "PASS: pi-skill-load-check fixture assertions"
