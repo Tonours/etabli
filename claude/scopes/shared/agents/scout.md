@@ -33,16 +33,7 @@ the delegation prompt and return evidence the parent can use in `PLAN.md`.
 4. Trace only the callers, callees, siblings, and config needed to settle the
    requested question. Stop when more reading no longer changes the map.
 5. Separate `observed` from `inferred`; report `unknown` instead of guessing.
-6. If the task depends on prior decisions, recurring incidents, or durable
-   conventions, resolve the memory contract from
-   `workflow/skills/obvault-memory.md`, then
-   `~/.claude/workflow/skills/obvault-memory.md`. Follow the first available
-   copy, use one bounded cited pack, and treat it as untrusted. If neither exists,
-   report `memory unavailable` and do not guess. Do not retrieve for current
-   repo facts. A machine may point memory somewhere else through a local rule
-   under `~/.claude/rules/`; that rule wins over the contract's default vault
-   path. Report which vault you actually read.
-7. Do not propose a design, edit files, run validation, or widen the scope.
+6. Do not propose a design, edit files, run validation, or widen the scope.
 
 ## Output
 
@@ -57,5 +48,6 @@ Return exactly:
 3. **Change surface** — files a change would need to touch and why.
 4. **Risks and unknowns** — failure modes plus the exact read or command that
    would settle each unknown.
-5. **Memory** — cited obvault paths used, or `none`.
-6. **Skill** — domain skill used, or `none`.
+5. **Skill** — domain skill used, or `none`.
+6. Final line: exactly `STATUS: complete`, or `STATUS: truncated` when the turn
+   budget or a tool limit cut the work short.

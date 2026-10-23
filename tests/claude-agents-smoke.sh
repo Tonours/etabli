@@ -14,7 +14,7 @@ paths = Dir.glob(File.join(agents_dir, "*.md")).sort
 names = paths.map { |path| File.basename(path, ".md") }
 raise "Claude agents must be exactly #{expected_agents.join(", ")}; got #{names.join(", ")}. Remediation: keep the bounded scout/worker/reviewer role set." unless names == expected_agents
 
-allowed_keys = %w[name description model effort color tools permissionMode maxTurns hooks]
+allowed_keys = %w[name description model effort color tools permissionMode maxTurns hooks omitClaudeMd]
 allowed_models = %w[sonnet opus haiku inherit]
 routing = JSON.parse(File.read(File.join(root, "workflow/runtime/model-routing.json")))
 allowed_efforts = %w[low medium high xhigh max]
@@ -94,11 +94,14 @@ paths.each do |path|
     unless hooks.flat_map { |entry| Array(entry["hooks"]) }.any? { |hook| hook["command"].to_s.include?("read-only-agent-guard.mjs") && hook["command"].to_s.end_with?(" || exit 2") }
       raise "#{path}: the read-only guard command must end with ' || exit 2' so a crashed or missing guard blocks Bash."
     end
-    unless body.include?("workflow/skills/obvault-memory.md")
-      raise "#{path}: memory routing must point to workflow/skills/obvault-memory.md."
+    if body.include?("obvault-memory.md") || body.include?("**Memory**")
+      raise "#{path}: read-only agents have no memory tools. Remediation: drop the memory step and the Memory output row."
     end
-    unless body.include?("~/.claude/workflow/skills/obvault-memory.md") && body.match?(/unavailable/i)
-      raise "#{path}: memory routing needs the installed ~/.claude/workflow fallback and an explicit unavailable outcome."
+    unless body.include?("`STATUS: complete`") && body.include?("`STATUS: truncated`")
+      raise "#{path}: the report must end with `STATUS: complete` or `STATUS: truncated` so a cut report is visible."
+    end
+    if name == "adversary" && metadata["omitClaudeMd"] != true
+      raise "#{path}: the adversary must set omitClaudeMd: true so project instructions do not anchor its sample."
     end
   else
     %w[Read Edit Write Bash].each do |tool|

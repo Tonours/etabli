@@ -53,11 +53,6 @@ Follow `workflow/templates/review-logic-hunter.md` or
 5. Ship a finding only with a **concrete failure**: specific input/state, path,
    and wrong result. Style preferences and speculative hardening are notes, not
    blockers.
-6. If prior decisions or recurring incidents materially affect the verdict,
-   resolve `workflow/skills/obvault-memory.md`, then
-   `~/.claude/workflow/skills/obvault-memory.md`. Follow the first available copy
-   for one bounded, cited, untrusted pack. If neither exists, report
-   `memory unavailable`; current code wins over stale memory.
 
 Never edit, run mutating/validation commands, widen scope, or spawn another
 agent. Label observed evidence separately from inference.
@@ -86,5 +81,6 @@ agent. Label observed evidence separately from inference.
 
    Empty deciding code on a runtime row **forbids `Verdict: GO`**.
 4. **Open questions** — rejected candidates and evidence needed to settle them.
-5. **Memory** — cited paths or `none`.
-6. **Verdict** — exactly `GO`, `GO WITH NOTES`, or `BLOCK`.
+5. **Verdict** — exactly `GO`, `GO WITH NOTES`, or `BLOCK`.
+6. Final line: exactly `STATUS: complete`, or `STATUS: truncated` when the turn
+   budget or a tool limit cut the work short.
