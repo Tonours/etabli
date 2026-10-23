@@ -209,15 +209,15 @@ export function backupStamp(date = new Date()) {
   return date.toISOString().replace(/[-:]|\.\d+/g, "");
 }
 
-export function backupFile(path, { stamp = backupStamp(), keep = KEPT_BACKUPS } = {}) {
+export function backupFile(path, { stamp = backupStamp() } = {}) {
   let backup = `${path}.bak.${stamp}`;
   for (let index = 1; lstatOrNull(backup); index += 1) backup = `${path}.bak.${stamp}.${index}`;
   copyFileSync(path, backup, constants.COPYFILE_EXCL);
-  rotateBackups(path, keep);
+  rotateBackups(path);
   return backup;
 }
 
-export function rotateBackups(path, keep = KEPT_BACKUPS) {
+export function rotateBackups(path) {
   const dir = dirname(path);
   const name = basename(path);
   const removed = entries(dir)
@@ -225,14 +225,18 @@ export function rotateBackups(path, keep = KEPT_BACKUPS) {
     .map((entry) => ({ path: join(dir, entry), stat: lstatOrNull(join(dir, entry)) }))
     .filter(({ stat }) => stat?.isFile())
     .sort((a, b) => b.stat.mtimeMs - a.stat.mtimeMs)
-    .slice(keep)
+    .slice(KEPT_BACKUPS)
     .map((backup) => backup.path);
   for (const backup of removed) rmSync(backup, { force: true });
   return removed;
 }
 
+function stagedPath(path) {
+  return join(dirname(path), `.${basename(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+}
+
 function replaceFile(path, content, mode) {
-  const staged = join(dirname(path), `.${basename(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+  const staged = stagedPath(path);
   const fd = openSync(staged, "wx", 0o600);
   try {
     try {
@@ -329,7 +333,7 @@ function ensureLink(ctx, source, dest, label) {
   report(ctx, "LINK", ctx.mode === "check" ? `${label} ${state} (expected ${source})` : `${label} -> ${source}`, () => {
     mkdirSync(dirname(dest), { recursive: true });
     if (stat && !replace) moveAside(ctx, dest);
-    const staged = join(dirname(dest), `.${basename(dest)}.${process.pid}.${randomBytes(4).toString("hex")}.link`);
+    const staged = stagedPath(dest);
     symlinkSync(source, staged);
     try {
       renameSync(staged, dest);
