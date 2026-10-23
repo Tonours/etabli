@@ -497,23 +497,47 @@ fi
 grep -q 'pi-agent-settings-sync: cannot read local settings' "$TMP_DIR/bad-pi.out" || { cat "$TMP_DIR/bad-pi.out" >&2; exit 1; }
 grep -q 'Claude tracked settings' "$TMP_DIR/bad-pi.out" || { printf 'invalid Pi settings hid the Claude sync:\n' >&2; cat "$TMP_DIR/bad-pi.out" >&2; exit 1; }
 
-# A pi earlier on PATH than the managed one is reported as shadowing it.
-mkdir -p "$HOME_DIR/.local/bin" "$TMP_DIR/shadow-bin" "$TMP_DIR/dir-bin/pi"
-printf '#!/bin/sh\n' >"$HOME_DIR/.local/bin/pi"
-printf '#!/bin/sh\n' >"$TMP_DIR/shadow-bin/pi"
-chmod +x "$HOME_DIR/.local/bin/pi" "$TMP_DIR/shadow-bin/pi"
-if ! PATH="$TMP_DIR/dir-bin:$HOME_DIR/.local/bin:$TMP_DIR/shadow-bin:$PATH" "$DEPLOY_SCRIPT" --check --home "$HOME_DIR" >"$TMP_DIR/pi-first.out" 2>&1; then
+# A pi earlier on the live PATH than the managed one is reported as shadowing it.
+mkdir -p "$HOME_DIR/.local/bin" "$TMP_DIR/shadow-bin" "$TMP_DIR/dir-bin/pi" "$TMP_DIR/locked-bin" "$TMP_DIR/cwd-pi"
+for pi_stub in "$HOME_DIR/.local/bin/pi" "$TMP_DIR/shadow-bin/pi" "$TMP_DIR/cwd-pi/pi"; do
+  printf '#!/bin/sh\n' >"$pi_stub"
+  chmod +x "$pi_stub"
+done
+chmod 000 "$TMP_DIR/locked-bin"
+NODE_BIN="$(node -p process.execPath)"
+pi_check() {
+  local pi_home="$1" pi_path="$2"
+  shift 2
+  (cd "$TMP_DIR/cwd-pi" && env -u CLAUDE_CONFIG_DIR HOME="$pi_home" ETABLI_SKIP_LIVE_CHECKS=1 PATH="$pi_path" "$NODE_BIN" "$DEPLOY_SCRIPT" --check --home "$HOME_DIR" "$@")
+}
+pi_first_rc=0
+pi_check "$HOME_DIR" "$TMP_DIR/locked-bin:$TMP_DIR/dir-bin:$HOME_DIR/.local/bin:$TMP_DIR/shadow-bin:$PATH" >"$TMP_DIR/pi-first.out" 2>&1 || pi_first_rc=$?
+chmod 700 "$TMP_DIR/locked-bin"
+if [ "$pi_first_rc" -ne 0 ]; then
   printf 'check failed with the managed pi first on PATH:\n' >&2
   cat "$TMP_DIR/pi-first.out" >&2
   exit 1
 fi
-if PATH="$TMP_DIR/shadow-bin:$HOME_DIR/.local/bin:$PATH" "$DEPLOY_SCRIPT" --check --fix --home "$HOME_DIR" >"$TMP_DIR/pi-shadow.out" 2>&1; then
+if ! pi_check "$TMP_DIR" "$TMP_DIR/shadow-bin:$HOME_DIR/.local/bin:$PATH" >"$TMP_DIR/pi-other-home.out" 2>&1; then
+  printf 'check compared another home with the caller PATH:\n' >&2
+  cat "$TMP_DIR/pi-other-home.out" >&2
+  exit 1
+fi
+if pi_check "$HOME_DIR" "$TMP_DIR/shadow-bin:$HOME_DIR/.local/bin:$PATH" --fix >"$TMP_DIR/pi-shadow.out" 2>&1; then
   printf 'check passed with a shadowing pi on PATH\n' >&2
   exit 1
 fi
 grep -Fq "SHADOWED       pi $TMP_DIR/shadow-bin/pi runs before $(cd "$HOME_DIR" && pwd -P)/.local/bin/pi;" "$TMP_DIR/pi-shadow.out" &&
   grep -Fq 'remove it or put $HOME/.local/bin first on PATH' "$TMP_DIR/pi-shadow.out" || {
   cat "$TMP_DIR/pi-shadow.out" >&2
+  exit 1
+}
+if pi_check "$HOME_DIR" ":$HOME_DIR/.local/bin:$PATH" >"$TMP_DIR/pi-empty-entry.out" 2>&1; then
+  printf 'check missed a pi in the current directory through an empty PATH entry\n' >&2
+  exit 1
+fi
+grep -Fq "cwd-pi/pi runs before" "$TMP_DIR/pi-empty-entry.out" || {
+  cat "$TMP_DIR/pi-empty-entry.out" >&2
   exit 1
 }
 

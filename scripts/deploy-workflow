@@ -442,7 +442,8 @@ write_file() {
       status_line WOULD_REFRESH "$relative_path"
       return 0
     fi
-    cp "$source_path" "$destination_path"
+    cp "$source_path" "$destination_path.etabli-refresh.$$"
+    mv -f "$destination_path.etabli-refresh.$$" "$destination_path"
     status_line REFRESH "$relative_path"
     WRITTEN=$((WRITTEN + 1))
     return 0
@@ -606,6 +607,9 @@ exclude_block() {
     "/workflow/" \
     "/scripts/plan-cleanup" \
     "/scripts/lib/plan-cleanup-command.mjs" \
+    "/scripts/lib/plan-status.mjs" \
+    "/scripts/lib/hash.sh" \
+    "/scripts/vendor/commonmark/commonmark.cjs" \
     "/docs/agent-workflow.md" \
     "/docs/claude-code-workflow.md" \
     "/docs/project-context.md" \

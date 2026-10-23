@@ -173,7 +173,7 @@ git -C "$NEW_PROJECT" init -q .
 assert_contains "$NEW_PROJECT/.git/info/exclude" "etabli personal workflow ignores"
 assert_contains "$NEW_PROJECT/.git/info/exclude" "/PLAN.md"
 assert_contains "$NEW_PROJECT/.git/info/exclude" "/workflow/"
-for managed in scripts/plan-cleanup scripts/lib/plan-cleanup-command.mjs; do
+for managed in scripts/plan-cleanup scripts/lib/plan-cleanup-command.mjs scripts/lib/plan-status.mjs scripts/lib/hash.sh scripts/vendor/commonmark/commonmark.cjs; do
   git -C "$NEW_PROJECT" check-ignore -q -- "$managed" || { printf 'managed tooling exposed to project Git: %s\n' "$managed" >&2; exit 1; }
 done
 LINKED_MAIN="$TMP_DIR/linked-main"
@@ -493,11 +493,14 @@ assert_file "$STAGED_PROJECT/scripts/workflow-event"
 STALE_PROJECT="$TMP_DIR/stale-project"
 "$SCRIPT" "$STALE_PROJECT" >/dev/null
 git -C "$ROOT_DIR" show "$(git -C "$ROOT_DIR" log -2 --format=%H -- workflow/answer-quality.md | tail -1):workflow/answer-quality.md" >"$STALE_PROJECT/workflow/answer-quality.md"
+ln "$STALE_PROJECT/workflow/answer-quality.md" "$TMP_DIR/stale-hardlink"
+cp "$TMP_DIR/stale-hardlink" "$TMP_DIR/stale-hardlink.before"
 "$SCRIPT" "$STALE_PROJECT" --dry-run >"$TMP_DIR/stale-dry.out"
 assert_contains "$TMP_DIR/stale-dry.out" "WOULD_REFRESH workflow/answer-quality.md"
 "$SCRIPT" "$STALE_PROJECT" >"$TMP_DIR/stale.out"
 assert_contains "$TMP_DIR/stale.out" "REFRESH   workflow/answer-quality.md"
 assert_same "$ROOT_DIR/workflow/answer-quality.md" "$STALE_PROJECT/workflow/answer-quality.md"
+assert_same "$TMP_DIR/stale-hardlink.before" "$TMP_DIR/stale-hardlink"
 if compgen -G "$STALE_PROJECT/workflow/answer-quality.md.bak.*" >/dev/null; then
   printf 'a STALE refresh left a backup\n' >&2
   exit 1
