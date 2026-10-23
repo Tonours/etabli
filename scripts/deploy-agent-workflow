@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { accessSync, constants, existsSync, writeSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { activeScopes, claudeConfigOverride, physicalHome, reconcile, seedPiSettings, skillRecords } from "./lib/surfaces.mjs";
+import { activeScopes, backupStamp, claudeConfigOverride, physicalHome, reconcile, seedPiSettings, skillRecords } from "./lib/surfaces.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoDir = dirname(scriptDir);
@@ -58,13 +58,6 @@ function parseArgs(argv) {
   options.homeDir = home;
   if (!options.check && (options.fix || options.verbose)) exit("--fix and --verbose require --check", 2);
   return options;
-}
-
-function timestamp() {
-  const now = new Date();
-  const pad = (value) => String(value).padStart(2, "0");
-  const date = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
-  return `${date}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
 }
 
 function run(script, args, env = {}) {
@@ -133,7 +126,7 @@ const base = {
   apply: options.check ? options.fix : options.apply,
   install: !options.check && process.env.ETABLI_DEPLOY_CALLER === "install",
   verbose: options.verbose,
-  timestamp: timestamp(),
+  timestamp: backupStamp(),
   live: homeIsLive && process.env.ETABLI_SKIP_LIVE_CHECKS !== "1",
 };
 const roots = [{ claudeRoot: join(options.homeDir, ".claude"), claudeOnly: false }];

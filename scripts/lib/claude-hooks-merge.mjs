@@ -1,5 +1,6 @@
-import { copyFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { backupFile, writeJsonAtomic } from "./surfaces.mjs";
 
 const claudeDir = process.argv[2];
 const repoDir = process.argv[3];
@@ -115,17 +116,7 @@ if (dryRun) {
   process.exit(0);
 }
 
-if (existsSync(livePath)) {
-  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+/, "");
-  let backup = `${livePath}.bak.${stamp}`;
-  let index = 1;
-  while (existsSync(backup)) {
-    backup = `${livePath}.bak.${stamp}.${index}`;
-    index += 1;
-  }
-  copyFileSync(livePath, backup);
-  console.log(`backup ${backup}`);
-}
+if (existsSync(livePath)) console.log(`backup ${backupFile(livePath)}`);
 for (const { event, matcher, hook } of removals) {
   console.log(`removed retired ${event}/${matcher ?? ""}: ${hook.command}`);
 }
@@ -140,4 +131,4 @@ for (const { event, matcher, hook } of additions) {
   else live.hooks[event].push({ matcher, hooks: [hook] });
   console.log(`added ${event}/${matcher ?? ""}: ${hook.command}`);
 }
-writeFileSync(livePath, `${JSON.stringify(live, null, 2)}\n`);
+writeJsonAtomic(livePath, live);

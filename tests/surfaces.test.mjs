@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, test } from "node:test";
 import {
   activeScopes,
+  backupFile,
+  backupStamp,
   claudeConfigOverride,
   declaredName,
   isShadowed,
@@ -16,6 +18,7 @@ import {
   seedPiSettings,
   skillRecords,
   surfaceExpected,
+  writeJsonAtomic,
 } from "../scripts/lib/surfaces.mjs";
 
 const ROOT_SKIP = process.getuid?.() === 0 && "root ignores permission bits";
@@ -470,5 +473,112 @@ describe("deploy-agent-workflow", () => {
       assert.equal(result.status, 2, args.join(" "));
       assert.ok(!existsSync(home), args.join(" "));
     }
+  });
+});
+
+describe("settings writes", () => {
+  const scripts = join(dirname(fileURLToPath(import.meta.url)), "../scripts");
+
+  function failingWrites() {
+    const preload = join(tmp, "enospc.mjs");
+    writeFileSync(
+      preload,
+      [
+        'import fs from "node:fs";',
+        'import { syncBuiltinESMExports } from "node:module";',
+        "const real = fs.writeFileSync;",
+        "fs.writeFileSync = (target, data, options) => {",
+        "  real(target, String(data).slice(0, 8), options);",
+        '  throw Object.assign(new Error("ENOSPC: no space left on device, write"), { code: "ENOSPC" });',
+        "};",
+        "syncBuiltinESMExports();",
+        "",
+      ].join("\n"),
+    );
+    return { ...process.env, NODE_OPTIONS: `--import ${preload}` };
+  }
+
+  function stamped(dir, name, stamp, ageSeconds) {
+    const path = join(dir, `${name}${stamp}`);
+    writeFileSync(path, stamp);
+    const when = Date.now() / 1000 - ageSeconds;
+    utimesSync(path, when, when);
+    return path;
+  }
+
+  test("a write that fails before rename leaves the original byte-identical and no staged file", () => {
+    const path = join(tmp, "settings.json");
+    writeFileSync(path, "{\"keep\":true}\n");
+    chmodSync(path, 0o640);
+    const child = spawnSync(
+      process.execPath,
+      ["--input-type=module", "-e", `import { writeJsonAtomic } from ${JSON.stringify(join(scripts, "lib/surfaces.mjs"))}; writeJsonAtomic(${JSON.stringify(path)}, { replaced: true });`],
+      { encoding: "utf8", env: failingWrites() },
+    );
+    assert.notEqual(child.status, 0);
+    assert.equal(readFileSync(path, "utf8"), "{\"keep\":true}\n");
+    assert.deepEqual(readdirSync(tmp).sort(), ["enospc.mjs", "settings.json"]);
+    writeJsonAtomic(path, { replaced: true });
+    assert.equal(readFileSync(path, "utf8"), "{\n  \"replaced\": true\n}\n");
+    assert.equal(lstatSync(path).mode & 0o777, 0o640);
+  });
+
+  test("the settings writers keep the original when the write fails", () => {
+    const home = join(tmp, "home");
+    const claudeSettings = join(home, ".claude/settings.json");
+    const piSettings = join(home, ".pi/agent/settings.json");
+    mkdirSync(dirname(claudeSettings), { recursive: true });
+    mkdirSync(dirname(piSettings), { recursive: true });
+    const original = "{\"keep\":true}\n";
+    writeFileSync(claudeSettings, original);
+    writeFileSync(piSettings, original);
+    const runs = [
+      [join(scripts, "claude-hooks-merge"), ["--home", home]],
+      [process.execPath, [join(scripts, "lib/pi-agent-settings-sync.mjs"), piSettings, join(scripts, "../pi/agent/settings.json"), "0", "smoke", "deploy"]],
+      [process.execPath, [join(scripts, "lib/claude-settings-sync.mjs"), claudeSettings, join(scripts, "../claude/settings.skill-overrides.json"), "0", "smoke", "deploy"]],
+    ];
+    for (const [command, args] of runs) {
+      const child = spawnSync(command, args, { encoding: "utf8", env: failingWrites() });
+      assert.notEqual(child.status, 0, `${args[0]}: ${child.stdout}${child.stderr}`);
+      assert.equal(readFileSync(claudeSettings, "utf8"), original, args[0]);
+      assert.equal(readFileSync(piSettings, "utf8"), original, args[0]);
+    }
+    for (const dir of [dirname(claudeSettings), dirname(piSettings)]) {
+      assert.deepEqual(readdirSync(dir).filter((name) => !/^settings\.json(\.bak\.[^.]+(\.\d+)?)?$/.test(name)), [], dir);
+    }
+  });
+
+  test("backup stamps are UTC", () => {
+    assert.equal(backupStamp(new Date("2026-10-23T06:35:47.123Z")), "20261023T063547Z");
+  });
+
+  test("backupFile keeps the newest 5 timestamp-named backups across formats and never rotates named ones", () => {
+    const path = join(tmp, "settings.json");
+    writeFileSync(path, "{\"live\":true}\n");
+    const old = [
+      stamped(tmp, "settings.json", ".bak.20250101-000000", 900),
+      stamped(tmp, "settings.json", ".bak-20250102-000000", 800),
+      stamped(tmp, "settings.json", ".bak.20250103T000000", 700),
+      stamped(tmp, "settings.json", ".bak.20250104T000000Z", 600),
+    ];
+    const recent = [
+      stamped(tmp, "settings.json", ".bak.20250105-000000.1", 500),
+      stamped(tmp, "settings.json", ".bak-20250106-000000", 400),
+      stamped(tmp, "settings.json", ".bak.20250107T000000", 300),
+      stamped(tmp, "settings.json", ".bak.20250108T000000Z", 200),
+    ];
+    const named = [
+      stamped(tmp, "settings.json", ".bak-20250101-model-fix", 1000),
+      stamped(tmp, "settings.json", ".bak.token-economy-20250101T000000Z", 1000),
+      stamped(tmp, "settings.json", ".bak.20250101-prune", 1000),
+      stamped(tmp, "settings.json", ".bak.1700000000", 1000),
+      stamped(tmp, "models.json", ".bak.20200101-000000", 1000),
+    ];
+    const backup = backupFile(path, { stamp: "20261023T063547Z" });
+    assert.equal(backup, `${path}.bak.20261023T063547Z`);
+    assert.equal(readFileSync(backup, "utf8"), "{\"live\":true}\n");
+    for (const kept of [backup, ...recent, ...named]) assert.ok(existsSync(kept), kept);
+    for (const removed of old) assert.ok(!existsSync(removed), removed);
+    assert.equal(backupFile(path, { stamp: "20261023T063547Z" }), `${path}.bak.20261023T063547Z.1`);
   });
 });

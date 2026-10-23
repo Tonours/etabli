@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { backupFile, writeJsonAtomic } from "./surfaces.mjs";
 
 const [claudeDir, repoDir, gateRaw, alertRaw, fixRaw] = process.argv.slice(2);
 const FIX = fixRaw === "1";
@@ -43,6 +44,17 @@ function readText(file) {
     if (error.code === "ENOENT") return null;
     errors.push(`unreadable file under the skill surface: ${file} (${error.message}); fix its permissions`);
     return null;
+  }
+}
+
+function readJson(file, fallback) {
+  const text = readText(file);
+  if (text === null) return fallback;
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    console.error(`FAIL: invalid JSON in ${file} (${error.message}); fix it by hand, nothing written`);
+    process.exit(1);
   }
 }
 
@@ -149,10 +161,10 @@ for (const item of discovered) {
 }
 
 const liveSettingsPath = path.join(claudeDir, "settings.json");
-const liveSettings = JSON.parse(readText(liveSettingsPath) ?? "{}");
+const liveSettings = readJson(liveSettingsPath, {});
 const liveMap = liveSettings.skillOverrides ?? null;
 
-const trackedFragment = JSON.parse(readText(path.join(repoDir, "claude/settings.skill-overrides.json")) ?? "null");
+const trackedFragment = readJson(path.join(repoDir, "claude/settings.skill-overrides.json"), null);
 const trackedMap = trackedFragment?.skillOverrides ?? null;
 
 if (trackedMap === null) {
@@ -160,7 +172,7 @@ if (trackedMap === null) {
 }
 
 const governedMap = trackedMap ?? {};
-const MACHINE_LOCAL_ON = new Set(JSON.parse(readText(path.join(repoDir, "claude/machine-local-skills.json")) ?? "[]"));
+const MACHINE_LOCAL_ON = new Set(readJson(path.join(repoDir, "claude/machine-local-skills.json"), []));
 const repoReal = (() => {
   try {
     return fs.realpathSync(repoDir);
@@ -210,14 +222,14 @@ if (FIX && (missingFromMap.length > 0 || staleMapKeys.length > 0)) {
 	const staleGoverned = staleMapKeys.filter((name) => !stalePersonal.includes(name));
 	const sortedMap = (map) => Object.fromEntries(Object.entries(map).sort(([a], [b]) => a.localeCompare(b)));
 	if (repoMissing.length > 0 || staleGoverned.length > 0) {
-		const document = JSON.parse(fs.readFileSync(mapFilePath, "utf8"));
+		const document = readJson(mapFilePath, {});
 		const repaired = {};
 		for (const [name, state] of Object.entries(document.skillOverrides ?? {})) {
 			if (surfaceNames.has(name) || KNOWN.has(name)) repaired[name] = state;
 		}
 		for (const name of repoMissing) repaired[name] = "user-invocable-only";
 		document.skillOverrides = sortedMap(repaired);
-		fs.writeFileSync(mapFilePath, `${JSON.stringify(document, null, 2)}\n`);
+		writeJsonAtomic(mapFilePath, document);
 		for (const name of repoMissing) {
 			console.log(`FIX: governed ${name} as user-invocable-only in ${path.relative(repoDir, mapFilePath)}`);
 		}
@@ -226,12 +238,13 @@ if (FIX && (missingFromMap.length > 0 || staleMapKeys.length > 0)) {
 		}
 	}
 	if (personalMissing.length > 0 || stalePersonal.length > 0) {
-		const live = JSON.parse(readText(liveSettingsPath) ?? "{}");
+		const live = readJson(liveSettingsPath, {});
 		const personal = { ...(live.skillOverrides ?? {}) };
 		for (const name of stalePersonal) delete personal[name];
 		for (const name of personalMissing) personal[name] = "user-invocable-only";
 		live.skillOverrides = sortedMap(personal);
-		fs.writeFileSync(liveSettingsPath, `${JSON.stringify(live, null, 2)}\n`);
+		if (fs.existsSync(liveSettingsPath)) console.log(`FIX: backup ${backupFile(liveSettingsPath)}`);
+		writeJsonAtomic(liveSettingsPath, live);
 		for (const name of personalMissing) {
 			console.log(`FIX: governed personal skill ${name} as user-invocable-only in ${liveSettingsPath}`);
 		}
@@ -311,10 +324,10 @@ if (indexChars + nameOnlyChars > GATE) {
 }
 
 const pluginsFile = path.join(claudeDir, "plugins/installed_plugins.json");
-const plugins = JSON.parse(readText(pluginsFile) ?? "{}");
+const plugins = readJson(pluginsFile, {});
 const enabled =
 	liveSettings.enabledPlugins ?? {};
-const MACHINE_LOCAL_PLUGINS = new Set(JSON.parse(readText(path.join(repoDir, "claude/machine-local-plugins.json")) ?? "[]"));
+const MACHINE_LOCAL_PLUGINS = new Set(readJson(path.join(repoDir, "claude/machine-local-plugins.json"), []));
 for (const [key, on] of Object.entries(enabled)) {
   if (on !== true || MACHINE_LOCAL_PLUGINS.has(key)) continue;
   const records = plugins.plugins?.[key] ?? [];
