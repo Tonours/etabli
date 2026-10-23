@@ -22,6 +22,9 @@ but cannot confirm runtime support.
   primitives that the host does not expose.
 - Single writer: `workflow/skills/implementation-loop.md` step 8. The current
   Pi profile remains parent-only while its subagent capability is `unknown`.
+- A `scout`, `reviewer`, or `adversary` report whose last line is not
+  `STATUS: complete` counts as truncated: rerun or narrow it, never read it as
+  clean.
 
 ## Capability Labels
 
