@@ -33,9 +33,9 @@ printf '%s\n' "$out" | grep -Fx -- '--no-skills' >/dev/null || fail "expected --
 printf '%s\n' "$out" | grep -Fx -- '--no-extensions' >/dev/null || fail "expected --no-extensions in argv"
 printf '%s\n' "$out" | grep -Fx -- '--no-context-files' >/dev/null || fail "expected --no-context-files in argv"
 printf '%s\n' "$out" | grep -Fx -- 'read,grep' >/dev/null || fail "expected read,grep tools in argv"
-printf '%s\n' "$out" | grep -Fq -- "@${PATCH_FILE}" || fail "expected @patch transport in argv"
-printf '%s\n' "$out" | grep -Eq '^TIMEOUT=600$' || fail "expected TIMEOUT=600 header"
-if printf '%s\n' "$out" | grep -Fq -- '--model'; then
+printf '%s\n' "$out" | grep -F -- "@${PATCH_FILE}" >/dev/null || fail "expected @patch transport in argv"
+printf '%s\n' "$out" | grep -Ex 'TIMEOUT=600' >/dev/null || fail "expected TIMEOUT=600 header"
+if printf '%s\n' "$out" | grep -F -- '--model' >/dev/null; then
   fail "cursor/ model must be omitted from argv"
 fi
 
@@ -68,6 +68,7 @@ case "${FAKE_PI:-ok}" in
   ok) printf 'GO\n' ;;
   empty) : ;;
   slow) sleep 5 ;;
+  late) sleep 1; printf 'GO\n' ;;
   killwatch) pkill -KILL -f "^perl .* $$\$"; sleep 2; printf 'GO\n' ;;
 esac
 FAKE
@@ -94,7 +95,7 @@ mkdir -p "$TMP_DIR/broken-perl"
 printf '#!/bin/sh\nexit 127\n' >"$TMP_DIR/broken-perl/perl"
 chmod +x "$TMP_DIR/broken-perl/perl"
 broken_rc=0
-PATH="$TMP_DIR/broken-perl:$TMP_DIR/bin:$PATH" "$HELPER" --prompt-file "$PROMPT_FILE" --patch "$PATCH_FILE" >/dev/null 2>&1 || broken_rc=$?
+FAKE_PI=late PATH="$TMP_DIR/broken-perl:$TMP_DIR/bin:$PATH" "$HELPER" --prompt-file "$PROMPT_FILE" --patch "$PATCH_FILE" >/dev/null 2>&1 || broken_rc=$?
 [ "$broken_rc" -eq 3 ] || fail "a failed watchdog must not accept the report, got $broken_rc"
 killed_rc=0
 FAKE_PI=killwatch PATH="$TMP_DIR/bin:$PATH" "$HELPER" --prompt-file "$PROMPT_FILE" --patch "$PATCH_FILE" --timeout 1 >/dev/null 2>&1 || killed_rc=$?
