@@ -21,12 +21,9 @@ const PINNED_ON = new Set([
   "implement",
   "plan-implement",
   "plan-loop",
-  "prototype",
   "research",
-  "review",
   "spec",
   "verify-workflow",
-  "wizard",
   "write-direct",
 ]);
 const skillNames = JSON.parse(process.env.SKILL_NAMES);
