@@ -288,6 +288,8 @@ const cases = [
   ["regex literal after a line ending in an operator", write("bn.js", "const ok = [\n  /\\/\\//.test(s),\n];\n"), "allow"],
   ["division at line start then comment", write("bo.js", "const x = a\n  / b; // added note\n"), "deny"],
   ["jsx self-close at line start then comment", write("bp.jsx", "const el = <div\n  />; // added note\n"), "deny"],
+  ["division of a return property then comment", write("bq.js", "const x = obj.return / 2; // added note\n"), "deny"],
+  ["regex literal after throw in a template", write("br.js", "const x = `${(() => { throw /\\/\\//; })()}`;\n"), "allow"],
   ["regex literal after return", write("bi.js", "function f() {\n  return /\\/\\//;\n}\n"), "allow"],
   ["regex literal after arrow", write("bj.js", "const f = () => /\\/\\//;\n"), "allow"],
   ["slashes in a nested template", write("bk.ts", "const u = `${`//`}`;\n"), "allow"],
