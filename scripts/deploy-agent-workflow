@@ -93,7 +93,7 @@ function attempt(sync) {
   }
 }
 
-function syncSettings({ homeDir, claudeRoot, claudeOnly, apply, install, timestamp: stamp }) {
+function syncSettings({ homeDir, claudeRoot, claudeOnly, apply, timestamp: stamp }) {
   const dryRun = apply ? "0" : "1";
   let failures = 0;
   if (!claudeOnly) {
@@ -104,7 +104,6 @@ function syncSettings({ homeDir, claudeRoot, claudeOnly, apply, install, timesta
         join(repoDir, "pi/agent/settings.json"),
         dryRun,
         stamp,
-        install ? "install" : "deploy",
       ]);
     });
   }

@@ -571,7 +571,7 @@ describe("settings writes", () => {
     writeFileSync(piSettings, original);
     const runs = [
       [join(scripts, "claude-hooks-merge"), ["--home", home]],
-      [process.execPath, [join(scripts, "lib/pi-agent-settings-sync.mjs"), piSettings, join(scripts, "../pi/agent/settings.json"), "0", "smoke", "deploy"]],
+      [process.execPath, [join(scripts, "lib/pi-agent-settings-sync.mjs"), piSettings, join(scripts, "../pi/agent/settings.json"), "0", "smoke"]],
       [process.execPath, [join(scripts, "lib/claude-settings-sync.mjs"), claudeSettings, join(scripts, "../claude/settings.skill-overrides.json"), "0", "smoke", "deploy"]],
     ];
     for (const [command, args] of runs) {
