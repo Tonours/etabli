@@ -130,9 +130,11 @@ watchdog=$!
 set +e
 wait "$pi_pid"
 status=$?
-kill -KILL "$watchdog" 2>/dev/null
-wait "$watchdog" 2>/dev/null
+exec 3>&2 2>/dev/null
+kill -KILL "$watchdog"
+wait "$watchdog"
 watchdog_status=$?
+exec 2>&3 3>&-
 set -e
 if [ "$watchdog_status" -ne 137 ] || [ $((SECONDS - started)) -ge "$TIMEOUT_SECS" ]; then
   printf 'HUNTER_TIMEOUT\n' >&2
