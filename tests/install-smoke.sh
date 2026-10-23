@@ -26,22 +26,23 @@ fi
 original_path="$PATH"
 
 PATH="/tmp/asdf-shims:/usr/bin"
-append_path_entry "/tmp/local-bin"
-if [ "$PATH" != "/tmp/asdf-shims:/usr/bin:/tmp/local-bin" ]; then
-  print_error "append_path_entry did not preserve existing PATH precedence"
+prepend_path_entry "/tmp/local-bin"
+if [ "$PATH" != "/tmp/local-bin:/tmp/asdf-shims:/usr/bin" ]; then
+  print_error "prepend_path_entry did not put the entry first"
   exit 1
 fi
 
-append_path_entry "/tmp/local-bin"
-if [ "$PATH" != "/tmp/asdf-shims:/usr/bin:/tmp/local-bin" ]; then
-  print_error "append_path_entry duplicated an existing PATH entry"
+PATH="/tmp/asdf-shims:/tmp/local-bin:/usr/bin:/tmp/local-bin"
+prepend_path_entry "/tmp/local-bin"
+if [ "$PATH" != "/tmp/local-bin:/tmp/asdf-shims:/usr/bin" ]; then
+  print_error "prepend_path_entry left a later copy of the entry"
   exit 1
 fi
 
 PATH=""
-append_path_entry "/tmp/local-bin"
+prepend_path_entry "/tmp/local-bin"
 if [ "$PATH" != "/tmp/local-bin" ]; then
-  print_error "append_path_entry did not initialize an empty PATH"
+  print_error "prepend_path_entry did not initialize an empty PATH"
   exit 1
 fi
 PATH="$original_path"
