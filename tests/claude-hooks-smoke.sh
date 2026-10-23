@@ -400,6 +400,27 @@ display_out="$(jq -nc '{tool_name:"Bash",tool_input:{command:"git status"}}' | P
 assert_contains "$display_out" '"command":"rtk git status"'
 missing_out="$(jq -nc '{tool_name:"Bash",tool_input:{command:"git status"}}' | PATH="$(dirname "$node_bin")" "$node_bin" "$rtk_guard")"
 assert_empty "$missing_out" "rtk-guard without rtk on PATH"
+hung_rtk_dir="$TMP_DIR/hung-rtk"
+mkdir -p "$hung_rtk_dir"
+printf '#!/bin/sh\nexec sleep 8\n' >"$hung_rtk_dir/rtk"
+chmod +x "$hung_rtk_dir/rtk"
+hung_started="$("$node_bin" -p 'Date.now()')"
+hung_status=0
+hung_out="$(jq -nc '{tool_name:"Bash",tool_input:{command:"git status"}}' | PATH="$hung_rtk_dir:$PATH" "$node_bin" "$rtk_guard")" || hung_status=$?
+hung_ms=$(($("$node_bin" -p 'Date.now()') - hung_started))
+[ "$hung_status" -eq 0 ] && [ -z "$hung_out" ] && [ "$hung_ms" -lt 2500 ] || {
+	printf 'rtk-guard must allow the raw command within 2.5 s when rtk hangs, got status %s after %s ms: %s\n' "$hung_status" "$hung_ms" "$hung_out" >&2
+	exit 1
+}
+large_rtk_dir="$TMP_DIR/large-rtk"
+mkdir -p "$large_rtk_dir"
+printf '#!/bin/sh\nexec %s -e %s\n' "$node_bin" "'process.stdout.write(JSON.stringify({hookSpecificOutput:{hookEventName:\"PreToolUse\",updatedInput:{command:\"rtk \" + \"x\".repeat(1000000)}}}))'" >"$large_rtk_dir/rtk"
+chmod +x "$large_rtk_dir/rtk"
+large_bytes="$(jq -nc '{tool_name:"Bash",tool_input:{command:"git status"}}' | PATH="$large_rtk_dir:$PATH" "$node_bin" "$rtk_guard" | wc -c | tr -d ' ')"
+[ "$large_bytes" -gt 1000000 ] || {
+	printf 'rtk-guard truncated a large rtk reply to %s bytes\n' "$large_bytes" >&2
+	exit 1
+}
 
 rtk_home="$TMP_DIR/rtk-migration-home"
 mkdir -p "$rtk_home/.claude"

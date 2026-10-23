@@ -14,6 +14,7 @@ export type RtkSpawnContext = {
 type RewriteError = {
   code?: unknown;
   status?: unknown;
+  signal?: unknown;
 };
 
 export type RtkRuntimeState = {
@@ -39,8 +40,10 @@ let bypasses = 0;
 let disabled = false;
 let lastBypassReason: string | null = null;
 
-function isMissingBinaryError(error: unknown): boolean {
-  return typeof error === "object" && error !== null && (error as RewriteError).code === "ENOENT";
+function isRtkUnavailableError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const { code, signal } = error as RewriteError;
+  return code === "ENOENT" || code === "ETIMEDOUT" || typeof signal === "string";
 }
 
 export function readRtkRewrite(run: () => string): string {
@@ -415,7 +418,7 @@ export function createRtkCommandRewriter(
       try {
         rewritten = runRewrite(segment, env).trim();
       } catch (error) {
-        if (isMissingBinaryError(error)) {
+        if (isRtkUnavailableError(error)) {
           disabledFingerprints.add(fingerprint);
           if (env === undefined) noneDisabled = true;
           disabled = true;
@@ -522,7 +525,7 @@ export function createRtkCommandRewriter(
       rememberResult(command, fingerprint, resolved);
       return resolved;
     } catch (error) {
-      if (isMissingBinaryError(error)) {
+      if (isRtkUnavailableError(error)) {
         disabledFingerprints.add(fingerprint);
         if (env === undefined) noneDisabled = true;
         disabled = true;

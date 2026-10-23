@@ -121,6 +121,25 @@ describe("createRtkCommandRewriter", () => {
     expect(getRtkRuntimeState().disabled).toBe(true);
   });
 
+  for (const [label, failure] of [
+    ["a timeout", { code: "ETIMEDOUT", signal: "SIGTERM" }],
+    ["a signal", { status: null, signal: "SIGKILL" }],
+  ] as const) {
+    test(`disables rewrites after ${label}`, () => {
+      let calls = 0;
+      const rewrite = createRtkCommandRewriter(() => {
+        calls += 1;
+        throw failure;
+      }, DEFAULT_CONFIG);
+
+      expect(rewrite("git status")).toBe("git status");
+      for (const command of ["git diff", "ls -la", "git log", "cargo test", "npm test"]) {
+        expect(rewrite(command)).toBe(command);
+      }
+      expect(calls).toBe(1);
+    });
+  }
+
   test("scopes missing-binary bypasses by execution environment", () => {
     let calls = 0;
     const rewrite = createRtkCommandRewriter((command, env) => {
