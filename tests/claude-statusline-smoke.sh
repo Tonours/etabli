@@ -32,7 +32,7 @@ render() {
 	printf '{"cwd":"%s"}' "$1" | PATH="$TMP_DIR/bin:$PATH" STATUSLINE_GIT_LOG="$TMP_DIR/git.log" bash "$ROOT_DIR/claude/statusline-command.sh" | head -1
 }
 expect_render() {
-	local label="$1" cwd="$2" want="$3" line spawns
+	local label="$1" cwd="$2" want="$3" calls="${4:-1}" line spawns
 	line="$(render "$cwd" | sed 's/\x1b\[[0-9;]*m//g')"
 	spawns="$(wc -l <"$TMP_DIR/git.log" | tr -d ' ')"
 	case "$line" in
@@ -42,8 +42,8 @@ expect_render() {
 		exit 1
 		;;
 	esac
-	[ "$spawns" -eq 1 ] || {
-		printf 'statusline %s: %s git spawns, want 1\n' "$label" "$spawns" >&2
+	[ "$spawns" -eq "$calls" ] || {
+		printf 'statusline %s: %s git spawns, want %s\n' "$label" "$spawns" "$calls" >&2
 		exit 1
 	}
 }
@@ -58,4 +58,7 @@ git -C "$TMP_DIR/repo" checkout -q --detach
 expect_render detached "$TMP_DIR/repo" "repo inconnu"
 mkdir -p "$TMP_DIR/plain"
 expect_render "not a repo" "$TMP_DIR/plain" "plain inconnu"
+printf '#!/bin/sh\nprintf "x\\n" >>"$STATUSLINE_GIT_LOG"\nfor arg in "$@"; do [ "$arg" = status ] && exec sleep 3; done\nexec "%s" "$@"\n' "$real_git" >"$TMP_DIR/bin/git"
+git -C "$TMP_DIR/repo" checkout -q main
+expect_render "status timeout" "$TMP_DIR/repo" "repo git:(main) inconnu" 2
 printf 'claude-statusline git smoke: ok\n'
