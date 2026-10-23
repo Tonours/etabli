@@ -63,6 +63,15 @@ printf '%s\n' "$dependabot_pairs" | grep -q '^bun /pi$' ||
 grep -Eq 'uses:[[:space:]]+actions/setup-node@[0-9a-f]{40}[[:space:]]+# v[0-9]' "$WORKFLOW" ||
   fail "CI needs a SHA-pinned actions/setup-node step"
 
+setup_bun_count="$(grep -Ec 'uses:[[:space:]]+oven-sh/setup-bun@' "$WORKFLOW")"
+[ "$setup_bun_count" -eq 2 ] &&
+  [ "$(grep -Ec '^[[:space:]]+bun-version:[[:space:]]+"[0-9]+[.][0-9]+[.][0-9]+"$' "$WORKFLOW")" -eq "$setup_bun_count" ] ||
+  fail "both CI jobs must pin an exact bun version"
+[ "$(grep -Ec '^[[:space:]]+node-version:[[:space:]]+"[0-9]+[.][0-9]+[.][0-9]+"$' "$WORKFLOW")" -eq 2 ] ||
+  fail "both CI jobs must pin an exact Node version"
+[ "$(grep -Ec 'run:[[:space:]]+bun --version && node --version$' "$WORKFLOW")" -eq 2 ] ||
+  fail "both CI jobs must print the bun and node versions"
+
 while IFS= read -r -d '' entry; do
   case "$entry" in
     120000\ *)

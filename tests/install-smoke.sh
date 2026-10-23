@@ -23,6 +23,21 @@ if (PATH="$tmp_dir/fake-df:$PATH" check_disk_space) >/dev/null 2>&1; then
   print_error "check_disk_space missed low space on a wrapped df line"
   exit 1
 fi
+mkdir -p "$tmp_dir/fake-rtk"
+for rtk_version in 0.38.9 0.39.0 0.40.1 1.0.1; do
+  printf '#!/bin/sh\n[ "$1" = --version ] && echo "rtk %s"\nexit 0\n' "$rtk_version" >"$tmp_dir/fake-rtk/rtk"
+  chmod +x "$tmp_dir/fake-rtk/rtk"
+  if (PATH="$tmp_dir/fake-rtk:$PATH" has_valid_rtk) >"$tmp_dir/rtk.out" 2>&1; then rtk_ok=1; else rtk_ok=0; fi
+  grep -Fq "rtk $rtk_version" "$tmp_dir/rtk.out" || {
+    print_error "has_valid_rtk did not log rtk --version for $rtk_version"
+    exit 1
+  }
+  if [ "$rtk_version" = 0.38.9 ]; then expected_ok=0; else expected_ok=1; fi
+  [ "$rtk_ok" -eq "$expected_ok" ] || {
+    print_error "has_valid_rtk returned $rtk_ok for rtk $rtk_version"
+    exit 1
+  }
+done
 original_path="$PATH"
 
 PATH="/tmp/asdf-shims:/usr/bin"
