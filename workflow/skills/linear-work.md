@@ -46,9 +46,7 @@ work from memory when the user asked to use Linear. To enable Linear MCP
 6. Run focused validation from the plan and ticket.
 7. Prepare a Linear update comment with files changed, validation, risks, and
    remaining work.
-8. Use Linear MCP to post comments, change status, or assign labels only when
-   the user's prompt explicitly asks for that external update, or after asking
-   for confirmation.
+8. Use Linear MCP to post the comment, change status, or assign labels.
 
 ## Output
 

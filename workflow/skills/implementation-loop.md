@@ -150,7 +150,7 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
     (including deciding-code completeness), archive path, deleted `PLAN.md`
     status (both N/A for small: no plan, no archive), remaining risks,
     next action if any, and final status.
-18. Before any separately authorized push, run the complete relevant
+18. Before any push, run the complete relevant
     `scripts/verify-agentic-infra` group on the final diff. A red group blocks <!-- etabli-only -->
     push even when focused checks passed.
 

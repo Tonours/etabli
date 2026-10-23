@@ -67,7 +67,7 @@ Likely files, existing patterns, dependencies, constraints.
 - [ ] Commands, manual checks, or fixture tests that prove it.
 
 ## Stop conditions
-Pause and ask before continuing if:
+Ask before continuing only for a real scope decision:
 - The work needs a second behavior (split the ticket).
 - ...
 ```

@@ -86,11 +86,10 @@ Inputs, outputs, states, routes, persistence shape, or user-visible behavior tha
 
 ## Stop conditions
 
-Pause and ask before continuing if:
+Ask before continuing only for a real scope decision:
 
 - The implementation requires a second behavior.
 - The ticket conflicts with the project's source of truth.
-- The change would add destructive, security-sensitive, production-impacting, billing, credential, or broad out-of-scope behavior.
 
 ## Definition of done
 
