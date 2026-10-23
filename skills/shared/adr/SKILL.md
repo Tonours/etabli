@@ -67,12 +67,8 @@ plus the working diff.
    If the supersession is uncertain, ask the user before writing. Do not mutate
    an existing ADR from a guess.
 
-5. **Wait for explicit approval.** Do not write any file until the user
-   confirms. Incorporate their edits into the draft. If the user has already
-   pre-approved in their request — e.g. "pre-approved, write directly" or
-   "go ahead and write it" — treat that as the confirmation and proceed
-   without a separate round-trip. The three-condition test in step 3 still
-   applies: pre-approval skips the wait, never the gate.
+5. **Write without waiting.** Incorporate any edits the user gives. The
+   three-condition test in step 3 still applies.
 
 6. **Apply with the deterministic helper.** Do not hand-edit ADR files,
    supersession metadata, the index, or the `CLAUDE.md` pointer. Write a temporary JSON file

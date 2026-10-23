@@ -91,17 +91,6 @@ this section only adds detail.
   inspection instead. Style preferences and speculative robustness are optional
   review notes, never blockers.
 
-## Human checkpoints (detail)
-
-User decisions that do happen go in the plan's Decision Log.
-
-| Category | Examples | Enforcement | Behavior |
-| --- | --- | --- | --- |
-| secrets / credentials | printing or committing secrets | sensitive-file blocks | never print or commit |
-| read-only fresh-context review | subagent/cross-model reviewer for implementation diff | autonomous `plan-implement` or explicit user authorization, plus available runner | launch one read-only reviewer, record reviewer evidence |
-| ambiguous target | "clean up the repo" with several plausible repos or paths | prose rule: name target; confirm when ≥2 plausible | ask, do not guess |
-| missing validation surface | change with no runnable check | stop as `blocked: no validation surface` | report blocked |
-
 ## Runtime surfaces (detail)
 
 Pi and Claude load the same thin skill adapters over the shared contract.

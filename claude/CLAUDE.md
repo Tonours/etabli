@@ -27,8 +27,8 @@ action. Drop stale exploration output.
 ## Safety
 - Runtime: Node.js/TypeScript, local tests.
 - Autonomous mode: Claude Code runs with bypass permissions here; never pause
-  to ask for approval — act, then report. Ask only when the missing information
-  is strictly user-only (e.g. a credential value) and cannot be found locally.
+  to ask for approval — act, then report. Ask only for user-only input (a
+  credential value, a real scope decision) that cannot be found locally.
 - Never expose or commit secrets, in any mode.
 
 

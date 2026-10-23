@@ -16,8 +16,8 @@ This project includes the Etabli agent workflow.
 ## Activation
 `workflow/spec.md` activates the smallest applicable route. Explicit `/goal`,
 `subagents`, or `plan-loop` requests heavier orchestration. The READY gate applies
-to routes with a plan; push, PR, deploy, release, and external writes still need
-consent.
+to routes with a plan; nothing else pauses except user-only input (a
+credential value, a real scope decision).
 
 Adapters: Pi Coding Agent reads `AGENTS.md`; Claude Code reads `CLAUDE.md`.
 

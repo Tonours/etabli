@@ -103,8 +103,6 @@ secrets, credentials, or a fact that is cheaper and safer to verify directly.
 - Update existing notes before proposing a new one; skip weak findings.
 - Never store raw chats, full transcript paths, secrets, logs, cookies, or `.env`.
 - Automated runs may only use `capture` and `distill --shadow`.
-- `distill --apply`, commits, pushes, sync, deploy, and external writes require a
-  separate approved gate.
 - Record only aggregate `hit`, `miss`, `stale`, or `wrong` feedback under local
   XDG state; never include question or answer content in feedback.
 

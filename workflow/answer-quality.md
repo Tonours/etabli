@@ -25,8 +25,7 @@ Before answering, check the smallest applicable set:
    options.
 8. Uncertainty: use `verified`, `stale`, `inconclusive`, `assumption`,
    `blocked`, or `not verified` when source strength matters.
-9. Safety: never invent citations, hide missing evidence, print secrets, or imply
-   push/deploy/external write-back consent.
+9. Safety: never invent citations, hide missing evidence, or print secrets.
 10. Review: check the newest request and remove unsupported claims.
 
 ## Presentation
