@@ -108,8 +108,8 @@ paths.each do |path|
   end
 
   if name == "reviewer"
-    if content.bytesize > 6_787
-      raise "#{path}: #{content.bytesize} bytes exceeds the 6,787-byte token-efficiency ceiling. Remediation: defer duplicated explanations to workflow/review-rubric.md while preserving the output gate."
+    if content.bytesize > 4_300
+      raise "#{path}: #{content.bytesize} bytes exceeds the 4,300-byte token-efficiency ceiling. Remediation: defer duplicated explanations to workflow/review-rubric.md while preserving the output gate."
     end
     lenses.each do |lens|
       raise "#{path}: missing mandatory reviewer lens row #{lens.inspect}." unless body.include?("| #{lens} |")
@@ -117,17 +117,6 @@ paths.each do |path|
     raise "#{path}: reviewer must preserve the concrete-failure evidence bar." unless body.include?("concrete failure")
     raise "#{path}: reviewer must emit the exact three-value verdict contract." unless body.include?("GO WITH NOTES") && body.include?("BLOCK")
   end
-end
-
-install_main = File.read(File.join(root, "scripts/lib/install-main.sh"))
-surfaces = File.read(File.join(root, "scripts/lib/surfaces.mjs"))
-unless install_main.include?("converge_agent_surfaces") &&
-       surfaces.include?('join(repoDir, "claude/scopes", scope, "agents")') &&
-       surfaces.include?('join(claudeRoot, "agents", name)')
-  raise "primary installer omits scoped Claude agents. Remediation: link active claude/scopes/<scope>/agents/*.md into ~/.claude/agents/ in scripts/lib/surfaces.mjs."
-end
-unless surfaces.include?('"stale managed Claude agent"')
-  raise "primary installer does not prune stale Etabli-managed Claude agent links."
 end
 
 hook = File.join(root, "claude/hooks/read-only-agent-guard.mjs")

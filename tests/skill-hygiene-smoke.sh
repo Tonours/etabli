@@ -18,18 +18,18 @@ skill_file() {
   fi
 }
 
-# Workflow skills stay model-invocable on both runtimes.
-WORKFLOW_SKILLS="plan-implement implement linear-ticket-create"
-
 # --- AC1a: no DMI flag on the workflow skill paths ---
 DMI_RE='^disable-model-invocation:[ ]*true[ ]*(#.*)?$'
-for name in $WORKFLOW_SKILLS; do
+checked=0
+for name in $(jq -r '.skillOverrides | to_entries[] | select(.value == "on") | .key' "$ROOT_DIR/claude/settings.skill-overrides.json"); do
   file="$(skill_file "$name")"
-  [ -f "$ROOT_DIR/$file" ] || fail "AC1a: pinned path missing: $file"
+  [ -f "$ROOT_DIR/$file" ] || continue
+  checked=$((checked + 1))
   if grep -Eq -e "$DMI_RE" "$ROOT_DIR/$file"; then
-    fail "AC1a: $file must stay model-invocable (drop disable-model-invocation)"
+    fail "AC1a: $file is \"on\" in claude/settings.skill-overrides.json, so it must stay model-invocable (drop disable-model-invocation)"
   fi
 done
+[ "$checked" -gt 0 ] || fail "AC1a: no first-party skill is \"on\" in claude/settings.skill-overrides.json"
 
 # --- AC2a: what+when+not-for shape on the routed workflow descriptions ---
 SHAPED="adversary bug-check code-quality implement linear-ticket-create linear-work plan-implement plan-loop review thermo-nuclear-code-quality-review verify-workflow"

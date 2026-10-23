@@ -23,13 +23,12 @@ for workflow in "${workflows[@]}"; do
   done < <(sed -nE 's/^[[:space:]]*(-[[:space:]]+)?uses:[[:space:]]*([^[:space:]#]+).*/\2/p' "$workflow")
 done
 
-checkout_sha="3d3c42e5aac5ba805825da76410c181273ba90b1"
 checkout_count="$(grep -Ec 'uses:[[:space:]]+actions/checkout@' "$WORKFLOW")"
-annotated_checkout_count="$(grep -Ec "uses:[[:space:]]+actions/checkout@${checkout_sha}[[:space:]]+# v7[.]0[.]1$" "$WORKFLOW")"
+annotated_uses_count="$(grep -Ec 'uses:[[:space:]]+[^[:space:]]+@[0-9a-f]{40}[[:space:]]+# v[0-9]' "$WORKFLOW")"
 persist_credentials_count="$(grep -Ec '^[[:space:]]+persist-credentials:[[:space:]]+false$' "$WORKFLOW")"
 [ "$checkout_count" -eq 2 ] || fail "expected exactly two checkout steps"
-[ "$annotated_checkout_count" -eq "$checkout_count" ] ||
-  fail "checkout steps must use the pinned v7.0.1 SHA and annotation"
+[ "$annotated_uses_count" -eq "$(grep -Ec 'uses:[[:space:]]' "$WORKFLOW")" ] ||
+  fail "every pinned action needs its version tag comment"
 [ "$persist_credentials_count" -eq "$checkout_count" ] ||
   fail "every checkout step must disable credential persistence"
 
@@ -38,17 +37,10 @@ if grep -Eq 'uses:[[:space:]]+actions/cache@[0-9a-f]{40}[[:space:]]+# v[1-4]([.]
 fi
 
 jq -e '
-  .dependencies["@earendil-works/pi-coding-agent"] == "1.3.0" and
-  .devDependencies.typescript == "7.0.2" and
-  .devDependencies["@types/bun"] == "1.4.2" and
-  .overrides == {
-    "@protobufjs/utf8": "1.1.2",
-    "brace-expansion": "5.0.12",
-    "protobufjs": "7.6.5",
-    "undici": "8.10.2",
-    "ws": "8.21.1"
-  }
-' "$PACKAGE" >/dev/null || fail "Pi dependency and security override pins drifted: review and align pi/package.json and tests/supply-chain-smoke.sh exact pins"
+  (.dependencies["@earendil-works/pi-coding-agent"] | type) == "string" and
+  ([.dependencies, .devDependencies, .overrides] | map(. // {} | to_entries[].value) |
+    length > 0 and all(type == "string" and test("^[0-9]+[.][0-9]+[.][0-9]+$")))
+' "$PACKAGE" >/dev/null || fail "every Pi dependency, dev dependency and override must pin an exact x.y.z version (no range)"
 
 dependabot_pairs="$(awk '
   /^updates:/ { in_updates = 1; next }

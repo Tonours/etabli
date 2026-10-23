@@ -193,7 +193,7 @@ PATH="$(dirname "$smoke_node_bin"):$PATH"
 HOME="$smoke_home"
 REPO_DIR="$(cd "$BOOTSTRAP_DIR/.." >/dev/null 2>&1 && pwd)"
 smoke_pi_spec="$(pi_coding_agent_spec)"
-[ "$smoke_pi_spec" = "@earendil-works/pi-coding-agent@1.3.0" ] || {
+[ "$smoke_pi_spec" = "@earendil-works/pi-coding-agent@$(jq -r '.dependencies["@earendil-works/pi-coding-agent"]' "$REPO_DIR/pi/package.json")" ] || {
   print_error "fresh Pi install does not use the tracked exact version"
   exit 1
 }
@@ -214,12 +214,14 @@ esac
 printf -- '---\nname: radius-api\ndescription: fixture\n---\nbody\n' >"$smoke_radius_skill"
 stamp_pi_specialist_skills >/dev/null
 converge_agent_surfaces >/dev/null
-"${NODE_CMD[@]}" - "$smoke_home/.pi/agent/settings.json" <<'NODE'
+"${NODE_CMD[@]}" - "$smoke_home/.pi/agent/settings.json" "$REPO_DIR/pi/agent/settings.json" <<'NODE'
 const fs = require("node:fs");
 const settings = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
-const sources = settings.packages.map((entry) => typeof entry === "string" ? entry : entry.source);
-if (!sources.includes("npm:@tintinweb/pi-tasks@0.7.1")) {
-  throw new Error("settings sync did not add a pinned tracked source");
+const tracked = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
+const sourceOf = (entry) => typeof entry === "string" ? entry : entry.source;
+const sources = settings.packages.map(sourceOf);
+if (!tracked.packages.map(sourceOf).every((source) => sources.includes(source))) {
+  throw new Error("settings sync did not add every tracked source");
 }
 if (sources.some((source) => source === "npm:@agwab/pi-workflow" || source.startsWith("npm:@agwab/pi-workflow@"))) {
   throw new Error("settings sync kept a removed pi-workflow source");
@@ -229,7 +231,7 @@ if (!sources.includes("npm:@agwab/pi-workflow-helper")) {
 }
 if (
   !settings.enabledModels.includes("custom/personal-model") ||
-  !settings.enabledModels.includes("zai/glm-5.3")
+  !tracked.enabledModels.every((model) => settings.enabledModels.includes(model))
 ) {
   throw new Error("settings sync did not preserve the user model and add tracked model pins");
 }
