@@ -43,12 +43,12 @@ keep_pending_approval() {
 }
 
 post_approval() {
-  local body="$1" url
+  local body="$1" url pending
   if ! url="$(gh api "repos/$REPO/pulls/$NUMBER/reviews" -f event=APPROVE -f commit_id="$SHA" -f body="$body" --jq .html_url)"; then
-    echo "=== approval pending: the approval POST failed (retried by the watcher without a new review)"
-    [ "$(cat "$KEY.approval-pending" 2>/dev/null)" = "$SHA" ] \
-      || notify "PR approval pending" "$REPO#$NUMBER: the approval POST failed" "$URL"
+    pending="$(cat "$KEY.approval-pending" 2>/dev/null)"
     keep_pending_approval "$body"
+    echo "=== approval pending: the approval POST failed (retried by the watcher without a new review)"
+    [ "$pending" = "$SHA" ] || notify "PR approval pending" "$REPO#$NUMBER: the approval POST failed" "$URL"
     return 0
   fi
   rm -f "$KEY.approval-pending" "$KEY.approval-body"
