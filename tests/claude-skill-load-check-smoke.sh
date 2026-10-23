@@ -71,6 +71,21 @@ grep -q '^ *at ' "$FIX/err.txt" && fail "invalid live settings JSON must fail wi
 [ "$(cat "$FIX/home/.claude/settings.json")" = "{bad" ] || fail "invalid live settings JSON must stay untouched"
 mv "$FIX/settings.good" "$FIX/home/.claude/settings.json"
 
+MAP="$FIX/repo/claude/settings.skill-overrides.json"
+mkdir -p "$FIX/repo/skills/shared/repo-newcomer"
+printf -- '---\nname: repo-newcomer\ndescription: x\n---\nx\n' >"$FIX/repo/skills/shared/repo-newcomer/SKILL.md"
+ln -s "$FIX/repo/skills/shared/repo-newcomer" "$FIX/home/.claude/skills/repo-newcomer"
+cp "$MAP" "$FIX/map.good"
+chmod 000 "$MAP"
+if [ "$(id -u)" != 0 ]; then
+  CLAUDE_SKILL_LOAD_HOME="$FIX/home" CLAUDE_SKILL_LOAD_REPO="$FIX/repo" "$CHECK" --fix >"$FIX/unreadable.txt" 2>&1 &&
+    fail "--fix with an unreadable tracked map must fail: $(cat "$FIX/unreadable.txt")"
+  chmod 644 "$MAP"
+  cmp -s "$FIX/map.good" "$MAP" || fail "--fix must not rewrite an unreadable tracked map"
+fi
+chmod 644 "$MAP"
+rm -rf "$FIX/home/.claude/skills/repo-newcomer" "$FIX/repo/skills" "$FIX/map.good"
+
 mkdir -p "$FIX/home/.claude/skills/unmapped-newcomer"
 printf -- '---\nname: unmapped-newcomer\ndescription: x\n---\nx\n' >"$FIX/home/.claude/skills/unmapped-newcomer/SKILL.md"
 expect_fail "ungoverned newcomer" "$FIX/home" "$FIX/repo" "ungoverned skill on the surface: unmapped-newcomer"

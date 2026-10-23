@@ -48,8 +48,14 @@ function readText(file) {
 }
 
 function readJson(file, fallback) {
-  const text = readText(file);
-  if (text === null) return fallback;
+  let text;
+  try {
+    text = fs.readFileSync(file, "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") return fallback;
+    console.error(`FAIL: cannot read ${file} (${error.message}); fix its permissions, nothing written`);
+    process.exit(1);
+  }
   try {
     return JSON.parse(text);
   } catch (error) {
