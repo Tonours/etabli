@@ -53,10 +53,7 @@ FILES=(
   "$REPO_DIR/PLAN_TEMPLATE.md|PLAN_TEMPLATE.md"
   "$REPO_DIR/PLAN_TEMPLATE_FULL.md|PLAN_TEMPLATE_FULL.md"
   "$REPO_DIR/scripts/plan-cleanup|scripts/plan-cleanup"
-  "$REPO_DIR/scripts/lib/plan-status.mjs|scripts/lib/plan-status.mjs"
   "$REPO_DIR/scripts/lib/plan-cleanup-command.mjs|scripts/lib/plan-cleanup-command.mjs"
-  "$REPO_DIR/scripts/vendor/commonmark/commonmark.cjs|scripts/vendor/commonmark/commonmark.cjs"
-  "$REPO_DIR/scripts/lib/hash.sh|scripts/lib/hash.sh"
 )
 
 RETIRED_FILES=(
@@ -112,6 +109,9 @@ RETIRED_FILES=(
   "scripts/lib/project-verification-source.mjs"
   "scripts/lib/project-verification-ui.mjs"
   "scripts/lib/unicode-case-fold.mjs"
+  "scripts/lib/plan-status.mjs"
+  "scripts/lib/hash.sh"
+  "scripts/vendor/commonmark/commonmark.cjs"
 )
 
 while IFS= read -r contract_path; do
@@ -131,9 +131,9 @@ Options:
   --refresh-tracked With --force, also overwrite tracked scaffold copies (git is the backup;
               AGENTS.md, docs/project-context.md, scripts, symlinks and files with
               uncommitted changes are kept)
-  --prune     Move retired scaffold files etabli shipped to backups; tracked ones also
-              leave the index. Project-authored copies, symlinks and directories at a
-              retired path are conflicts
+  --prune     Delete untracked retired scaffold files etabli shipped; tracked ones
+              leave the index and move to backups. Project-authored copies, symlinks
+              and directories at a retired path are conflicts
   --prune-foreign With --prune, also move those project-owned retired paths
   --check     Report drift (STALE: an older etabli copy, EDITED: changed locally) without writing
   --list-files List scaffold FILES entries as src|dest (repo-relative src) without writing
@@ -538,7 +538,7 @@ preflight_prune() {
 }
 
 prune_file() {
-  local relative_path="$1"
+  local relative_path="${1%%|*}"
   local destination_path="$TARGET_DIR/$relative_path"
   local backup
 
@@ -566,6 +566,11 @@ prune_file() {
   if is_tracked "$relative_path"; then
     git -C "$TARGET_DIR" rm -r -q --cached --sparse -- "$relative_path"
     status_line GIT_RM "$relative_path"
+  elif shipped_by_etabli "$relative_path" "${1#*|}"; then
+    rm -- "$destination_path"
+    status_line REMOVE "$relative_path"
+    REMOVED=$((REMOVED + 1))
+    return 0
   fi
   backup="$(backup_path "$destination_path")"
   mv "$destination_path" "$backup"
@@ -590,11 +595,8 @@ exclude_block() {
     "/.pi/" \
     "/.workflow/" \
     "/workflow/" \
-    "/scripts/vendor/commonmark/commonmark.cjs" \
     "/scripts/plan-cleanup" \
-    "/scripts/lib/plan-status.mjs" \
     "/scripts/lib/plan-cleanup-command.mjs" \
-    "/scripts/lib/hash.sh" \
     "/docs/agent-workflow.md" \
     "/docs/claude-code-workflow.md" \
     "/docs/project-context.md" \
@@ -693,7 +695,7 @@ if [ "$CONFLICTS" -eq 0 ]; then
   done
   if [ "$PRUNE" -eq 1 ]; then
     for entry in "${RETIRED_FILES[@]}"; do
-      prune_file "${entry%%|*}"
+      prune_file "$entry"
     done
   fi
 fi

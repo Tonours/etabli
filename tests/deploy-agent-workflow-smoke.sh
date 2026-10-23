@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
-. "$ROOT_DIR/scripts/lib/hash.sh"
+. "$ROOT_DIR/tests/lib/hash.sh"
 DEPLOY_SCRIPT="$ROOT_DIR/scripts/deploy-agent-workflow"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT

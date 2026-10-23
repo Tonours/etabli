@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
-. "$ROOT_DIR/scripts/lib/hash.sh"
+. "$ROOT_DIR/tests/lib/hash.sh"
 CLEANUP="$ROOT_DIR/scripts/plan-cleanup"
 TMP_ROOT="$(mktemp -d)"
 trap 'rm -rf "$TMP_ROOT"' EXIT
