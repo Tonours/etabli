@@ -95,6 +95,7 @@ CLAUDE
 cat >"$HOME/.local/bin/terminal-notifier" <<'NOTIFY'
 #!/bin/bash
 printf 'notify %s\n' "$*" >>"$FAKE_LOG"
+[ -z "${FAKE_NOTIFY_TERM:-}" ] || kill -TERM "$PPID"
 NOTIFY
 chmod +x "$HOME/.local/bin/"*
 
@@ -317,6 +318,10 @@ case_approval_post_failure_stays_pending() {
   check "approval POST failure: fakes answered" called "claude VALIDATOR"
   check "approval POST failure: pending for the sha" [ "$(cat "$KEY.approval-pending" 2>/dev/null)" = "$HEAD1" ]
   check "approval POST failure: body kept" [ -s "$KEY.approval-body" ]
+  rm -f "$KEY.approval-pending" "$KEY.approval-body"
+  FAKE_NOTIFY_TERM=1 FAKE_GH_POST_FAIL=1 FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "approval POST failure then TERM: still pending" [ "$(cat "$KEY.approval-pending" 2>/dev/null)" = "$HEAD1" ]
+  FAKE_GH_POST_FAIL=1 FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
   FAKE_GH_POST_FAIL=1 run_review approve "$HEAD1" -
   check "approval POST failure again: no second notification" not_called "notify "
   run_review approve "$HEAD1" -
