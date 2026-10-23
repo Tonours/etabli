@@ -503,6 +503,18 @@ if compgen -G "$STALE_PROJECT/workflow/answer-quality.md.bak.*" >/dev/null; then
   exit 1
 fi
 "$SCRIPT" "$STALE_PROJECT" --check >/dev/null
+STALE_OUTSIDE="$TMP_DIR/stale-outside"
+mkdir -p "$STALE_OUTSIDE"
+mv "$STALE_PROJECT/workflow" "$STALE_OUTSIDE/workflow"
+ln -s "$STALE_OUTSIDE/workflow" "$STALE_PROJECT/workflow"
+git -C "$ROOT_DIR" show "$(git -C "$ROOT_DIR" log -2 --format=%H -- workflow/answer-quality.md | tail -1):workflow/answer-quality.md" >"$STALE_OUTSIDE/workflow/answer-quality.md"
+cp "$STALE_OUTSIDE/workflow/answer-quality.md" "$TMP_DIR/stale-outside.before"
+if "$SCRIPT" "$STALE_PROJECT" >"$TMP_DIR/stale-outside.out" 2>&1; then
+  printf 'expected a refresh through a symlinked parent to conflict\n' >&2
+  exit 1
+fi
+assert_contains "$TMP_DIR/stale-outside.out" "CONFLICT  workflow/answer-quality.md exists"
+assert_same "$TMP_DIR/stale-outside.before" "$STALE_OUTSIDE/workflow/answer-quality.md"
 
 KEPT_PROJECT="$TMP_DIR/kept-project"
 "$SCRIPT" "$KEPT_PROJECT" >/dev/null

@@ -24,11 +24,11 @@ if (PATH="$tmp_dir/fake-df:$PATH" check_disk_space) >/dev/null 2>&1; then
   exit 1
 fi
 mkdir -p "$tmp_dir/fake-rtk"
-for rtk_version in 0.38.9 0.39.0 0.40.1 1.0.1; do
+for rtk_version in 0.38.9 0.39.0 0.40.1 1.0.1 0.39 v1.0.0 "0.39.0 (abc1234)"; do
   printf '#!/bin/sh\n[ "$1" = --version ] && echo "rtk %s"\nexit 0\n' "$rtk_version" >"$tmp_dir/fake-rtk/rtk"
   chmod +x "$tmp_dir/fake-rtk/rtk"
   if (PATH="$tmp_dir/fake-rtk:$PATH" has_valid_rtk) >"$tmp_dir/rtk.out" 2>&1; then rtk_ok=1; else rtk_ok=0; fi
-  grep -Fq "rtk $rtk_version" "$tmp_dir/rtk.out" || {
+  grep -Fq -- "rtk $rtk_version" "$tmp_dir/rtk.out" || {
     print_error "has_valid_rtk did not log rtk --version for $rtk_version"
     exit 1
   }
@@ -61,6 +61,19 @@ if [ "$PATH" != "/tmp/local-bin" ]; then
   exit 1
 fi
 PATH="$original_path"
+
+(PATH="/tmp/odd[a]/bin:/usr/bin:/tmp/odd[a]/bin" && prepend_path_entry "/tmp/odd[a]/bin" && [ "$PATH" = "/tmp/odd[a]/bin:/usr/bin" ]) &
+glob_pid=$!
+for _ in 1 2 3 4 5 6 7 8 9 10; do kill -0 "$glob_pid" 2>/dev/null || break; sleep 0.2; done
+if kill -0 "$glob_pid" 2>/dev/null; then
+  kill "$glob_pid"
+  print_error "prepend_path_entry looped on a PATH entry with glob characters"
+  exit 1
+fi
+wait "$glob_pid" || {
+  print_error "prepend_path_entry treated glob characters as a pattern"
+  exit 1
+}
 
 rcfile="$tmp_dir/zshrc"
 printf '%s\n' 'export PATH="$HOME/.local/bin:$PATH"' >"$rcfile"
