@@ -30,13 +30,14 @@ printf 'gh %s\n' "$*" >>"$FAKE_LOG"
 filter="" prev="" write=0
 for arg in "$@"; do
   [ "$prev" = --jq ] && filter="$arg"
+  [ "$prev" = --input ] && cp "$arg" "$FAKE_DIR/payload.json"
   case "$arg" in -f|-F|--input|-X|--method) write=1 ;; esac
   prev="$arg"
 done
 case "$1 $2" in
   "auth status") exit 0 ;;
   "api user") out='{"login":"me"}' ;;
-  "pr view") out="$(cat "$FAKE_DIR/pr.json")" ;;
+  "pr view") [ -z "${FAKE_GH_VIEW_FAIL:-}" ] || exit 1; out="$(cat "$FAKE_DIR/pr.json")" ;;
   "pr checks") out='[{"bucket":"pass"}]' ;;
   "api graphql") out='{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[],"pageInfo":{"hasNextPage":false}}}}}}' ;;
   *)
@@ -111,14 +112,20 @@ CLONE="$TMP_DIR/clone"
 set_head() {
   export FAKE_HEAD="$1"
   git -C "$TMP_DIR/seed" push -q -f "$TMP_DIR/origin.git" "$1:refs/pull/7/head"
-  printf '{"number":7,"headRefOid":"%s","baseRefName":"main","url":"https://github.invalid/o/r/pull/7","title":"t","state":"OPEN","isDraft":false,"latestReviews":%s,"reviewRequests":[{"login":"me"}],"additions":1,"deletions":0}' \
-    "$1" "${2:-[]}" >"$FAKE_DIR/pr.json"
+  local files='[{"path":"a.txt","additions":1,"deletions":0}]' author='{"login":"dev","is_bot":false}'
+  files="${FAKE_PR_FILES:-$files}" author="${FAKE_PR_AUTHOR:-$author}"
+  printf '{"number":7,"headRefOid":"%s","baseRefName":"main","url":"https://github.invalid/o/r/pull/7","title":"t","state":"OPEN","isDraft":false,"latestReviews":%s,"reviewRequests":[{"login":"me"}],"author":%s,"files":%s,"changedFiles":%s,"additions":%s,"deletions":0}' \
+    "$1" "${2:-[]}" "$author" "$files" \
+    "$(printf '%s' "$files" | jq length)" "$(printf '%s' "$files" | jq 'map(.additions) | add')" >"$FAKE_DIR/pr.json"
 }
 
 marker() {
   printf '<!-- claudine:v1 {"kind":"run","run":"7-1-me","sha":"{{SHA}}","findings":%s,"floor":"major","suppressed":0,"security":"%s","lenses":["done"]} -->' \
     "$1" "${2:-none}"
 }
+
+delta_review() { printf '.structured_output = %s | .result = (.structured_output | tojson)' "$1"; }
+export FAKE_DELTA_ENVELOPE=structured-output FAKE_DELTA_PATCH="$(delta_review '{"findings":[],"confident":true}')"
 
 STATE="$TMP_DIR/state"
 KEY="$STATE/runs/o_r_7"
@@ -192,8 +199,7 @@ case_verify_after_findings_approves() {
   set_head "$HEAD1"
   FAKE_VALIDATOR_TEXT="Review posted. $(marker 2)" run_review council "$HEAD1" -
   set_head "$HEAD2" '[{"state":"COMMENTED","author":{"login":"me"}}]'
-  FAKE_DELTA_TEXT=$'no findings, nothing posted\nDELTA_FINDINGS 0\nDELTA_CONFIDENT value=true' \
-    FAKE_VERIFY_TEXT=$'all fixed\nVERIFY_VERDICT reviewed=2 reopened=0 regressions=0 complete=true confident=true\nCONFIDENCE fixed' \
+  FAKE_VERIFY_TEXT=$'all fixed\nVERIFY_VERDICT reviewed=2 reopened=0 regressions=0 complete=true confident=true\nCONFIDENCE fixed' \
     run_review verify "$HEAD2" "$HEAD1"
   check "verify: fakes answered" called "claude VERIFY"
   check "verify: exit 0" rc_is 0
@@ -227,8 +233,7 @@ case_ticketed_then_clean_delta_waits() {
   check "ticketed: no approval at head 1" [ "$(approvals)" = 0 ]
   check "ticketed: not recorded clean" no_file "$KEY.council-clean"
   set_head "$HEAD2"
-  FAKE_DELTA_TEXT=$'no findings, nothing posted\nDELTA_FINDINGS 0\nDELTA_CONFIDENT value=true' \
-    FAKE_VERIFY_TEXT=$'nothing to verify\nVERIFY_VERDICT reviewed=0 reopened=0 regressions=0 complete=true confident=true\nCONFIDENCE ok' \
+  FAKE_VERIFY_TEXT=$'nothing to verify\nVERIFY_VERDICT reviewed=0 reopened=0 regressions=0 complete=true confident=true\nCONFIDENCE ok' \
     run_review verify "$HEAD2" "$HEAD1"
   check "ticketed then clean delta: fakes answered" called "claude DELTA"
   check "ticketed then clean delta: no approval" [ "$(approvals)" = 0 ]
@@ -295,18 +300,84 @@ case_verify_retry_skips_delta() {
   set_head "$HEAD1"
   FAKE_VALIDATOR_TEXT="Review posted. $(marker 2)" run_review council "$HEAD1" -
   set_head "$HEAD2" '[{"state":"COMMENTED","author":{"login":"me"}}]'
-  export FAKE_DELTA_TEXT=$'no findings, nothing posted\nDELTA_FINDINGS 0\nDELTA_CONFIDENT value=true'
   FAKE_VERIFY_RC=1 run_review verify "$HEAD2" "$HEAD1"
   check "verify retry: first attempt failed" [ "$RC" != 0 ]
   FAKE_VERIFY_TEXT=$'all fixed\nVERIFY_VERDICT reviewed=2 reopened=0 regressions=0 complete=true confident=true\nCONFIDENCE fixed' \
     run_review verify "$HEAD2" "$HEAD1"
-  unset FAKE_DELTA_TEXT
   check "verify retry: fakes answered" called "claude VERIFY"
   check "verify retry: delta not rerun" not_called "claude DELTA"
   check "verify retry: one approval" [ "$(approvals)" = 1 ]
 }
 
 argv_of() { grep "^claude $1 " "$FAKE_LOG" | tail -1; }
+
+verify_after_findings() {
+  reset_state
+  set_head "$HEAD1"
+  FAKE_VALIDATOR_TEXT="Review posted. $(marker 2)" run_review council "$HEAD1" -
+  set_head "$1" '[{"state":"COMMENTED","author":{"login":"me"}}]'
+  FAKE_VERIFY_TEXT=$'all fixed\nVERIFY_VERDICT reviewed=2 reopened=0 regressions=0 complete=true confident=true\nCONFIDENCE fixed' \
+    run_review verify "$1" "$HEAD1"
+}
+
+case_delta_structured() {
+  FAKE_DELTA_PATCH="$(delta_review '{"findings":[{"path":"a.txt","line":2,"body":"two is wrong"},{"path":"m.py","line":9,"body":"outside the diff"}],"confident":false}')" \
+    verify_after_findings "$HEAD2"
+  check "delta: fakes answered" called "claude DELTA"
+  check "delta: read-only profile" eval 'argv_of DELTA | grep -q -- "--permission-mode auto --permission-prompts none --disallowedTools=Edit,Write,NotebookEdit "'
+  check "delta: no bypass" eval '! argv_of DELTA | grep -q -- --dangerously-skip-permissions'
+  check "delta: json schema" eval 'argv_of DELTA | grep -q -- "--json-schema "'
+  check "delta: low effort" eval 'argv_of DELTA | grep -q -- "--effort low "'
+  check "delta: the script posts the anchored finding" jq -e --arg sha "$HEAD2" \
+    '.event == "COMMENT" and .commit_id == $sha and .comments == [{"path":"a.txt","line":2,"side":"RIGHT","body":"two is wrong"}]' "$FAKE_DIR/payload.json"
+  check "delta: an unanchored finding goes to the body" eval 'jq -r .body "$FAKE_DIR/payload.json" | grep -q "m.py.*outside the diff"'
+  check "delta: findings counted" grep -q '^DELTA_FINDINGS 2$' "$TMP_DIR/run.out"
+  check "delta: no approval" [ "$(approvals)" = 0 ]
+  check "delta: the prompt does not post" eval '! grep -q "gh api" "$SCRIPTS/pr-review-watch/delta-prompt.md"'
+  FAKE_DELTA_PATCH='.structured_output = null' verify_after_findings "$HEAD2"
+  check "delta: no structured output is incomplete" rc_is 4
+  check "delta: no structured output does not approve" [ "$(approvals)" = 0 ]
+}
+
+case_delta_same_patch_skips() {
+  git -C "$TMP_DIR/seed" checkout -q main
+  echo base2 >"$TMP_DIR/seed/b.txt"
+  git -C "$TMP_DIR/seed" add b.txt
+  git -C "$TMP_DIR/seed" commit -q -m base2
+  git -C "$TMP_DIR/seed" push -q "$TMP_DIR/origin.git" main
+  git -C "$TMP_DIR/seed" checkout -q -b rebased
+  git -C "$TMP_DIR/seed" cherry-pick "$HEAD1" >/dev/null
+  local rebased
+  rebased="$(git -C "$TMP_DIR/seed" rev-parse HEAD)"
+  git -C "$TMP_DIR/seed" checkout -q feature
+  verify_after_findings "$rebased"
+  check "same patch: fakes answered" called "claude VERIFY"
+  check "same patch: nothing new" grep -q '^=== nothing new since' "$TMP_DIR/run.out"
+  check "same patch: no delta model call" not_called "claude DELTA"
+}
+
+watch_decision() {
+  reset_state
+  mkdir -p "$STATE/runs"
+  set_head "$HEAD2"
+  : >"$FAKE_LOG"
+  watch_fn "consider me o/r 7 '$HEAD2' url"
+}
+
+case_watch_skips() {
+  local out
+  out="$(FAKE_PR_AUTHOR='{"login":"dependabot[bot]","is_bot":true}' watch_decision)"
+  check "skip: fakes answered" called "gh pr view"
+  check "skip: a bot author is not reviewed" eval 'grep -q "bot author" <<<"$out" && ! grep -q "^launch" <<<"$out"'
+  out="$(FAKE_PR_FILES='[{"path":"web/package-lock.json","additions":40,"deletions":0}]' watch_decision)"
+  check "skip: a lockfile-only diff is not reviewed" eval 'grep -q "lockfile-only" <<<"$out" && ! grep -q "^launch" <<<"$out"'
+  out="$(FAKE_PR_FILES='[{"path":"README.md","additions":4,"deletions":0},{"path":"docs/a.rst","additions":2,"deletions":0}]' watch_decision)"
+  check "skip: a docs-only diff is not reviewed" eval 'grep -q "docs-only" <<<"$out" && ! grep -q "^launch" <<<"$out"'
+  out="$(FAKE_PR_FILES='[{"path":"a.txt","additions":1,"deletions":0},{"path":"yarn.lock","additions":9000,"deletions":0}]' PR_REVIEW_WATCH_MAX_DIFF_LINES=10 watch_decision)"
+  check "skip: lockfile lines do not count toward the size cap" grep -q "^launch council" <<<"$out"
+  out="$(FAKE_GH_VIEW_FAIL=1 watch_decision)"
+  check "skip: a failed size lookup is not reviewed" eval 'grep -q "size lookup failed" <<<"$out" && ! grep -q "^launch" <<<"$out"'
+}
 
 case_pass_caps_and_diagnostics() {
   reset_state
@@ -410,6 +481,9 @@ case_watch_mode
 case_next_attempt
 case_approval_post_failure_stays_pending
 case_verify_retry_skips_delta
+case_delta_structured
+case_delta_same_patch_skips
+case_watch_skips
 case_pass_caps_and_diagnostics
 case_tick_guards
 case_signals

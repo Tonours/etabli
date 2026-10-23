@@ -121,8 +121,19 @@ seen_age() {
   echo $(( $(date +%s) - seen_at ))
 }
 
-diff_lines() {
-  gh pr view "$2" --repo "$1" --json additions,deletions --jq '.additions + .deletions' </dev/null
+# Prints the changed lines outside lockfiles, or "skip <reason>" for a PR that
+# needs no model review.
+diff_scope() {
+  gh pr view "$2" --repo "$1" --json author,files,changedFiles,additions,deletions </dev/null | jq -r '
+    def lockfile: test("(^|/)(package-lock\\.json|npm-shrinkwrap\\.json|yarn\\.lock|pnpm-lock\\.yaml|bun\\.lockb?|Gemfile\\.lock|Cargo\\.lock|poetry\\.lock|uv\\.lock|Pipfile\\.lock|composer\\.lock|go\\.sum|flake\\.lock|mix\\.lock)$");
+    def docs: test("(^|/)docs/|\\.(md|mdx|rst|adoc)$");
+    ([.files[] | select(.path | lockfile)]) as $locks
+    | ([.files[] | select(.path | lockfile | not)]) as $code
+    | (.changedFiles == (.files | length)) as $listed
+    | if .author.is_bot or (.author.login | endswith("[bot]")) then "skip bot author \(.author.login)"
+      elif $listed and ($code | length) == 0 then "skip lockfile-only diff"
+      elif $listed and ($code | all(.path | docs)) then "skip docs-only diff"
+      else .additions + .deletions - ([$locks[] | .additions + .deletions] | add // 0) end'
 }
 
 write_launcher() {
@@ -224,10 +235,19 @@ consider() {
   esac
   age="$(seen_age "$key" "$sha")"
   [ "${age:-0}" -ge "$SETTLE_SECONDS" ] || { log "$repo#$number @${sha:0:8} first seen ${age}s ago, settling"; return; }
-  size="$(diff_lines "$repo" "$number" 2>/dev/null || echo 0)"
-  if [ "${size:-0}" -gt "$MAX_DIFF_LINES" ]; then
-    if [ "$(cat "$key.too-big" 2>/dev/null)" != "$sha" ]; then
-      echo "$sha" >"$key.too-big"
+  size="$(diff_scope "$repo" "$number" 2>/dev/null)"
+  case "$size" in
+    '') log "$repo#$number @${sha:0:8} size lookup failed, retry next tick"; return ;;
+    skip\ *)
+      if [ "$(cat "$key.skipped" 2>/dev/null)" != "$sha" ]; then
+        echo "$sha" >"$key.skipped"
+        log "$repo#$number @${sha:0:8} ${size#skip }, not reviewed"
+      fi
+      return ;;
+  esac
+  if [ "$size" -gt "$MAX_DIFF_LINES" ]; then
+    if [ "$(cat "$key.skipped" 2>/dev/null)" != "$sha" ]; then
+      echo "$sha" >"$key.skipped"
       log "$repo#$number @${sha:0:8} changes $size lines (> $MAX_DIFF_LINES), left to a human"
       notify "PR too big for auto-review" "$repo#$number: $size changed lines" "$url"
     fi
@@ -260,7 +280,7 @@ process_watched() {
     if [ "$state" != "OPEN" ] || [ "$involved" != "true" ] || [ "$approved" = "true" ]; then
       herdr_available && close_review_tab "${repo#*/}#$number"
       log "unwatching $repo#$number ($state, involved=$involved, approved=$approved)"
-      [ "$state" = OPEN ] || rm -f "$(run_key "$repo" "$number")".{status,seen,watermark,council-done,council-clean,approval-pending,approval-body,too-big,exhausted,delta-done}
+      [ "$state" = OPEN ] || rm -f "$(run_key "$repo" "$number")".{status,seen,watermark,council-done,council-clean,approval-pending,approval-body,skipped,exhausted,delta-done}
       continue
     fi
     [ "$draft" = "false" ] && consider "$me" "$repo" "$number" "$sha" "$url" </dev/null
