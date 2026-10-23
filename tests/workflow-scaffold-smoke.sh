@@ -86,12 +86,11 @@ assert_file "$NEW_PROJECT/workflow/templates/review-spec-hunter.md"
 assert_file "$NEW_PROJECT/workflow/templates/review-lead.md"
 assert_file "$NEW_PROJECT/PLAN_TEMPLATE.md"
 assert_file "$NEW_PROJECT/PLAN_TEMPLATE_FULL.md"
-for managed in scripts/lib/plan-cleanup-command.mjs scripts/lib/plan-status.mjs; do
- assert_file "$NEW_PROJECT/$managed"
- assert_same "$ROOT_DIR/$managed" "$NEW_PROJECT/$managed"
-done
+assert_same "$ROOT_DIR/scripts/lib/plan-cleanup-command.mjs" "$NEW_PROJECT/scripts/lib/plan-cleanup-command.mjs"
 assert_file "$NEW_PROJECT/scripts/plan-cleanup"
-assert_file "$NEW_PROJECT/scripts/lib/hash.sh"
+for retired in scripts/lib/plan-status.mjs scripts/lib/hash.sh scripts/vendor; do
+  assert_not_exists "$NEW_PROJECT/$retired"
+done
 
 [ -x "$NEW_PROJECT/scripts/plan-cleanup" ] || {
   printf 'expected deployed plan-cleanup to be executable\n' >&2
@@ -174,8 +173,7 @@ git -C "$NEW_PROJECT" init -q .
 assert_contains "$NEW_PROJECT/.git/info/exclude" "etabli personal workflow ignores"
 assert_contains "$NEW_PROJECT/.git/info/exclude" "/PLAN.md"
 assert_contains "$NEW_PROJECT/.git/info/exclude" "/workflow/"
-assert_contains "$NEW_PROJECT/.git/info/exclude" "/scripts/lib/hash.sh"
-for managed in scripts/lib/plan-status.mjs scripts/lib/plan-cleanup-command.mjs scripts/vendor/commonmark/commonmark.cjs; do
+for managed in scripts/plan-cleanup scripts/lib/plan-cleanup-command.mjs; do
   git -C "$NEW_PROJECT" check-ignore -q -- "$managed" || { printf 'managed tooling exposed to project Git: %s\n' "$managed" >&2; exit 1; }
 done
 LINKED_MAIN="$TMP_DIR/linked-main"
@@ -202,9 +200,9 @@ PATH="$OLD_GIT_BIN:$PATH" "$SCRIPT" "$OLD_GIT_PROJECT" >/dev/null
 assert_contains "$OLD_GIT_PROJECT/.git/info/exclude" "etabli personal workflow ignores"
 linked_status="$(git -C "$LINKED_WORKTREE" status --porcelain --untracked-files=all)"
 [ -z "$linked_status" ] || { printf 'scaffold files exposed in a linked worktree:\n%s\n' "$linked_status" >&2; exit 1; }
-printf '// changed managed helper\n' >>"$NEW_PROJECT/scripts/lib/plan-status.mjs"
+printf '// changed managed helper\n' >>"$NEW_PROJECT/scripts/lib/plan-cleanup-command.mjs"
 "$SCRIPT" "$NEW_PROJECT" --force >/dev/null
-assert_same "$ROOT_DIR/scripts/lib/plan-status.mjs" "$NEW_PROJECT/scripts/lib/plan-status.mjs"
+assert_same "$ROOT_DIR/scripts/lib/plan-cleanup-command.mjs" "$NEW_PROJECT/scripts/lib/plan-cleanup-command.mjs"
 assert_not_exists "$NEW_PROJECT/.gitignore"
 
 "$SCRIPT" "$NEW_PROJECT" >/dev/null
@@ -340,14 +338,24 @@ assert_backup() {
   }
 }
 
+assert_no_backup() {
+  if compgen -G "$1.bak.*" >/dev/null; then
+    printf 'unexpected backup of %s\n' "$1" >&2
+    exit 1
+  fi
+}
+
 shipped_copy() {
   git -C "$ROOT_DIR" show "$(git -C "$ROOT_DIR" log -1 --format=%H --diff-filter=AM -- "$1"):$1" >"$2"
 }
 
 PRUNE_PROJECT="$TMP_DIR/prune-project"
 "$SCRIPT" "$PRUNE_PROJECT" >/dev/null
-RETIRED_SET="workflow/events.md scripts/workflow-event workflow/verification/cli-app.mjs"
-mkdir -p "$PRUNE_PROJECT/workflow/verification"
+RETIRED_SET="workflow/events.md scripts/workflow-event workflow/verification/cli-app.mjs scripts/lib/plan-status.mjs scripts/lib/hash.sh scripts/vendor/commonmark/commonmark.cjs"
+mkdir -p "$PRUNE_PROJECT/workflow/verification" "$PRUNE_PROJECT/scripts/lib" "$PRUNE_PROJECT/scripts/vendor/commonmark"
+for retired in scripts/lib/plan-status.mjs scripts/lib/hash.sh scripts/vendor/commonmark/commonmark.cjs; do
+  shipped_copy "$retired" "$PRUNE_PROJECT/$retired"
+done
 shipped_copy workflow/events.md "$PRUNE_PROJECT/workflow/events.md"
 shipped_copy scripts/workflow-event "$PRUNE_PROJECT/scripts/workflow-event"
 shipped_copy workflow-scaffold/templates/verification/cli-app.mjs "$PRUNE_PROJECT/workflow/verification/cli-app.mjs"
@@ -357,9 +365,9 @@ assert_file "$PRUNE_PROJECT/workflow/events.md"
 "$SCRIPT" "$PRUNE_PROJECT" --prune >"$TMP_DIR/prune.out"
 for retired in $RETIRED_SET; do
   assert_not_exists "$PRUNE_PROJECT/$retired"
-  assert_backup "$PRUNE_PROJECT/$retired"
+  assert_no_backup "$PRUNE_PROJECT/$retired"
 done
-assert_contains "$TMP_DIR/prune.out" "3 removed"
+assert_contains "$TMP_DIR/prune.out" "6 removed"
 "$SCRIPT" "$PRUNE_PROJECT" --prune >"$TMP_DIR/prune-again.out"
 assert_contains "$TMP_DIR/prune-again.out" "0 removed"
 
@@ -397,7 +405,9 @@ if "$SCRIPT" "$FOREIGN_PROJECT" --prune-foreign >/dev/null 2>&1; then
   exit 1
 fi
 "$SCRIPT" "$FOREIGN_PROJECT" --prune --prune-foreign >"$TMP_DIR/foreign-forced.out"
-for retired in workflow/events.md $FOREIGN_SET; do
+assert_not_exists "$FOREIGN_PROJECT/workflow/events.md"
+assert_no_backup "$FOREIGN_PROJECT/workflow/events.md"
+for retired in $FOREIGN_SET; do
   assert_not_exists "$FOREIGN_PROJECT/$retired"
   assert_backup "$FOREIGN_PROJECT/$retired"
 done
@@ -493,6 +503,25 @@ if compgen -G "$STALE_PROJECT/workflow/answer-quality.md.bak.*" >/dev/null; then
   exit 1
 fi
 "$SCRIPT" "$STALE_PROJECT" --check >/dev/null
+
+KEPT_PROJECT="$TMP_DIR/kept-project"
+"$SCRIPT" "$KEPT_PROJECT" >/dev/null
+shipped_copy scripts/lib/hash.sh "$KEPT_PROJECT/scripts/lib/hash.sh"
+git -C "$KEPT_PROJECT" init -q .
+git -C "$KEPT_PROJECT" add -f scripts/lib/hash.sh
+git -C "$KEPT_PROJECT" -c user.name=smoke -c user.email=smoke@example.invalid commit -q -m "track retired"
+for mode in "" --force "--force --refresh-tracked"; do
+  "$SCRIPT" "$KEPT_PROJECT" $mode >/dev/null
+  assert_same "$ROOT_DIR/tests/lib/hash.sh" "$KEPT_PROJECT/scripts/lib/hash.sh"
+  assert_no_backup "$KEPT_PROJECT/scripts/lib/hash.sh"
+  [ -n "$(git -C "$KEPT_PROJECT" ls-files scripts/lib/hash.sh)" ] || {
+    printf 'a run without --prune unindexed a tracked retired file (%s)\n' "${mode:-default}" >&2
+    exit 1
+  }
+done
+"$SCRIPT" "$KEPT_PROJECT" --prune >"$TMP_DIR/kept-prune.out"
+assert_contains "$TMP_DIR/kept-prune.out" "GIT_RM    scripts/lib/hash.sh"
+assert_backup "$KEPT_PROJECT/scripts/lib/hash.sh"
 
 index_snapshot() {
   git -C "$1" ls-files --stage
