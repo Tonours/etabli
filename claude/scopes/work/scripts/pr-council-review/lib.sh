@@ -149,7 +149,8 @@ run_with_timeout() {
 }
 
 # claude_pass <label> <session json> <read-only|auto> <prompt> [flags]: prints the result; returns 0,
-# REVIEW_VETO_RC on a denial, REVIEW_INCOMPLETE_RC on an error or cap hit, else the claude exit code.
+# REVIEW_VETO_RC on a denial, REVIEW_INCOMPLETE_RC on an error or cap hit, else the claude exit code
+# (1 when claude exited 0 without a session envelope).
 claude_pass() {
   local label="$1" raw="$2" profile="$3" prompt="$4" rc=0 result_rc=0
   shift 4
@@ -167,10 +168,13 @@ claude_pass() {
   fi
   extract_result "$raw" || result_rc=$?
   record_usage "$raw" "$label" "$USAGE_TARGET" >&2
+  if [ "$result_rc" -eq 1 ]; then
+    [ "$rc" -eq 0 ] && return 1
+    return "$rc"
+  fi
   if denial_veto "$raw" "$rc"; then return "$REVIEW_VETO_RC"; fi
   [ "$result_rc" -ne 2 ] || return "$REVIEW_INCOMPLETE_RC"
   [ "$rc" -eq 0 ] || return "$rc"
-  [ "$result_rc" -eq 0 ] || return 1
 }
 
 acquire_lock() {

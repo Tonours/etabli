@@ -210,6 +210,9 @@ case_unverified_envelopes() {
   FAKE_VALIDATOR_PATCH=empty FAKE_VALIDATOR_RC=1 run_review council "$HEAD1" -
   check "empty output: fakes answered" called "claude VALIDATOR"
   check "empty output: retryable failure, not incomplete" rc_is 1
+  reset_state
+  FAKE_VALIDATOR_PATCH=empty FAKE_VALIDATOR_RC=0 run_review council "$HEAD1" -
+  check "empty output with exit 0: retryable failure, not a veto" rc_is 1
 }
 
 case_verify_after_findings_approves() {
