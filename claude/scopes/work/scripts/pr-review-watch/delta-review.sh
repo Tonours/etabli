@@ -42,6 +42,7 @@ if ! git cat-file -e "$SINCE^{commit}" 2>/dev/null || ! git merge-base --is-ance
 fi
 [ "$SINCE" != "$HEAD_SHA" ] || { echo "=== nothing new since ${SINCE:0:8}"; exit 0; }
 
+purge_old_dirs "${TMPDIR:-/tmp}" "pr-delta-*" 7
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/pr-delta-$NUMBER.XXXXXX")"
 WORKTREE="$WORK_DIR/tree"
 trap 'git worktree remove --force "$WORKTREE" >/dev/null 2>&1' EXIT

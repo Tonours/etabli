@@ -39,6 +39,7 @@ case "$1 $2" in
   "api user") out='{"login":"me"}' ;;
   "pr view") [ -z "${FAKE_GH_VIEW_FAIL:-}" ] || exit 1; out="$(cat "$FAKE_DIR/pr.json")" ;;
   "pr checks") out='[{"bucket":"pass"}]' ;;
+  "pr list") out="$(jq -c --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '[{number, author: {login: "me"}, url, createdAt: $now, reviews: [], headRefOid}]' "$FAKE_DIR/pr.json")" ;;
   "api graphql") out='{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[],"pageInfo":{"hasNextPage":false}}}}}}' ;;
   *)
     case "$*" in
@@ -74,11 +75,14 @@ case "$prompt" in
   *thermo-nuclear*) role=THERMO ;;
   "Incremental review"*) role=DELTA ;;
   /forest:verify-fixes*) role=VERIFY ;;
+  "You are the automatic PR review agent"*) role=AUTOREVIEW ;;
   *) echo "fake claude: unknown prompt" >&2; exit 1 ;;
 esac
 printf 'claude %s GIT_TERMINAL_PROMPT=%s %s\n' "$role" "${GIT_TERMINAL_PROMPT:-unset}" "${flags[*]}" >>"$FAKE_LOG"
 stderr_var="FAKE_${role}_STDERR"
 [ -z "${!stderr_var:-}" ] || echo "${!stderr_var}" >&2
+sleep_var="FAKE_${role}_SLEEP"
+[ -z "${!sleep_var:-}" ] || sleep "${!sleep_var}"
 envelope_var="FAKE_${role}_ENVELOPE" text_var="FAKE_${role}_TEXT" rc_var="FAKE_${role}_RC" patch_var="FAKE_${role}_PATCH"
 envelope="$FAKE_FIXTURES/2.1.308-${!envelope_var:-success}.json"
 text="${!text_var:-}"
@@ -369,6 +373,51 @@ case_delta_same_patch_skips() {
   check "same patch: no delta model call" not_called "claude DELTA"
 }
 
+autoreview() {
+  : >"$FAKE_LOG"
+  RC=0
+  (cd "$CLONE" && /bin/bash "$SCRIPTS/pr-autoreview/run.sh" o/r agent-nodejs feature "$HEAD1" "$CLONE") || RC=$?
+  cp "$HOME/.claude/logs/pr-autoreview.log" "$TMP_DIR/run.out"
+}
+
+case_autoreview_fails_loudly() {
+  set_head "$HEAD1"
+  FAKE_AUTOREVIEW_ENVELOPE=denied autoreview
+  check "autoreview denial: fakes answered" called "claude AUTOREVIEW"
+  check "autoreview denial: exits non-zero" [ "$RC" != 0 ]
+  check "autoreview denial: notifies" called "notify "
+  PR_AUTOREVIEW_TIMEOUT=1 PR_REVIEW_STOP_GRACE=1 FAKE_AUTOREVIEW_SLEEP=20 autoreview
+  check "autoreview timeout: exits non-zero" [ "$RC" != 0 ]
+  check "autoreview timeout: notifies" called "notify "
+  autoreview
+  check "autoreview without DONE: fakes answered" called "claude AUTOREVIEW"
+  check "autoreview without DONE: exits non-zero" [ "$RC" != 0 ]
+  check "autoreview without DONE: notifies" called "notify "
+}
+
+case_housekeeping() {
+  local repo="$TMP_DIR/neutralize" stale="$TMPDIR/pr-verify-99.stale"
+  check "codex: the council has no codex path" eval '[ ! -e "$SCRIPTS/pr-council-review/codex-prompt.md" ] && ! grep -qi codex "$SCRIPTS/pr-council-review/run.sh" "$SCRIPTS/pr-council-review/council-prompt.md"'
+  git init -q "$repo"
+  git -C "$repo" commit -q --allow-empty -m base
+  mkdir -p "$repo/sub"
+  echo steer >"$repo/CLAUDE.local.md"
+  echo steer >"$repo/sub/CLAUDE.local.md"
+  git -C "$repo" add -A
+  git -C "$repo" commit -q -m steer
+  /bin/bash -c ". '$SCRIPTS/pr-council-review/lib.sh'; neutralize_author_config '$repo' HEAD~1" >/dev/null
+  check "author config: CLAUDE.local.md files are reset" eval '[ ! -e "$repo/CLAUDE.local.md" ] && [ ! -e "$repo/sub/CLAUDE.local.md" ]'
+  mkdir -p "$stale"
+  touch -t 202001010000 "$stale"
+  FAKE_VALIDATOR_TEXT="Review posted. $(marker 2)" verify_after_findings "$HEAD2"
+  check "purge: old verify dirs are removed" no_file "$stale"
+  reset_state
+  mkdir -p "$STATE"
+  head -c 6000000 /dev/zero >"$PR_REVIEW_WATCH_LOG"
+  PR_REVIEW_WATCH_STATE_DIR="$STATE" /bin/bash "$SCRIPTS/pr-review-watch/watch.sh" >/dev/null 2>&1 || true
+  check "log: a large watch log is rotated" eval '[ -s "$PR_REVIEW_WATCH_LOG.1" ] && [ "$(wc -c <"$PR_REVIEW_WATCH_LOG")" -lt 6000000 ]'
+}
+
 watch_decision() {
   reset_state
   mkdir -p "$STATE/runs"
@@ -498,6 +547,8 @@ case_delta_structured
 case_validator_profile
 case_delta_same_patch_skips
 case_watch_skips
+case_autoreview_fails_loudly
+case_housekeeping
 case_pass_caps_and_diagnostics
 case_tick_guards
 case_signals

@@ -1,7 +1,7 @@
 ---
 name: pr-council-review
 description: Runs a three-pass review of one PR (code-review + thermo-nuclear, then forest:validator as the council), dry-run by default. Use when a GitHub PR needs the full council review; not for local diffs (review).
-argument-hint: "<PR number or URL> [owner/repo] [--post] [--codex] [--phase-a-model <alias>]"
+argument-hint: "<PR number or URL> [owner/repo] [--post] [--phase-a-model <alias>]"
 allowed-tools: [Bash, Read, Glob, Grep]
 ---
 
@@ -21,11 +21,16 @@ usage per pass is appended to `~/.claude/logs/pr-review-usage.log`.
   Phase A runs on `sonnet` (`--phase-a-model` / `PR_COUNCIL_PHASE_A_MODEL`)
   without MCP servers, hooks or user settings, to keep each session's base
   context small; the validator keeps the full setup on `opus`.
-  Claude-only by default; a third `codex` pass runs only with `--codex`, so
-  report a plain run as a same-family review, never as cross-model.
+  Both passes are Claude: report the run as a same-family review, never as
+  cross-model.
 - Phase B: `/validator` on the PR, with phase A's findings injected as extra
   candidates for its step 6 skeptic gate. One review, the validator's emit
   contract, its writing rules, its markers.
+
+A permission denial in any pass is a veto: the validator does not run or its
+review is not approved, and the script exits 3. A session that ends incomplete
+(an error, a turn or budget cap) exits 4; the watcher also counts a validator run
+without its run marker as incomplete, and retries neither on the same head.
 
 Without `--post` the validator prints the review payload it would submit and
 writes nothing to GitHub. Pass `--post` whenever the request is to publish the

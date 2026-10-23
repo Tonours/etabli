@@ -124,7 +124,7 @@ out="$(mktemp "${TMPDIR:-/tmp}/etabli-hunter.XXXXXX")"
 trap 'rm -f "$out"' EXIT
 pi "${PI_ARGS[@]}" </dev/null >"$out" &
 pi_pid=$!
-( sleep "$TIMEOUT_SECS"; kill -TERM "$pi_pid" 2>/dev/null ) </dev/null >/dev/null 2>&1 &
+perl -e 'sleep shift; kill "TERM", shift' "$TIMEOUT_SECS" "$pi_pid" </dev/null >/dev/null 2>&1 &
 watchdog=$!
 set +e
 wait "$pi_pid"
