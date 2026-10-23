@@ -20,14 +20,8 @@ but cannot confirm runtime support.
 - Claude should use Claude Code `/goal` for long-running completion loops.
 - Hooks and commands route, guard, and add context; they must not invent runtime
   primitives that the host does not expose.
-- One writer at any instant. The parent writes, or an implementation route may
-  delegate one bounded READY plan step to one supported `worker`. Run that
-  worker in the foreground or wait for it before the parent writes again, then
-  inspect its diff and take the pen back. The current Pi profile remains
-  parent-only while its subagent capability is `unknown`.
-- The deterministic multi-model council was removed (ADR-0013) after the
-  2026-07-19 blind latency gate found no quality gain; other subagent delegation
-  remains an ordinary tool call, judged case by case.
+- Single writer: `workflow/skills/implementation-loop.md` step 8. The current
+  Pi profile remains parent-only while its subagent capability is `unknown`.
 
 ## Capability Labels
 

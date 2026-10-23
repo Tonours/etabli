@@ -52,13 +52,7 @@ and report the missing paths as a warning, not a blocker.
 
 ## READY Gate
 
-A plan is `READY` only with: a clear goal; bounded scope and non-goals when
-needed; concrete steps; named files or areas for risky changes; checks to run;
-route, role, stop condition and required evidence; known
-risks or an explicit "none"; facts separated from assumptions when the task
-depends on uncertain context; a populated requirement trace with a disposition
-for every material spec/code gap; no blocking open question. `workflow/spec.md`
-§ Minimal READY gate is the canonical list and wins on conflict.
+A plan is `READY` only when `workflow/spec.md` § Minimal READY gate holds.
 
 ## Rules
 
