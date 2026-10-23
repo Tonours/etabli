@@ -70,6 +70,13 @@ case "$shell_docs_job" in
 *) fail "shell/docs CI job must install Bun for Bun-backed smoke tests" ;;
 esac
 
+[ "$(grep -c '^    timeout-minutes:' "$WORKFLOW")" -eq 2 ] || fail "both CI jobs must set timeout-minutes"
+[ "$(grep -c 'uses: actions/cache@' "$WORKFLOW")" -eq 2 ] || fail "both CI jobs must cache bun installs"
+grep -Eq '^    branches: \[main\]$' "$WORKFLOW" || fail "CI push runs must be limited to main"
+if printf '%s\n' "$(cat "$ROOT_DIR/scripts/verify-agentic-infra")" | grep -Fq 'sysctl'; then
+	fail "verify-agentic-infra must count cores with getconf, not the macOS-only sysctl"
+fi
+
 if grep -Eq 'run:[[:space:]]+(bash tests/|bun test|node scripts/validate-adrs)' "$WORKFLOW"; then
 	fail "CI duplicates a manifest-owned check instead of calling the canonical runner"
 fi
@@ -98,5 +105,16 @@ set -e
 	fail "every selected check must run exactly once even when one reads stdin (child stdin must be /dev/null)"
 grep -Fq 'SUMMARY: 1/4 checks failed: red' "$stdin_root/out" ||
 	fail "the summary must count every selected check"
+
+printf '#!/usr/bin/env bash\nkill -TERM "$PPID"\nsleep 5\n' >"$stdin_root/tests/term.sh"
+printf 'core\tshell-docs\tterm\ttests/term.sh\ncore\tshell-docs\tok-after-term\ttests/ok.sh\n' \
+	>"$stdin_root/workflow/runtime/agentic-infra-checks.tsv"
+set +e
+AGENTIC_INFRA_JOBS=1 perl -e 'alarm 10; exec @ARGV' "$stdin_root/scripts/verify-agentic-infra" core >"$stdin_root/out" 2>&1
+term_status=$?
+set -e
+[ "$term_status" -ne 142 ] || fail "a TERM-killed check must return its slot instead of hanging the runner"
+grep -Fq 'RUN  ok-after-term' "$stdin_root/out" || fail "the check after a TERM-killed one must still run"
+grep -Fq 'SUMMARY: 1/2 checks failed: term' "$stdin_root/out" || fail "a TERM-killed check must count as failed"
 
 printf 'agentic infra manifest smoke test: ok\n'

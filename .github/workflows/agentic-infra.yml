@@ -2,12 +2,12 @@ name: agentic-infra
 
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -15,6 +15,7 @@ permissions:
 jobs:
   verify-shell-and-docs:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -36,6 +37,12 @@ jobs:
       - name: Secret scan of the full history
         run: gitleaks git --no-banner --redact --log-opts="--all --full-history --diff-merges=first-parent" .
 
+      - name: Cache bun install
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('pi/bun.lock*') }}
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
@@ -55,11 +62,12 @@ jobs:
 
       - name: Canonical shell/docs parity group
         env:
-          AGENTIC_INFRA_JOBS: "2"
+          AGENTIC_INFRA_JOBS: "4"
         run: scripts/verify-agentic-infra shell-docs
 
   verify-pi-typescript:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
