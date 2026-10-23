@@ -71,8 +71,9 @@ case "${FAKE_PI:-ok}" in
 esac
 FAKE
 chmod +x "$TMP_DIR/bin/pi"
-ok_out="$(PATH="$TMP_DIR/bin:$PATH" "$HELPER" --prompt-file "$PROMPT_FILE" --patch "$PATCH_FILE")"
+ok_out="$(PATH="$TMP_DIR/bin:$PATH" "$HELPER" --prompt-file "$PROMPT_FILE" --patch "$PATCH_FILE" 2>"$TMP_DIR/ok.err")"
 [ "$ok_out" = "GO" ] || fail "final report must reach stdout"
+[ ! -s "$TMP_DIR/ok.err" ] || fail "a finished run must keep stderr empty, got: $(cat "$TMP_DIR/ok.err")"
 ignored_rc=0
 ignored_out="$(trap '' TERM; PATH="$TMP_DIR/bin:$PATH" "$HELPER" --prompt-file "$PROMPT_FILE" --patch "$PATCH_FILE" --timeout 2)" || ignored_rc=$?
 [ "$ignored_rc" -eq 0 ] && [ "$ignored_out" = "GO" ] || fail "a finished run under an ignored TERM must not time out, got $ignored_rc"
