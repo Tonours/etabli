@@ -339,6 +339,19 @@ case_delta_structured() {
   check "delta: no structured output does not approve" [ "$(approvals)" = 0 ]
 }
 
+case_validator_profile() {
+  reset_state
+  set_head "$HEAD1"
+  FAKE_VALIDATOR_TEXT="Review posted. $(marker 2)" run_review council "$HEAD1" -
+  check "validator: fakes answered" called "claude VALIDATOR"
+  check "validator: auto profile" eval 'argv_of VALIDATOR | grep -q -- "--permission-mode auto --permission-prompts none "'
+  check "validator: only the review POST is pre-allowed" eval 'argv_of VALIDATOR | grep -qF -- "--allowedTools Bash(gh api repos/o/r/pulls/7/reviews:*) "'
+  check "validator: no bypass" eval '! argv_of VALIDATOR | grep -q -- --dangerously-skip-permissions'
+  FAKE_VALIDATOR_ENVELOPE=denied FAKE_VALIDATOR_TEXT="$(marker 0)" run_review council "$HEAD1" -
+  check "validator: a denial vetoes" rc_is 3
+  check "validator: a denial does not approve" [ "$(approvals)" = 0 ]
+}
+
 case_delta_same_patch_skips() {
   git -C "$TMP_DIR/seed" checkout -q main
   echo base2 >"$TMP_DIR/seed/b.txt"
@@ -482,6 +495,7 @@ case_next_attempt
 case_approval_post_failure_stays_pending
 case_verify_retry_skips_delta
 case_delta_structured
+case_validator_profile
 case_delta_same_patch_skips
 case_watch_skips
 case_pass_caps_and_diagnostics

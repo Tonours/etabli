@@ -7,7 +7,8 @@ CLAUDE_PASS_TIMEOUT="${PR_REVIEW_PASS_TIMEOUT:-2700}"
 CLAUDE_MAX_TURNS="${PR_REVIEW_MAX_TURNS:-200}"
 CLAUDE_MAX_BUDGET_USD="${PR_REVIEW_MAX_BUDGET_USD:-25}"
 STOP_GRACE_SECONDS="${PR_REVIEW_STOP_GRACE:-10}"
-READ_ONLY_PROFILE=(--permission-mode auto --permission-prompts none --disallowedTools=Edit,Write,NotebookEdit)
+AUTO_PROFILE=(--permission-mode auto --permission-prompts none)
+READ_ONLY_PROFILE=("${AUTO_PROFILE[@]}" --disallowedTools=Edit,Write,NotebookEdit)
 ISOLATED_SETTINGS=(--settings '{"disableAllHooks":true}' --strict-mcp-config --setting-sources project,local)
 USAGE_TARGET="${USAGE_TARGET:-}"
 export GIT_TERMINAL_PROMPT=0
@@ -135,7 +136,7 @@ run_with_timeout() {
   return "$rc"
 }
 
-# claude_pass <label> <session json> <read-only|bypass> <prompt> [flags]: prints the result; returns 0,
+# claude_pass <label> <session json> <read-only|auto> <prompt> [flags]: prints the result; returns 0,
 # REVIEW_VETO_RC on a denial, REVIEW_INCOMPLETE_RC on an error or cap hit, else the claude exit code.
 claude_pass() {
   local label="$1" raw="$2" profile="$3" prompt="$4" rc=0 result_rc=0
@@ -143,7 +144,7 @@ claude_pass() {
   [ -n "$CLAUDE" ] || { echo "=== $label: claude binary not found" >&2; return 1; }
   case "$profile" in
     read-only) set -- "${READ_ONLY_PROFILE[@]}" "$@" ;;
-    bypass) set -- --dangerously-skip-permissions "$@" ;;
+    auto) set -- "${AUTO_PROFILE[@]}" "$@" ;;
     *) echo "=== $label: unknown profile $profile" >&2; return 1 ;;
   esac
   run_with_timeout "$CLAUDE_PASS_TIMEOUT" "$CLAUDE" -p "$prompt" --output-format json \
