@@ -8,6 +8,21 @@ export ETABLI_SKIP_LIVE_CHECKS=1
 
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
+
+mkdir -p "$tmp_dir/fake-df"
+cat >"$tmp_dir/fake-df/df" <<'EOF'
+#!/bin/sh
+if [ "$1" = "-kP" ]; then
+  printf 'Filesystem 1024-blocks Used Available Capacity Mounted on\n/dev/mapper/vg-long-home 1000 900 100 90%% /home\n'
+else
+  printf 'Filesystem 1K-blocks Used Available Use%% Mounted on\n/dev/mapper/vg-long-home\n 1000 900 100 90%% /home\n'
+fi
+EOF
+chmod +x "$tmp_dir/fake-df/df"
+if (PATH="$tmp_dir/fake-df:$PATH" check_disk_space) >/dev/null 2>&1; then
+  print_error "check_disk_space missed low space on a wrapped df line"
+  exit 1
+fi
 original_path="$PATH"
 
 PATH="/tmp/asdf-shims:/usr/bin"

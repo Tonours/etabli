@@ -238,6 +238,17 @@ install_pi_agent_npm_pins() {
     fi
 }
 
+# Check disk space (minimum 500MB)
+check_disk_space() {
+    local available
+    available=$(df -kP "$HOME" | awk 'NR==2 {print $4}')
+
+    if [ "$available" -lt 512000 ]; then
+        print_error "Less than 500MB available in $HOME (${available}KB found)"
+        exit 1
+    fi
+}
+
 if [ "${BASH_SOURCE[0]}" != "$0" ]; then
     return 0
 fi
@@ -262,17 +273,6 @@ if [[ "$OS" == "unknown" ]]; then
     print_error "Unsupported OS: $OSTYPE"
     exit 1
 fi
-
-# Check disk space (minimum 500MB)
-check_disk_space() {
-    local available
-    available=$(df -k "$HOME" | awk 'NR==2 {print $4}')
-
-    if [ "$available" -lt 512000 ]; then
-        print_error "Less than 500MB available in $HOME (${available}KB found)"
-        exit 1
-    fi
-}
 
 check_disk_space
 

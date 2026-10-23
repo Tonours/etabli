@@ -1,12 +1,12 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { bypassesRtkGuard, hookScriptNames, identityOf, isRetiredHookCommand, loadFragment } from "./claude-hooks-fragment.mjs";
 
 const claudeDir = process.argv[2];
 const repoDir = process.argv[3];
 const livePath = join(claudeDir, "settings.json");
 const remedy = "remediation: run scripts/claude-hooks-merge --dry-run, review, then run it for real";
 
-const { bypassesRtkGuard, hookScriptNames, identityOf, isRetiredHookCommand, loadFragment } = await import(`file://${repoDir}/scripts/lib/claude-hooks-fragment.mjs`);
 let fragment;
 try {
   fragment = loadFragment(repoDir);
