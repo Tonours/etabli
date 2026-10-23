@@ -17,9 +17,8 @@ but cannot confirm runtime support.
 - Pi may use Task* tools when available.
 - Task* tools are Pi-only unless another runtime explicitly exposes equivalent
   structured task primitives.
-- Claude should use Claude Code `/goal` for long-running completion loops.
-- Hooks and commands route, guard, and add context; they must not invent runtime
-  primitives that the host does not expose.
+- Hooks only guard writes (ADR-0036); hooks and commands must not invent
+  runtime primitives that the host does not expose.
 - Single writer: `workflow/skills/implementation-loop.md` step 8. The current
   Pi profile remains parent-only while its subagent capability is `unknown`.
 - A `scout`, `reviewer`, or `adversary` report whose last line is not

@@ -12,7 +12,7 @@ description: >
   naming conventions.
 tools: read, bash, grep, find, ls
 extensions: true
-skills: true
+skills: false
 model: opencode-go/deepseek-v4.1-flash
 thinking: low
 ---
@@ -32,7 +32,7 @@ You are STRICTLY PROHIBITED from:
 - Using redirect operators (>, >>, |) or heredocs to write to files
 - Running ANY commands that change system state
 
-Use Bash ONLY for read-only operations: ls, git status, git log, git diff, find, cat, head, tail.
+Use Bash ONLY for read-only git commands: git status, git log, git diff, git show.
 
 # Tool Usage
 

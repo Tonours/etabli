@@ -179,7 +179,7 @@ The bar for approval is:
 - no clear architecture-boundary leak or avoidable canonical-helper duplication
 - no missed opportunity for an obvious decomposition that would materially improve maintainability
 
-Treat these as presumptive blockers unless the author can justify them clearly:
+Treat these as blockers when they carry a concrete maintenance cost in this diff (`workflow/review-rubric.md`); naming, formatting, and whitespace alone never block:
 
 - the PR preserves a lot of incidental complexity when there is a plausible code-judo move that would delete it
 - the PR pushes a file from below 1000 lines to above 1000 lines
