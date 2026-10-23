@@ -486,6 +486,17 @@ for caller in deploy install; do
   }
 done
 
+# Model ids the installer and deploy pruned before the registry owned the list stay pruned.
+legacy_settings="$TMP_DIR/legacy-models.json"
+legacy_ids='["openai-codex/gpt-5.6","kimi-coding/k3","zai/glm-5.2","zai/glm-5.2-highspeed","openai-codex/gpt-5.6-sol","openai-codex/gpt-5.6-luna","xai/grok-4.5","opencode-go/qwen3.7-max","opencode-go/kimi-k2.6","kimi-coding/kimi-for-coding","kimi-coding/kimi-for-coding-highspeed","github-copilot/claude-opus-4.7","opencode-go/minimax-m2.7","opencode-go/qwen3.6-plus"]'
+jq -n --argjson ids "$legacy_ids" '{packages: [], enabledModels: ($ids + ["custom/provider-model"])}' >"$legacy_settings"
+node "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" "$legacy_settings" "$ROOT_DIR/pi/agent/settings.json" 0 smoke >/dev/null
+jq -e --argjson ids "$legacy_ids" '([.enabledModels[] | select(. as $m | $ids | index($m))] | length) == 0 and (.enabledModels | index("custom/provider-model")) != null' "$legacy_settings" >/dev/null || {
+  printf 'legacy model ids survived the sync:\n' >&2
+  jq -c .enabledModels "$legacy_settings" >&2
+  exit 1
+}
+
 # A failing Pi settings sync still runs the Claude sync and fails the deploy.
 BAD_PI_HOME_DIR="$TMP_DIR/bad-pi-home"
 mkdir -p "$BAD_PI_HOME_DIR/.pi/agent" "$BAD_PI_HOME_DIR/.claude"

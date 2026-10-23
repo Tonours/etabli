@@ -94,7 +94,13 @@
     "zai/glm-5.2",
     "zai/glm-5.2-highspeed",
     "xai/grok-4.5",
-    "opencode-go/qwen3.7-max"
+    "opencode-go/qwen3.7-max",
+    "opencode-go/kimi-k2.6",
+    "kimi-coding/kimi-for-coding",
+    "kimi-coding/kimi-for-coding-highspeed",
+    "github-copilot/claude-opus-4.7",
+    "opencode-go/minimax-m2.7",
+    "opencode-go/qwen3.6-plus"
   ],
   "claude_agents": {
     "worker": "sonnet",

@@ -385,7 +385,7 @@ write_file() {
   local relative_path="$2"
   local destination_path="$TARGET_DIR/$relative_path"
   local destination_dir
-  local backup
+  local backup staged
 
   if [ ! -f "$source_path" ]; then
     status_line MISSING "$source_path"
@@ -442,8 +442,9 @@ write_file() {
       status_line WOULD_REFRESH "$relative_path"
       return 0
     fi
-    cp "$source_path" "$destination_path.etabli-refresh.$$"
-    mv -f "$destination_path.etabli-refresh.$$" "$destination_path"
+    staged="$(mktemp "$(dirname "$destination_path")/.etabli-refresh.XXXXXX")"
+    cp -p "$source_path" "$staged"
+    mv -f "$staged" "$destination_path"
     status_line REFRESH "$relative_path"
     WRITTEN=$((WRITTEN + 1))
     return 0
@@ -515,7 +516,7 @@ shipped_by_etabli() {
 
   [ -f "$destination_path" ] && [ -s "$destination_path" ] && [ ! -L "$destination_path" ] || return 1
   blob="$(git hash-object --no-filters -- "$destination_path")" || return 1
-  history="$(git -C "$REPO_DIR" log --no-abbrev --raw --format= -- "$source_path" 2>/dev/null)" || return 1
+  history="$(git -C "$REPO_DIR" log --follow --no-abbrev --raw --format= -- "$source_path" 2>/dev/null)" || return 1
   [[ "$history" == *" $blob "* ]]
 }
 

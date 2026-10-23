@@ -493,6 +493,7 @@ assert_file "$STAGED_PROJECT/scripts/workflow-event"
 STALE_PROJECT="$TMP_DIR/stale-project"
 "$SCRIPT" "$STALE_PROJECT" >/dev/null
 git -C "$ROOT_DIR" show "$(git -C "$ROOT_DIR" log -2 --format=%H -- workflow/answer-quality.md | tail -1):workflow/answer-quality.md" >"$STALE_PROJECT/workflow/answer-quality.md"
+git -C "$ROOT_DIR" show "$(git -C "$ROOT_DIR" log -2 --format=%H -- scripts/plan-cleanup | tail -1):scripts/plan-cleanup" >"$STALE_PROJECT/scripts/plan-cleanup"
 ln "$STALE_PROJECT/workflow/answer-quality.md" "$TMP_DIR/stale-hardlink"
 cp "$TMP_DIR/stale-hardlink" "$TMP_DIR/stale-hardlink.before"
 "$SCRIPT" "$STALE_PROJECT" --dry-run >"$TMP_DIR/stale-dry.out"
@@ -505,6 +506,18 @@ if compgen -G "$STALE_PROJECT/workflow/answer-quality.md.bak.*" >/dev/null; then
   printf 'a STALE refresh left a backup\n' >&2
   exit 1
 fi
+[ "$(stat -f %Lp "$STALE_PROJECT/scripts/plan-cleanup" 2>/dev/null || stat -c %a "$STALE_PROJECT/scripts/plan-cleanup")" = "$(stat -f %Lp "$ROOT_DIR/scripts/plan-cleanup" 2>/dev/null || stat -c %a "$ROOT_DIR/scripts/plan-cleanup")" ] || {
+  printf 'a refresh changed the mode of scripts/plan-cleanup\n' >&2
+  exit 1
+}
+if find "$STALE_PROJECT" -name '*etabli-refresh*' | grep -q .; then
+  printf 'a refresh left a temporary file\n' >&2
+  exit 1
+fi
+git -C "$ROOT_DIR" cat-file blob 4eb78fb >"$STALE_PROJECT/AGENTS.md"
+"$SCRIPT" "$STALE_PROJECT" --check >"$TMP_DIR/stale-renamed.out" 2>&1 || true
+assert_contains "$TMP_DIR/stale-renamed.out" "STALE     AGENTS.md"
+"$SCRIPT" "$STALE_PROJECT" >/dev/null
 "$SCRIPT" "$STALE_PROJECT" --check >/dev/null
 STALE_OUTSIDE="$TMP_DIR/stale-outside"
 mkdir -p "$STALE_OUTSIDE"
