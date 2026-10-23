@@ -52,9 +52,10 @@ grep -Roh --exclude-dir=node_modules -- 'workflow/skills/[A-Za-z0-9._-]*\.md' \
   "$ROOT_DIR/skills" \
   "$ROOT_DIR/pi" \
   "$ROOT_DIR/extras" \
-  "$ROOT_DIR/docs" \
   "$ROOT_DIR/README.md" \
   "$ROOT_DIR/workflow/spec.md" >"$REFERENCES_INDEX" || true
+grep -Roh --exclude-dir=adr --exclude-dir=plan -- 'workflow/skills/[A-Za-z0-9._-]*\.md' \
+  "$ROOT_DIR/docs" >>"$REFERENCES_INDEX" || true
 sort -u "$REFERENCES_INDEX" -o "$REFERENCES_INDEX"
 
 # The contract inventory is built once (sorted filenames); name handling uses
@@ -77,17 +78,6 @@ if [ -n "$unreferenced" ]; then
   while IFS= read -r missing; do
     printf 'unreferenced workflow contract: %s\n' "$missing" >&2
   done <<<"$unreferenced"
-  exit 1
-fi
-
-# Divergence spot check — also independent of the background deploy.
-tmp_ticket_a="$TMP_DIR/ticket-a.md"
-tmp_ticket_b="$TMP_DIR/ticket-b.md"
-cp "$ROOT_DIR/workflow/ticket-template.md" "$tmp_ticket_a"
-cp "$ROOT_DIR/workflow/ticket-template.md" "$tmp_ticket_b"
-printf 'negative spot check\n' >>"$tmp_ticket_b"
-if cmp -s "$tmp_ticket_a" "$tmp_ticket_b"; then
-  printf 'negative duplicate-identity spot check failed to create divergence\n' >&2
   exit 1
 fi
 

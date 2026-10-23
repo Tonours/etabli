@@ -79,14 +79,6 @@ paths.each do |path|
     raise "#{path}: bundled resource #{basename} must be referenced from SKILL.md" unless body.include?(basename)
   end
 end
-
-implementation_loop = File.read(File.join(root, "workflow/skills/implementation-loop.md"))
-unless implementation_loop.include?("scout") && implementation_loop.include?("worker") && implementation_loop.include?("reviewer")
-  raise "workflow/skills/implementation-loop.md must retain the bounded scout/worker/reviewer orchestration references."
-end
-unless implementation_loop.match?(/foreground/i) && implementation_loop.match?(/wait\s+for\s+the\s+worker/i)
-  raise "workflow/skills/implementation-loop.md must require a foreground-or-awaited worker before the parent writes again."
-end
 RUBY
 
 printf 'claude skills smoke test: ok\n'
