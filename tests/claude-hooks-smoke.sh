@@ -59,31 +59,26 @@ assert_contains "$readonly_mutation_output" '"permissionDecision":"deny"'
 assert_contains "$readonly_mutation_output" 'agent is read-only'
 assert_contains "$readonly_mutation_output" 'return to the parent'
 
-readonly_guard_output() {
-	local command="$1"
-	node - "$TMP_DIR" "$command" <<'NODE' |
-const [cwd, command] = process.argv.slice(2);
-process.stdout.write(`${JSON.stringify({
-  cwd,
-  hook_event_name: "PreToolUse",
-  tool_name: "Bash",
-  tool_input: { command },
-})}\n`);
-NODE
-		node "$ROOT_DIR/claude/hooks/read-only-agent-guard.mjs"
+readonly_cases="$TMP_DIR/readonly-cases"
+readonly_case_count=0
+: >"$readonly_cases"
+add_readonly_cases() {
+	local want="$1" command
+	shift
+	for command in "$@"; do
+		printf '%s\0%s\0' "$want" "$command" >>"$readonly_cases"
+		readonly_case_count=$((readonly_case_count + 1))
+	done
 }
 
-for unsafe_readonly_command in \
+add_readonly_cases deny \
 	"sed -n 'w changed.txt' input.txt" \
 	"rtk sed -n 'w changed.txt' input.txt" \
 	"sort --compress-program=sh input.txt" \
 	"rtk sort --compress-program=sh input.txt" \
-	"find . '-exec' touch changed.txt ';'"; do
-	unsafe_readonly_output="$(readonly_guard_output "$unsafe_readonly_command")"
-	assert_contains "$unsafe_readonly_output" '"permissionDecision":"deny"'
-done
+	"find . '-exec' touch changed.txt ';'"
 
-for allowed_readonly_command in \
+add_readonly_cases allow \
 	"gh api repos/o/r/pulls/42/files --paginate" \
 	"gh api repos/o/r/pulls/42/comments --method GET" \
 	"gh pr view 42 --json files,title" \
@@ -100,12 +95,9 @@ for allowed_readonly_command in \
 	"rg -n 'a*b' docs" \
 	"cat docs/*.md" \
 	"cd sub; git status" \
-	"git merge-base main topic"; do
-	allowed_readonly_output="$(readonly_guard_output "$allowed_readonly_command")"
-	assert_empty "$allowed_readonly_output" "read-only agent guard allows $allowed_readonly_command"
-done
+	"git merge-base main topic"
 
-for unsafe_readonly_command in \
+add_readonly_cases deny \
 	"gh pr create --title x" \
 	"gh pr review 42 --approve" \
 	"gh api repos/o/r/pulls/42/reviews --method POST --input r.json" \
@@ -150,10 +142,7 @@ for unsafe_readonly_command in \
 	"diff a*" \
 	"node --check *" \
 	"$(printf 'rg --pr\\\ne=./script x .')" \
-	"$(printf 'rg "--hostname-b\\\nin=sh" x .')"; do
-	unsafe_readonly_output="$(readonly_guard_output "$unsafe_readonly_command")"
-	assert_contains "$unsafe_readonly_output" '"permissionDecision":"deny"'
-done
+	"$(printf 'rg "--hostname-b\\\nin=sh" x .')"
 
 read_only_probes=(
 	"rtk test touch x"
@@ -204,25 +193,44 @@ read_only_controls=(
 	"git grep -eFOO x"
 	"git log -GTODO"
 )
-probes_allowed=0
-for probe in "${read_only_probes[@]}"; do
-	if ! readonly_guard_output "$probe" | grep -Fq '"permissionDecision":"deny"'; then
-		printf 'read-only guard allowed probe: %s\n' "$probe" >&2
-		probes_allowed=$((probes_allowed + 1))
-	fi
-done
-controls_denied=0
-for control in "${read_only_controls[@]}"; do
-	if ! control_output="$(readonly_guard_output "$control")" || [ -n "$control_output" ]; then
-		printf 'read-only guard denied control: %s\n' "$control" >&2
-		controls_denied=$((controls_denied + 1))
-	fi
-done
-[ "$probes_allowed" -eq 0 ] && [ "$controls_denied" -eq 0 ] || {
-	printf 'read-only guard: %d of %d probes allowed, %d of %d controls denied\n' \
-		"$probes_allowed" "${#read_only_probes[@]}" "$controls_denied" "${#read_only_controls[@]}" >&2
-	exit 1
+add_readonly_cases deny "${read_only_probes[@]}"
+add_readonly_cases allow "${read_only_controls[@]}"
+ROOT_DIR="$ROOT_DIR" CASES="$readonly_cases" CASE_COUNT="$readonly_case_count" CWD="$TMP_DIR" node --input-type=module <<'NODE'
+import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+const root = process.env.ROOT_DIR;
+const { isReadOnlyBashCommand } = await import(`${root}/workflow/runtime/read-only-bash.mjs`);
+const decide = (command) => {
+  if (command.startsWith("rtk ")) {
+    const input = JSON.stringify({ cwd: process.env.CWD, hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command } });
+    const run = spawnSync("node", [`${root}/claude/hooks/read-only-agent-guard.mjs`], { input, encoding: "utf8" });
+    if (run.stdout.includes('"permissionDecision":"deny"')) return "deny";
+    return run.status === 0 && run.stdout === "" ? "allow" : `exit ${run.status}`;
+  }
+  try {
+    return isReadOnlyBashCommand(command) ? "allow" : "deny";
+  } catch {
+    return "deny";
+  }
+};
+const fields = readFileSync(process.env.CASES, "utf8").split("\0");
+let checked = 0;
+let failed = 0;
+for (let i = 0; i + 1 < fields.length; i += 2) {
+  const [want, command] = [fields[i], fields[i + 1]];
+  const got = decide(command);
+  checked += 1;
+  if (got !== want) {
+    console.error(`read-only guard ${got} on ${JSON.stringify(command)}, want ${want}`);
+    failed += 1;
+  }
 }
+if (checked !== Number(process.env.CASE_COUNT)) {
+  console.error(`read-only guard checked ${checked} of ${process.env.CASE_COUNT} cases`);
+  process.exit(1);
+}
+if (failed) process.exit(1);
+NODE
 
 parity_dir="$TMP_DIR/no-comments-parity"
 mkdir -p "$parity_dir"
