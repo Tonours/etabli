@@ -26,10 +26,9 @@ Archive a plan if and only if it was implemented and validation ran.
 
 ## Immutability
 
-An archive is immutable once written: post-archive fixes, ship outcomes,
-and late discoveries live in the ship report, never rewritten
-into the archive. (Prose rule — `plan-cleanup` does not refuse rewrites;
-ship re-checks the captured hash and blocks on divergence.)
+An archive is immutable once written: post-archive fixes and late discoveries
+go in later commits or a new plan, never rewritten into the archive (prose rule;
+`plan-cleanup` does not refuse rewrites).
 
 ## When To Discard (unrelated / abandoned)
 
@@ -48,11 +47,8 @@ scripts/plan-cleanup --discard <reason-slug>
 
 ## Stale Plans
 
-A root `PLAN.md` that nobody finished is not harmless. A stale valid `READY`
-plan is a permanently open implementation gate. A present plan carrying a
-status outside `DRAFT` / `CHALLENGED` / `READY`, or an incomplete `READY`
-contract, fails the mutation gate closed. Only a genuinely missing plan leaves
-ordinary no-plan work available.
+A root `PLAN.md` that nobody finished is not harmless: a stale `READY` plan
+still authorizes implementation.
 
 `Status: DONE` is **not** a valid status. Finished work is archived, not relabelled.
 
@@ -67,10 +63,9 @@ It reads only the current repo, never writes, and never deletes. No `PLAN.md` is
 valid state and exits 0. It exits non-zero when any of these hold:
 
 - the plan is older than the threshold (`stale`);
-- the READY gate cannot read its status (`gateVisible: false`) — an unknown word, a
-  decorated line such as `Status: READY — all slices done`, or no `Status:` line at
-  all. The gate matches `- Status: DRAFT|CHALLENGED|READY` and nothing else; a
-  decorated status is rejected until the root plan is repaired or discarded;
+- the status is not a bare `- Status: DRAFT|CHALLENGED|READY` line
+  (`gateVisible: false`): an unknown word, a decorated line such as
+  `Status: READY — all slices done`, or no `Status:` line at all;
 - the date is in the future by more than a day (`futureDated`).
 
 A missing or impossible `Last revised:` date reports `ageDays: null` rather than
@@ -94,46 +89,7 @@ plus a `- Source plan SHA-256: \`<hash>\`` line matching the exact bytes of the 
 plan being archived. Get the hash with `shasum -a 256 PLAN.md`. A mismatch is
 refused, which is the point: an archive cannot silently describe a different plan.
 
-```md
-# Implemented: <outcome>
-
-## Metadata
-- Archived: YYYY-MM-DD
-- Source plan: `PLAN.md` — <subject>
-- Source plan SHA-256: `<sha256 of the exact root PLAN.md bytes>`
-- Status: IMPLEMENTED
-- Commit / branch: <when available>
-- Workflow initiative: <plan slug, or none>
-
-## Outcome
-- ...
-
-## Context
-- path/source: fact that mattered
-
-## Decisions
-### <decision>
-- Context:
-- Choice:
-- Rejected options:
-- Rationale:
-- Consequences:
-
-## Accepted Drift
-- Original plan/spec:
-- Implemented reality:
-- Why accepted:
-
-## Validation Evidence
-- command:
-  - result:
-
-## Follow-up State
-- Remaining risks:
-- Parking lot:
-- Superseded docs/specs:
-- Next links:
-```
+Skeleton: `workflow/templates/plan-archive.md`.
 
 ## What To Omit
 
@@ -171,12 +127,6 @@ spread across prose:
 No `## Repos` section means single-repo. No script parses this block; it is written
 for the next reader.
 
-Two consequences worth stating plainly:
-
-- **The satellite side has no gate.** The READY gate resolves `PLAN.md` from the
-  current directory only. In a satellite repo there is no root plan, so the guard
-  allows everything — weaker than single-repo work. Do not assume the owner's
-  `READY` protects the satellite.
 - **A satellite remainder is new work.** If the owner archives while satellite work
   is deliberately unfinished, record it in the archive and treat the remainder as a
   *new* task. The former satellite may then open its own single-repo plan; it is no

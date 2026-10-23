@@ -74,8 +74,7 @@ plan. After the fresh-context review (Logic hunter + Spec hunter, then lead):
    - **small tier:** code-diff adversary is skipped (the loop's self-review
      covers it); a single same-family pass is never a substitute.
    - **Forbidden at every tier:** a single same-family pass presented as
-     independent review. Stop as `blocked` (autonomous **and** supervised —
-     full autonomy policy).
+     independent review. Stop as `blocked` (autonomous **and** supervised).
 3. Hunt for: correctness bugs, regressions, unhandled edge cases, acceptance
    criteria not actually met, silent scope drift, unrequested abstraction or
    new dependency, reinvented stdlib/native feature, and simpler or safer

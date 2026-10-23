@@ -24,17 +24,11 @@ never downgrade mid-run.
 - **high-risk** — kernel guards, installer/deploy scripts, security, multi-surface contract changes, or a third
   recurrence of the same failure. Full sequence, cross-model adversary
   mandatory (13b), both hunters mandatory (13).
-  In etabli, a change confined to local agent-surface links (`scripts/lib/surfaces.mjs` <!-- etabli-only -->
-  and its deploy/check entry points) is standard with one cross-model <!-- etabli-only -->
-  code-diff pass; settings sync, hooks and guards, secrets and remote <!-- etabli-only -->
-  machines stay high-risk. <!-- etabli-only -->
 
 ## Standing rules
 
 `workflow/spec.md` § Rules governs every step and wins on conflict.
 
-- No-progress stop as in `workflow/spec.md`; a no-progress stop lists the
-  eliminated hypotheses.
 - Before a mutable local-device or server action, name the exact target, the
   control path, and the post-check.
 - Golden principles: `workflow/contract-details.md`.
@@ -125,7 +119,7 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
 13b. Code-diff adversary per `workflow/skills/adversary.md`: tiered —
     **high-risk requires cross-model**; **standard accepts a documented
     double-sample same-family pass**; **small skips**. Single same-family pass
-    alone → `blocked` (full autonomy policy).
+    alone → `blocked`.
     Name `adversary_model` (or `same-family-pass` ids).
     **High** findings: accept/reject via cross-model (or second sample), not
     the implementer alone. Fold accepted findings and re-run checks. Any
@@ -150,9 +144,8 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
     (including deciding-code completeness), archive path, deleted `PLAN.md`
     status (both N/A for small: no plan, no archive), remaining risks,
     next action if any, and final status.
-18. Before any push, run the complete relevant
-    `scripts/verify-agentic-infra` group on the final diff. A red group blocks <!-- etabli-only -->
-    push even when focused checks passed.
+18. Before any push, run the project's complete relevant check group on the
+    final diff. A red group blocks push even when focused checks passed.
 
 ## Long loops
 

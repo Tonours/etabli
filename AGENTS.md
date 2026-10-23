@@ -42,6 +42,14 @@ Full layout, scopes and managed surfaces: `docs/symlink-layout.md`.
 - Full plan for risky work: `PLAN_TEMPLATE_FULL.md`
 - Review rubric: `workflow/review-rubric.md`
 - Memory: `~/work/brain` for ForestAdmin repos, `~/work/obvault` otherwise; see `workflow/skills/obvault-memory.md`.
+- Risk tier: a change confined to local agent-surface links
+  (`scripts/lib/surfaces.mjs` and its deploy/check entry points) is standard
+  with one cross-model code-diff pass; settings sync, hooks and guards, secrets
+  and remote machines stay high-risk.
+- Before any push, run the complete relevant `scripts/verify-agentic-infra`
+  group on the final diff; a red group blocks the push.
+- Pi review hunters run through `scripts/pi-review-hunter` (timeout default
+  600 s, `PI_REVIEW_HUNTER_TIMEOUT`).
 
 ## Growth
 

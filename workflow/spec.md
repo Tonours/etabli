@@ -19,9 +19,9 @@ must infer the smallest matching route from the request and local repo state.
 
 Pi remains the primary user-facing tool. Thin adapters over shared contracts
 (ADR-0006). Role definitions: `workflow/contract-details.md`. Shared
-orchestration: `workflow/skills/orchestration.md`. One writer at any instant: the parent or one
-`worker` per step; `scout` and `reviewer` stay read-only (Bash `PreToolUse` allowlist).
-The multi-model council was removed (ADR-0013).
+orchestration: `workflow/skills/orchestration.md`. Single writer and risk
+tiers: `workflow/skills/implementation-loop.md`; `scout` and `reviewer` stay
+read-only (Bash `PreToolUse` allowlist).
 
 ```text
 user intent -> planner -> challenger -> adversary -> implementer -> verifier -> reviewer -> reporter -> stop
@@ -33,7 +33,7 @@ user intent -> planner -> challenger -> adversary -> implementer -> verifier -> 
 
 - `DRAFT`: plan exists, not implementation-ready.
 - `CHALLENGED`: review found blockers or vague scope/checks.
-- `READY`: the canonical minimum contract is mechanically present and scope,
+- `READY`: the minimum contract below is present and scope,
   steps, checks, risks, and material spec/code gaps are clear enough to execute.
 
 For routes with a plan, only `READY` authorizes implementation. Ordinary no-plan
@@ -85,7 +85,8 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   `workflow/skills/review-rounds.md` (findings, re-review, CI commits after
   review); open-ended improvement loops `workflow/skills/long-loop.md`.
 - No-progress stop: when the same fix hypothesis fails twice, or the same check
-  stays red three times with no new diff between runs, stop as `blocked`.
+  stays red three times with no new diff between runs, stop as `blocked`, note
+  it in the Decision Log, and list the eliminated hypotheses.
 - READY plans stay editable: when Checks or Acceptance Criteria change, note
   why in the Decision Log. No runtime freeze.
 - Autonomous loop stop conditions pair the measurable goal with an explicit
@@ -95,10 +96,6 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   autonomous `plan-implement` run comes from a fresh
   context (subagent reviewer or cross-model). Handoffs are recorded in
   `PLAN.md` § Notes / Handoff.
-- Implementation depth is risk-tiered (`small` / `standard` / `high-risk`)
-  per `workflow/skills/implementation-loop.md`: cross-model code-diff
-  adversary is reserved for high-risk; standard accepts a documented
-  same-family double-sample; small runs checks plus self-review.
 - Golden principles: every mechanical check fails with a message that names its remediation.
   Instruction files stay maps, not manuals.
   Recurring findings become reviewed recommendations, never auto-applied; no parallel harness trees.
@@ -115,13 +112,13 @@ A plan is `READY` when it has:
 - concrete steps
 - named files/areas for risky changes
 - checks to run
-- route, role, stop condition, and required evidence (every plan; the gate requires them unconditionally)
+- route, role, stop condition, and required evidence
 - known risks or explicit "none"
 - facts separated from assumptions when the task depends on uncertain context
 - populated requirement trace with a disposition for every material spec/code gap
 - no blocking open questions
 - no active raw HTML as semantic evidence; use Markdown text, inline code, fenced code,
-  or explicit `command:` lines so the READY gate can evaluate content deterministically
+  or explicit `command:` lines
 
 ## Routing rules
 
@@ -171,8 +168,3 @@ remaining write gates (no-comments, read-only agents) stay authoritative code.
 
 Full index: `workflow/contract-details.md` § Runtime surfaces (detail). Key surfaces referenced by routing/guards: Claude hooks fragment
 `claude/settings.workflow-hooks.json` and `workflow/plan-archive.md`.
-
-## Daily loop
-
-See `workflow/contract-details.md` § Daily loop (inspect → plan → READY →
-adversary → implement → checks → review → archive → delete root PLAN.md).

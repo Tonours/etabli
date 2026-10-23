@@ -34,17 +34,18 @@ Same-session Logic self-review is forbidden.
    - Claude: `Agent` → existing `reviewer` agent. `runner: claude-agent`.
    - Cursor: Task with model `claude-opus-5-thinking-high`. Do not spawn
      `pi -p` from Cursor. `runner: cursor-task`.
-   - Pi: isolated child (`scripts/pi-review-hunter` when present, else this <!-- etabli-only -->
-     argv): `pi --mode text -p --no-session --no-skills --no-extensions
-     --no-context-files --tools read,grep --append-system-prompt
-     <hunter-template> @<patchfile>`. The prompt file is the hunter template
-     plus `Axis: Logic`, Intent, and `Standards: yes|none`. Hunter templates are
-   self-contained; the parent reads the rubric for filtering. Open deciding APIs
-   when needed. Unresolved inspection errors forbid GO. Pass `--model` only when its id
-     is not `cursor/`. Timeout default 600s (`PI_REVIEW_HUNTER_TIMEOUT`). Spawn or
-     nonzero → `HUNTER_SPAWN_UNAVAILABLE`. Timeout → `HUNTER_TIMEOUT`.
-     Either sentinel stops the lead verdict. Helper executions capture native JSON. An empty patch is not a clean hunt. Record `hunter_model:`
-     (or `hunter_model: default` when `--model` is omitted). `runner: pi-child`.
+   - Pi: isolated child with this argv: `pi --mode text -p --no-session
+     --no-skills --no-extensions --no-context-files --tools read,grep
+     --append-system-prompt <hunter-template> @<patchfile>`. The prompt file is
+     the hunter template plus `Axis: Logic`, Intent, and `Standards: yes|none`.
+     Pass `--model` only when its id is not `cursor/`. Spawn failure or nonzero
+     exit → `HUNTER_SPAWN_UNAVAILABLE`; timeout → `HUNTER_TIMEOUT`. Either
+     sentinel stops the lead verdict. Record `hunter_model:` (or
+     `hunter_model: default` when `--model` is omitted). `runner: pi-child`.
+   Hunter templates are self-contained; the parent reads the rubric for
+   filtering. Open deciding APIs when needed. Unresolved inspection errors
+   forbid GO. Helper executions capture native JSON. An empty patch is not a
+   clean hunt.
    Dispatch **Spec hunter** (`workflow/templates/review-spec-hunter.md`,
    `Axis: Spec`) in parallel when the runtime can (Claude/Cursor), using the
    same runner and model as the Logic hunter; otherwise sequential. Daily Pi:

@@ -27,14 +27,8 @@ Use the smallest workflow that can finish with evidence; the role chain is in
 - `reporter`: leave durable state through final handoff and implemented plan
   archives when applicable.
 
-One writer at any instant. The parent writes, or delegates writing to at most
-one `worker` at a time — foreground, or the parent waits without writing until
-it finishes, then takes the pen back between plan steps; never two writers in
-parallel.
-
-The deterministic multi-model council (scout / analyst / challenger /
-judge / fallback) was removed in ADR-0013; execution is parent-only. Delegating to a subagent stays an
-ordinary tool call, judged case by case, not a routed profile. `scout` and
+Single writer: `workflow/skills/implementation-loop.md` step 8. Delegating to a
+subagent stays an ordinary tool call, judged case by case, not a routed profile. `scout` and
 `reviewer` rely on an explicit read-only tool set and a scoped Bash
 `PreToolUse` allowlist guard in their frontmatter, which also fires under
 bypass; their `dontAsk` applies only outside bypass, since a bypass session
@@ -71,8 +65,6 @@ this section only adds detail.
   edits, and environment contention reported as `blocked`.
 - Workflow improvements start from inspectable evidence and go through a
   reviewed `PLAN.md`.
-- No-progress stop: also note it in the Decision Log and list the eliminated
-  hypotheses instead of iterating.
 - If no fresh-context runner is available for the final autonomous review, stop
   as `blocked` requesting external review instead of self-reviewing.
 - Explicit user authorization for subagents, delegation, or reviewers may
@@ -83,8 +75,7 @@ this section only adds detail.
 - Golden principles, detail: a new transverse invariant ships with a mechanical
   check (hook, lint, or smoke assertion) in the same change, instead of prose
   duplicated across adapters. The third occurrence of the same review finding
-  becomes a mechanical check (`workflow/project-constraints.md`). A routing or
-  guard failure observed in real use becomes a fixture.
+  becomes a mechanical check (`workflow/project-constraints.md`).
 - A code behavior change ships with tests written in the existing suite's
   conventions. Docs and contract changes are validated by smoke pins or
   inspection instead. Style preferences and speculative robustness are optional
@@ -110,58 +101,3 @@ Pi and Claude load the same thin skill adapters over the shared contract.
 - Ticket template: `workflow/ticket-template.md`
 - Linear ticket template: `workflow/linear-ticket-template.md`
 - PR body contract: `workflow/pr-body-contract.md`
-
-## Default commands (detail)
-
-Pi:
-
-- `/skill:plan-loop <task>`: create/review `PLAN.md`, stop at `READY` or `CHALLENGED`
-- `/skill:plan-implement <task>`: plan, then implement if `READY`
-- `/skill:adversary`: adversarially review `PLAN.md` before implementation
-- `/skill:implement`: implement existing `READY` plan
-- `/skill:review`: review current diff
-- `/skill:verify-workflow`: verify checks, claims, or current work without editing
-- `/skill:bug-check`: analyze Linear bug root cause without editing
-- `/skill:linear-ticket-create`: create Linear tickets through Linear MCP
-- `/skill:linear-work`: work from Linear tickets through Linear MCP
-
-Claude:
-
-- `/plan-loop`: create/review `PLAN.md`, stop at `READY` or `CHALLENGED`
-- `/plan-implement`: full autonomous chain — plan, adversary, implement, checks, fresh-context review, archive — in one flow; the manual `/plan-loop` -> `/adversary` -> `/implement` sequence is for step-by-step control only
-- `/adversary`: review `PLAN.md` before implementation; code-diff mode follows the shared risk-tiered independence rules
-- `/implement`: implement existing `READY` plan
-- `/review`: review current diff
-- `/verify-workflow`: verify checks, claims, or current work without editing
-- `/bug-check`: analyze Linear bug root cause without editing
-- `/linear-ticket-create`: create Linear tickets through Linear MCP
-- `/linear-work`: work from Linear tickets through Linear MCP
-- `/pr-council-review`: three-pass review of one GitHub PR, dry-run by default
-
-Work skills (`/linear-*`, `/bug-check`, `/pr-council-review`) are explicit entries in the work scope, never routed
-(ADR-0027).
-
-Claude-native loop:
-
-- Use `/goal <measurable condition>` for long-running completion loops instead
-  of recreating Pi's Task* continuation layer. The goal statement must pair the
-  measurable condition with an explicit cap (iterations or wall-clock), and the
-  run records its evidence in `PLAN.md`.
-- Do not claim Claude has Pi Task* semantics (`workflow/skills/orchestration.md`).
-
-## Daily loop
-
-1. inspect repo state
-2. read relevant files
-3. create or refresh `PLAN.md`
-4. review plan to `READY` or `CHALLENGED`
-5. run adversary against implementation-bound `PLAN.md`; fold accepted findings
-   and keep `READY` only if no blocker remains
-6. if the selected route is `plan-implement` and the actual root `PLAN.md` is
-   `READY`, continue without asking for another prompt
-7. implement small steps
-8. run focused checks
-9. review diff against the plan
-10. archive the implemented plan in `docs/plan/`
-11. delete only the root `PLAN.md` after archive and validation
-12. commit once verified when the user asked for a commit
