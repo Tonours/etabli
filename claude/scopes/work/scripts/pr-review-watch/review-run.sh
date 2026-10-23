@@ -115,6 +115,7 @@ verify_merge_base() {
 
 run_verify_fixes() {
   local tree raw rc base
+  purge_old_dirs "${TMPDIR:-/tmp}" "pr-verify-*" 7
   tree="$(mktemp -d "${TMPDIR:-/tmp}/pr-verify-$NUMBER.XXXXXX")/tree"
   raw="${REPORT%.md}.json"
   base="$(verify_merge_base)" && [ -n "$base" ] || { echo "cannot resolve the merge base for the verify pass"; return 1; }

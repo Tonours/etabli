@@ -19,6 +19,7 @@ HEAD_WAIT="${PR_AUTOREVIEW_HEAD_WAIT:-180}"
 MODEL="${PR_AUTOREVIEW_MODEL:-sonnet}"
 EFFORT="${PR_AUTOREVIEW_EFFORT:-low}"
 
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
 . "$HERE/../pr-council-review/lib.sh"
 
 mkdir -p "$STATE_DIR" "$LOCKS" "$(dirname "$LOG")"
@@ -26,7 +27,6 @@ exec >>"$LOG" 2>&1
 echo "=== $(date '+%F %T') push $REPO/$BRANCH @${SHA:0:8} ==="
 
 [ -f "$KILL_SWITCH" ] && { echo "kill switch present, skip"; exit 0; }
-command -v gh >/dev/null || export PATH="/opt/homebrew/bin:$PATH"
 command -v gh >/dev/null || { echo "gh not found, skip"; exit 0; }
 
 ME="$(gh api user --jq .login 2>&1)" || { echo "gh failed: $ME"; exit 0; }
@@ -107,11 +107,15 @@ claude_pass autoreview "$RAW" read-only "$PROMPT" --model "$MODEL" --effort "$EF
 if [ "$RC" -eq 0 ] && [ -f "$DONE_FILE" ]; then
   echo "$SEEN_KEY" >> "$SEEN"
   echo "=== $(date '+%F %T') delivered PR #$PR_NUMBER ==="
-elif [ "$RC" -eq "$REVIEW_VETO_RC" ]; then
-  echo "=== $(date '+%F %T') PR #$PR_NUMBER hit a permission denial, not marked seen ==="
-elif [ "$RC" -eq 0 ]; then
-  echo "=== $(date '+%F %T') session ended without delivering the Slack report for PR #$PR_NUMBER, not marked seen ==="
-else
-  echo "=== $(date '+%F %T') agent exited $RC for PR #$PR_NUMBER ==="
+  exit 0
 fi
-exit 0
+if [ "$RC" -eq "$REVIEW_VETO_RC" ]; then
+  FAILURE="hit a permission denial"
+elif [ "$RC" -eq 0 ]; then
+  FAILURE="ended without delivering the Slack report"
+else
+  FAILURE="exited $RC"
+fi
+echo "=== $(date '+%F %T') PR #$PR_NUMBER autoreview $FAILURE, not marked seen ==="
+notify "PR autoreview failed" "$REPO#$PR_NUMBER: $FAILURE" "$PR_URL"
+exit 1

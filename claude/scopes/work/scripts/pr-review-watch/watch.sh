@@ -9,6 +9,7 @@ RUNS="$STATE_DIR/runs"
 LOCK_DIR="$STATE_DIR/lock"
 KILL_SWITCH="$STATE_DIR/off"
 LOG="${PR_REVIEW_WATCH_LOG:-$HOME/.claude/logs/pr-review-watch.log}"
+LOG_MAX_BYTES=5000000
 COUNCIL="${PR_REVIEW_WATCH_COUNCIL:-$HOME/.claude/scripts/pr-council-review/run.sh}"
 RUNNER="$HERE/review-run.sh"
 HERDR_WORKSPACE="${PR_REVIEW_WATCH_HERDR_WORKSPACE:-pr-reviews}"
@@ -307,6 +308,7 @@ main() {
   [ "${1:-}" = stop ] && { stop_everything; exit 0; }
   mkdir -p "$STATE_DIR" "$REPORTS" "$RUNS" "$(dirname "$LOG")"
   touch "$WATCHED"
+  [ "$(perl -e 'print((stat shift)[7] // 0)' "$LOG")" -lt "$LOG_MAX_BYTES" ] || mv -f "$LOG" "$LOG.1"
   exec >>"$LOG" 2>&1
   [ -f "$KILL_SWITCH" ] && exit 0
   acquire_lock "$LOCK_DIR" 'watch\.sh' || { log "previous tick still running, skip"; exit 0; }

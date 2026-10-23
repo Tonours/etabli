@@ -15,7 +15,9 @@ checked out at `{{HEAD_SHA}}`, over the diff `{{MERGE_BASE}}...{{HEAD_SHA}}`:
   Standards, Spec), each from its own sub-agent.
 - `{{REPORT_THERMO}}` — the `/thermo-nuclear-code-quality-review` maintainability
   and abstraction-quality audit.
-{{CODEX_SECTION}}
+
+Phase A was same-family (two Claude passes). Say so in the terminal report: do not
+describe this run as cross-model.
 {{PHASE_A_GAPS}}
 
 Read every one of those files. Treat every finding they contain as a

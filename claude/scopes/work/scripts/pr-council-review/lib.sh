@@ -14,7 +14,7 @@ USAGE_TARGET="${USAGE_TARGET:-}"
 export GIT_TERMINAL_PROMPT=0
 . "$(dirname "${BASH_SOURCE[0]}")/../claude-bin.sh"
 CLAUDE="${PR_COUNCIL_CLAUDE:-$CLAUDE}"
-AUTHOR_CONFIG_PATHS=(CLAUDE.md AGENTS.md .mcp.json .claude ':(glob)**/CLAUDE.md' ':(glob)**/AGENTS.md' ':(glob)**/.claude/**')
+AUTHOR_CONFIG_PATHS=(CLAUDE.md CLAUDE.local.md AGENTS.md .mcp.json .claude ':(glob)**/CLAUDE.md' ':(glob)**/CLAUDE.local.md' ':(glob)**/AGENTS.md' ':(glob)**/.claude/**')
 
 render_template() {
   local file="$1"
@@ -22,7 +22,7 @@ render_template() {
   env "${@/#/T_}" perl -0pe 's/\{\{(\w+)\}\}/exists $ENV{"T_$1"} ? $ENV{"T_$1"} : $&/ge' "$file"
 }
 
-# Reset every agent config file (CLAUDE.md, AGENTS.md, .claude, .mcp.json) in the
+# Reset every agent config file (CLAUDE.md, CLAUDE.local.md, AGENTS.md, .claude, .mcp.json) in the
 # worktree to its version in the trusted commit (default: the staged base), wherever in
 # the PR history it was changed. Paths stay staged against the base so the review diff
 # does not show them.
