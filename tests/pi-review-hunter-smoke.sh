@@ -73,6 +73,9 @@ FAKE
 chmod +x "$TMP_DIR/bin/pi"
 ok_out="$(PATH="$TMP_DIR/bin:$PATH" "$HELPER" --prompt-file "$PROMPT_FILE" --patch "$PATCH_FILE")"
 [ "$ok_out" = "GO" ] || fail "final report must reach stdout"
+ignored_rc=0
+ignored_out="$(trap '' TERM; PATH="$TMP_DIR/bin:$PATH" "$HELPER" --prompt-file "$PROMPT_FILE" --patch "$PATCH_FILE" --timeout 2)" || ignored_rc=$?
+[ "$ignored_rc" -eq 0 ] && [ "$ignored_out" = "GO" ] || fail "a finished run under an ignored TERM must not time out, got $ignored_rc"
 PATH="$TMP_DIR/bin:$PATH" "$HELPER" --prompt-file "$PROMPT_FILE" --patch "$PATCH_FILE" --timeout 7351 >/dev/null
 sleep 0.2
 if pgrep -f '(^| )7351( |$)' >/dev/null; then
