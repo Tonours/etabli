@@ -9,10 +9,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
-mkdir -p "$TMP_DIR/pi/extensions"
+mkdir -p "$TMP_DIR/pi/extensions/__tests__"
 cp "$ROOT_DIR/pi/package.json" "$ROOT_DIR/pi/tsconfig.json" "$TMP_DIR/pi/"
 ln -s "$ROOT_DIR/pi/node_modules" "$TMP_DIR/pi/node_modules"
-printf 'const impossible: string = 123;\n' > "$TMP_DIR/pi/extensions/intentional-type-error.ts"
+printf 'const impossible: string = 123;\n' > "$TMP_DIR/pi/extensions/__tests__/intentional-type-error.test.ts"
 
 # The negative probe runs on its own copied tree, so it can overlap the real
 # typecheck instead of running after it.
