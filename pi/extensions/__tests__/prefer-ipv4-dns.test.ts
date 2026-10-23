@@ -1,17 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import {
-	PREFERRED_DNS_RESULT_ORDER,
-	applyPreferredDnsResultOrder,
-} from "../prefer-ipv4-dns.ts";
+import { getDefaultResultOrder, setDefaultResultOrder } from "node:dns";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 describe("prefer-ipv4-dns", () => {
-	test("applies ipv4first as the default DNS result order", () => {
-		expect(applyPreferredDnsResultOrder()).toBe(PREFERRED_DNS_RESULT_ORDER);
-		expect(PREFERRED_DNS_RESULT_ORDER).toBe("ipv4first");
-	});
-
-	test("is idempotent across repeated applications", () => {
-		applyPreferredDnsResultOrder();
-		expect(applyPreferredDnsResultOrder()).toBe(PREFERRED_DNS_RESULT_ORDER);
+	test("sets ipv4first when the extension starts, not when its module loads", async () => {
+		setDefaultResultOrder("verbatim");
+		const { default: preferIpv4Dns } = await import("../prefer-ipv4-dns.ts");
+		expect(getDefaultResultOrder()).toBe("verbatim");
+		preferIpv4Dns({} as ExtensionAPI);
+		expect(getDefaultResultOrder()).toBe("ipv4first");
 	});
 });
