@@ -94,7 +94,6 @@
   "lsp": {
     "hookMode": "agent_end"
   },
-  "lastChangelogVersion": "0.84.2",
   "defaultProvider": "zai",
   "defaultModel": "glm-5.3",
   "theme": "catppuccin-mocha",
@@ -111,12 +110,7 @@
   "showHardwareCursor": false,
   "treeFilterMode": "default",
   "steeringMode": "one-at-a-time",
-  "tasksTillDone": {
-    "enabled": true,
-    "autoContinue": true
-  },
   "rtk": {
-    "dangerousCommandBypass": true,
     "enabled": true,
     "maxCacheEntries": 256,
     "maxCommandLength": 4000,

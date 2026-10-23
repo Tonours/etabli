@@ -3,10 +3,8 @@ import { delimiter } from "node:path";
 import {
   createRtkCommandRewriter,
   createRtkSpawnHook,
-  getRtkRuntimeState,
   prependPathToEnv,
   readRtkRewrite,
-  resetRtkRuntimeState,
 } from "../lib/rtk-runtime.ts";
 import { rtkDataFlowReason } from "../../../workflow/runtime/rtk-data-flow.mjs";
 
@@ -15,7 +13,6 @@ const DEFAULT_CONFIG = {
   mode: "always" as const,
   maxCacheEntries: 2,
   maxCommandLength: 64,
-  dangerousCommandBypass: true,
 };
 
 describe("prependPathToEnv", () => {
@@ -79,7 +76,6 @@ describe("createRtkCommandRewriter", () => {
     expect(rewrite("git status")).toBe("rtk git status");
     expect(rewrite("git status")).toBe("rtk git status");
     expect(calls).toBe(1);
-    expect(getRtkRuntimeState().cacheHits).toBe(1);
   });
 
   test("scopes rewrite cache entries by execution environment", () => {
@@ -93,7 +89,6 @@ describe("createRtkCommandRewriter", () => {
     expect(rewrite("git status", { PATH: "/tmp/asdf-b" })).toBe("rtk:/tmp/asdf-b:git status");
     expect(rewrite("git status", { PATH: "/tmp/asdf-a" })).toBe("rtk:/tmp/asdf-a:git status");
     expect(calls).toBe(2);
-    expect(getRtkRuntimeState().cacheHits).toBe(1);
   });
 
   test("caches expected no-rewrite failures as the original command", () => {
@@ -118,7 +113,6 @@ describe("createRtkCommandRewriter", () => {
     expect(rewrite("git status")).toBe("git status");
     expect(rewrite("ls -la")).toBe("ls -la");
     expect(calls).toBe(1);
-    expect(getRtkRuntimeState().disabled).toBe(true);
   });
 
   for (const [label, failure] of [
@@ -152,7 +146,6 @@ describe("createRtkCommandRewriter", () => {
     expect(rewrite("git status", { PATH: "/tmp/found" })).toBe("rtk:git status");
     expect(rewrite("git diff", { PATH: "/tmp/missing" })).toBe("git diff");
     expect(calls).toBe(2);
-    expect(getRtkRuntimeState().disabled).toBe(true);
   });
 
   test("does not cache unexpected rewrite failures", () => {
@@ -178,86 +171,19 @@ describe("createRtkCommandRewriter", () => {
     expect(calls).toBe(0);
   });
 
-  test("bypasses dangerous and multiline commands", () => {
-    resetRtkRuntimeState();
+  test("bypasses first-sighting pipelines and multiline commands", () => {
     let calls = 0;
     const rewrite = createRtkCommandRewriter((command) => {
       calls += 1;
       return `rtk ${command}`;
     }, DEFAULT_CONFIG);
 
-    expect(rewrite("rm -rf build")).toBe("rm -rf build");
     expect(rewrite("echo hi | cat")).toBe("echo hi | cat");
     expect(rewrite("echo one\necho two")).toBe("echo one\necho two");
     expect(calls).toBe(0);
-    expect(getRtkRuntimeState().bypasses).toBe(3);
-    expect(getRtkRuntimeState().lastBypassReason).toBe("multiline");
-  });
-
-  test("bypasses destructive rm flag variants", () => {
-    resetRtkRuntimeState();
-    let calls = 0;
-    const rewrite = createRtkCommandRewriter((command) => {
-      calls += 1;
-      return `rtk ${command}`;
-    }, DEFAULT_CONFIG);
-
-    expect(rewrite("rm -fr build")).toBe("rm -fr build");
-    expect(rewrite("rm -r -f build")).toBe("rm -r -f build");
-    expect(rewrite("rm -Rf build")).toBe("rm -Rf build");
-    expect(calls).toBe(0);
-    expect(getRtkRuntimeState().bypasses).toBe(3);
-    expect(getRtkRuntimeState().lastBypassReason).toBe("dangerous-command");
-  });
-
-  test("bypasses destructive rm long flag variants", () => {
-    resetRtkRuntimeState();
-    let calls = 0;
-    const rewrite = createRtkCommandRewriter((command) => {
-      calls += 1;
-      return `rtk ${command}`;
-    }, DEFAULT_CONFIG);
-
-    expect(rewrite("rm --recursive --force build")).toBe("rm --recursive --force build");
-    expect(rewrite("rm -r --force build")).toBe("rm -r --force build");
-    expect(calls).toBe(0);
-    expect(getRtkRuntimeState().bypasses).toBe(2);
-    expect(getRtkRuntimeState().lastBypassReason).toBe("dangerous-command");
-  });
-
-  test("bypasses destructive git clean flag variants", () => {
-    resetRtkRuntimeState();
-    let calls = 0;
-    const rewrite = createRtkCommandRewriter((command) => {
-      calls += 1;
-      return `rtk ${command}`;
-    }, DEFAULT_CONFIG);
-
-    expect(rewrite("git clean -fd")).toBe("git clean -fd");
-    expect(rewrite("git clean -xdf")).toBe("git clean -xdf");
-    expect(rewrite("git clean -d -f")).toBe("git clean -d -f");
-    expect(calls).toBe(0);
-    expect(getRtkRuntimeState().bypasses).toBe(3);
-    expect(getRtkRuntimeState().lastBypassReason).toBe("dangerous-command");
-  });
-
-  test("bypasses destructive git clean long flag variants", () => {
-    resetRtkRuntimeState();
-    let calls = 0;
-    const rewrite = createRtkCommandRewriter((command) => {
-      calls += 1;
-      return `rtk ${command}`;
-    }, DEFAULT_CONFIG);
-
-    expect(rewrite("git clean --force -d")).toBe("git clean --force -d");
-    expect(rewrite("git clean --force --directory")).toBe("git clean --force --directory");
-    expect(calls).toBe(0);
-    expect(getRtkRuntimeState().bypasses).toBe(2);
-    expect(getRtkRuntimeState().lastBypassReason).toBe("dangerous-command");
   });
 
   test("never rewrites a command with a leading or trailing non-ASCII blank", () => {
-    resetRtkRuntimeState();
     let calls = 0;
     const rewrite = createRtkCommandRewriter((command) => {
       calls += 1;
@@ -271,19 +197,27 @@ describe("createRtkCommandRewriter", () => {
     expect(calls).toBe(0);
   });
 
-  test("bypasses destructive commands after compact shell separators", () => {
-    resetRtkRuntimeState();
-    let calls = 0;
+  test("splits a pipeline once a segment is vetted or the pipeline was seen", () => {
+    const calls: string[] = [];
     const rewrite = createRtkCommandRewriter((command) => {
-      calls += 1;
-      return `rtk ${command}`;
-    }, DEFAULT_CONFIG);
+      calls.push(command);
+      if (command === "tail -5") throw { status: 1 };
+      return command.startsWith("git ") ? `rtk ${command}` : command;
+    }, { ...DEFAULT_CONFIG, maxCacheEntries: 16 });
 
-    expect(rewrite("true;rm -rf build")).toBe("true;rm -rf build");
-    expect(rewrite("true&&git clean -fd")).toBe("true&&git clean -fd");
-    expect(calls).toBe(0);
-    expect(getRtkRuntimeState().bypasses).toBe(2);
-    expect(getRtkRuntimeState().lastBypassReason).toBe("dangerous-command");
+    expect(rewrite("git status")).toBe("rtk git status");
+    expect(rewrite("git status  |  head -5")).toBe("rtk git status  |  head -5");
+    expect(rewrite("git status  |  head -5")).toBe("rtk git status  |  head -5");
+    expect(calls).toEqual(["git status", "head -5"]);
+
+    expect(rewrite("git diff | head -3")).toBe("git diff | head -3");
+    expect(calls).toHaveLength(2);
+    expect(rewrite("git diff | head -3")).toBe("rtk git diff | head -3");
+    expect(calls).toEqual(["git status", "head -5", "git diff", "head -3"]);
+
+    expect(rewrite("git log | tail -5")).toBe("git log | tail -5");
+    expect(rewrite("git log | tail -5")).toBe("git log | tail -5");
+    expect(calls.slice(4)).toEqual(["git log", "tail -5"]);
   });
 
   test("evicts oldest cache entries when max size is reached", () => {
@@ -298,7 +232,6 @@ describe("createRtkCommandRewriter", () => {
     expect(rewrite("git log")).toBe("rtk git log");
     expect(rewrite("git status")).toBe("rtk git status");
     expect(calls).toBe(4);
-    expect(getRtkRuntimeState().cacheSize).toBe(2);
   });
 });
 
@@ -333,7 +266,6 @@ describe("rtkDataFlowReason", () => {
 
 describe("data-flow bypass in the rewriter", () => {
   test("never rewrites a redirected or consumed command, even on a repeat sighting", () => {
-    resetRtkRuntimeState();
     const calls: string[] = [];
     const rewrite = createRtkCommandRewriter((command) => {
       calls.push(command);
