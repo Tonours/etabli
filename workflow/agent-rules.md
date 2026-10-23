@@ -8,7 +8,8 @@
 - Read local sources first: `AGENTS.md`, `CLAUDE.md`, docs, then
   `workflow/spec.md` (entry and map, wins on conflict).
 - If `workflow/spec.md` exists, activate the Etabli workflow automatically.
-- Smallest route. Current Pi profile: parent-only execution and mutation.
+- Smallest route. On Pi, execution and mutation stay parent-only; Claude may
+  delegate one READY plan step to a `worker` (`workflow/skills/implementation-loop.md`).
 - On Pi, skills are instruction folders, not tools: read its SKILL.md, then run
   its scripts with the bash tool (e.g. cd <skill-dir> && ./search.js "query").
   Never invent a tool named after a skill; never claim bash cannot be used.

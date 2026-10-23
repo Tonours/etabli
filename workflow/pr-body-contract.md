@@ -48,7 +48,7 @@ packages. Prose is for the reasoning that a table cannot hold.
 
 ## Anti-slop
 
-The style rules from `write-direct` apply to the narrative parts, in English.
+Keep the narrative parts plain and direct, in English.
 Contracts stay literal: routes, payloads, signatures, error types, commands,
 and security warnings are never restyled for tone.
 
@@ -75,7 +75,7 @@ Write `,` or a period instead of an em-dash, and `so` or `becomes` instead of an
 arrow. This is checkable, so check it instead of trusting the draft:
 
 ```bash
-gh pr view <N> --json body -q .body | grep -oP '[^\x00-\x7F]' | sort | uniq -c
+gh pr view <N> --json body -q .body | LC_ALL=C grep -n '[^[:print:][:space:]]'
 ```
 
 Empty output means clean. Run it after writing the body, not before.

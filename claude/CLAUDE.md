@@ -14,7 +14,7 @@ reads the same file as `~/.pi/agent/AGENTS.md`).
 - Follow the Etabli workflow (spec, then the route contract); infer the
   route yourself. Claude hooks guard
   writes only; routing is the model's reading of `workflow/spec.md` (ADR-0036).
-- `/goal` only for measurable long loops with validation evidence and a cap.
+- `/goal`: `workflow/skills/orchestration.md` (measurable condition plus a cap).
 - Use `/verify-workflow` for workflow evidence; do not shadow native `/verify`.
 - Orchestration parity: `workflow/skills/orchestration.md`; Pi Task* state is
   Pi-only unless equivalent runtime capability is exposed.
