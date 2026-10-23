@@ -83,9 +83,8 @@ run_shown() {
 }
 
 run_council() {
-  local rc=0 body findings
-  run_shown "$REPORT" "$COUNCIL" "$NUMBER" "$REPO" --post || rc=$?
-  [ "$rc" -eq 0 ] || return "$rc"
+  local body findings
+  run_shown "$REPORT" "$COUNCIL" "$NUMBER" "$REPO" --post || return
   findings="$(validator_run_findings "$REPORT" "$SHA")"
   [ -n "$findings" ] || { echo "=== no validator run marker for ${SHA:0:8}: the review is incomplete"; return "$REVIEW_INCOMPLETE_RC"; }
   echo "$SHA" >"$KEY.council-done"
