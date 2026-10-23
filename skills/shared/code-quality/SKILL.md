@@ -25,7 +25,7 @@ and compares the diff to **sibling implementations in this repo**.
 
    | Domain | Skills to apply |
    | -------- | ----------------- |
-   | TypeScript / implementation | `codebase-design` (vendored, matt pocock; Claude surface — prompt-hidden on Pi) |
+   | TypeScript / implementation | `codebase-design` on Claude; on Pi, 1–3 local siblings (step 4) |
    | CSS / layout / visual | Local sibling components and styles; apply a narrower CSS skill only when the runtime exposes one |
    | Project-specific code | Prefer the matching project skill when the runtime exposes one |
 
