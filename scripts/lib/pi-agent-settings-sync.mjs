@@ -124,7 +124,7 @@ for (const model of trackedSettings.enabledModels ?? []) {
   changes.push(`add ${model}`);
 }
 const localDefault = `${localSettings.defaultProvider}/${localSettings.defaultModel}`;
-if (modelRouting.retired_pi_models.includes(localDefault)) {
+if (retiredModels.has(localDefault)) {
   localSettings.defaultProvider = trackedSettings.defaultProvider;
   localSettings.defaultModel = trackedSettings.defaultModel;
   changes.push(`reset retired default ${localDefault} to ${trackedSettings.defaultProvider}/${trackedSettings.defaultModel}`);
