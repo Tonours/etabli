@@ -113,6 +113,7 @@ const RUBY_LITERAL_PREFIX = /(^|[=(,[{|&:;]|\s\?)\s*$/;
 const RUBY_HEREDOC = /^<<([~-]?)(?:(['"`])([^'"`\n]+)\2|([A-Za-z_]\w*))/;
 const RUBY_PERCENT = /^%([qQwWiIrsx]?)([^\w\s])/;
 const PERCENT_PAIRS = { "(": ")", "[": "]", "{": "}", "<": ">" };
+const MAX_NESTING = 64;
 
 function normalizeComment(text) {
 	return String(text).replace(/\s+/g, " ").trim();
@@ -256,10 +257,19 @@ export function collectCommentLines(text, family) {
 		return Math.max(cursor, end.stop);
 	};
 
+	let nesting = 0;
+	let capped = false;
 	const skipSubstitution = (cursor) => {
-		if (source.startsWith("$(", cursor)) return scanCode(cursor + 2, ")");
-		if (source[cursor] === "`") return scanCode(cursor + 1, "`");
-		return -1;
+		const opener = source.startsWith("$(", cursor) ? 2 : source[cursor] === "`" ? 1 : 0;
+		if (!opener) return -1;
+		if (nesting >= MAX_NESTING) {
+			capped = true;
+			return source.length;
+		}
+		nesting += 1;
+		const end = scanCode(cursor + opener, opener === 2 ? ")" : "`");
+		nesting -= 1;
+		return end;
 	};
 
 	const pushBlock = (start, stop) => {
@@ -274,6 +284,10 @@ export function collectCommentLines(text, family) {
 		const arithmetic = closer === ")" && source[start] === "(";
 		let index = start;
 		const heredocs = [];
+		const appendCode = (text) => {
+			if (lineCode.length > 128) lineCode = lineCode.slice(-32);
+			if (!/^\s$/.test(text) || !/\s$/.test(lineCode)) lineCode += text;
+		};
 		while (index < source.length) {
 			const char = source[index];
 			if (char === "\n") {
@@ -284,7 +298,7 @@ export function collectCommentLines(text, family) {
 				continue;
 			}
 			if (family === "shell" && char === "\\") {
-				lineCode += "E";
+				appendCode("E");
 				index += 2;
 				continue;
 			}
@@ -292,7 +306,7 @@ export function collectCommentLines(text, family) {
 				const match = /^<<(-?)[ \t]*(?:(['"])([^'"\s]+)\2|([^\s'"<>;|&()]+))/.exec(source.slice(index, index + 200));
 				if (match) {
 					heredocs.push({ word: match[3] ?? match[4], indent: match[1] === "-" ? /^\t+/ : null, expands: !match[2] });
-					lineCode += "H";
+					appendCode("H");
 					index += match[0].length;
 					continue;
 				}
@@ -305,7 +319,7 @@ export function collectCommentLines(text, family) {
 			if (closer === "`" && char === "`") return index + 1;
 			if (family === "shell" && source.startsWith("$(", index)) {
 				index = skipSubstitution(index);
-				lineCode += "S";
+				appendCode("S");
 				continue;
 			}
 			if (closer === ")" && char === "(") depth += 1;
@@ -316,7 +330,7 @@ export function collectCommentLines(text, family) {
 			if ((family === "clike" || family === "sql") && source.startsWith("/*", index)) {
 				const stop = blockEnd(source, index, "/*", "*/", family === "sql");
 				pushBlock(index, stop === -1 ? source.length : stop);
-				lineCode += " ";
+				appendCode(" ");
 				index = stop === -1 ? source.length : stop;
 				continue;
 			}
@@ -324,7 +338,7 @@ export function collectCommentLines(text, family) {
 				const stop = longBracketAt(source, index + 2);
 				if (stop !== -1) {
 					pushBlock(index, stop);
-					lineCode += " ";
+					appendCode(" ");
 					index = stop;
 					continue;
 				}
@@ -334,7 +348,7 @@ export function collectCommentLines(text, family) {
 				const end = tag ? source.indexOf(tag, index + tag.length) : -1;
 				if (end !== -1) {
 					index = end + tag.length;
-					lineCode += "S";
+					appendCode("S");
 					continue;
 				}
 			}
@@ -342,7 +356,7 @@ export function collectCommentLines(text, family) {
 				const stop = longBracketAt(source, index);
 				if (stop !== -1) {
 					index = stop;
-					lineCode += "S";
+					appendCode("S");
 					continue;
 				}
 			}
@@ -355,7 +369,7 @@ export function collectCommentLines(text, family) {
 			}
 			if (family === "ruby" && char === "?" && /[^\w\s'"`]/.test(source[index + 1] ?? "") && !/[\w$]/.test(source[index - 1] ?? "")) {
 				index += 2;
-				lineCode += "S";
+				appendCode("S");
 				continue;
 			}
 			const rubyLiteral = family === "ruby" && (char === "%" || source.startsWith("<<", index)) && !/(^|[^\w]):$/.test(lineCode) && RUBY_LITERAL_PREFIX.test(lineCode.trim() ? lineCode : previousCode);
@@ -363,7 +377,7 @@ export function collectCommentLines(text, family) {
 				const match = RUBY_HEREDOC.exec(source.slice(index, index + 200));
 				if (match) {
 					heredocs.push({ word: match[3] ?? match[4], indent: match[1] ? /^[ \t]+/ : null, expands: false });
-					lineCode += "H";
+					appendCode("H");
 					index += match[0].length;
 					continue;
 				}
@@ -372,7 +386,7 @@ export function collectCommentLines(text, family) {
 				const stop = skipPercentLiteral(source, index);
 				if (stop !== -1) {
 					index = stop;
-					lineCode += "S";
+					appendCode("S");
 					continue;
 				}
 			}
@@ -385,7 +399,7 @@ export function collectCommentLines(text, family) {
 			}
 			if (char === "'" || char === '"' || (family === "clike" && char === "`")) {
 				index = skipString(index);
-				lineCode += "S";
+				appendCode("S");
 				continue;
 			}
 			const rubySymbol = family === "ruby" && /(^|[^\w]):$/.test(lineCode);
@@ -393,18 +407,18 @@ export function collectCommentLines(text, family) {
 				const stop = skipRegexLiteral(source, index);
 				if (stop !== -1) {
 					index = stop;
-					lineCode += "RE";
+					appendCode("RE");
 					continue;
 				}
 			}
-			lineCode += char;
+			appendCode(char);
 			index += 1;
 		}
 		return index;
 	};
 
 	scanCode(0, null);
-	return found;
+	return capped ? [] : found;
 }
 
 export function addedCommentLines(previousText, nextText, family) {
