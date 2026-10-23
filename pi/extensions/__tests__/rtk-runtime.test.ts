@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { delimiter } from "node:path";
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { delimiter, join } from "node:path";
 import {
   createRtkCommandRewriter,
   createRtkSpawnHook,
@@ -7,6 +9,7 @@ import {
   readRtkRewrite,
 } from "../lib/rtk-runtime.ts";
 import { rtkDataFlowReason } from "../../../workflow/runtime/rtk-data-flow.mjs";
+import rtkExtension from "../rtk.ts";
 
 const DEFAULT_CONFIG = {
   enabled: true,
@@ -291,5 +294,27 @@ describe("readRtkRewrite", () => {
     expect(() => readRtkRewrite(() => { throw noRewrite; })).toThrow("exit 1");
     const emptyThree = Object.assign(new Error("exit 3"), { status: 3, stdout: "" });
     expect(() => readRtkRewrite(() => { throw emptyThree; })).toThrow("exit 3");
+  });
+});
+
+describe("rtk bash tool", () => {
+  test("runs in the session cwd, not the process cwd", async () => {
+    const agentDir = mkdtempSync(join(tmpdir(), "etabli-rtk-agent-"));
+    const sessionCwd = realpathSync(mkdtempSync(join(tmpdir(), "etabli-rtk-session-")));
+    const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+    try {
+      writeFileSync(join(agentDir, "settings.json"), JSON.stringify({ rtk: { enabled: false } }));
+      process.env.PI_CODING_AGENT_DIR = agentDir;
+      let tool: { execute: (...args: unknown[]) => Promise<{ content: Array<{ type: string; text?: string }> }> } | undefined;
+      rtkExtension({ registerTool: (definition: typeof tool) => { tool = definition; } } as unknown as Parameters<typeof rtkExtension>[0]);
+      expect(process.cwd()).not.toBe(sessionCwd);
+      const result = await tool!.execute("t1", { command: "pwd -P" }, undefined, undefined, { cwd: sessionCwd, sessionManager: { getSessionId: () => "s1", getSessionFile: () => undefined } });
+      expect(result.content.map((part) => part.text ?? "").join("")).toContain(sessionCwd);
+    } finally {
+      if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+      else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+      rmSync(agentDir, { recursive: true, force: true });
+      rmSync(sessionCwd, { recursive: true, force: true });
+    }
   });
 });

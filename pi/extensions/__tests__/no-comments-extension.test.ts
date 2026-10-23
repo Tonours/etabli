@@ -11,7 +11,7 @@ import {
 } from "../../../workflow/runtime/no-comments-guard.mjs";
 import noComments from "../no-comments.ts";
 
-type Handler = (event: Record<string, unknown>) => unknown;
+type Handler = (event: Record<string, unknown>, ctx: { cwd: string }) => unknown;
 
 let fixtureCwd = "";
 
@@ -37,7 +37,7 @@ function setupExtension() {
 	noComments(pi as unknown as Parameters<typeof noComments>[0]);
 	return {
 		emit(eventName: string, event: Record<string, unknown>) {
-			return (handlers.get(eventName) ?? []).map((handler) => handler({ cwd: fixtureCwd, ...event }));
+			return (handlers.get(eventName) ?? []).map((handler) => handler(event, { cwd: fixtureCwd }));
 		},
 	};
 }
@@ -352,5 +352,18 @@ describe("no-comments extension", () => {
 			input: { path: "PLAN.md", content: "# PLAN\n// docs\n" },
 		})[0];
 		expect(markdown).toBeUndefined();
+	});
+
+	test("resolves the edited file against the session cwd, not the process cwd", () => {
+		mkdirSync(join(fixtureCwd, "src"));
+		writeFileSync(join(fixtureCwd, "src", "kept.ts"), "export const n = 1; // kept\n");
+		expect(process.cwd()).not.toBe(fixtureCwd);
+		const runtime = setupExtension();
+		const rewrite = runtime.emit("tool_call", {
+			toolName: "write",
+			toolCallId: "w3",
+			input: { path: "src/kept.ts", content: "export const n = 2; // kept\n" },
+		})[0];
+		expect(rewrite).toBeUndefined();
 	});
 });
