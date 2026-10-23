@@ -64,6 +64,13 @@ build_fixture "$FIX/home" "$FIX/repo"
 
 expect_ok "clean fixture (nested synced/ + .DS_Store tolerated)" "$FIX/home" "$FIX/repo"
 
+cp "$FIX/home/.claude/settings.json" "$FIX/settings.good"
+printf '{bad' >"$FIX/home/.claude/settings.json"
+expect_fail "invalid live settings JSON" "$FIX/home" "$FIX/repo" "invalid JSON in "
+grep -q '^ *at ' "$FIX/err.txt" && fail "invalid live settings JSON must fail without a stack trace: $(cat "$FIX/err.txt")"
+[ "$(cat "$FIX/home/.claude/settings.json")" = "{bad" ] || fail "invalid live settings JSON must stay untouched"
+mv "$FIX/settings.good" "$FIX/home/.claude/settings.json"
+
 mkdir -p "$FIX/home/.claude/skills/unmapped-newcomer"
 printf -- '---\nname: unmapped-newcomer\ndescription: x\n---\nx\n' >"$FIX/home/.claude/skills/unmapped-newcomer/SKILL.md"
 expect_fail "ungoverned newcomer" "$FIX/home" "$FIX/repo" "ungoverned skill on the surface: unmapped-newcomer"
@@ -86,6 +93,7 @@ CLAUDE_SKILL_LOAD_HOME="$FIX/home" CLAUDE_SKILL_LOAD_REPO="$FIX/repo" "$CHECK" -
 grep -qF "FIX: governed personal skill unmapped-newcomer as user-invocable-only" "$FIX/fix.txt" ||
   fail "personal --fix must govern the newcomer in live settings: $(cat "$FIX/fix.txt")"
 [ "$(live_state unmapped-newcomer)" = "user-invocable-only" ] || fail "personal --fix must write the live settings"
+ls "$FIX/home/.claude" | grep -Eq '^settings\.json\.bak\.[0-9]{8}T[0-9]{6}Z$' || fail "personal --fix must back up the live settings first"
 grep -qF "unmapped-newcomer" "$FIX/repo/claude/settings.skill-overrides.json" && fail "personal --fix must not touch the tracked map"
 expect_ok "personal skill governed in live settings" "$FIX/home" "$FIX/repo"
 set_live_state unmapped-newcomer on

@@ -1,9 +1,14 @@
 #!/usr/bin/env node
 import {
+  closeSync,
+  constants,
   copyFileSync,
   existsSync,
+  fchmodSync,
+  fsyncSync,
   lstatSync,
   mkdirSync,
+  openSync,
   readFileSync,
   readdirSync,
   readlinkSync,
@@ -15,6 +20,7 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
+import { randomBytes } from "node:crypto";
 import { userInfo } from "node:os";
 import { basename, dirname, join, relative, sep } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -28,6 +34,8 @@ const CLAUDE_SKILLS = ".claude/skills";
 const MAX_LINK_DEPTH = 40;
 const MANAGED_SKILL_TARGET = /^(skills\/[^/]+|pi\/skills|vendor\/[^/]+\/skills|claude\/scopes\/[^/]+\/skills)\/./;
 const ORPHAN_SKILL_TARGET = /^(skills\/[^/]+|vendor\/[^/]+\/skills)\/./;
+const TIMESTAMP_BACKUP = /^\.bak[.-](\d{8}-\d{6}|\d{8}T\d{6}Z?)(\.\d+)?$/;
+const KEPT_BACKUPS = 5;
 
 function lstatOrNull(path) {
   try {
@@ -186,6 +194,64 @@ function backupPath(path, timestamp) {
   let candidate = `${base}.bak.${timestamp}`;
   for (let index = 1; lstatOrNull(candidate); index += 1) candidate = `${base}.bak.${timestamp}.${index}`;
   return candidate;
+}
+
+export function backupStamp(date = new Date()) {
+  return date.toISOString().replace(/[-:]|\.\d+/g, "");
+}
+
+export function backupFile(path, { stamp = backupStamp(), keep = KEPT_BACKUPS } = {}) {
+  let backup = `${path}.bak.${stamp}`;
+  for (let index = 1; lstatOrNull(backup); index += 1) backup = `${path}.bak.${stamp}.${index}`;
+  copyFileSync(path, backup, constants.COPYFILE_EXCL);
+  rotateBackups(path, keep);
+  return backup;
+}
+
+export function rotateBackups(path, keep = KEPT_BACKUPS) {
+  const dir = dirname(path);
+  const name = basename(path);
+  const removed = entries(dir)
+    .filter((entry) => entry.startsWith(name) && TIMESTAMP_BACKUP.test(entry.slice(name.length)))
+    .map((entry) => ({ path: join(dir, entry), stat: lstatOrNull(join(dir, entry)) }))
+    .filter(({ stat }) => stat?.isFile())
+    .sort((a, b) => b.stat.mtimeMs - a.stat.mtimeMs)
+    .slice(keep)
+    .map((backup) => backup.path);
+  for (const backup of removed) rmSync(backup, { force: true });
+  return removed;
+}
+
+function replaceFile(path, content, mode) {
+  const staged = join(dirname(path), `.${basename(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
+  const fd = openSync(staged, "wx", 0o600);
+  try {
+    try {
+      writeFileSync(fd, content);
+      fchmodSync(fd, mode);
+      fsyncSync(fd);
+    } finally {
+      closeSync(fd);
+    }
+    renameSync(staged, path);
+  } catch (error) {
+    rmSync(staged, { force: true });
+    throw error;
+  }
+  try {
+    const dirFd = openSync(dirname(path), "r");
+    try {
+      fsyncSync(dirFd);
+    } finally {
+      closeSync(dirFd);
+    }
+  } catch {}
+}
+
+export function writeJsonAtomic(path, value) {
+  const target = existsSync(path) ? realpath(path) : path;
+  const mode = lstatOrNull(target)?.mode ?? 0o600;
+  replaceFile(target, `${JSON.stringify(value, null, 2)}\n`, mode & 0o7777);
 }
 
 function moveAside(ctx, path) {
@@ -470,15 +536,7 @@ export function seedPiSettings({ homeDir, repoDir, apply }, emit) {
       return false;
     }
     const dangling = !existsSync(local);
-    const staged = `${local}.etabli-${process.pid}`;
-    const content = readFileSync(dangling ? tracked : local);
-    writeFileSync(staged, content, { mode: 0o600, flag: "wx" });
-    try {
-      renameSync(staged, local);
-    } catch (error) {
-      rmSync(staged, { force: true });
-      throw error;
-    }
+    replaceFile(local, readFileSync(dangling ? tracked : local), 0o600);
     emit(dangling ? "COPY" : "MIGRATE", dangling ? "Pi agent settings bootstrap after dangling symlink" : "Pi agent settings symlink to local file");
   }
   if (lstatOrNull(local)?.isFile()) return true;
@@ -487,7 +545,7 @@ export function seedPiSettings({ homeDir, repoDir, apply }, emit) {
     return false;
   }
   mkdirSync(dirname(local), { recursive: true });
-  copyFileSync(tracked, local);
+  replaceFile(local, readFileSync(tracked), statSync(tracked).mode & 0o7777);
   emit("COPY", "Pi agent settings bootstrap");
   return true;
 }

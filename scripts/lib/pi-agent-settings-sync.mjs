@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
+import { backupFile, writeJsonAtomic } from "./surfaces.mjs";
 
 const modelRouting = JSON.parse(fs.readFileSync(new URL("../../workflow/runtime/model-routing.json", import.meta.url), "utf8"));
 
@@ -106,16 +107,6 @@ function isLegacySource(source) {
   );
 }
 
-function backupPath(path) {
-  let candidate = `${path}.bak.${timestamp}`;
-  let index = 1;
-  while (fs.existsSync(candidate)) {
-    candidate = `${path}.bak.${timestamp}.${index}`;
-    index += 1;
-  }
-  return candidate;
-}
-
 const changes = [];
 const trackedPackages = Array.isArray(trackedSettings.packages)
   ? trackedSettings.packages
@@ -215,12 +206,11 @@ if (dryRun) {
   process.exit(0);
 }
 
-const backup = backupPath(localPath);
-fs.copyFileSync(localPath, backup);
+const backup = backupFile(localPath, { stamp: timestamp });
 localSettings.packages = localPackages;
 localSettings.enabledModels = localModels;
 localSettings.skills = trackedSettings.skills;
-fs.writeFileSync(localPath, `${JSON.stringify(localSettings, null, 2)}\n`);
+writeJsonAtomic(localPath, localSettings);
 if (mode === "deploy") {
   console.log(`BACKUP         ${backup}`);
   console.log(

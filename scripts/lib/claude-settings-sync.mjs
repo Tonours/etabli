@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
+import { backupFile, writeJsonAtomic } from "./surfaces.mjs";
 
 const [localPath, trackedPath, dryRunRaw, timestamp, mode] =
   process.argv.slice(2);
@@ -223,21 +224,7 @@ if (dryRun) {
   process.exit(0);
 }
 
-function backupPath(path) {
-  let candidate = `${path}.bak.${timestamp}`;
-  let index = 1;
-  while (fs.existsSync(candidate)) {
-    candidate = `${path}.bak.${timestamp}.${index}`;
-    index += 1;
-  }
-  return candidate;
-}
-
-let backup = null;
-if (!localMissing) {
-  backup = backupPath(localPath);
-  fs.copyFileSync(localPath, backup);
-}
+const backup = localMissing ? null : backupFile(localPath, { stamp: timestamp });
 
 if (!localMissing && mode === "deploy") {
   for (const [name, state] of Object.entries(trackedMap).sort(([a], [b]) =>
@@ -280,12 +267,7 @@ for (const key of SCALAR_KEYS) {
     localSettings[key] = tracked[key];
   }
 }
-const tmpPath = `${localPath}.tmp.${timestamp}`;
-fs.writeFileSync(tmpPath, `${JSON.stringify(localSettings, null, 2)}\n`);
-if (!localMissing) {
-  fs.chmodSync(tmpPath, fs.statSync(localPath).mode);
-}
-fs.renameSync(tmpPath, localPath);
+writeJsonAtomic(localPath, localSettings);
 
 if (mode === "deploy") {
   if (backup) console.log(`BACKUP         ${backup}`);
