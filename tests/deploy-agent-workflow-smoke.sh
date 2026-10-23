@@ -438,20 +438,18 @@ fi
 wait "$BOGUS_SCOPE_PID"
 wait "$WORK_SCOPE_PID"
 
-# Both modes reset an exact retired managed default, keep custom models and honor dry-run.
-for mode in deploy install; do
-  local_settings="$TMP_DIR/retired-default-$mode.json"
-  printf '%s\n' '{"defaultProvider":"cursor","defaultModel":"claude-sonnet-5@300k","enabledModels":["cursor/claude-sonnet-5@300k","custom/provider-model"],"packages":[]}' >"$local_settings"
-  before="$(hash256 "$local_settings" | awk '{print $1}')"
-  node "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" "$local_settings" "$ROOT_DIR/pi/agent/settings.json" 1 smoke "$mode" >/dev/null
-  [ "$before" = "$(hash256 "$local_settings" | awk '{print $1}')" ] || { printf 'dry-run changed retired default\n' >&2; exit 1; }
-  node "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" "$local_settings" "$ROOT_DIR/pi/agent/settings.json" 0 smoke "$mode" >/dev/null
-  jq -e '.defaultProvider == "zai" and .defaultModel == "glm-5.3" and (.enabledModels | index("custom/provider-model")) != null and (.enabledModels | index("zai/glm-5.3-flash")) != null and (.enabledModels | index("cursor/claude-sonnet-5@300k")) == null' "$local_settings" >/dev/null
-done
+# The sync resets an exact retired managed default, keeps custom models and honors dry-run.
+local_settings="$TMP_DIR/retired-default.json"
+printf '%s\n' '{"defaultProvider":"cursor","defaultModel":"claude-sonnet-5@300k","enabledModels":["cursor/claude-sonnet-5@300k","custom/provider-model"],"packages":[]}' >"$local_settings"
+before="$(hash256 "$local_settings" | awk '{print $1}')"
+node "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" "$local_settings" "$ROOT_DIR/pi/agent/settings.json" 1 smoke >/dev/null
+[ "$before" = "$(hash256 "$local_settings" | awk '{print $1}')" ] || { printf 'dry-run changed retired default\n' >&2; exit 1; }
+node "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" "$local_settings" "$ROOT_DIR/pi/agent/settings.json" 0 smoke >/dev/null
+jq -e '.defaultProvider == "zai" and .defaultModel == "glm-5.3" and (.enabledModels | index("custom/provider-model")) != null and (.enabledModels | index("zai/glm-5.3-flash")) != null and (.enabledModels | index("cursor/claude-sonnet-5@300k")) == null' "$local_settings" >/dev/null
 
 local_settings="$TMP_DIR/custom-default.json"
 printf '%s\n' '{"packages":["npm:mitsupi",{"source":"npm:pi-lens","skills":["lens"]},{"source":"npm:pi-lens@4.0.0"},{"source":"git:github.com/badlogic/pi-skills@feature/topic","skills":["danger"]},"https://github.com/badlogic/pi-skills.git@main","npm:@zhushanwen/pi-ask-user"]}' >"$local_settings"
-node "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" "$local_settings" "$ROOT_DIR/pi/agent/settings.json" 0 smoke deploy >/dev/null
+node "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" "$local_settings" "$ROOT_DIR/pi/agent/settings.json" 0 smoke >/dev/null
 node - "$local_settings" "$ROOT_DIR/pi/agent/settings.json" <<'NODE'
 const fs = require("node:fs");
 const [local, tracked] = process.argv.slice(2).map((path) => JSON.parse(fs.readFileSync(path, "utf8")));
@@ -466,10 +464,27 @@ if (!sources.includes("npm:@zhushanwen/pi-ask-user")) throw new Error("pinned sy
 if (sources.length !== tracked.packages.length + 1) throw new Error(`pinned sync kept ${sources.length} entries for ${tracked.packages.length} tracked plus 1 local`);
 NODE
 
-# An unrelated local default retains its existing install semantics.
+# An unrelated local default is kept.
 printf '%s\n' '{"defaultProvider":"local-mlx","defaultModel":"personal-model","enabledModels":["custom/provider-model"],"packages":[]}' >"$local_settings"
-node "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" "$local_settings" "$ROOT_DIR/pi/agent/settings.json" 0 smoke install >/dev/null
+node "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" "$local_settings" "$ROOT_DIR/pi/agent/settings.json" 0 smoke >/dev/null
 jq -e '.defaultProvider == "local-mlx" and .defaultModel == "personal-model"' "$local_settings" >/dev/null
+
+# Deploy and installer runs keep personal local-mlx models and drop retired ones.
+retired_model="$(jq -r '.retired_pi_models[0]' "$ROOT_DIR/workflow/runtime/model-routing.json")"
+for caller in deploy install; do
+  mlx_home="$TMP_DIR/mlx-$caller-home"
+  mkdir -p "$mlx_home/.pi/agent"
+  jq -n --arg retired "$retired_model" '{packages: [], enabledModels: ([range(1; 6) | "local-mlx/model-\(.)"] + [$retired])}' >"$mlx_home/.pi/agent/settings.json"
+  ETABLI_SKIP_LIVE_CHECKS=1 ETABLI_DEPLOY_CALLER="$caller" "$DEPLOY_SCRIPT" --apply --home "$mlx_home" >"$TMP_DIR/mlx-$caller.out" 2>&1 || {
+    cat "$TMP_DIR/mlx-$caller.out" >&2
+    exit 1
+  }
+  jq -e --arg retired "$retired_model" '([.enabledModels[] | select(startswith("local-mlx/"))] | length) == 5 and (.enabledModels | index($retired)) == null' "$mlx_home/.pi/agent/settings.json" >/dev/null || {
+    printf '%s run lost a local-mlx model or kept %s:\n' "$caller" "$retired_model" >&2
+    jq -c .enabledModels "$mlx_home/.pi/agent/settings.json" >&2
+    exit 1
+  }
+done
 
 # A failing Pi settings sync still runs the Claude sync and fails the deploy.
 BAD_PI_HOME_DIR="$TMP_DIR/bad-pi-home"

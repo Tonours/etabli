@@ -4,13 +4,10 @@ import { backupFile, writeJsonAtomic } from "./surfaces.mjs";
 
 const modelRouting = JSON.parse(fs.readFileSync(new URL("../../workflow/runtime/model-routing.json", import.meta.url), "utf8"));
 
-const [localPath, trackedPath, dryRunRaw, timestamp, mode] =
-  process.argv.slice(2);
+const [localPath, trackedPath, dryRunRaw, timestamp] = process.argv.slice(2);
 const dryRun = dryRunRaw === "1";
-if (!localPath || !trackedPath || !["deploy", "install"].includes(mode)) {
-  console.error(
-    "usage: pi-agent-settings-sync.mjs <local> <tracked> <dryRun> <timestamp> <deploy|install>",
-  );
+if (!localPath || !trackedPath) {
+  console.error("usage: pi-agent-settings-sync.mjs <local> <tracked> <dryRun> <timestamp>");
   process.exit(2);
 }
 
@@ -38,42 +35,7 @@ const legacySources = new Set([
   "local:etabli-workflow",
 ]);
 
-const deployLegacyModels = new Set([
-  ...modelRouting.retired_pi_models,
-  "openai-codex/gpt-5.6",
-  "kimi-coding/k3",
-  "zai/glm-5.2",
-  "zai/glm-5.2-highspeed",
-  "openai-codex/gpt-5.6-sol",
-  "openai-codex/gpt-5.6-luna",
-  "xai/grok-4.5",
-  "opencode-go/qwen3.7-max",
-]);
-const installLegacyModels = new Set([
-  ...modelRouting.retired_pi_models,
-  "openai-codex/gpt-5.6",
-  "opencode-go/kimi-k2.6",
-  "kimi-coding/kimi-for-coding",
-  "kimi-coding/kimi-for-coding-highspeed",
-  "kimi-coding/k3",
-  "zai/glm-5.2",
-  "zai/glm-5.2-highspeed",
-  "openai-codex/gpt-5.6-sol",
-  "openai-codex/gpt-5.6-luna",
-  "xai/grok-4.5",
-  "opencode-go/qwen3.7-max",
-  "github-copilot/claude-opus-4.7",
-  "opencode-go/minimax-m2.7",
-  "opencode-go/qwen3.6-plus",
-]);
-const legacyModels =
-  mode === "deploy"
-    ? { has: (model) => deployLegacyModels.has(model) }
-    : {
-        has: (model) =>
-          installLegacyModels.has(model) ||
-          (typeof model === "string" && model.startsWith("local-mlx/")),
-      };
+const retiredModels = new Set(modelRouting.retired_pi_models);
 
 function sourceOf(entry) {
   if (typeof entry === "string") return entry;
@@ -152,7 +114,7 @@ for (const trackedEntry of trackedPackages) {
 }
 
 localModels = localModels.filter((model) => {
-  if (!legacyModels.has(model)) return true;
+  if (!retiredModels.has(model)) return true;
   changes.push(`remove ${model}`);
   return false;
 });
@@ -167,20 +129,13 @@ if (modelRouting.retired_pi_models.includes(localDefault)) {
   localSettings.defaultModel = trackedSettings.defaultModel;
   changes.push(`reset retired default ${localDefault} to ${trackedSettings.defaultProvider}/${trackedSettings.defaultModel}`);
 }
-if (mode === "install") {
-  const provider = localSettings.defaultProvider;
-  const modelId = localSettings.defaultModel;
-  if (
-    typeof provider === "string" &&
-    typeof modelId === "string" &&
-    provider &&
-    modelId
-  ) {
-    const defaultId = `${provider}/${modelId}`;
-    if (!localModels.includes(defaultId) && !legacyModels.has(defaultId)) {
-      localModels.push(defaultId);
-      changes.push(`keep ${defaultId}`);
-    }
+
+const { defaultProvider, defaultModel } = localSettings;
+if (typeof defaultProvider === "string" && typeof defaultModel === "string" && defaultProvider && defaultModel) {
+  const defaultId = `${defaultProvider}/${defaultModel}`;
+  if (!localModels.includes(defaultId) && !retiredModels.has(defaultId)) {
+    localModels.push(defaultId);
+    changes.push(`keep ${defaultId}`);
   }
 }
 
@@ -192,17 +147,12 @@ if (
 }
 
 if (changes.length === 0) {
-  if (mode === "deploy")
-    console.log("OK             Pi agent settings resources");
+  console.log("OK             Pi agent settings resources");
   process.exit(0);
 }
 
 if (dryRun) {
-  if (mode === "deploy") {
-    console.log(
-      `WOULD_SYNC     Pi agent settings resources (${changes.join(", ")})`,
-    );
-  }
+  console.log(`WOULD_SYNC     Pi agent settings resources (${changes.join(", ")})`);
   process.exit(0);
 }
 
@@ -211,9 +161,5 @@ localSettings.packages = localPackages;
 localSettings.enabledModels = localModels;
 localSettings.skills = trackedSettings.skills;
 writeJsonAtomic(localPath, localSettings);
-if (mode === "deploy") {
-  console.log(`BACKUP         ${backup}`);
-  console.log(
-    `SYNC           Pi agent settings resources (${changes.join(", ")})`,
-  );
-}
+console.log(`BACKUP         ${backup}`);
+console.log(`SYNC           Pi agent settings resources (${changes.join(", ")})`);
