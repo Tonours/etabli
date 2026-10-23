@@ -47,8 +47,14 @@ has_valid_rtk() {
     command -v rtk &>/dev/null && rtk gain >/dev/null 2>&1 || return 1
     version="$(rtk --version 2>/dev/null)"
     print_step "rtk --version: ${version:-none}"
-    version="${version##* }"
-    [ "$(printf '%s\n' "$RTK_MIN_VERSION" "$version" | sort -t. -k1,1n -k2,2n -k3,3n | head -1)" = "$RTK_MIN_VERSION" ]
+    [[ "$version" =~ ([0-9]+)\.([0-9]+)(\.([0-9]+))? ]] || return 1
+    awk -v major="${BASH_REMATCH[1]}" -v minor="${BASH_REMATCH[2]}" -v patch="${BASH_REMATCH[4]:-0}" -v min="$RTK_MIN_VERSION" '
+        BEGIN {
+            split(min, m, ".")
+            if (major != m[1]) exit !(major > m[1])
+            if (minor != m[2]) exit !(minor > m[2])
+            exit !(patch >= m[3])
+        }'
 }
 
 node_available() {
@@ -75,7 +81,7 @@ prepend_path_entry() {
     local rest=":${PATH:-}:"
 
     while [[ "$rest" == *":$entry:"* ]]; do
-        rest="${rest//:$entry:/:}"
+        rest="${rest//":$entry:"/:}"
     done
     rest="${rest#:}"
     rest="${rest%:}"
@@ -349,7 +355,7 @@ if has_valid_rtk; then
     print_success "RTK already installed"
 else
     if [[ "$OS" == "mac" ]] && command -v brew &>/dev/null; then
-        brew install rtk || print_warning "RTK brew install failed"
+        { brew upgrade rtk 2>/dev/null || brew install rtk; } || print_warning "RTK brew install failed"
     else
         curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/4ef8730cf3a0dea11c8d64a9b90bc0616fe52100/install.sh | RTK_VERSION="v$RTK_MIN_VERSION" sh ||
             print_warning "RTK install script failed"

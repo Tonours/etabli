@@ -467,7 +467,7 @@ NODE
 # An unrelated local default is kept.
 printf '%s\n' '{"defaultProvider":"local-mlx","defaultModel":"personal-model","enabledModels":["custom/provider-model"],"packages":[]}' >"$local_settings"
 node "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" "$local_settings" "$ROOT_DIR/pi/agent/settings.json" 0 smoke >/dev/null
-jq -e '.defaultProvider == "local-mlx" and .defaultModel == "personal-model"' "$local_settings" >/dev/null
+jq -e '.defaultProvider == "local-mlx" and .defaultModel == "personal-model" and (.enabledModels | index("local-mlx/personal-model")) != null' "$local_settings" >/dev/null
 
 # Deploy and installer runs keep personal local-mlx models and drop retired ones.
 retired_model="$(jq -r '.retired_pi_models[0]' "$ROOT_DIR/workflow/runtime/model-routing.json")"
@@ -498,11 +498,11 @@ grep -q 'pi-agent-settings-sync: cannot read local settings' "$TMP_DIR/bad-pi.ou
 grep -q 'Claude tracked settings' "$TMP_DIR/bad-pi.out" || { printf 'invalid Pi settings hid the Claude sync:\n' >&2; cat "$TMP_DIR/bad-pi.out" >&2; exit 1; }
 
 # A pi earlier on PATH than the managed one is reported as shadowing it.
-mkdir -p "$HOME_DIR/.local/bin" "$TMP_DIR/shadow-bin"
+mkdir -p "$HOME_DIR/.local/bin" "$TMP_DIR/shadow-bin" "$TMP_DIR/dir-bin/pi"
 printf '#!/bin/sh\n' >"$HOME_DIR/.local/bin/pi"
 printf '#!/bin/sh\n' >"$TMP_DIR/shadow-bin/pi"
 chmod +x "$HOME_DIR/.local/bin/pi" "$TMP_DIR/shadow-bin/pi"
-if ! PATH="$HOME_DIR/.local/bin:$TMP_DIR/shadow-bin:$PATH" "$DEPLOY_SCRIPT" --check --home "$HOME_DIR" >"$TMP_DIR/pi-first.out" 2>&1; then
+if ! PATH="$TMP_DIR/dir-bin:$HOME_DIR/.local/bin:$TMP_DIR/shadow-bin:$PATH" "$DEPLOY_SCRIPT" --check --home "$HOME_DIR" >"$TMP_DIR/pi-first.out" 2>&1; then
   printf 'check failed with the managed pi first on PATH:\n' >&2
   cat "$TMP_DIR/pi-first.out" >&2
   exit 1

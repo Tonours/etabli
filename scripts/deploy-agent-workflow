@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
-import { accessSync, constants, existsSync, realpathSync, writeSync } from "node:fs";
+import { accessSync, constants, existsSync, realpathSync, statSync, writeSync } from "node:fs";
 import { basename, delimiter, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { activeScopes, backupStamp, claudeConfigOverride, physicalHome, reconcile, seedPiSettings, skillRecords } from "./lib/surfaces.mjs";
@@ -74,10 +74,14 @@ function isExecutable(path) {
   }
 }
 
+function isExecutableFile(path) {
+  return statSync(path, { throwIfNoEntry: false })?.isFile() === true && isExecutable(path);
+}
+
 function piShadow(homeDir) {
   const managed = join(homeDir, ".local/bin/pi");
-  if (!isExecutable(managed)) return 0;
-  const first = (process.env.PATH ?? "").split(delimiter).filter(Boolean).map((dir) => join(dir, "pi")).find(isExecutable);
+  if (!isExecutableFile(managed)) return 0;
+  const first = (process.env.PATH ?? "").split(delimiter).filter(Boolean).map((dir) => join(dir, "pi")).find(isExecutableFile);
   if (!first || realpathSync(first) === realpathSync(managed)) return 0;
   emit("SHADOWED", `pi ${first} runs before ${managed}; remove it or put $HOME/.local/bin first on PATH`);
   return 1;

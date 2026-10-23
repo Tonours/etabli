@@ -325,7 +325,7 @@ preflight_conflicts() {
       continue
     fi
 
-    if [ "$FORCE" -eq 0 ] && [ -e "$destination_path" ] && ! { [ -f "$destination_path" ] && cmp -s "$source_path" "$destination_path"; } && ! shipped_by_etabli "$relative_path" "$source_path"; then
+    if [ "$FORCE" -eq 0 ] && [ -e "$destination_path" ] && ! { [ -f "$destination_path" ] && cmp -s "$source_path" "$destination_path"; } && ! refreshable "$relative_path" "$source_path"; then
       status_line CONFLICT "$relative_path exists; rerun with --force or merge manually"
       CONFLICTS=$((CONFLICTS + 1))
     fi
@@ -364,7 +364,7 @@ check_deployed_files() {
       continue
     fi
 
-    if shipped_by_etabli "$relative_path" "$source_path"; then
+    if refreshable "$relative_path" "$source_path"; then
       status_line STALE "$relative_path"
     else
       status_line EDITED "$relative_path"
@@ -437,7 +437,7 @@ write_file() {
     return 0
   fi
 
-  if shipped_by_etabli "$relative_path" "$source_path"; then
+  if refreshable "$relative_path" "$source_path"; then
     if [ "$DRY_RUN" -eq 1 ]; then
       status_line WOULD_REFRESH "$relative_path"
       return 0
@@ -492,6 +492,21 @@ has_staged_change() {
   fi
 }
 
+inside_target() {
+  local physical_root physical_parent
+
+  physical_root="$(cd "$TARGET_DIR" >/dev/null 2>&1 && pwd -P)" || return 1
+  physical_parent="$(cd "$TARGET_DIR/$(dirname "$1")" >/dev/null 2>&1 && pwd -P)" || return 1
+  case "$physical_parent/" in
+    "$physical_root"/*) return 0 ;;
+  esac
+  return 1
+}
+
+refreshable() {
+  inside_target "$1" && shipped_by_etabli "$1" "$2"
+}
+
 shipped_by_etabli() {
   local destination_path="$TARGET_DIR/$1"
   local source_path="${2#"$REPO_DIR"/}"
@@ -504,10 +519,9 @@ shipped_by_etabli() {
 }
 
 preflight_prune() {
-  local entry relative_path parent_path physical_root physical_parent destination_path
+  local entry relative_path destination_path
   local in_work_tree=0
 
-  physical_root="$(cd "$TARGET_DIR" >/dev/null 2>&1 && pwd -P)"
   if git -C "$TARGET_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     in_work_tree=1
   fi
@@ -518,17 +532,12 @@ preflight_prune() {
       CONFLICTS=$((CONFLICTS + 1))
       continue
     fi
-    parent_path="$TARGET_DIR/$(dirname "$relative_path")"
-    [ -d "$parent_path" ] || continue
-    physical_parent="$(cd "$parent_path" >/dev/null 2>&1 && pwd -P)"
-    case "$physical_parent/" in
-      "$physical_root"/*) ;;
-      *)
-        status_line CONFLICT "$(dirname "$relative_path") resolves outside the target ($physical_parent); prune refused"
-        CONFLICTS=$((CONFLICTS + 1))
-        continue
-        ;;
-    esac
+    [ -d "$TARGET_DIR/$(dirname "$relative_path")" ] || continue
+    if ! inside_target "$relative_path"; then
+      status_line CONFLICT "$(dirname "$relative_path") resolves outside the target; prune refused"
+      CONFLICTS=$((CONFLICTS + 1))
+      continue
+    fi
     destination_path="$TARGET_DIR/$relative_path"
     if [ "$PRUNE_FOREIGN" -eq 0 ] && { [ -e "$destination_path" ] || [ -L "$destination_path" ]; } && ! shipped_by_etabli "$relative_path" "${entry#*|}"; then
       status_line CONFLICT "$relative_path is not a copy etabli shipped; review it, then rerun with --prune-foreign"
