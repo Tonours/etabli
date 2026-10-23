@@ -45,9 +45,10 @@ keep_pending_approval() {
 post_approval() {
   local body="$1" url
   if ! url="$(gh api "repos/$REPO/pulls/$NUMBER/reviews" -f event=APPROVE -f commit_id="$SHA" -f body="$body" --jq .html_url)"; then
-    keep_pending_approval "$body"
     echo "=== approval pending: the approval POST failed (retried by the watcher without a new review)"
-    notify "PR approval pending" "$REPO#$NUMBER: the approval POST failed" "$URL"
+    [ "$(cat "$KEY.approval-pending" 2>/dev/null)" = "$SHA" ] \
+      || notify "PR approval pending" "$REPO#$NUMBER: the approval POST failed" "$URL"
+    keep_pending_approval "$body"
     return 0
   fi
   rm -f "$KEY.approval-pending" "$KEY.approval-body"
@@ -130,8 +131,31 @@ run_verify_fixes() {
   return "$rc"
 }
 
+# 0: the head extends the council's sha or carries the same changes; 1: a
+# force-push replaced them; 2: the history could not be read.
+council_in_history() {
+  local council base_ref
+  council="$(cat "$KEY.council-done" 2>/dev/null)"
+  base_ref="$(gh pr view "$NUMBER" --repo "$REPO" --json baseRefName --jq .baseRefName)" && [ -n "$base_ref" ] || return 2
+  git fetch -q origin "+refs/pull/$NUMBER/head:refs/remotes/origin/pr/$NUMBER" \
+    "+refs/heads/$base_ref:refs/remotes/origin/$base_ref" || return 2
+  git merge-base --is-ancestor "$council" "$SHA" 2>/dev/null && return 0
+  same_patch "refs/remotes/origin/$base_ref" "$council" "$SHA" 2>/dev/null && return 0
+  return 1
+}
+
 run_verify() {
-  local delta_log="${REPORT%.md}-delta.md" delta_findings reviewed
+  local delta_log="${REPORT%.md}-delta.md" delta_findings reviewed history=0
+  council_in_history || history=$?
+  case "$history" in
+    0) ;;
+    1)
+      echo "=== the council at $(cut -c1-8 "$KEY.council-done") is not in the head's history: full council again"
+      rm -f "$KEY".{council-done,council-clean,watermark,delta-done}
+      run_council
+      return ;;
+    *) echo "=== cannot check the head's history against the council"; return 1 ;;
+  esac
   if [ "$(head -1 "$KEY.delta-done" 2>/dev/null)" = "$SHA" ]; then
     echo "=== step 1: skipped, the commits since ${SINCE:0:8} were already reviewed for ${SHA:0:8}"
     tail -n +2 "$KEY.delta-done" >"$delta_log"
@@ -152,7 +176,7 @@ run_verify() {
   fi
 
   echo "=== step 2: verify-fixes"
-  run_verify_fixes || return 1
+  run_verify_fixes || return
   echo "$SHA" >"$KEY.watermark"
   echo "=== step 3: approval"
   grep -E '^CONFIDENCE ' "$REPORT" | tail -1
@@ -177,6 +201,7 @@ echo $$ >"$KEY.pid"
 trap finish EXIT
 trap 'stop_children; exit 130' INT
 trap 'stop_children; exit 143' TERM
+trap 'stop_children; exit 129' HUP
 USAGE_TARGET="$REPO#$NUMBER"
 ME="$(gh api user --jq .login)" || exit 1
 echo "=== $MODE $REPO#$NUMBER @${SHA:0:8} — $URL"

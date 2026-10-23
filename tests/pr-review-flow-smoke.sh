@@ -196,6 +196,20 @@ case_phase_a_denial_vetoes() {
   check "phase A denial: veto exit" rc_is 3
   check "phase A denial: no council-done" no_file "$KEY.council-done"
   check "phase A denial: no approval" [ "$(approvals)" = 0 ]
+  check "phase A denial: one notification" [ "$(grep -c '^notify ' "$FAKE_LOG")" = 1 ]
+}
+
+case_unverified_envelopes() {
+  reset_state
+  set_head "$HEAD1"
+  FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" FAKE_VALIDATOR_PATCH='.permission_denials = {}' run_review council "$HEAD1" -
+  check "denials as an object: fakes answered" called "claude VALIDATOR"
+  check "denials as an object: vetoed" rc_is 3
+  check "denials as an object: no approval" [ "$(approvals)" = 0 ]
+  reset_state
+  FAKE_VALIDATOR_PATCH=empty FAKE_VALIDATOR_RC=1 run_review council "$HEAD1" -
+  check "empty output: fakes answered" called "claude VALIDATOR"
+  check "empty output: retryable failure, not incomplete" rc_is 1
 }
 
 case_verify_after_findings_approves() {
@@ -288,6 +302,9 @@ case_next_attempt() {
   set_head "$HEAD1"
   : >"$FAKE_LOG"
   check "attempt: a stopped sha is logged once" [ "$(watch_fn "consider me o/r 7 '$HEAD1' url; consider me o/r 7 '$HEAD1' url" | grep -c 'not retried')" = 1 ]
+  rm -f "$KEY.exhausted"
+  attempt_after 1 3 "$old" >/dev/null
+  check "attempt: an exhausted sha is logged once" [ "$(watch_fn "consider me o/r 7 '$HEAD1' url; consider me o/r 7 '$HEAD1' url" | grep -c 'giving up')" = 1 ]
 }
 
 case_approval_post_failure_stays_pending() {
@@ -297,6 +314,12 @@ case_approval_post_failure_stays_pending() {
   check "approval POST failure: fakes answered" called "claude VALIDATOR"
   check "approval POST failure: pending for the sha" [ "$(cat "$KEY.approval-pending" 2>/dev/null)" = "$HEAD1" ]
   check "approval POST failure: body kept" [ -s "$KEY.approval-body" ]
+  FAKE_GH_POST_FAIL=1 run_review approve "$HEAD1" -
+  check "approval POST failure again: no second notification" not_called "notify "
+  run_review approve "$HEAD1" -
+  check "pending approval: approved" [ "$(approvals)" = 1 ]
+  check "pending approval: no model call" not_called "claude "
+  check "pending approval: cleared" no_file "$KEY.approval-pending"
 }
 
 case_verify_retry_skips_delta() {
@@ -418,6 +441,49 @@ case_housekeeping() {
   check "log: a large watch log is rotated" eval '[ -s "$PR_REVIEW_WATCH_LOG.1" ] && [ "$(wc -c <"$PR_REVIEW_WATCH_LOG")" -lt 6000000 ]'
 }
 
+case_verify_codes_propagate() {
+  FAKE_VERIFY_ENVELOPE=denied verify_after_findings "$HEAD2"
+  check "verify denial: fakes answered" called "claude VERIFY"
+  check "verify denial: veto exit" rc_is 3
+  FAKE_VERIFY_ENVELOPE=error-max-turns verify_after_findings "$HEAD2"
+  check "verify cap hit: review-incomplete exit" rc_is 4
+}
+
+case_force_push_reruns_council() {
+  git -C "$TMP_DIR/seed" checkout -q -b other main
+  echo other >"$TMP_DIR/seed/c.txt"
+  git -C "$TMP_DIR/seed" add c.txt
+  git -C "$TMP_DIR/seed" commit -q -m other
+  local other
+  other="$(git -C "$TMP_DIR/seed" rev-parse HEAD)"
+  git -C "$TMP_DIR/seed" checkout -q feature
+  reset_state
+  set_head "$HEAD1"
+  FAKE_VALIDATOR_TEXT="Review posted. $(marker 2)" run_review council "$HEAD1" -
+  set_head "$other" '[{"state":"COMMENTED","author":{"login":"me"}}]'
+  FAKE_VALIDATOR_TEXT="Review posted. $(marker 1)" run_review verify "$other" "$HEAD1"
+  check "force-push: the council runs again" called "claude VALIDATOR"
+  check "force-push: no delta on unrelated history" not_called "claude DELTA"
+  check "force-push: council recorded for the new head" [ "$(cat "$KEY.council-done" 2>/dev/null)" = "$other" ]
+}
+
+case_patch_id_failure_reviews() {
+  local blob broken="$TMP_DIR/clone-broken" saved="$CLONE"
+  verify_after_findings "$HEAD2" >/dev/null
+  git clone -q --no-hardlinks "$TMP_DIR/origin.git" "$broken"
+  git -C "$broken" fetch -q origin "+refs/pull/7/head:refs/remotes/origin/pr/7"
+  for blob in $(git -C "$broken" rev-parse "$HEAD1:a.txt" "$HEAD2:a.txt"); do
+    rm -f "$broken/.git/objects/${blob:0:2}/${blob:2}"
+  done
+  check "patch-id failure: the blobs are gone" eval '! git -C "$broken" cat-file -e "$HEAD1:a.txt" 2>/dev/null'
+  rm -f "$KEY.delta-done"
+  CLONE="$broken"
+  run_review verify "$HEAD2" "$HEAD1"
+  CLONE="$saved"
+  check "patch-id failure: not taken as nothing new" eval '! grep -q "^=== nothing new since" "$TMP_DIR/run.out"'
+  check "patch-id failure: no approval" [ "$(approvals)" = 0 ]
+}
+
 watch_decision() {
   reset_state
   mkdir -p "$STATE/runs"
@@ -477,6 +543,10 @@ case_tick_guards() {
   check "tick: an old claude makes no gh call" not_called "gh "
   mkdir -p "$TMP_DIR/ro" && chmod 555 "$TMP_DIR/ro"
   check "lock: a read-only state dir gives up" eval '! watch_fn "acquire_lock \"$TMP_DIR/ro/lock\" watch" >/dev/null'
+  mkdir -p "$TMP_DIR/fresh-lock"
+  check "lock: a fresh lock without a pid is not stolen" eval '! watch_fn "acquire_lock \"$TMP_DIR/fresh-lock\" watch" >/dev/null'
+  touch -t 202001010000 "$TMP_DIR/fresh-lock"
+  check "lock: an old lock without a pid is taken" eval 'watch_fn "acquire_lock \"$TMP_DIR/fresh-lock\" watch" >/dev/null'
   chmod 755 "$TMP_DIR/ro"
 }
 
@@ -511,6 +581,9 @@ case_signals() {
   check "signals: INT leaves no stand-in" [ -z "$(survivors 'sleep 30017')" ]
   signal_runner TERM
   check "signals: TERM leaves no stand-in" [ -z "$(survivors 'sleep 30017')" ]
+  signal_runner HUP
+  check "signals: HUP leaves no stand-in" [ -z "$(survivors 'sleep 30017')" ]
+  check "signals: the caller's traps come back" eval '[ "$(/bin/bash -c ". '"'"'$SCRIPTS/pr-council-review/lib.sh'"'"'; trap \"echo x\" TERM; run_with_timeout 5 true; trap -p TERM")" = "trap -- '"'"'echo x'"'"' SIGTERM" ]'
   local started elapsed rc=0
   started="$(date +%s)"
   PR_REVIEW_STOP_GRACE=1 /bin/bash -c ". '$SCRIPTS/pr-council-review/lib.sh'; run_with_timeout 1 '$TMP_DIR/standin-traps.sh' '$TMP_DIR/signals.log'" 2>/dev/null || rc=$?
@@ -538,6 +611,7 @@ case_council_findings_wait
 case_phase_a_denial_vetoes
 case_verify_after_findings_approves
 case_incomplete_reviews
+case_unverified_envelopes
 case_ticketed_then_clean_delta_waits
 case_watch_mode
 case_next_attempt
@@ -546,6 +620,9 @@ case_verify_retry_skips_delta
 case_delta_structured
 case_validator_profile
 case_delta_same_patch_skips
+case_verify_codes_propagate
+case_force_push_reruns_council
+case_patch_id_failure_reviews
 case_watch_skips
 case_autoreview_fails_loudly
 case_housekeeping
