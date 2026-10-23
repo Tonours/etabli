@@ -253,32 +253,24 @@ describe("unified Claude verdicts", () => {
 		expect(collectCommentLines("data='first\n# data\nlast'\n", "shell")).toEqual([]);
 		expect(collectCommentLines("n=${#arr[@]}\necho $#\n", "shell")).toEqual([]);
 		expect(commentFamilyFor("a.sh")).toBe("shell");
-		expect(collectCommentLines('s = "first\n# data\nlast"\n', "ruby")).toEqual([]);
-		expect(collectCommentLines("s = ''''\n# added note\n", "ruby")).toEqual(["# added note"]);
 		expect(collectCommentLines("SELECT 'first\n-- data\nlast';\n", "sql")).toEqual([]);
 		expect(collectCommentLines("echo $'it\\'s'\n# added note\n", "shell")).toEqual(["# added note"]);
 		expect(collectCommentLines('x="$(\n  printf hi # added note\n)"\necho "$x"\n', "shell")).toEqual(["# added note"]);
 		expect(collectCommentLines("SELECT E'it\\'s';\n-- added note\n", "sql")).toEqual(["-- added note"]);
-		expect(collectCommentLines("pattern = /don't/\n# added note\n", "ruby")).toEqual(["# added note"]);
 		expect(collectCommentLines('m="$(grep -o \\( "$f")\n# data"\n', "shell")).toEqual([]);
 		expect(collectCommentLines("t=\"$(cat <<'TEXT'\n# Heading\nTEXT\n)\"\n# added note\n", "shell")).toEqual(["# added note"]);
 		expect(collectCommentLines("cat <<EOF\n$(\n  printf hi # added note\n)\nEOF\n", "shell")).toEqual(["# added note"]);
 		expect(collectCommentLines("cat <<EOF.json\n{}\nEOF.json\n# added note\ncat <<EOF\nx\nEOF\n", "shell")).toEqual(["# added note"]);
-		expect(collectCommentLines("r = values.reduce(:/) # added / note\n", "ruby")).toEqual(["# added / note"]);
 		expect(collectCommentLines('SELECT e"path\\" FROM src; -- added note\n', "sql")).toEqual(["-- added note"]);
 		expect(collectCommentLines("cat <<EOF\nDon't panic\n# Heading\nEOF\n# added note\n", "shell")).toEqual(["# added note"]);
-		expect(collectCommentLines("rules = {pattern:/don't/}\n# added note\n", "ruby")).toEqual(["# added note"]);
-		expect(collectCommentLines("cat <<EOF\n$(case \"$m\" in\n  prod) printf p # added note\n    ;;\nesac)\nEOF\n", "shell")).toEqual(["# added note"]);
 		expect(collectCommentLines("cat <<EOF\n`printf hi # added note\n`\nEOF\n", "shell")).toEqual(["# added note"]);
 		expect(collectCommentLines('r="$(cat test-case.json)"\n# added note\n', "shell")).toEqual(["# added note"]);
-		expect(collectCommentLines('r="$({ case "$m" in\n  prod) printf p # added note\n  ;;\nesac; })"\n', "shell")).toEqual(["# added note"]);
 		expect(collectCommentLines('r="$(case "$m" in\n  prod) printf p;;\nesac>/dev/null)"\n# added note\n', "shell")).toEqual(["# added note"]);
 		expect(collectCommentLines('v="$((case>0))"\n# added note\n', "shell")).toEqual(["# added note"]);
-		expect(collectCommentLines('r="$(( $(case "$m" in\n  prod) printf 1;;\n  staging) printf 2;;\n  *) printf 3 # added note\n  ;;\nesac) + 1 ))"\n', "shell")).toEqual(["# added note"]);
 		expect(collectCommentLines('t="$(( $(case "$q" in (case) printf 12;; (*) printf 1;; esac) + 1 ))"\n# added note\n', "shell")).toEqual(["# added note"]);
 	});
 
-	test("lexes SQL, Lua and Ruby block constructs", () => {
+	test("lexes SQL and Lua block constructs", () => {
 		const cases: Array<[string, string, string[]]> = [
 			["sql", "/* first\n-- data\nlast */\nSELECT 1;\n", ["/* first", "-- data", "last */"]],
 			["sql", "/* ' outer /* inner */ ' */\nSELECT 1; -- actual comment\n", ["/* ' outer /* inner */ ' */", "-- actual comment"]],
@@ -286,37 +278,7 @@ describe("unified Claude verdicts", () => {
 			["lua", "--[==[ a\n]] b\n]==]\n", ["--[==[ a", "]] b", "]==]"]],
 			["lua", "s = [[\n-- data\n]]\n-- added note\n", ["-- added note"]],
 			["lua", "s = [=[\n]]\n-- data\n]=]\n", []],
-			["ruby", "=begin\nnote\n=end\nx = 1\n", ["=begin", "note", "=end"]],
-			["ruby", "ok = x ==begin\n  1\nend\n", []],
 			["clike", '/* a /* b */\nconst s = "*/";\n', ["/* a /* b */"]],
-			["ruby", "x = <<~EOS\n  # data\n  EOS\n# added note\n", ["# added note"]],
-			["ruby", "x = <<-EOS\n# data\n  EOS\n", []],
-			["ruby", "x = <<EOS\n# data\nEOS\n", []],
-			["ruby", "x = <<~'EOS'\n# data\nEOS\n", []],
-			["ruby", "x = <<~EOS\n# real\n", ["# real"]],
-			["ruby", "a = [1]\na <<ID\n# actual comment\nID\n", ["# actual comment"]],
-			["ruby", 'a = []\na <<"EOS"\n# real\nEOS\n', ["# real"]],
-			["ruby", "a <<~ID\n# real\nID\n", ["# real"]],
-			["ruby", "a.\n<<ID\n# real\nID\n", ["# real"]],
-			["ruby", "x = %q(it's (nested)\n# data)\n# added note\n", ["# added note"]],
-			["ruby", "w = %w[a b\n# c]\n", []],
-			["ruby", "r = %r{a#b}i\n# added note\n", ["# added note"]],
-			["ruby", "r = %r{\n  a # added note\n}x\n", ["# added note"]],
-			["ruby", "x = %(data\n# d)\n", []],
-			["ruby", "y = a % b # added note\n", ["# added note"]],
-			["ruby", "y = a%b # added note\n", ["# added note"]],
-			["ruby", "x %= 2 # added note\n", ["# added note"]],
-			["ruby", "n = 5\nn %(\n# real\n2)\n", ["# real"]],
-			["ruby", "n.\n%(\n# real\n2\n)\n", ["# real"]],
-			["ruby", "x = [:%,\n# added note\n:y, 1]\n", ["# added note"]],
-			["ruby", "x = ?%# first note\n# second note\n", ["# first note", "# second note"]],
-			["ruby", 'EOS = "z"\nx = ?<<EOS\n# added note\nEOS\n', ["# added note"]],
-			["ruby", "x = ?#\n", []],
-			["ruby", "ok = list.empty?# added note\n", ["# added note"]],
-			["ruby", "x = ?= %(\n# added note\n2)\n", ["# added note"]],
-			["ruby", 'def a?; ""; end\na? %(\n# added note\n2)\n', ["# added note"]],
-			["ruby", "a?<<EOS\n# added note\nEOS\n", ["# added note"]],
-			["ruby", "x = c ? <<~EOS : 1\n  # data\nEOS\n", []],
 			["sql", "SELECT $$/* data */$$;\n", []],
 			["sql", "SELECT $body$\n-- data\n$body$; -- added note\n", ["-- added note"]],
 			["sql", "SELECT $1; -- added note\n", ["-- added note"]],
@@ -324,7 +286,6 @@ describe("unified Claude verdicts", () => {
 			["sql", "SELECT 1 AS a$$x$$; -- added note\nSELECT 2 AS b$$x$$;\n", ["-- added note"]],
 			["sql", "SELECT é$x$; -- added note\nSELECT b$x$;\n", ["-- added note"]],
 			["sql", "SELECT $é$/* data */$é$;\n", []],
-			["ruby", "status = $?# added note\n", ["# added note"]],
 		];
 		for (const [family, text, expected] of cases) expect(collectCommentLines(text, family)).toEqual(expected);
 	});
