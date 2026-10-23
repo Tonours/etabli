@@ -257,4 +257,30 @@ if [ "$(readlink "$smoke_converge_home/.claude/statusline-command.sh")" != "$REP
   exit 1
 fi
 
+fake_pi_dir="$tmp_dir/fake-pi"
+mkdir -p "$fake_pi_dir"
+cat >"$fake_pi_dir/pi" <<'EOF'
+#!/bin/sh
+cat >>"$FAKE_PI_STDIN"
+printf 'registry unreachable for %s\n' "$2" >&2
+exit 1
+EOF
+chmod +x "$fake_pi_dir/pi"
+export FAKE_PI_STDIN="$tmp_dir/fake-pi.stdin"
+: >"$FAKE_PI_STDIN"
+failing_pi_package="$(jq -r '[.packages[] | if type == "string" then . else .source end | select(startswith("local:") | not)][0]' "$REPO_DIR/pi/agent/settings.json")"
+failing_pi_out="$(PATH="$fake_pi_dir:$PATH" install_pi_packages_from_settings 2>&1 <<<"caller stdin"; print_failure_summary 2>&1)" || true
+if [ -s "$FAKE_PI_STDIN" ]; then
+  print_error "pi install read the caller stdin instead of /dev/null"
+  exit 1
+fi
+case "$failing_pi_out" in
+  *"registry unreachable for $failing_pi_package"*) ;;
+  *) print_error "a failed pi install hid its reason"; exit 1 ;;
+esac
+case "$failing_pi_out" in
+  *"failed:"*"Pi package $failing_pi_package"*) ;;
+  *) print_error "a failed pi install is missing from the final failure summary"; exit 1 ;;
+esac
+
 printf 'install smoke test: ok\n'

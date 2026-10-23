@@ -7,9 +7,9 @@ own `.mcp.json` is `{"mcpServers": {}}` on purpose.
 ## Ownership and scope
 
 1. **Live configuration stays runtime-local.** Each runtime keeps its servers
-   in its own store (Claude `~/.claude.json`, Pi `~/.pi/agent/mcp.json`, Codex
-   `~/.codex/config.toml`) and declares only the servers it needs. Etabli never
-   merges or overwrites those files, and no runtime imports another's scope.
+   in its own store (Claude `~/.claude.json`, Pi `~/.pi/agent/mcp.json`) and
+   declares only the servers it needs. Etabli never merges or overwrites those
+   files, and no runtime imports another's scope.
 2. **`mcp/servers.template.json` is sanitized reference data.** Server names,
    portable commands, public endpoints and `${VAR}` placeholders only. Copy the
    one entry a runtime needs; never link the file wholesale.
@@ -50,7 +50,6 @@ Inspect names only; never dump complete live files:
 ```bash
 jq -r '.mcpServers | keys[]' ~/.claude.json
 jq -r '.mcpServers | keys[]' ~/.pi/agent/mcp.json
-sed -n 's/^\[mcp_servers\.\([^]]*\)\]$/\1/p' ~/.codex/config.toml | tr -d '"'
 jq -r '.mcpServers | keys[]' .mcp.json mcp/servers.template.json
 ```
 
