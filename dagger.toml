@@ -1,0 +1,12 @@
+[modules.dang-sdk]
+source = "dagger.io/sdk/dang"
+
+[sdks.dang]
+module = "dang-sdk"
+
+[modules.etabli-ci]
+source = ".dagger/modules/etabli-ci"
+
+[sdks.dang.scopes.".dagger/modules/etabli-ci"]
+is-module = true
+name = "etabli-ci"

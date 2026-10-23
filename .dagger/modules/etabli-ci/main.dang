@@ -1,0 +1,90 @@
+"""
+Run the agentic-infra CI groups of etabli in containers.
+"""
+type EtabliCi {
+  """
+  Tracked sources, without Git metadata.
+  """
+  pub source: Directory!
+
+  """
+  Git metadata for HEAD with its full history. Dagger caches it per client,
+  so steps that mount it rerun on every session.
+  """
+  pub gitDir: Directory!
+
+  new(ws: Workspace!) {
+    self.source = ws.directory("/", gitignore: true, exclude: [".git", ".dagger"])
+    self.gitDir = ws.git.directory
+    self
+  }
+
+  """
+  Scan the full Git history for secrets with gitleaks.
+  """
+  pub secretScan: Void @check {
+    withGit(sources)
+      .withExec([
+        "gitleaks", "git", "--no-banner", "--redact",
+        "--log-opts=--all --full-history --diff-merges=first-parent", ".",
+      ])
+      .sync
+    null
+  }
+
+  """
+  Run scripts/verify-agentic-infra shell-docs.
+  """
+  pub shellDocs: Void @check {
+    withGit(withPiDeps)
+      .withEnvVariable("AGENTIC_INFRA_JOBS", "4")
+      .withExec(["scripts/verify-agentic-infra", "shell-docs"])
+      .sync
+    null
+  }
+
+  """
+  Run scripts/verify-agentic-infra pi.
+  """
+  pub pi: Void @check {
+    withPiDeps
+      .withExec(["mkdir", "-p", "/home/node/.pi/agent"])
+      .withExec(["cp", "pi/agent/settings.json", "/home/node/.pi/agent/settings.json"])
+      .withExec(["scripts/verify-agentic-infra", "pi"])
+      .sync
+    null
+  }
+
+  let toolchain: Container! {
+    container
+      .from("node:22.22.0-trixie")
+      .withExec(["sh", "-c", "apt-get update && apt-get install -y --no-install-recommends jq ruby && rm -rf /var/lib/apt/lists/*"])
+      .withFile("/usr/local/bin/bun", container.from("oven/bun:1.3.14").file("/usr/local/bin/bun"))
+      .withFile("/usr/local/bin/gitleaks", container.from("zricethezav/gitleaks:v8.30.1").file("/usr/bin/gitleaks"))
+      .withEnvVariable("LANG", "C.UTF-8")
+      .withEnvVariable("CI", "true")
+      .withUser("node")
+      .withExec(["git", "config", "--global", "user.email", "ci@example.com"])
+      .withExec(["git", "config", "--global", "user.name", "CI"])
+  }
+
+  let sources: Container! {
+    toolchain
+      .withDirectory("/home/node/etabli", source, owner: "node")
+      .withWorkdir("/home/node/etabli")
+  }
+
+  let withPiDeps: Container! {
+    sources
+      .withMountedCache("/home/node/.bun/install/cache", cacheVolume("bun-install"), owner: "node")
+      .withWorkdir("/home/node/etabli/pi")
+      .withExec(["bun", "install", "--frozen-lockfile"])
+      .withWorkdir("/home/node/etabli")
+  }
+
+  let withGit(ctr: Container!): Container! {
+    ctr
+      .withDirectory("/home/node/etabli/.git", gitDir, owner: "node")
+      .withExec(["sh", "-c", "test \"$(git rev-parse --is-shallow-repository)\" = false && test -n \"$(git ls-files | head -n 1)\" || { echo 'exported .git is shallow or has no index' >&2; exit 1; }"])
+  }
+}
