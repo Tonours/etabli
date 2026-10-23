@@ -100,6 +100,11 @@ describe("no-comments detector", () => {
 		expect(addedCommentLines(previous, next, "clike")).toEqual([]);
 	});
 
+	test("keeps an existing comment when the previous text was past the nesting cap", () => {
+		const nest = (depth: number) => `// keep\nconst x=${"`${".repeat(depth)}0${"}`".repeat(depth)};\n`;
+		expect(addedCommentLines(nest(65), nest(64), "clike")).toEqual([]);
+	});
+
 	test("detects french restating comments", () => {
 		expect(
 			addedCommentLines(

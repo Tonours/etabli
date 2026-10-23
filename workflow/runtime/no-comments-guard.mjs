@@ -356,15 +356,18 @@ export function collectCommentLines(text, family) {
 	};
 
 	scanCode(0, null);
-	return capped ? [] : found;
+	return capped ? null : found;
 }
 
 export function addedCommentLines(previousText, nextText, family) {
+	const previous = collectCommentLines(previousText, family);
+	const next = collectCommentLines(nextText, family);
+	if (previous === null || next === null) return [];
 	const remaining = new Map();
-	for (const comment of collectCommentLines(previousText, family)) {
+	for (const comment of previous) {
 		remaining.set(comment, (remaining.get(comment) ?? 0) + 1);
 	}
-	return collectCommentLines(nextText, family).filter((comment) => {
+	return next.filter((comment) => {
 		const count = remaining.get(comment) ?? 0;
 		if (count === 0) return true;
 		remaining.set(comment, count - 1);
