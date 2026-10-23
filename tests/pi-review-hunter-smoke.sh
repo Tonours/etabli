@@ -75,8 +75,8 @@ ok_out="$(PATH="$TMP_DIR/bin:$PATH" "$HELPER" --prompt-file "$PROMPT_FILE" --pat
 [ "$ok_out" = "GO" ] || fail "final report must reach stdout"
 PATH="$TMP_DIR/bin:$PATH" "$HELPER" --prompt-file "$PROMPT_FILE" --patch "$PATCH_FILE" --timeout 7351 >/dev/null
 sleep 0.2
-if pgrep -f 'sleep 7351' >/dev/null; then
-  pkill -f 'sleep 7351'
+if pgrep -f '(^| )7351( |$)' >/dev/null; then
+  pkill -f '(^| )7351( |$)'
   fail "a finished run must not leave its watchdog sleep behind"
 fi
 empty_rc=0

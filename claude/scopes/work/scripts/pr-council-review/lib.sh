@@ -46,8 +46,9 @@ neutralize_author_config() {
 
 extract_result() {
   local outcome
-  if ! outcome="$(jq -r 'if .is_error == false and .subtype == "success" and (.result | type) == "string" and .result != ""
-      then "complete" else "is_error=\(.is_error) subtype=\(.subtype)" end' "$1" 2>/dev/null)"; then
+  if ! outcome="$(jq -r 'if type != "object" then error("not an envelope")
+      elif .is_error == false and .subtype == "success" and (.result | type) == "string" and .result != ""
+      then "complete" else "is_error=\(.is_error) subtype=\(.subtype)" end' "$1" 2>/dev/null)" || [ -z "$outcome" ]; then
     echo "=== could not parse the session output as JSON; raw output follows" >&2
     cat "$1"
     return 1
@@ -62,7 +63,7 @@ extract_result() {
 
 check_denials() {
   local count denials
-  if ! count="$(jq -e '.permission_denials | length' "$1" 2>/dev/null)" \
+  if ! count="$(jq -e '.permission_denials | if type == "array" then length else error("not an array") end' "$1" 2>/dev/null)" \
     || ! denials="$(jq -r '.permission_denials[] | "\(.tool_name): \(.tool_input.command // .tool_input.file_path // (.tool_input | tostring))"' "$1" 2>/dev/null)"; then
     echo "=== cannot read permission denials from $1, the pass is unverified" >&2
     return 2
@@ -95,6 +96,16 @@ record_usage() {
   printf '%s\t%s\t%s\n' "$(date '+%F %T')" "$target" "${line#=== usage }" >>"$PR_REVIEW_USAGE_LOG"
 }
 
+patch_id() { git diff --binary "$1" "$2" | git patch-id --verbatim | cut -d' ' -f1; }
+
+# same_patch <base ref> <old sha> <new sha>: both carry the same changes on their
+# own merge base with the base ref (a rebase or a base merge without new work).
+same_patch() {
+  local old_id new_id
+  old_id="$(patch_id "$(git merge-base "$1" "$2")" "$2")" && new_id="$(patch_id "$(git merge-base "$1" "$3")" "$3")" \
+    && [ -n "$old_id" ] && [ "$old_id" = "$new_id" ]
+}
+
 stop_group() {
   kill -TERM -- "-$1" 2>/dev/null
   perl -e 'my ($g, $t) = @ARGV; for (1 .. 10 * $t) { kill(0, -$g) or exit; select(undef, undef, undef, 0.1) } kill "KILL", -$g' "$1" "$STOP_GRACE_SECONDS"
@@ -107,13 +118,13 @@ stop_children() {
   done
 }
 
-# Runs the command in its own process group; on INT or TERM, or at the timeout
+# Runs the command in its own process group; on INT, TERM or HUP, or at the timeout
 # (INT, then TERM, then KILL), the whole group stops. Returns 124 on a timeout.
 run_with_timeout() {
   local timeout="$1" pid watchdog expired rc=0 saved
   shift
   expired="$(mktemp "${TMPDIR:-/tmp}/run-timeout.XXXXXX")" && rm -f "$expired"
-  saved="$(trap -p INT TERM)"
+  saved="$(trap -p INT TERM HUP)"
   perl -e '$SIG{INT} = $SIG{QUIT} = "DEFAULT"; setpgrp(0, 0); exec @ARGV or die "exec: $!"' "$@" &
   pid=$!
   perl -e 'my ($t, $g, $grace, $flag) = @ARGV; sleep $t; open my $fh, ">", $flag; close $fh;
@@ -122,10 +133,11 @@ run_with_timeout() {
   watchdog=$!
   trap 'kill "$watchdog" 2>/dev/null; stop_group "$pid"; exit 130' INT
   trap 'kill "$watchdog" 2>/dev/null; stop_group "$pid"; exit 143' TERM
+  trap 'kill "$watchdog" 2>/dev/null; stop_group "$pid"; exit 129' HUP
   wait "$pid" || rc=$?
   kill "$watchdog" 2>/dev/null
   wait "$watchdog" 2>/dev/null
-  trap - INT TERM
+  trap - INT TERM HUP
   eval "$saved"
   if [ -e "$expired" ]; then
     rm -f "$expired"
@@ -169,7 +181,11 @@ acquire_lock() {
       return 0
     fi
     holder="$(cat "$lock/pid" 2>/dev/null)"
-    [ -n "$holder" ] && ps -p "$holder" -o command= 2>/dev/null | grep -q -- "$holder_pattern" && return 1
+    if [ -n "$holder" ]; then
+      ps -p "$holder" -o command= 2>/dev/null | grep -q -- "$holder_pattern" && return 1
+    elif [ "$(perl -e 'print time - ((stat shift)[9] // 0)' "$lock")" -lt 60 ]; then
+      return 1
+    fi
     rm -rf "$lock"
   done
   return 1

@@ -17,8 +17,6 @@ META="$(gh pr view "$NUMBER" --repo "$REPO" --json headRefOid,baseRefName,url \
   --jq '[.headRefOid, .baseRefName, .url] | @tsv')" || { echo "cannot read $REPO#$NUMBER" >&2; exit 1; }
 IFS=$'\t' read -r HEAD_SHA BASE_REF PR_URL <<<"$META"
 
-patch_id() { git diff --binary "$1" "$2" | git patch-id --verbatim | cut -d' ' -f1; }
-
 # path:line for every line the PR adds or changes on the head; GitHub rejects a
 # review whose comments sit elsewhere.
 changed_lines() {
@@ -31,8 +29,7 @@ git worktree prune
 git fetch -q origin "+refs/pull/$NUMBER/head:refs/remotes/origin/pr/$NUMBER" \
   "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF" || { echo "cannot fetch $REPO#$NUMBER" >&2; exit 1; }
 MERGE_BASE="$(git merge-base "refs/remotes/origin/$BASE_REF" "$HEAD_SHA")" || { echo "no merge base" >&2; exit 1; }
-if git cat-file -e "$SINCE^{commit}" 2>/dev/null && OLD_BASE="$(git merge-base "refs/remotes/origin/$BASE_REF" "$SINCE")" \
-  && [ "$(patch_id "$OLD_BASE" "$SINCE")" = "$(patch_id "$MERGE_BASE" "$HEAD_SHA")" ]; then
+if git cat-file -e "$SINCE^{commit}" 2>/dev/null && same_patch "refs/remotes/origin/$BASE_REF" "$SINCE" "$HEAD_SHA"; then
   echo "=== nothing new since ${SINCE:0:8}: the head carries the same changes on a new base"
   exit 0
 fi
