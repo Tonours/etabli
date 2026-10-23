@@ -506,7 +506,10 @@ if compgen -G "$STALE_PROJECT/workflow/answer-quality.md.bak.*" >/dev/null; then
   printf 'a STALE refresh left a backup\n' >&2
   exit 1
 fi
-[ "$(stat -f %Lp "$STALE_PROJECT/scripts/plan-cleanup" 2>/dev/null || stat -c %a "$STALE_PROJECT/scripts/plan-cleanup")" = "$(stat -f %Lp "$ROOT_DIR/scripts/plan-cleanup" 2>/dev/null || stat -c %a "$ROOT_DIR/scripts/plan-cleanup")" ] || {
+file_mode() {
+  if stat -c %a "$1" >/dev/null 2>&1; then stat -c %a "$1"; else stat -f %Lp "$1"; fi
+}
+[ "$(file_mode "$STALE_PROJECT/scripts/plan-cleanup")" = "$(file_mode "$ROOT_DIR/scripts/plan-cleanup")" ] || {
   printf 'a refresh changed the mode of scripts/plan-cleanup\n' >&2
   exit 1
 }
