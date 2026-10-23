@@ -482,4 +482,24 @@ fi
 grep -q 'pi-agent-settings-sync: cannot read local settings' "$TMP_DIR/bad-pi.out" || { cat "$TMP_DIR/bad-pi.out" >&2; exit 1; }
 grep -q 'Claude tracked settings' "$TMP_DIR/bad-pi.out" || { printf 'invalid Pi settings hid the Claude sync:\n' >&2; cat "$TMP_DIR/bad-pi.out" >&2; exit 1; }
 
+# A pi earlier on PATH than the managed one is reported as shadowing it.
+mkdir -p "$HOME_DIR/.local/bin" "$TMP_DIR/shadow-bin"
+printf '#!/bin/sh\n' >"$HOME_DIR/.local/bin/pi"
+printf '#!/bin/sh\n' >"$TMP_DIR/shadow-bin/pi"
+chmod +x "$HOME_DIR/.local/bin/pi" "$TMP_DIR/shadow-bin/pi"
+if ! PATH="$HOME_DIR/.local/bin:$TMP_DIR/shadow-bin:$PATH" "$DEPLOY_SCRIPT" --check --home "$HOME_DIR" >"$TMP_DIR/pi-first.out" 2>&1; then
+  printf 'check failed with the managed pi first on PATH:\n' >&2
+  cat "$TMP_DIR/pi-first.out" >&2
+  exit 1
+fi
+if PATH="$TMP_DIR/shadow-bin:$HOME_DIR/.local/bin:$PATH" "$DEPLOY_SCRIPT" --check --fix --home "$HOME_DIR" >"$TMP_DIR/pi-shadow.out" 2>&1; then
+  printf 'check passed with a shadowing pi on PATH\n' >&2
+  exit 1
+fi
+grep -Fq "SHADOWED       pi $TMP_DIR/shadow-bin/pi runs before $(cd "$HOME_DIR" && pwd -P)/.local/bin/pi;" "$TMP_DIR/pi-shadow.out" &&
+  grep -Fq 'remove it or put $HOME/.local/bin first on PATH' "$TMP_DIR/pi-shadow.out" || {
+  cat "$TMP_DIR/pi-shadow.out" >&2
+  exit 1
+}
+
 printf 'deploy agent workflow smoke test: ok\n'

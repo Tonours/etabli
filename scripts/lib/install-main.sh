@@ -62,19 +62,16 @@ prepend_asdf_shims() {
     fi
 }
 
-append_path_entry() {
+prepend_path_entry() {
     local entry="$1"
+    local rest=":${PATH:-}:"
 
-    case ":${PATH:-}:" in
-    *":$entry:"*) ;;
-    *)
-        if [ -n "${PATH:-}" ]; then
-            export PATH="$PATH:$entry"
-        else
-            export PATH="$entry"
-        fi
-        ;;
-    esac
+    while [[ "$rest" == *":$entry:"* ]]; do
+        rest="${rest//:$entry:/:}"
+    done
+    rest="${rest#:}"
+    rest="${rest%:}"
+    export PATH="$entry${rest:+:$rest}"
 }
 
 ensure_local_bin_shell_path() {
@@ -392,7 +389,7 @@ print_step "Installing dev scripts..."
 
 mkdir -p ~/.local/bin
 
-append_path_entry "$HOME/.local/bin"
+prepend_path_entry "$HOME/.local/bin"
 
 prefer_cursor_agent_remove_grok_collision "$HOME"
 for rcfile in ~/.bashrc ~/.zshrc; do
