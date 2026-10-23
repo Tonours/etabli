@@ -34,14 +34,14 @@ ME="$(gh api user --jq .login 2>&1)" || { echo "gh failed: $ME"; exit 0; }
 pr_line() {
   gh pr list --repo "$REPO" --head "$BRANCH" --state open \
     --json number,author,url,createdAt,reviews,headRefOid --limit 1 \
-    --jq '.[0] // empty | [.number, .author.login, .url, .createdAt, .headRefOid, ([.reviews[].author.login] | unique | join(","))] | @tsv'
+    --jq '.[0] // empty | [.number, .author.login, .url, (((now - (.createdAt | fromdateiso8601)) / 86400) | floor), .headRefOid, ([.reviews[].author.login] | unique | join(","))] | @tsv'
 }
 
 WAITED=0
 while :; do
   PR_LINE="$(pr_line 2>&1)" || { echo "gh pr list failed: $PR_LINE"; exit 0; }
   [ -n "$PR_LINE" ] || { echo "no open PR for $BRANCH, skip"; exit 0; }
-  IFS=$'\t' read -r PR_NUMBER PR_AUTHOR PR_URL PR_CREATED PR_HEAD PR_REVIEWERS <<< "$PR_LINE"
+  IFS=$'\t' read -r PR_NUMBER PR_AUTHOR PR_URL PR_AGE_DAYS PR_HEAD PR_REVIEWERS <<< "$PR_LINE"
   [ "$PR_HEAD" = "$SHA" ] && break
   [ "$WAITED" -lt "$HEAD_WAIT" ] || { echo "PR head is ${PR_HEAD:0:8}, push of ${SHA:0:8} never landed, skip"; exit 0; }
   sleep 15
@@ -51,7 +51,6 @@ done
 [ -n "${PR_NUMBER:-}" ] || { echo "cannot parse PR, skip"; exit 0; }
 [ "$PR_AUTHOR" = "$ME" ] || { echo "PR #$PR_NUMBER not authored by $ME ($PR_AUTHOR), skip"; exit 0; }
 
-PR_AGE_DAYS=$(( ( $(date +%s) - $(date -j -u -f "%Y-%m-%dT%H:%M:%SZ" "$PR_CREATED" +%s 2>/dev/null || echo 0) ) / 86400 ))
 [ "$PR_AGE_DAYS" -le 30 ] || { echo "PR #$PR_NUMBER is $PR_AGE_DAYS days old (>30), skip"; exit 0; }
 
 HUMAN_REVIEWERS=$(printf '%s' "${PR_REVIEWERS:-}" | tr ',' '\n' | grep -vxF "$ME" | grep -v '^$' | paste -sd ' ' -)
