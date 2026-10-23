@@ -62,20 +62,18 @@ export function renderStatusline(data) {
   const gitEnv = Object.fromEntries(
     Object.entries(process.env).filter(([key]) => !key.startsWith("GIT_")),
   );
-  const branch = cwd
-    ? spawnSync(
+  const status = cwd
+    ? (spawnSync(
         "git",
-        ["-C", cwd, "--no-optional-locks", "branch", "--show-current"],
+        ["-C", cwd, "--no-optional-locks", "status", "--porcelain=v2", "--branch"],
         { encoding: "utf8", timeout: 1000, env: gitEnv },
-      ).stdout?.trim()
-    : "";
-  const dirty =
-    branch &&
-    spawnSync(
-      "git",
-      ["-C", cwd, "--no-optional-locks", "status", "--porcelain"],
-      { encoding: "utf8", timeout: 1000, env: gitEnv },
-    ).stdout?.trim();
+      ).stdout ?? "").split("\n")
+    : [];
+  const head = status
+    .find((line) => line.startsWith("# branch.head "))
+    ?.slice("# branch.head ".length);
+  const branch = head === "(detached)" ? "" : (head ?? "");
+  const dirty = status.some((line) => line !== "" && !line.startsWith("#"));
   const ctx =
     usage.tokens !== null
       ? `${show(usage.tokens)}t`

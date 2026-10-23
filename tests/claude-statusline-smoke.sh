@@ -16,3 +16,46 @@ r=run({context_window:{current_usage:null,total_input_tokens:20},effort:{level:4
 r=spawnSync('bash',[command],{input:'{bad',encoding:'utf8'});assert.notEqual(r.status,0);assert.match(r.stderr,/invalid statusline JSON/);
 console.log('claude-statusline smoke: ok');
 NODE
+
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+real_git="$(command -v git)"
+mkdir -p "$TMP_DIR/bin" "$TMP_DIR/repo"
+printf '#!/bin/sh\nprintf "x\\n" >>"$STATUSLINE_GIT_LOG"\nexec "%s" "$@"\n' "$real_git" >"$TMP_DIR/bin/git"
+chmod +x "$TMP_DIR/bin/git"
+git -C "$TMP_DIR/repo" init -q -b main
+printf 'a\n' >"$TMP_DIR/repo/tracked.txt"
+git -C "$TMP_DIR/repo" add tracked.txt
+git -C "$TMP_DIR/repo" -c user.name=t -c user.email=t@example.test commit -q -m init
+render() {
+	: >"$TMP_DIR/git.log"
+	printf '{"cwd":"%s"}' "$1" | PATH="$TMP_DIR/bin:$PATH" STATUSLINE_GIT_LOG="$TMP_DIR/git.log" bash "$ROOT_DIR/claude/statusline-command.sh" | head -1
+}
+expect_render() {
+	local label="$1" cwd="$2" want="$3" line spawns
+	line="$(render "$cwd" | sed 's/\x1b\[[0-9;]*m//g')"
+	spawns="$(wc -l <"$TMP_DIR/git.log" | tr -d ' ')"
+	case "$line" in
+	"$want"*) ;;
+	*)
+		printf 'statusline %s: got "%s", want prefix "%s"\n' "$label" "$line" "$want" >&2
+		exit 1
+		;;
+	esac
+	[ "$spawns" -eq 1 ] || {
+		printf 'statusline %s: %s git spawns, want 1\n' "$label" "$spawns" >&2
+		exit 1
+	}
+}
+expect_render clean "$TMP_DIR/repo" "repo git:(main) inconnu"
+printf 'b\n' >>"$TMP_DIR/repo/tracked.txt"
+expect_render modified "$TMP_DIR/repo" "repo git:(main) x inconnu"
+git -C "$TMP_DIR/repo" checkout -q tracked.txt
+printf 'u\n' >"$TMP_DIR/repo/untracked.txt"
+expect_render "untracked only" "$TMP_DIR/repo" "repo git:(main) x inconnu"
+rm "$TMP_DIR/repo/untracked.txt"
+git -C "$TMP_DIR/repo" checkout -q --detach
+expect_render detached "$TMP_DIR/repo" "repo inconnu"
+mkdir -p "$TMP_DIR/plain"
+expect_render "not a repo" "$TMP_DIR/plain" "plain inconnu"
+printf 'claude-statusline git smoke: ok\n'
