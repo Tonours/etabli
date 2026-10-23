@@ -163,12 +163,21 @@ export function claudeEffectiveDir(env = process.env) {
   return claudeConfigOverride(env) ?? `${env.HOME.replace(/\/+$/, "")}/.claude`;
 }
 
-function linkTarget(link) {
-  const raw = readlinkSync(link);
+function readLinkOrNull(link) {
+  try {
+    return readlinkSync(link);
+  } catch {
+    return null;
+  }
+}
+
+function linkTarget(link, raw = readLinkOrNull(link)) {
+  if (raw === null) return null;
   return raw.startsWith("/") ? raw : `${dirname(link)}/${raw}`;
 }
 
 export function physicalPath(path, depth = 0) {
+  if (path === null) return null;
   try {
     return realpath(path);
   } catch (error) {
@@ -265,10 +274,10 @@ function inRepo(ctx, path) {
   return under(physicalPath(path), ctx.repoReal);
 }
 
-function isDisposable(ctx, path) {
-  if (!lstatOrNull(path)?.isSymbolicLink()) return false;
+function isDisposable(ctx, path, raw = readLinkOrNull(path)) {
+  if (raw === null) return false;
   const parent = physicalPath(dirname(path));
-  return (parent !== null && under(join(parent, basename(path)), ctx.repoReal)) || inRepo(ctx, linkTarget(path));
+  return (parent !== null && under(join(parent, basename(path)), ctx.repoReal)) || inRepo(ctx, linkTarget(path, raw));
 }
 
 function unresolved(ctx, status, message) {
@@ -305,22 +314,29 @@ function ensureLink(ctx, source, dest, label) {
     unresolved(ctx, ctx.mode === "check" ? "WARN" : "MISSING", `${label} source missing (expected ${source})`);
     return;
   }
-  const stat = lstatOrNull(dest);
-  const current = stat?.isSymbolicLink() ? readlinkSync(dest) : null;
+  const found = lstatOrNull(dest);
+  const current = found?.isSymbolicLink() ? readLinkOrNull(dest) : null;
+  const stat = found?.isSymbolicLink() && current === null ? null : found;
   if (current === source && existsSync(dest)) {
     ok(ctx, label);
     return;
   }
-  const replace = current !== null && (ctx.install || isDisposable(ctx, dest));
+  const replace = current !== null && (ctx.install || isDisposable(ctx, dest, current));
   let state = "missing";
   if (current !== null) state = `-> ${current}`;
   else if (stat) state = "exists but is not a symlink";
   if (!ctx.apply && ctx.mode === "deploy" && stat) ctx.emit(replace ? "WOULD_REPLACE" : "WOULD_BACKUP", dest);
   report(ctx, "LINK", ctx.mode === "check" ? `${label} ${state} (expected ${source})` : `${label} -> ${source}`, () => {
     mkdirSync(dirname(dest), { recursive: true });
-    if (replace) unlinkSync(dest);
-    else if (stat) moveAside(ctx, dest);
-    symlinkSync(source, dest);
+    if (stat && !replace) moveAside(ctx, dest);
+    const staged = join(dirname(dest), `.${basename(dest)}.${process.pid}.${randomBytes(4).toString("hex")}.link`);
+    symlinkSync(source, staged);
+    try {
+      renameSync(staged, dest);
+    } catch (error) {
+      rmSync(staged, { force: true });
+      throw error;
+    }
   });
 }
 
@@ -377,7 +393,8 @@ function matchingRecord(ctx, name, raw) {
 function pruneSkillLinks(ctx, surface, dir) {
   for (const link of links(dir)) {
     const name = basename(link);
-    const raw = readlinkSync(link);
+    const raw = readLinkOrNull(link);
+    if (raw === null) continue;
     if (raw.includes("/.claude/skills/") && !existsSync(link)) {
       pruneLink(ctx, link, `broken cross-surface mirror ${name} from ${surface}`);
       continue;
