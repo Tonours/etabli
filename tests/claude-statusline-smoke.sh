@@ -57,8 +57,10 @@ rm "$TMP_DIR/repo/untracked.txt"
 git -C "$TMP_DIR/repo" checkout -q --detach
 expect_render detached "$TMP_DIR/repo" "repo inconnu"
 mkdir -p "$TMP_DIR/plain"
-expect_render "not a repo" "$TMP_DIR/plain" "plain inconnu"
+expect_render "not a repo" "$TMP_DIR/plain" "plain inconnu" 2
 printf '#!/bin/sh\nprintf "x\\n" >>"$STATUSLINE_GIT_LOG"\nfor arg in "$@"; do [ "$arg" = status ] && exec sleep 3; done\nexec "%s" "$@"\n' "$real_git" >"$TMP_DIR/bin/git"
 git -C "$TMP_DIR/repo" checkout -q main
 expect_render "status timeout" "$TMP_DIR/repo" "repo git:(main) inconnu" 2
+printf '#!/bin/sh\nprintf "x\\n" >>"$STATUSLINE_GIT_LOG"\nfor arg in "$@"; do [ "$arg" = status ] && exit 128; done\nexec "%s" "$@"\n' "$real_git" >"$TMP_DIR/bin/git"
+expect_render "status failure" "$TMP_DIR/repo" "repo git:(main) inconnu" 2
 printf 'claude-statusline git smoke: ok\n'

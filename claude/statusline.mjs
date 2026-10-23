@@ -68,14 +68,15 @@ export function renderStatusline(data) {
       timeout: 1000,
       env: gitEnv,
     });
-  const result = cwd ? runGit(["status", "--porcelain=v2", "--branch"]) : null;
-  const status = (result?.stdout ?? "").split("\n");
-  const head =
-    result?.error?.code === "ETIMEDOUT"
-      ? runGit(["symbolic-ref", "--short", "-q", "HEAD"]).stdout?.trim()
-      : status
-          .find((line) => line.startsWith("# branch.head "))
-          ?.slice("# branch.head ".length);
+  const status = cwd
+    ? (runGit(["status", "--porcelain=v2", "--branch"]).stdout ?? "").split("\n")
+    : [];
+  const head = cwd
+    ? (status
+        .find((line) => line.startsWith("# branch.head "))
+        ?.slice("# branch.head ".length) ??
+      runGit(["symbolic-ref", "--short", "-q", "HEAD"]).stdout?.trim())
+    : undefined;
   const branch = head === "(detached)" ? "" : (head ?? "");
   const dirty = status.some((line) => line !== "" && !line.startsWith("#"));
   const ctx =
