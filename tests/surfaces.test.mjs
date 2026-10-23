@@ -585,6 +585,47 @@ describe("settings writes", () => {
     }
   });
 
+  test("a dangling settings symlink is replaced by a private file", () => {
+    const path = join(tmp, "settings.json");
+    symlinkSync(join(tmp, "gone.json"), path);
+    writeJsonAtomic(path, { fresh: true });
+    assert.ok(lstatSync(path).isFile());
+    assert.equal(lstatSync(path).mode & 0o777, 0o600);
+  });
+
+  test("a backup that loses its name to a concurrent writer takes the next suffix", () => {
+    const path = join(tmp, "settings.json");
+    writeFileSync(path, "{\"live\":true}\n");
+    const preload = join(tmp, "eexist.mjs");
+    writeFileSync(
+      preload,
+      [
+        'import fs from "node:fs";',
+        'import { syncBuiltinESMExports } from "node:module";',
+        "const real = fs.copyFileSync;",
+        "let raced = false;",
+        "fs.copyFileSync = (source, target, mode) => {",
+        "  if (!raced) {",
+        "    raced = true;",
+        '    fs.writeFileSync(target, "concurrent");',
+        "  }",
+        "  return real(source, target, mode);",
+        "};",
+        "syncBuiltinESMExports();",
+        "",
+      ].join("\n"),
+    );
+    const child = spawnSync(
+      process.execPath,
+      ["--import", preload, "--input-type=module", "-e", `import { backupFile } from ${JSON.stringify(join(scripts, "lib/surfaces.mjs"))}; console.log(backupFile(${JSON.stringify(path)}, { stamp: "20261023T063547Z" }));`],
+      { encoding: "utf8" },
+    );
+    assert.equal(child.status, 0, child.stderr);
+    assert.equal(child.stdout.trim(), `${path}.bak.20261023T063547Z.1`);
+    assert.equal(readFileSync(`${path}.bak.20261023T063547Z`, "utf8"), "concurrent");
+    assert.equal(readFileSync(`${path}.bak.20261023T063547Z.1`, "utf8"), "{\"live\":true}\n");
+  });
+
   test("backup stamps are UTC", () => {
     assert.equal(backupStamp(new Date("2026-10-23T06:35:47.123Z")), "20261023T063547Z");
   });

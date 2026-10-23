@@ -210,11 +210,17 @@ export function backupStamp(date = new Date()) {
 }
 
 export function backupFile(path, { stamp = backupStamp() } = {}) {
-  let backup = `${path}.bak.${stamp}`;
-  for (let index = 1; lstatOrNull(backup); index += 1) backup = `${path}.bak.${stamp}.${index}`;
-  copyFileSync(path, backup, constants.COPYFILE_EXCL);
-  rotateBackups(path);
-  return backup;
+  for (let index = 0; ; index += 1) {
+    const backup = index ? `${path}.bak.${stamp}.${index}` : `${path}.bak.${stamp}`;
+    try {
+      copyFileSync(path, backup, constants.COPYFILE_EXCL);
+    } catch (error) {
+      if (error.code === "EEXIST") continue;
+      throw error;
+    }
+    rotateBackups(path);
+    return backup;
+  }
 }
 
 export function rotateBackups(path) {
@@ -263,8 +269,8 @@ function replaceFile(path, content, mode) {
 
 export function writeJsonAtomic(path, value) {
   const target = existsSync(path) ? realpath(path) : path;
-  const mode = lstatOrNull(target)?.mode ?? 0o600;
-  replaceFile(target, `${JSON.stringify(value, null, 2)}\n`, mode & 0o7777);
+  const stat = lstatOrNull(target);
+  replaceFile(target, `${JSON.stringify(value, null, 2)}\n`, stat?.isFile() ? stat.mode & 0o7777 : 0o600);
 }
 
 function moveAside(ctx, path) {
