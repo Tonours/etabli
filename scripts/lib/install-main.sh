@@ -34,6 +34,20 @@ print_success() { printf "${GREEN}[ok]${NC} %s\n" "$1"; }
 print_warning() { printf "${YELLOW}[!]${NC} %s\n" "$1"; }
 print_error() { printf "${RED}[x]${NC} %s\n" "$1"; }
 
+FAILED_STEPS=()
+record_failure() {
+    FAILED_STEPS+=("$1")
+    print_warning "$1"
+}
+
+print_failure_summary() {
+    if [ "${#FAILED_STEPS[@]}" -eq 0 ]; then
+        return 0
+    fi
+    print_error "${#FAILED_STEPS[@]} step(s) failed:"
+    printf '  - %s\n' "${FAILED_STEPS[@]}"
+}
+
 converge_agent_surfaces() {
     ETABLI_DEPLOY_CALLER=install ETABLI_SCOPE="${ETABLI_SCOPE:-}" \
         "${NODE_CMD[@]}" "$BOOTSTRAP_DIR/deploy-agent-workflow" --apply --home "$HOME"
@@ -215,7 +229,8 @@ for (const entry of Array.isArray(raw.packages) ? raw.packages : []) {
         return 0
     fi
 
-    printf '%s\n' "$package_sources" | while IFS= read -r package_source; do
+    local output package_source
+    while IFS= read -r package_source; do
         [ -z "$package_source" ] && continue
         case "$package_source" in
         local:*)
@@ -223,12 +238,13 @@ for (const entry of Array.isArray(raw.packages) ? raw.packages : []) {
             continue
             ;;
         esac
-        if pi install "$package_source" >/dev/null 2>&1; then
+        if output="$(pi install "$package_source" </dev/null 2>&1)"; then
             print_success "Pi package '$package_source' installed"
         else
-            print_warning "Failed to install Pi package: $package_source"
+            printf '%s\n' "$output" >&2
+            record_failure "Pi package $package_source"
         fi
-    done
+    done <<<"$package_sources"
 }
 
 install_pi_agent_npm_pins() {
@@ -241,15 +257,24 @@ install_pi_agent_npm_pins() {
         return 0
     fi
 
+    local output
     mkdir -p "$package_dir"
-    if (cd "$package_dir" && "${NPM_CMD[@]}" install --save-exact "${PI_AGENT_NPM_PINS[@]}" >/dev/null 2>&1); then
+    if output="$(cd "$package_dir" && "${NPM_CMD[@]}" install --save-exact "${PI_AGENT_NPM_PINS[@]}" </dev/null 2>&1)"; then
         print_success "Pi agent npm pins installed"
     else
-        print_warning "Failed to install Pi agent npm pins"
+        printf '%s\n' "$output" >&2
+        record_failure "Pi agent npm pins"
     fi
 }
 
 # Check disk space (minimum 500MB)
+linux_dependencies_present() {
+    local cmd
+    for cmd in curl git unzip rg fd jq; do
+        command -v "$cmd" &>/dev/null || return 1
+    done
+}
+
 check_disk_space() {
     local available
     available=$(df -kP "$HOME" | awk 'NR==2 {print $4}')
@@ -313,31 +338,32 @@ if [[ "$OS" == "mac" ]]; then
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
     fi
 
-    brew install git ripgrep fd jq gitleaks || {
-        print_warning "Some brew packages may have failed"
-    }
+    missing_brew_packages=()
+    for brew_package in git ripgrep fd jq gitleaks; do
+        brew list --versions "$brew_package" &>/dev/null || missing_brew_packages+=("$brew_package")
+    done
+    if [ "${#missing_brew_packages[@]}" -gt 0 ]; then
+        brew install "${missing_brew_packages[@]}" || record_failure "brew install ${missing_brew_packages[*]}"
+    else
+        print_success "Dependencies already present"
+    fi
 
+elif linux_dependencies_present; then
+    print_success "Dependencies already present"
 elif [[ "$OS" == "debian" ]]; then
-    sudo apt update
-    sudo apt install -y curl git unzip ripgrep fd-find jq || {
-        print_warning "Some apt packages may have failed"
-    }
+    { sudo apt update && sudo apt install -y curl git unzip ripgrep fd-find jq; } ||
+        record_failure "apt install curl git unzip ripgrep fd-find jq"
 
     if command -v fdfind &>/dev/null && ! command -v fd &>/dev/null; then
         sudo ln -sf "$(command -v fdfind)" /usr/local/bin/fd || print_warning "Could not create fd symlink"
     fi
 
 elif [[ "$OS" == "redhat" ]]; then
-    sudo dnf install -y git ripgrep fd jq unzip curl || {
-        print_warning "Some dnf packages may have failed"
-    }
+    sudo dnf install -y git ripgrep fd jq unzip curl || record_failure "dnf install git ripgrep fd jq unzip curl"
 elif [[ "$OS" == "arch" ]]; then
-    sudo pacman -Sy --needed --noconfirm curl git unzip ripgrep fd jq || {
-        print_warning "Some pacman packages may have failed"
-    }
+    sudo pacman -Sy --needed --noconfirm curl git unzip ripgrep fd jq || record_failure "pacman install curl git unzip ripgrep fd jq"
 fi
 
-print_success "Dependencies installed"
 
 if git -C "$REPO_DIR" rev-parse --git-dir >/dev/null 2>&1; then
     git -C "$REPO_DIR" config core.hooksPath .githooks
@@ -364,7 +390,7 @@ else
     if has_valid_rtk; then
         print_success "RTK installed"
     else
-        print_warning "RTK not available, wrong binary or older than $RTK_MIN_VERSION; verify with: rtk --version && rtk gain"
+        record_failure "RTK not available, wrong binary or older than $RTK_MIN_VERSION; verify with: rtk --version && rtk gain"
     fi
 fi
 
@@ -386,7 +412,7 @@ if ! command -v pi &>/dev/null; then
     "${NPM_CMD[@]}" install -g --ignore-scripts "$pi_package_spec" &&
         reshim_asdf_node &&
         print_success "Pi installed" ||
-        print_warning "Pi install failed (npm install -g --ignore-scripts $pi_package_spec)"
+        record_failure "Pi install failed (npm install -g --ignore-scripts $pi_package_spec)"
 fi
 
 if command -v pi &>/dev/null; then
@@ -420,7 +446,11 @@ print_success "Dev scripts installed"
 echo ""
 echo "-------------------------------------------------------------------"
 echo ""
-print_success "Installation complete!"
+if [ "${#FAILED_STEPS[@]}" -gt 0 ]; then
+    print_failure_summary
+else
+    print_success "Installation complete!"
+fi
 echo ""
 printf "  ${BLUE}Next steps:${NC}\n"
 echo ""
