@@ -459,4 +459,25 @@ for prefixed in 'command -- rtk hook claude' "sh -lc 'rtk hook claude'" 'env -i 
 	assert_contains "$(cat "$TMP_DIR/prefixed-check.txt")" 'calls rtk outside rtk-guard'
 done
 
+hash_repo="$TMP_DIR/re#po"
+mkdir -p "$hash_repo/scripts/lib" "$hash_repo/claude" "$TMP_DIR/hash-home/.claude"
+cp "$ROOT_DIR/scripts/claude-hooks-merge" "$hash_repo/scripts/"
+cp "$ROOT_DIR/scripts/lib/surfaces.mjs" "$ROOT_DIR/scripts/lib/claude-hooks-merge.mjs" "$ROOT_DIR/scripts/lib/claude-hooks-fragment.mjs" "$hash_repo/scripts/lib/"
+cp "$ROOT_DIR/claude/settings.workflow-hooks.json" "$hash_repo/claude/"
+"$hash_repo/scripts/claude-hooks-merge" --home "$TMP_DIR/hash-home" --dry-run >"$TMP_DIR/hash-merge.txt" 2>&1 || {
+	printf 'claude-hooks-merge failed from a repo path containing #:\n%s\n' "$(cat "$TMP_DIR/hash-merge.txt")" >&2
+	exit 1
+}
+assert_contains "$(cat "$TMP_DIR/hash-merge.txt")" 'would add'
+
+for tool in claude-hooks-merge claude-hooks-check; do
+	status=0
+	"$ROOT_DIR/scripts/$tool" --home >/dev/null 2>"$TMP_DIR/home-last.txt" || status=$?
+	[ "$status" -eq 2 ] || {
+		printf '%s --home without a value exited %s, expected 2\n' "$tool" "$status" >&2
+		exit 1
+	}
+	assert_contains "$(cat "$TMP_DIR/home-last.txt")" 'Usage:'
+done
+
 printf 'claude hooks smoke test: ok\n'

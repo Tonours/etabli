@@ -25,6 +25,10 @@ EOF
 while [ "$#" -gt 0 ]; do
   case "$1" in
   --home)
+    [ "$#" -ge 2 ] || {
+      usage >&2
+      exit 2
+    }
     CLAUDE_DIR="$2/.claude"
     shift
     ;;

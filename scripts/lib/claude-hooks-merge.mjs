@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { bypassesRtkGuard, identityOf, isRetiredHookCommand, loadFragment } from "./claude-hooks-fragment.mjs";
 import { backupFile, writeJsonAtomic } from "./surfaces.mjs";
 
 const claudeDir = process.argv[2];
@@ -7,7 +8,6 @@ const repoDir = process.argv[3];
 const dryRun = process.argv[4] === "1";
 const livePath = join(claudeDir, "settings.json");
 
-const { bypassesRtkGuard, identityOf, isRetiredHookCommand, loadFragment } = await import(`file://${repoDir}/scripts/lib/claude-hooks-fragment.mjs`);
 let fragment;
 try {
   fragment = loadFragment(repoDir);
