@@ -46,6 +46,7 @@ print_failure_summary() {
     fi
     print_error "${#FAILED_STEPS[@]} step(s) failed:"
     printf '  - %s\n' "${FAILED_STEPS[@]}"
+    return 1
 }
 
 converge_agent_surfaces() {
@@ -446,9 +447,7 @@ print_success "Dev scripts installed"
 echo ""
 echo "-------------------------------------------------------------------"
 echo ""
-if [ "${#FAILED_STEPS[@]}" -gt 0 ]; then
-    print_failure_summary
-else
+if [ "${#FAILED_STEPS[@]}" -eq 0 ]; then
     print_success "Installation complete!"
 fi
 echo ""
@@ -484,3 +483,4 @@ printf "  Review:          ${YELLOW}/review${NC}\n"
 echo ""
 echo "-------------------------------------------------------------------"
 echo ""
+print_failure_summary || exit 1

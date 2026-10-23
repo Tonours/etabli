@@ -269,7 +269,12 @@ chmod +x "$fake_pi_dir/pi"
 export FAKE_PI_STDIN="$tmp_dir/fake-pi.stdin"
 : >"$FAKE_PI_STDIN"
 failing_pi_package="$(jq -r '[.packages[] | if type == "string" then . else .source end | select(startswith("local:") | not)][0]' "$REPO_DIR/pi/agent/settings.json")"
-failing_pi_out="$(PATH="$fake_pi_dir:$PATH" install_pi_packages_from_settings 2>&1 <<<"caller stdin"; print_failure_summary 2>&1)" || true
+failing_pi_status=0
+failing_pi_out="$(PATH="$fake_pi_dir:$PATH" install_pi_packages_from_settings 2>&1 <<<"caller stdin"; print_failure_summary 2>&1)" || failing_pi_status=$?
+if [ "$failing_pi_status" -eq 0 ]; then
+  print_error "the failure summary returned success after a failed step"
+  exit 1
+fi
 if [ -s "$FAKE_PI_STDIN" ]; then
   print_error "pi install read the caller stdin instead of /dev/null"
   exit 1
