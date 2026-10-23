@@ -1,9 +1,8 @@
 # CLAUDE.md - etabli
 
-Claude Code adapter. Shared identity, style, cognition, code, review, ticket,
-anti-sycophancy, contrarian, memory, answer and git rules live in
-`workflow/agent-rules.md`, imported below by a path relative to this file (Pi
-reads the same file as `~/.pi/agent/AGENTS.md`).
+Claude Code adapter. Shared rules live in `workflow/agent-rules.md`, imported
+below by a path relative to this file (Pi reads the same file as
+`~/.pi/agent/AGENTS.md`).
 
 ## Sources
 - Repo: `AGENTS.md`; shared rules: `workflow/agent-rules.md`; workflow: `workflow/spec.md`
