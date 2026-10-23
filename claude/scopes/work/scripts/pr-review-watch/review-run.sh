@@ -137,7 +137,7 @@ run_verify() {
     tail -n +2 "$KEY.delta-done" >"$delta_log"
   else
     echo "=== step 1: /code-review on the commits since ${SINCE:0:8}, findings posted"
-    run_delta "$delta_log" || return 1
+    run_delta "$delta_log" || return
     grep -q '^=== nothing new since' "$delta_log" && printf 'DELTA_FINDINGS 0\nDELTA_CONFIDENT value=true\n' >>"$delta_log"
     { echo "$SHA"; grep -E '^DELTA_(FINDINGS|CONFIDENT) ' "$delta_log"; } >"$KEY.delta-done"
   fi
