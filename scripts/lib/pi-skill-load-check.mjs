@@ -1,0 +1,290 @@
+import fs from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { createRequire } from "node:module";
+
+const [dumpPath, homeDir, repoDir] = process.argv.slice(2);
+let parseYaml;
+try {
+  ({ parse: parseYaml } = createRequire(join(repoDir, "pi/package.json"))("yaml"));
+} catch {
+  console.error("FAIL: Pi's yaml dependency is unavailable; run bun install --cwd pi in the Etabli checkout");
+  process.exit(1);
+}
+const errors = [];
+const warnings = [];
+
+const GATE = 7800;
+const ALERT = 7785;
+const PINNED_DMI = ["runtime-skill-canary"];
+const DELEGATED_DMI = ["obsidian"];
+
+function liveSkillNames(root) {
+  try {
+    return readdirSync(root).filter((name) => {
+      try {
+        return statSync(join(root, name, "SKILL.md")).isFile();
+      } catch {
+        return false;
+      }
+    });
+  } catch {
+    return [];
+  }
+}
+
+function brokenNames(root) {
+  try {
+    return readdirSync(root).filter((name) => {
+      try {
+        statSync(join(root, name));
+        return false;
+      } catch {
+        return true;
+      }
+    });
+  } catch {
+    return [];
+  }
+}
+
+const piRoot = join(homeDir, ".pi/agent/skills");
+const agentsRoot = join(homeDir, ".agents/skills");
+const piNames = liveSkillNames(piRoot);
+const agentsNames = liveSkillNames(agentsRoot);
+const universe = new Set([...piNames, ...agentsNames]);
+
+for (const [label, names] of [
+  [piRoot, brokenNames(piRoot)],
+  [agentsRoot, brokenNames(agentsRoot)],
+]) {
+  if (names.length > 0) errors.push(`dangling links in ${label}: ${names.join(", ")}`);
+}
+
+for (const name of piNames) {
+  if (!agentsNames.includes(name)) continue;
+  let a = null;
+  let b = null;
+  try {
+    a = fs.realpathSync(join(piRoot, name));
+    b = fs.realpathSync(join(agentsRoot, name));
+  } catch {
+    continue;
+  }
+  if (a !== b) errors.push(`differing-target collision across roots: ${name}`);
+}
+
+function dmiCarriers(names) {
+  const carriers = [];
+  for (const name of names) {
+    for (const root of [piRoot, agentsRoot]) {
+      try {
+        const head = frontmatterOf(join(root, name, "SKILL.md"));
+        if (isDmi(head)) {
+          carriers.push(name);
+          break;
+        }
+      } catch {
+        /* not on this root */
+      }
+    }
+  }
+  return carriers;
+}
+
+function frontmatterOf(file) {
+  const match = readFileSync(file, "utf8").match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  if (!match) throw new Error("missing frontmatter");
+  const head = parseYaml(match[1]);
+  if (!head || typeof head !== "object" || Array.isArray(head)) throw new Error("frontmatter must be a mapping");
+  return head;
+}
+
+function isDmi(head) {
+  return head["disable-model-invocation"] === true;
+}
+
+const dmi = new Set(dmiCarriers([...universe]));
+
+const settings = JSON.parse(readFileSync(join(homeDir, ".pi/agent/settings.json"), "utf8"));
+const repoSettings = JSON.parse(readFileSync(join(repoDir, "pi/agent/settings.json"), "utf8"));
+const deny = (settings.skills ?? [])
+  .filter((pattern) => pattern.startsWith("!"))
+  .map((pattern) => pattern.slice(1));
+
+for (const name of PINNED_DMI) {
+  if (universe.has(name) && !dmi.has(name)) {
+    errors.push(`pinned dmi skill ${name} lacks disable-model-invocation`);
+  }
+}
+for (const name of DELEGATED_DMI) {
+  if (universe.has(name) && !dmi.has(name)) {
+    errors.push(`delegated dmi skill ${name} lacks disable-model-invocation`);
+  }
+}
+for (const name of deny) {
+  if (dmi.has(name)) errors.push(`deny-list hides dmi skill ${name} (deny would break /skill:name)`);
+}
+
+const dump = readFileSync(dumpPath, "utf8");
+const marker = "The following skills provide specialized instructions";
+const markerAt = dump.indexOf(marker);
+const closeAt = dump.indexOf("</available_skills>");
+if (markerAt === -1 || closeAt === -1) {
+  console.error("FAIL: skills block not found in the native dump");
+  process.exit(1);
+}
+const block = dump.slice(markerAt, closeAt + "</available_skills>".length);
+const entryRe = /  <skill>\n([\s\S]*?)\n  <\/skill>/g;
+const rendered = [];
+let match;
+while ((match = entryRe.exec(block)) !== null) {
+  const name = /<name>(.*?)<\/name>/.exec(match[1])?.[1];
+  const location = /<location>(.*?)<\/location>/.exec(match[1])?.[1] ?? "";
+  rendered.push({ name, location, chars: match[0].length });
+}
+
+const modelBlockChars = block.length;
+
+if (modelBlockChars > GATE) {
+  errors.push(`B1: model-facing block ${modelBlockChars} chars exceeds gate ${GATE}`);
+} else if (modelBlockChars >= ALERT) {
+  warnings.push(`B1: model-facing block ${modelBlockChars} chars within ${GATE - ALERT} of the ${ALERT} alert`);
+}
+if (rendered.some((entry) => entry.location.includes("/pi-pstack/"))) {
+  errors.push("B3: pi-pstack skills render; the package must stay removed");
+}
+
+for (const pinned of [...PINNED_DMI, ...DELEGATED_DMI]) {
+  if (rendered.some((entry) => entry.name === pinned)) {
+    errors.push(`B2(iii): dmi skill ${pinned} rendered in the block`);
+  }
+}
+if (rendered.some((entry) => entry.name === "brave-search")) {
+  errors.push("B2(iii): brave-search rendered despite the double lever");
+}
+
+const packageKeepers = [];
+const radiusSkill = join(homeDir, ".pi/agent/npm/node_modules/@earendil-works/pi-radius/skills/radius-api/SKILL.md");
+if (fs.existsSync(radiusSkill)) {
+  const remedy = `run scripts/pi-dmi-stamp --home "${homeDir}"`;
+  try {
+    const head = frontmatterOf(radiusSkill);
+    if (head.name !== "radius-api" || !isDmi(head)) {
+      errors.push(`B2(iii): installed radius-api lacks its DMI policy; ${remedy}`);
+    }
+    if (rendered.some((entry) => entry.name === "radius-api")) {
+      errors.push(`B2(iii): DMI package skill radius-api rendered; ${remedy} and re-check native visibility`);
+    }
+  } catch {
+    errors.push(`B2(iii): invalid Radius frontmatter at ${radiusSkill}; restore the package, then ${remedy}`);
+  }
+}
+for (const entry of settings.packages ?? []) {
+  if (entry && typeof entry === "object" && Array.isArray(entry.skills)) {
+    for (const name of entry.skills) {
+      if (typeof entry.source !== "string" || !entry.source.startsWith("npm:")) {
+        packageKeepers.push(name);
+        continue;
+      }
+      const packageName = /^npm:((?:@[a-z0-9._-]+\/)?[a-z0-9._-]+)(?:@[^/]+)?$/i.exec(entry.source)?.[1];
+      if (!packageName || !/^[a-z0-9][a-z0-9-]*$/.test(name)) {
+        errors.push(`B2(i): unsupported package keeper ${entry.source}/${name}; use an explicit skill name`);
+        continue;
+      }
+      const file = join(homeDir, ".pi/agent/npm/node_modules", packageName, "skills", name, "SKILL.md");
+      try {
+        const head = frontmatterOf(file);
+        if (head.name !== name || typeof head.description !== "string" || !head.description.trim()) {
+          errors.push(`B2(i): invalid package skill frontmatter ${file}; restore its name and description`);
+          continue;
+        }
+        const identity = fs.realpathSync(file);
+        for (const root of [piRoot, agentsRoot]) {
+          const rootFile = join(root, name, "SKILL.md");
+          if (fs.existsSync(rootFile) && fs.realpathSync(rootFile) !== identity) {
+            errors.push(`B2(i): package/default-root collision for ${name}; keep one skill identity`);
+          }
+        }
+        const rows = rendered.filter((row) => row.name === name);
+        if (isDmi(head)) {
+          if (rows.length) errors.push(`B2(iii): DMI package skill ${name} rendered; check its native visibility`);
+        } else {
+          packageKeepers.push(name);
+          if (!rows.some((row) => fs.existsSync(row.location) && fs.realpathSync(row.location) === identity)) {
+            errors.push(`B2(i): package keeper ${name} missing at ${file}; check the package filter`);
+          }
+        }
+      } catch {
+        errors.push(`B2(i): cannot read or parse package skill ${file}; restore the installed package`);
+      }
+    }
+  }
+}
+
+const renderedNames = new Set(rendered.map((entry) => entry.name));
+const expected = new Set([...universe].filter((name) => !deny.includes(name) && !dmi.has(name)));
+for (const name of packageKeepers) {
+  if (!dmi.has(name) && !universe.has(name)) expected.add(name);
+}
+
+for (const name of expected) {
+  if (!renderedNames.has(name)) errors.push(`B2(i): expected skill ${name} missing from the block`);
+}
+for (const entry of rendered) {
+  const isPackage = entry.location.includes("/npm/node_modules/");
+  const isLens = entry.location.includes("/pi-lens/");
+  if (isPackage) {
+    if (isLens) continue;
+    const pkg = entry.location.split("/npm/node_modules/")[1].split("/skills/")[0];
+    const pkgEntry = (settings.packages ?? []).find(
+      (candidate) =>
+        candidate && typeof candidate === "object" && /^npm:((?:@[^/]+\/)?[^@]+)/.exec(candidate.source ?? "")?.[1] === pkg,
+    );
+    if (!Array.isArray(pkgEntry?.skills) || !pkgEntry.skills.includes(entry.name)) {
+      errors.push(`B2(i): rendered package skill ${entry.name} outside its ${pkg} filter`);
+    }
+  } else if (!expected.has(entry.name)) {
+    errors.push(`B2(i): rendered skill ${entry.name} outside the expected manifest`);
+  }
+}
+
+const renderedDefaultRoot = new Set(
+  rendered.filter((entry) => !entry.location.includes("/npm/node_modules/")).map((entry) => entry.name),
+);
+const complement = [...universe].filter((name) => !dmi.has(name) && !renderedDefaultRoot.has(name)).sort();
+const denySorted = [...new Set(deny)].sort();
+const extra = denySorted.filter((name) => universe.has(name) && !complement.includes(name));
+const missing = complement.filter((name) => !denySorted.includes(name));
+if (extra.length) errors.push(`B2(ii): deny entries not in the live complement: ${extra.join(", ")}`);
+if (missing.length) errors.push(`B2(ii): live complement missing from the deny-list: ${missing.join(", ")}`);
+
+const repoDeny = (repoSettings.skills ?? [])
+  .filter((pattern) => pattern.startsWith("!"))
+  .map((pattern) => pattern.slice(1))
+  .sort();
+if (!process.env.PI_SKILL_LOAD_NO_REPO && JSON.stringify(repoDeny) !== JSON.stringify(denySorted)) {
+  errors.push("B3: repo and live settings deny-lists diverge (deploy not applied?)");
+}
+
+const buckets = {};
+for (const entry of rendered) {
+  const bucket = entry.location.includes("/npm/node_modules/")
+    ? `pkg:${entry.location.split("/npm/node_modules/")[1].split("/skills/")[0]}`
+    : entry.location.includes("/.pi/agent/skills/")
+      ? "root:pi"
+      : entry.location.includes("/.agents/skills/")
+        ? "root:agents"
+        : "other";
+  buckets[bucket] = (buckets[bucket] ?? 0) + 1;
+}
+
+console.log(`block_chars=${block.length} model_block_chars=${modelBlockChars} entries=${rendered.length} universe=${universe.size} deny=${denySorted.length} dmi=${dmi.size}`);
+console.log(`buckets=${JSON.stringify(buckets)}`);
+console.log(`manifest=${[...renderedNames].sort().join(" ")}`);
+for (const warning of warnings) console.log(`WARN: ${warning}`);
+if (errors.length > 0) {
+  for (const error of errors) console.error(`FAIL: ${error}`);
+  process.exit(1);
+}
+console.log("pi-skill-load-check: ok");
