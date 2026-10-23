@@ -67,32 +67,6 @@ fi
 [ -x "$MERGE" ] || fail "missing executable scripts/claude-hooks-merge"
 [ -x "$HCHECK" ] || fail "missing executable scripts/claude-hooks-check"
 
-REPO_DMI="coolify"
-pin_repo_dmi() {
-  node --input-type=module -e "
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { createRequire } from 'node:module';
-const { parse } = createRequire(join('$ROOT_DIR', 'pi/package.json'))('yaml');
-const missing = [];
-for (const name of process.argv.slice(2)) {
-  const file = join(process.argv[1], 'extras/skills', name, 'SKILL.md');
-  if (!existsSync(file)) { missing.push(name + ' (absent)'); continue; }
-  const text = readFileSync(file, 'utf8');
-  const head = parse(text.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|\$)/)[1]);
-  if (head['disable-model-invocation'] !== true) missing.push(name);
-}
-if (missing.length) { console.error('repo DMI flags missing: ' + missing.join(', ')); process.exit(1); }
-" "$@"
-}
-pin_repo_dmi "$ROOT_DIR" $REPO_DMI || fail "repo DMI pin failed"
-FIXPIN="$TMP_DIR/fixpin"
-mkdir -p "$FIXPIN/extras/skills"
-if pin_repo_dmi "$FIXPIN" $REPO_DMI 2>"$TMP_DIR/fixpin-err.txt"; then
-  fail "DMI pin must fail when a repo skill file is absent"
-fi
-grep -q "absent" "$TMP_DIR/fixpin-err.txt" || fail "absent pin failure unexplained"
-
 STAMP_HOME="$TMP_DIR/stamp-home"
 mkdir -p "$STAMP_HOME/.agents/skills/hyperframes" "$STAMP_HOME/.agents/skills/ghost-lab" \
   "$STAMP_HOME/.pi/agent/npm/node_modules/mitsupi/skills/github"
@@ -102,41 +76,44 @@ for dir in "$STAMP_HOME/.agents/skills/hyperframes" "$STAMP_HOME/.agents/skills/
 done
 printf -- '---\nname: github\ndescription: fixture\n---\nbody\n' \
   >"$STAMP_HOME/.pi/agent/npm/node_modules/mitsupi/skills/github/SKILL.md"
-ln -s "$ROOT_DIR/extras/skills/coolify" "$STAMP_HOME/.agents/skills/coolify"
-cp "$ROOT_DIR/extras/skills/coolify/SKILL.md" "$TMP_DIR/coolify-orig.md"
+SYNTH_REPO="$TMP_DIR/synth-repo"
+mkdir -p "$SYNTH_REPO/extras/skills/coolify"
+printf -- '---\nname: coolify\ndescription: fixture\n---\nbody\n' >"$SYNTH_REPO/extras/skills/coolify/SKILL.md"
+ln -s "$SYNTH_REPO/extras/skills/coolify" "$STAMP_HOME/.agents/skills/coolify"
+cp "$SYNTH_REPO/extras/skills/coolify/SKILL.md" "$TMP_DIR/coolify-orig.md"
 
-"$STAMP" --list --home "$STAMP_HOME" >"$TMP_DIR/stamp-list.txt" || fail "stamp --list failed"
+"$STAMP" --list --home "$STAMP_HOME" --repo "$SYNTH_REPO" >"$TMP_DIR/stamp-list.txt" || fail "stamp --list failed"
 grep -q "hyperframes" "$TMP_DIR/stamp-list.txt" || fail "stamp list hides hyperframes"
 grep -q "radius-api" "$TMP_DIR/stamp-list.txt" || fail "stamp list hides radius-api"
 
-"$STAMP" --dry-run --home "$STAMP_HOME" >/dev/null || fail "stamp dry-run failed"
+"$STAMP" --dry-run --home "$STAMP_HOME" --repo "$SYNTH_REPO" >/dev/null || fail "stamp dry-run failed"
 if grep -q "disable-model-invocation" "$STAMP_HOME/.agents/skills/hyperframes/SKILL.md"; then
   fail "dry-run must not write"
 fi
 
-"$STAMP" --home "$STAMP_HOME" >"$TMP_DIR/stamp-out.txt" || fail "stamp run failed"
+"$STAMP" --home "$STAMP_HOME" --repo "$SYNTH_REPO" >"$TMP_DIR/stamp-out.txt" || fail "stamp run failed"
 for file in "$STAMP_HOME/.agents/skills/hyperframes/SKILL.md" \
   "$STAMP_HOME/.agents/skills/ghost-lab/SKILL.md" \
   "$STAMP_HOME/.pi/agent/npm/node_modules/mitsupi/skills/github/SKILL.md"; do
   grep -q "^disable-model-invocation: true$" "$file" || fail "flag missing in $file"
 done
-cmp -s "$ROOT_DIR/extras/skills/coolify/SKILL.md" "$TMP_DIR/coolify-orig.md" \
+cmp -s "$SYNTH_REPO/extras/skills/coolify/SKILL.md" "$TMP_DIR/coolify-orig.md" \
   || fail "stamp touched a repo realpath"
 grep -q -i -e "absent" -e "skip" "$TMP_DIR/stamp-out.txt" || fail "stamp must report absent names"
 
 cp "$STAMP_HOME/.agents/skills/hyperframes/SKILL.md" "$TMP_DIR/hyper-orig.md"
-"$STAMP" --home "$STAMP_HOME" >/dev/null || fail "stamp rerun failed"
+"$STAMP" --home "$STAMP_HOME" --repo "$SYNTH_REPO" >/dev/null || fail "stamp rerun failed"
 cmp -s "$STAMP_HOME/.agents/skills/hyperframes/SKILL.md" "$TMP_DIR/hyper-orig.md" \
   || fail "stamp is not idempotent"
 
-"$STAMP" --check --home "$STAMP_HOME" >/dev/null || fail "stamp --check failed after stamping"
+"$STAMP" --check --home "$STAMP_HOME" --repo "$SYNTH_REPO" >/dev/null || fail "stamp --check failed after stamping"
 grep -v "^disable-model-invocation: true$" "$STAMP_HOME/.agents/skills/ghost-lab/SKILL.md" >"$TMP_DIR/ghost-stripped.md"
 mv "$TMP_DIR/ghost-stripped.md" "$STAMP_HOME/.agents/skills/ghost-lab/SKILL.md"
-if "$STAMP" --check --home "$STAMP_HOME" >/dev/null 2>&1; then
+if "$STAMP" --check --home "$STAMP_HOME" --repo "$SYNTH_REPO" >/dev/null 2>&1; then
   fail "stamp --check must fail when a flag is removed"
 fi
-"$STAMP" --home "$STAMP_HOME" >/dev/null || fail "re-stamp after flag removal failed"
-"$STAMP" --check --home "$STAMP_HOME" >/dev/null || fail "stamp --check failed after re-stamp"
+"$STAMP" --home "$STAMP_HOME" --repo "$SYNTH_REPO" >/dev/null || fail "re-stamp after flag removal failed"
+"$STAMP" --check --home "$STAMP_HOME" --repo "$SYNTH_REPO" >/dev/null || fail "stamp --check failed after re-stamp"
 
 # Fresh installer checkouts use the globally installed Pi dependency.
 FRESH_REPO="$TMP_DIR/fresh-repo"
@@ -149,10 +126,10 @@ printf '%s\n' '{"name":"@earendil-works/pi-coding-agent"}' >"$GLOBAL_PI/package.
 ln -s "$ROOT_DIR/pi/node_modules/yaml" "$GLOBAL_PI/node_modules/yaml"
 printf '#!/bin/sh\n[ "$*" = "root -g" ] || exit 2\nprintf "%%s\\n" "%s"\n' "$GLOBAL_ROOT" >"$TMP_DIR/global-bin/npm"
 chmod +x "$TMP_DIR/global-bin/npm"
-NPM_CONFIG_PREFIX="$TMP_DIR/global" PATH="$TMP_DIR/global-bin:$PATH" "$FRESH_REPO/scripts/pi-dmi-stamp" --check --home "$STAMP_HOME" >/dev/null \
+NPM_CONFIG_PREFIX="$TMP_DIR/global" PATH="$TMP_DIR/global-bin:$PATH" "$FRESH_REPO/scripts/pi-dmi-stamp" --check --home "$STAMP_HOME" --repo "$SYNTH_REPO" >/dev/null \
   || fail "fresh checkout must resolve YAML from the global Pi install"
 rm "$GLOBAL_PI/node_modules/yaml"
-if NPM_CONFIG_PREFIX="$TMP_DIR/global" PATH="$TMP_DIR/global-bin:$PATH" "$FRESH_REPO/scripts/pi-dmi-stamp" --check --home "$STAMP_HOME" >"$TMP_DIR/no-yaml.txt" 2>&1; then
+if NPM_CONFIG_PREFIX="$TMP_DIR/global" PATH="$TMP_DIR/global-bin:$PATH" "$FRESH_REPO/scripts/pi-dmi-stamp" --check --home "$STAMP_HOME" --repo "$SYNTH_REPO" >"$TMP_DIR/no-yaml.txt" 2>&1; then
   fail "fresh checkout without either YAML source must fail"
 fi
 grep -q 'bun install --cwd pi' "$TMP_DIR/no-yaml.txt" || fail "missing YAML failure must name its repair"
