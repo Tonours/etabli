@@ -14,6 +14,7 @@ core	shell-docs	guards-active	tests/guards-active-smoke.sh
 core	shell-docs	skill-hygiene	tests/skill-hygiene-smoke.sh
 full	shell-docs	pr-review-gates-smoke	tests/pr-review-gates-smoke.sh
 full	shell-docs	pr-review-flow-smoke	tests/pr-review-flow-smoke.sh
+full	shell-docs	pr-review-signals-smoke	tests/pr-review-signals-smoke.sh
 full	shell-docs	workflow-scaffold-smoke	tests/workflow-scaffold-smoke.sh
 full	shell-docs	workflow-scaffold-check-smoke	tests/workflow-scaffold-check-smoke.sh
 full	shell-docs	workflow-scaffold-prune-smoke	tests/workflow-scaffold-prune-smoke.sh
