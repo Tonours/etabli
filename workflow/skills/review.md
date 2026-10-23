@@ -38,8 +38,9 @@ Same-session Logic self-review is forbidden.
      --no-skills --no-extensions --no-context-files --tools read,grep
      --append-system-prompt <hunter-template> @<patchfile>`. The prompt file is
      the hunter template plus `Axis: Logic`, Intent, and `Standards: yes|none`.
-     Pass `--model` only when its id is not `cursor/`. Spawn failure or nonzero
-     exit → `HUNTER_SPAWN_UNAVAILABLE`; timeout → `HUNTER_TIMEOUT`. Either
+     Pass `--model` only when its id is not `cursor/`. Bound the run with a
+     timeout (default 600 s). Spawn failure or nonzero exit →
+     `HUNTER_SPAWN_UNAVAILABLE`; timeout → `HUNTER_TIMEOUT`. Either
      sentinel stops the lead verdict. Record `hunter_model:` (or
      `hunter_model: default` when `--model` is omitted). `runner: pi-child`.
    Hunter templates are self-contained; the parent reads the rubric for

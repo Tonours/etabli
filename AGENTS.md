@@ -35,8 +35,8 @@ Full layout, scopes and managed surfaces: `docs/symlink-layout.md`.
   and remote machines stay high-risk.
 - Before any push, run the complete relevant `scripts/verify-agentic-infra`
   group on the final diff; a red group blocks the push.
-- Pi review hunters run through `scripts/pi-review-hunter` (timeout default
-  600 s, `PI_REVIEW_HUNTER_TIMEOUT`).
+- Pi review hunters run through `scripts/pi-review-hunter`
+  (`PI_REVIEW_HUNTER_TIMEOUT` overrides the 600 s timeout).
 
 ## Growth
 
