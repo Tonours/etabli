@@ -290,6 +290,8 @@ const cases = [
   ["jsx self-close at line start then comment", write("bp.jsx", "const el = <div\n  />; // added note\n"), "deny"],
   ["division of a return property then comment", write("bq.js", "const x = obj.return / 2; // added note\n"), "deny"],
   ["regex literal after throw in a template", write("br.js", "const x = `${(() => { throw /\\/\\//; })()}`;\n"), "allow"],
+  ["go raw string holding a template marker", write("bs.go", "package main\n\nconst x = `${a /* data */}`\n"), "allow"],
+  ["go raw string ending in a backslash then comment", write("bt.go", "package main\n\nconst p = `C:\\`\n\n// added note\nvar q = 1\n"), "deny"],
   ["regex literal after return", write("bi.js", "function f() {\n  return /\\/\\//;\n}\n"), "allow"],
   ["regex literal after arrow", write("bj.js", "const f = () => /\\/\\//;\n"), "allow"],
   ["slashes in a nested template", write("bk.ts", "const u = `${`//`}`;\n"), "allow"],

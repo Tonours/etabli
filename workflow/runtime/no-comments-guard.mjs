@@ -64,7 +64,9 @@ const COMMENT_FAMILIES = new Map([
 	[".zsh", "shell"],
 	[".sql", "sql"],
 	[".lua", "lua"],
+	[".go", "go"],
 ]);
+const SLASH_FAMILIES = new Set(["clike", "go"]);
 const DASH_FAMILIES = new Set(["sql", "lua"]);
 const MULTILINE_STRING_FAMILIES = new Set(["shell", "sql"]);
 
@@ -113,7 +115,7 @@ function normalizeComment(text) {
 
 function lineCommentAt(source, index, family) {
 	const char = source[index];
-	if (family === "clike") return char === "/" && source[index + 1] === "/" && source[index - 1] !== ":";
+	if (SLASH_FAMILIES.has(family)) return char === "/" && source[index + 1] === "/" && source[index - 1] !== ":";
 	if (DASH_FAMILIES.has(family)) return char === "-" && source[index + 1] === "-";
 	if (family === "python") return char === "#";
 	if (family === "shell") return char === "#" && (index === 0 || /\s/.test(source[index - 1]));
@@ -182,7 +184,7 @@ export function collectCommentLines(text, family) {
 		const spansLines = triple || quote === "`" || MULTILINE_STRING_FAMILIES.has(family);
 		const ansiC = family === "shell" && quote === "'" && source[index - 1] === "$";
 		const sqlEscaped = family === "sql" && quote === "'" && /[Ee]/.test(source[index - 1] ?? "") && !/\w/.test(source[index - 2] ?? "");
-		const escapes = ansiC || sqlEscaped || !((family === "shell" && quote === "'") || family === "sql");
+		const escapes = ansiC || sqlEscaped || !((family === "shell" && quote === "'") || family === "sql" || (family === "go" && quote === "`"));
 		let cursor = index + delimiter.length;
 		while (cursor < source.length) {
 			if (escapes && source[cursor] === "\\") {
@@ -296,7 +298,7 @@ export function collectCommentLines(text, family) {
 				if (depth === 0) return index + 1;
 				if (depth > 0) depth -= 1;
 			}
-			if ((family === "clike" || family === "sql") && source.startsWith("/*", index)) {
+			if ((SLASH_FAMILIES.has(family) || family === "sql") && source.startsWith("/*", index)) {
 				const stop = blockEnd(source, index, "/*", "*/", family === "sql");
 				pushBlock(index, stop === -1 ? source.length : stop);
 				appendCode(" ");
@@ -336,7 +338,7 @@ export function collectCommentLines(text, family) {
 				index = stop;
 				continue;
 			}
-			if (char === "'" || char === '"' || (family === "clike" && char === "`")) {
+			if (char === "'" || char === '"' || (SLASH_FAMILIES.has(family) && char === "`")) {
 				index = skipString(index);
 				appendCode("S");
 				continue;
