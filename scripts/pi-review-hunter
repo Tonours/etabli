@@ -130,7 +130,7 @@ set +e
 wait "$pi_pid"
 status=$?
 kill -KILL "$watchdog" 2>/dev/null
-wait "$watchdog"
+wait "$watchdog" 2>/dev/null
 watchdog_status=$?
 set -e
 if [ "$watchdog_status" -ne 137 ]; then
