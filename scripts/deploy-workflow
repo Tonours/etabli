@@ -611,10 +611,14 @@ warn_plan_gitignore() {
 ensure_local_exclude() {
   local exclude_path desired tmp
 
-  if ! exclude_path="$(git -C "$TARGET_DIR" rev-parse --path-format=absolute --git-path info/exclude 2>/dev/null)"; then
+  if ! exclude_path="$(git -C "$TARGET_DIR" rev-parse --git-path info/exclude 2>/dev/null)"; then
     status_line SKIP "not a git repository - no .git/info/exclude to manage"
     return 0
   fi
+  case "$exclude_path" in
+  /*) ;;
+  *) exclude_path="$TARGET_DIR/$exclude_path" ;;
+  esac
 
   desired="$(exclude_block)"
 
