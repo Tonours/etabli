@@ -185,6 +185,21 @@ git -C "$LINKED_MAIN" -c user.name=test -c user.email=test@example.com commit -q
 git -C "$LINKED_MAIN" worktree add -q "$LINKED_WORKTREE"
 "$SCRIPT" "$LINKED_WORKTREE" >/dev/null
 assert_contains "$LINKED_MAIN/.git/info/exclude" "etabli personal workflow ignores"
+OLD_GIT_BIN="$TMP_DIR/old-git-bin"
+OLD_GIT_PROJECT="$TMP_DIR/old-git-project"
+mkdir -p "$OLD_GIT_BIN"
+REAL_GIT="$(command -v git)"
+cat >"$OLD_GIT_BIN/git" <<EOF
+#!/bin/sh
+for arg in "\$@"; do
+  case "\$arg" in --path-format=*) printf '%s\\n' "\$arg"; exit 0 ;; esac
+done
+exec "$REAL_GIT" "\$@"
+EOF
+chmod +x "$OLD_GIT_BIN/git"
+git init -q "$OLD_GIT_PROJECT"
+PATH="$OLD_GIT_BIN:$PATH" "$SCRIPT" "$OLD_GIT_PROJECT" >/dev/null
+assert_contains "$OLD_GIT_PROJECT/.git/info/exclude" "etabli personal workflow ignores"
 linked_status="$(git -C "$LINKED_WORKTREE" status --porcelain --untracked-files=all)"
 [ -z "$linked_status" ] || { printf 'scaffold files exposed in a linked worktree:\n%s\n' "$linked_status" >&2; exit 1; }
 printf '// changed managed helper\n' >>"$NEW_PROJECT/scripts/lib/plan-status.mjs"
