@@ -218,6 +218,8 @@ CHECK_DRIFT_PROJECT="$TMP_DIR/check-drift-project"
 CHECK_DRIFT_OUTPUT="$TMP_DIR/check-drift.out"
 "$SCRIPT" "$CHECK_DRIFT_PROJECT" >/dev/null
 printf '\nlocal change\n' >>"$CHECK_DRIFT_PROJECT/workflow/spec.md"
+git -C "$ROOT_DIR" show "$(git -C "$ROOT_DIR" log -2 --format=%H -- workflow/answer-quality.md | tail -1):workflow/answer-quality.md" >"$CHECK_DRIFT_PROJECT/workflow/answer-quality.md"
+git -C "$ROOT_DIR" show HEAD:AGENTS.md >"$CHECK_DRIFT_PROJECT/AGENTS.md"
 rm "$CHECK_DRIFT_PROJECT/PLAN_TEMPLATE.md"
 find "$CHECK_DRIFT_PROJECT" -print | sort >"$TMP_DIR/check-drift.before"
 if "$SCRIPT" "$CHECK_DRIFT_PROJECT" --check >"$CHECK_DRIFT_OUTPUT" 2>&1; then
@@ -229,9 +231,12 @@ if ! diff -u "$TMP_DIR/check-drift.before" "$TMP_DIR/check-drift.after"; then
   printf 'deploy --check mutated the checked project\n' >&2
   exit 1
 fi
-assert_contains "$CHECK_DRIFT_OUTPUT" "DRIFT     workflow/spec.md"
+assert_contains "$CHECK_DRIFT_OUTPUT" "EDITED    workflow/spec.md"
+assert_contains "$CHECK_DRIFT_OUTPUT" "STALE     workflow/answer-quality.md"
+assert_contains "$CHECK_DRIFT_OUTPUT" "EDITED    AGENTS.md"
 assert_contains "$CHECK_DRIFT_OUTPUT" "MISSING   PLAN_TEMPLATE.md"
-assert_contains "$CHECK_DRIFT_OUTPUT" "Summary: 1 drifted, 1 missing"
+assert_contains "$CHECK_DRIFT_OUTPUT" "Summary: 3 drifted, 1 missing"
+assert_contains "$CHECK_DRIFT_OUTPUT" "Fix: $SCRIPT $(cd "$CHECK_DRIFT_PROJECT" && pwd) writes MISSING and refreshes STALE copies; review EDITED copies, then rerun it with --force"
 assert_contains "$CHECK_DRIFT_PROJECT/workflow/spec.md" "local change"
 assert_not_exists "$CHECK_DRIFT_PROJECT/PLAN_TEMPLATE.md"
 
@@ -336,16 +341,16 @@ assert_backup() {
 }
 
 shipped_copy() {
-  git -C "$ROOT_DIR" show "HEAD:$1" >"$2"
+  git -C "$ROOT_DIR" show "$(git -C "$ROOT_DIR" log -1 --format=%H --diff-filter=AM -- "$1"):$1" >"$2"
 }
 
 PRUNE_PROJECT="$TMP_DIR/prune-project"
 "$SCRIPT" "$PRUNE_PROJECT" >/dev/null
 RETIRED_SET="workflow/events.md scripts/workflow-event workflow/verification/cli-app.mjs"
 mkdir -p "$PRUNE_PROJECT/workflow/verification"
-shipped_copy README.md "$PRUNE_PROJECT/workflow/events.md"
-shipped_copy scripts/deploy-workflow "$PRUNE_PROJECT/scripts/workflow-event"
-shipped_copy workflow/spec.md "$PRUNE_PROJECT/workflow/verification/cli-app.mjs"
+shipped_copy workflow/events.md "$PRUNE_PROJECT/workflow/events.md"
+shipped_copy scripts/workflow-event "$PRUNE_PROJECT/scripts/workflow-event"
+shipped_copy workflow-scaffold/templates/verification/cli-app.mjs "$PRUNE_PROJECT/workflow/verification/cli-app.mjs"
 "$SCRIPT" "$PRUNE_PROJECT" --prune --dry-run >"$TMP_DIR/prune-dry.out"
 assert_contains "$TMP_DIR/prune-dry.out" "WOULD_REMOVE workflow/events.md"
 assert_file "$PRUNE_PROJECT/workflow/events.md"
@@ -360,15 +365,16 @@ assert_contains "$TMP_DIR/prune-again.out" "0 removed"
 
 FOREIGN_PROJECT="$TMP_DIR/foreign-project"
 "$SCRIPT" "$FOREIGN_PROJECT" >/dev/null
-shipped_copy README.md "$FOREIGN_PROJECT/workflow/events.md"
+shipped_copy workflow/events.md "$FOREIGN_PROJECT/workflow/events.md"
+shipped_copy workflow/spec.md "$FOREIGN_PROJECT/workflow/agent-quick-card.md"
 printf 'project predicates\n' >"$FOREIGN_PROJECT/scripts/lib/predicates.mjs"
 mkdir -p "$FOREIGN_PROJECT/scripts/project-verification"
 printf 'witness\n' >"$FOREIGN_PROJECT/scripts/project-verification/witness"
 ln -s missing-target "$FOREIGN_PROJECT/scripts/lib/workflow-events.mjs"
-shipped_copy README.md "$TMP_DIR/shipped-readme"
+shipped_copy scripts/workflow-event "$TMP_DIR/shipped-readme"
 ln -s "$TMP_DIR/shipped-readme" "$FOREIGN_PROJECT/scripts/workflow-event"
 : >"$FOREIGN_PROJECT/scripts/lib/review-rounds.jq"
-FOREIGN_SET="scripts/lib/predicates.mjs scripts/project-verification scripts/lib/workflow-events.mjs scripts/workflow-event scripts/lib/review-rounds.jq"
+FOREIGN_SET="workflow/agent-quick-card.md scripts/lib/predicates.mjs scripts/project-verification scripts/lib/workflow-events.mjs scripts/workflow-event scripts/lib/review-rounds.jq"
 for mode in --dry-run ""; do
   if "$SCRIPT" "$FOREIGN_PROJECT" --prune $mode >"$TMP_DIR/foreign.out" 2>&1; then
     printf 'expected prune to refuse project-owned retired paths\n' >&2
@@ -395,7 +401,7 @@ for retired in workflow/events.md $FOREIGN_SET; do
   assert_not_exists "$FOREIGN_PROJECT/$retired"
   assert_backup "$FOREIGN_PROJECT/$retired"
 done
-assert_contains "$TMP_DIR/foreign-forced.out" "6 removed"
+assert_contains "$TMP_DIR/foreign-forced.out" "7 removed"
 assert_file "$TMP_DIR/shipped-readme"
 
 PRUNE_LINKED="$TMP_DIR/prune-linked"
@@ -417,7 +423,7 @@ assert_file "$PRUNE_LINKED/workflow/events.md"
 TRACKED_PROJECT="$TMP_DIR/tracked-project"
 "$SCRIPT" "$TRACKED_PROJECT" >/dev/null
 printf '\nproject edit\n' >>"$TRACKED_PROJECT/workflow/spec.md"
-shipped_copy scripts/deploy-workflow "$TRACKED_PROJECT/scripts/workflow-event"
+shipped_copy scripts/workflow-event "$TRACKED_PROJECT/scripts/workflow-event"
 git -C "$TRACKED_PROJECT" init -q .
 printf '\nproject seed\n' >>"$TRACKED_PROJECT/docs/project-context.md"
 printf '\nold template\n' >>"$TRACKED_PROJECT/docs/agent-workflow.md"
@@ -474,13 +480,27 @@ assert_contains "$TMP_DIR/staged.out" "workflow/events.md has staged changes"
 assert_file "$STAGED_PROJECT/workflow/events.md"
 assert_file "$STAGED_PROJECT/scripts/workflow-event"
 
+STALE_PROJECT="$TMP_DIR/stale-project"
+"$SCRIPT" "$STALE_PROJECT" >/dev/null
+git -C "$ROOT_DIR" show "$(git -C "$ROOT_DIR" log -2 --format=%H -- workflow/answer-quality.md | tail -1):workflow/answer-quality.md" >"$STALE_PROJECT/workflow/answer-quality.md"
+"$SCRIPT" "$STALE_PROJECT" --dry-run >"$TMP_DIR/stale-dry.out"
+assert_contains "$TMP_DIR/stale-dry.out" "WOULD_REFRESH workflow/answer-quality.md"
+"$SCRIPT" "$STALE_PROJECT" >"$TMP_DIR/stale.out"
+assert_contains "$TMP_DIR/stale.out" "REFRESH   workflow/answer-quality.md"
+assert_same "$ROOT_DIR/workflow/answer-quality.md" "$STALE_PROJECT/workflow/answer-quality.md"
+if compgen -G "$STALE_PROJECT/workflow/answer-quality.md.bak.*" >/dev/null; then
+  printf 'a STALE refresh left a backup\n' >&2
+  exit 1
+fi
+"$SCRIPT" "$STALE_PROJECT" --check >/dev/null
+
 index_snapshot() {
   git -C "$1" ls-files --stage
 }
 
 UNINDEX_PROJECT="$TMP_DIR/unindex-project"
 "$SCRIPT" "$UNINDEX_PROJECT" >/dev/null
-shipped_copy README.md "$UNINDEX_PROJECT/workflow/events.md"
+shipped_copy workflow/events.md "$UNINDEX_PROJECT/workflow/events.md"
 mkdir -p "$UNINDEX_PROJECT/scripts/project-verification"
 printf 'tracked witness\n' >"$UNINDEX_PROJECT/scripts/project-verification/witness"
 git -C "$UNINDEX_PROJECT" init -q .
@@ -503,8 +523,8 @@ assert_contains "$TMP_DIR/unindex-again.out" "0 removed"
 GONE_PROJECT="$TMP_DIR/gone-project"
 "$SCRIPT" "$GONE_PROJECT" >/dev/null
 mkdir -p "$GONE_PROJECT/workflow/verification"
-shipped_copy README.md "$GONE_PROJECT/workflow/verification/cli-app.mjs"
-shipped_copy README.md "$GONE_PROJECT/workflow/events.md"
+shipped_copy workflow-scaffold/templates/verification/cli-app.mjs "$GONE_PROJECT/workflow/verification/cli-app.mjs"
+shipped_copy workflow/events.md "$GONE_PROJECT/workflow/events.md"
 git -C "$GONE_PROJECT" init -q .
 git -C "$GONE_PROJECT" add -f workflow/verification/cli-app.mjs workflow/events.md
 git -C "$GONE_PROJECT" -c user.name=smoke -c user.email=smoke@example.invalid commit -q -m "track retired"
@@ -530,7 +550,7 @@ assert_file "$GONE_PROJECT/workflow/events.md"
 
 BLIND_PROJECT="$TMP_DIR/blind-project"
 "$SCRIPT" "$BLIND_PROJECT" >/dev/null
-shipped_copy README.md "$BLIND_PROJECT/workflow/events.md"
+shipped_copy workflow/events.md "$BLIND_PROJECT/workflow/events.md"
 git -C "$BLIND_PROJECT" init -q .
 printf 'workflow/events.md diff=blind\n' >"$BLIND_PROJECT/.gitattributes"
 git -C "$BLIND_PROJECT" config diff.blind.textconv true
@@ -553,7 +573,7 @@ index_snapshot "$BLIND_PROJECT" | cmp -s - "$TMP_DIR/blind-index.before" || {
 SPARSE_PROJECT="$TMP_DIR/sparse-project"
 mkdir -p "$SPARSE_PROJECT/src" "$SPARSE_PROJECT/workflow"
 printf 'keep\n' >"$SPARSE_PROJECT/src/keep"
-shipped_copy README.md "$SPARSE_PROJECT/workflow/events.md"
+shipped_copy workflow/events.md "$SPARSE_PROJECT/workflow/events.md"
 git -C "$SPARSE_PROJECT" init -q .
 git -C "$SPARSE_PROJECT" add src/keep workflow/events.md
 git -C "$SPARSE_PROJECT" -c user.name=smoke -c user.email=smoke@example.invalid commit -q -m "track retired"
@@ -568,7 +588,7 @@ fi
 
 UNBORN_PROJECT="$TMP_DIR/unborn-project"
 "$SCRIPT" "$UNBORN_PROJECT" >/dev/null
-shipped_copy README.md "$UNBORN_PROJECT/workflow/events.md"
+shipped_copy workflow/events.md "$UNBORN_PROJECT/workflow/events.md"
 git -C "$UNBORN_PROJECT" init -q .
 git -C "$UNBORN_PROJECT" add -f workflow/events.md
 if "$SCRIPT" "$UNBORN_PROJECT" --prune >"$TMP_DIR/unborn.out" 2>&1; then

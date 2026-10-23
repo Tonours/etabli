@@ -77,16 +77,16 @@ RETIRED_FILES=(
   "workflow/project-autonomy-envelope.md"
   "workflow/project-verification-recipe.schema.json"
   "workflow/templates/project-autonomy-envelope.json"
-  "workflow/verification/README.md"
-  "workflow/verification/cli-app.mjs"
-  "workflow/verification/cli.recipe.json"
-  "workflow/verification/fixture-lifecycle.mjs"
-  "workflow/verification/observe-json.mjs"
-  "workflow/verification/recipe.example.json"
-  "workflow/verification/web-app.mjs"
-  "workflow/verification/web-drive.mjs"
-  "workflow/verification/web-probe.mjs"
-  "workflow/verification/web.recipe.json"
+  "workflow/verification/README.md|workflow-scaffold/templates/verification/README.md"
+  "workflow/verification/cli-app.mjs|workflow-scaffold/templates/verification/cli-app.mjs"
+  "workflow/verification/cli.recipe.json|workflow-scaffold/templates/verification/cli.recipe.json"
+  "workflow/verification/fixture-lifecycle.mjs|workflow-scaffold/templates/verification/fixture-lifecycle.mjs"
+  "workflow/verification/observe-json.mjs|workflow-scaffold/templates/verification/observe-json.mjs"
+  "workflow/verification/recipe.example.json|workflow-scaffold/templates/verification/recipe.example.json"
+  "workflow/verification/web-app.mjs|workflow-scaffold/templates/verification/web-app.mjs"
+  "workflow/verification/web-drive.mjs|workflow-scaffold/templates/verification/web-drive.mjs"
+  "workflow/verification/web-probe.mjs|workflow-scaffold/templates/verification/web-probe.mjs"
+  "workflow/verification/web.recipe.json|workflow-scaffold/templates/verification/web.recipe.json"
   "workflow/skills/ambitious-project-loop.md"
   "workflow/skills/ci-fix.md"
   "workflow/skills/pr-maintenance-loop.md"
@@ -126,7 +126,8 @@ Deploy the Etabli workflow scaffold into a new or existing project.
 
 Options:
   --dry-run   Show planned writes without touching the target
-  --force     Backup and overwrite conflicting files
+  --force     Backup and overwrite conflicting files (untracked copies of an older
+              etabli version are refreshed in place, with or without it)
   --refresh-tracked With --force, also overwrite tracked scaffold copies (git is the backup;
               AGENTS.md, docs/project-context.md, scripts, symlinks and files with
               uncommitted changes are kept)
@@ -134,7 +135,7 @@ Options:
               leave the index. Project-authored copies, symlinks and directories at a
               retired path are conflicts
   --prune-foreign With --prune, also move those project-owned retired paths
-  --check     Report drift between source templates and deployed files without writing
+  --check     Report drift (STALE: an older etabli copy, EDITED: changed locally) without writing
   --list-files List scaffold FILES entries as src|dest (repo-relative src) without writing
   -h, --help  Show this help
 
@@ -324,7 +325,7 @@ preflight_conflicts() {
       continue
     fi
 
-    if [ "$FORCE" -eq 0 ] && [ -e "$destination_path" ] && ! { [ -f "$destination_path" ] && cmp -s "$source_path" "$destination_path"; }; then
+    if [ "$FORCE" -eq 0 ] && [ -e "$destination_path" ] && ! { [ -f "$destination_path" ] && cmp -s "$source_path" "$destination_path"; } && ! shipped_by_etabli "$relative_path" "$source_path"; then
       status_line CONFLICT "$relative_path exists; rerun with --force or merge manually"
       CONFLICTS=$((CONFLICTS + 1))
     fi
@@ -363,13 +364,18 @@ check_deployed_files() {
       continue
     fi
 
-    status_line DRIFT "$relative_path"
+    if shipped_by_etabli "$relative_path" "$source_path"; then
+      status_line STALE "$relative_path"
+    else
+      status_line EDITED "$relative_path"
+    fi
     CHECK_DRIFT=$((CHECK_DRIFT + 1))
   done
 
   printf '\nSummary: %d drifted, %d missing, %d ok\n' "$CHECK_DRIFT" "$CHECK_MISSING" "$CHECK_OK"
 
   if [ $((CHECK_DRIFT + CHECK_MISSING)) -gt 0 ]; then
+    printf 'Fix: %s %s writes MISSING and refreshes STALE copies; review EDITED copies, then rerun it with --force\n' "$REPO_DIR/scripts/deploy-workflow" "$TARGET_DIR"
     exit 1
   fi
 }
@@ -431,6 +437,17 @@ write_file() {
     return 0
   fi
 
+  if shipped_by_etabli "$relative_path" "$source_path"; then
+    if [ "$DRY_RUN" -eq 1 ]; then
+      status_line WOULD_REFRESH "$relative_path"
+      return 0
+    fi
+    cp "$source_path" "$destination_path"
+    status_line REFRESH "$relative_path"
+    WRITTEN=$((WRITTEN + 1))
+    return 0
+  fi
+
   destination_dir="$(dirname "$destination_path")"
 
   if [ -e "$destination_dir" ] && [ ! -d "$destination_dir" ]; then
@@ -477,22 +494,25 @@ has_staged_change() {
 
 shipped_by_etabli() {
   local destination_path="$TARGET_DIR/$1"
-  local blob
+  local source_path="${2#"$REPO_DIR"/}"
+  local blob history
 
   [ -f "$destination_path" ] && [ -s "$destination_path" ] && [ ! -L "$destination_path" ] || return 1
   blob="$(git hash-object --no-filters -- "$destination_path")" || return 1
-  git -C "$REPO_DIR" cat-file -e "$blob^{blob}" 2>/dev/null
+  history="$(git -C "$REPO_DIR" log --no-abbrev --raw --format= -- "$source_path" 2>/dev/null)" || return 1
+  [[ "$history" == *" $blob "* ]]
 }
 
 preflight_prune() {
-  local relative_path parent_path physical_root physical_parent destination_path
+  local entry relative_path parent_path physical_root physical_parent destination_path
   local in_work_tree=0
 
   physical_root="$(cd "$TARGET_DIR" >/dev/null 2>&1 && pwd -P)"
   if git -C "$TARGET_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     in_work_tree=1
   fi
-  for relative_path in "${RETIRED_FILES[@]}"; do
+  for entry in "${RETIRED_FILES[@]}"; do
+    relative_path="${entry%%|*}"
     if [ "$in_work_tree" -eq 1 ] && has_staged_change "$relative_path"; then
       status_line CONFLICT "$relative_path has staged changes; commit or unstage them before --prune"
       CONFLICTS=$((CONFLICTS + 1))
@@ -510,7 +530,7 @@ preflight_prune() {
         ;;
     esac
     destination_path="$TARGET_DIR/$relative_path"
-    if [ "$PRUNE_FOREIGN" -eq 0 ] && { [ -e "$destination_path" ] || [ -L "$destination_path" ]; } && ! shipped_by_etabli "$relative_path"; then
+    if [ "$PRUNE_FOREIGN" -eq 0 ] && { [ -e "$destination_path" ] || [ -L "$destination_path" ]; } && ! shipped_by_etabli "$relative_path" "${entry#*|}"; then
       status_line CONFLICT "$relative_path is not a copy etabli shipped; review it, then rerun with --prune-foreign"
       CONFLICTS=$((CONFLICTS + 1))
     fi
@@ -672,8 +692,8 @@ if [ "$CONFLICTS" -eq 0 ]; then
     write_file "${entry%%|*}" "${entry#*|}"
   done
   if [ "$PRUNE" -eq 1 ]; then
-    for relative_path in "${RETIRED_FILES[@]}"; do
-      prune_file "$relative_path"
+    for entry in "${RETIRED_FILES[@]}"; do
+      prune_file "${entry%%|*}"
     done
   fi
 fi
