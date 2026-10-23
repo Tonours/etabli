@@ -74,23 +74,37 @@ function isExecutable(path) {
   }
 }
 
+function attempt(sync) {
+  try {
+    sync();
+    return 0;
+  } catch (error) {
+    emit("FAIL", error.message);
+    return 1;
+  }
+}
+
 function syncSettings({ homeDir, claudeRoot, claudeOnly, apply, install, timestamp: stamp }) {
   const dryRun = apply ? "0" : "1";
-  if (!claudeOnly && seedPiSettings({ homeDir, repoDir, apply }, emit)) {
-    run(join(scriptDir, "lib/pi-agent-settings-sync.mjs"), [
-      join(homeDir, ".pi/agent/settings.json"),
-      join(repoDir, "pi/agent/settings.json"),
-      dryRun,
-      stamp,
-      install ? "install" : "deploy",
-    ]);
+  let failures = 0;
+  if (!claudeOnly) {
+    failures += attempt(() => {
+      if (!seedPiSettings({ homeDir, repoDir, apply }, emit)) return;
+      run(join(scriptDir, "lib/pi-agent-settings-sync.mjs"), [
+        join(homeDir, ".pi/agent/settings.json"),
+        join(repoDir, "pi/agent/settings.json"),
+        dryRun,
+        stamp,
+        install ? "install" : "deploy",
+      ]);
+    });
   }
   const fragment = join(repoDir, "claude/settings.skill-overrides.json");
   if (!existsSync(fragment)) {
     emit("MISSING", "Claude skill-overrides fragment source");
-    return;
+    return failures;
   }
-  run(join(scriptDir, "lib/claude-settings-sync.mjs"), [join(claudeRoot, "settings.json"), fragment, dryRun, stamp, "deploy"]);
+  return failures + attempt(() => run(join(scriptDir, "lib/claude-settings-sync.mjs"), [join(claudeRoot, "settings.json"), fragment, dryRun, stamp, "deploy"]));
 }
 
 function skillLoadCheck({ claudeRoot, install }) {
@@ -140,12 +154,7 @@ for (const root of roots) {
   const counts = reconcile(pass, emit);
   for (const key of Object.keys(totals)) totals[key] += counts[key];
   if (options.check) continue;
-  try {
-    syncSettings(pass);
-  } catch (error) {
-    totals.unresolved += 1;
-    emit("FAIL", error.message);
-  }
+  totals.unresolved += syncSettings(pass);
   if (pass.apply && pass.live) skillLoadCheck(pass);
 }
 
