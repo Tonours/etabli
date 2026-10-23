@@ -129,8 +129,11 @@ watchdog=$!
 set +e
 wait "$pi_pid"
 status=$?
+kill "$watchdog" 2>/dev/null
+wait "$watchdog"
+watchdog_status=$?
 set -e
-if ! kill "$watchdog" 2>/dev/null; then
+if [ "$watchdog_status" -eq 0 ]; then
   printf 'HUNTER_TIMEOUT\n' >&2
   exit 3
 fi
