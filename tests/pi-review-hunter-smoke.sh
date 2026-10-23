@@ -88,5 +88,11 @@ FAKE_PI=empty PATH="$TMP_DIR/bin:$PATH" "$HELPER" --prompt-file "$PROMPT_FILE" -
 slow_rc=0
 FAKE_PI=slow PATH="$TMP_DIR/bin:$PATH" "$HELPER" --prompt-file "$PROMPT_FILE" --patch "$PATCH_FILE" --timeout 1 >/dev/null 2>&1 || slow_rc=$?
 [ "$slow_rc" -eq 3 ] || fail "timeout must exit 3, got $slow_rc"
+mkdir -p "$TMP_DIR/broken-perl"
+printf '#!/bin/sh\nexit 127\n' >"$TMP_DIR/broken-perl/perl"
+chmod +x "$TMP_DIR/broken-perl/perl"
+broken_rc=0
+PATH="$TMP_DIR/broken-perl:$TMP_DIR/bin:$PATH" "$HELPER" --prompt-file "$PROMPT_FILE" --patch "$PATCH_FILE" >/dev/null 2>&1 || broken_rc=$?
+[ "$broken_rc" -eq 3 ] || fail "a failed watchdog must not accept the report, got $broken_rc"
 
 printf 'pi-review-hunter smoke test: ok\n'
