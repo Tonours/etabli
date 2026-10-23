@@ -471,4 +471,15 @@ printf '%s\n' '{"defaultProvider":"local-mlx","defaultModel":"personal-model","e
 node "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" "$local_settings" "$ROOT_DIR/pi/agent/settings.json" 0 smoke install >/dev/null
 jq -e '.defaultProvider == "local-mlx" and .defaultModel == "personal-model"' "$local_settings" >/dev/null
 
+# A failing Pi settings sync still runs the Claude sync and fails the deploy.
+BAD_PI_HOME_DIR="$TMP_DIR/bad-pi-home"
+mkdir -p "$BAD_PI_HOME_DIR/.pi/agent" "$BAD_PI_HOME_DIR/.claude"
+printf '{bad' >"$BAD_PI_HOME_DIR/.pi/agent/settings.json"
+if "$DEPLOY_SCRIPT" --dry-run --home "$BAD_PI_HOME_DIR" >"$TMP_DIR/bad-pi.out" 2>&1; then
+  printf 'deploy with invalid Pi settings exited 0\n' >&2
+  exit 1
+fi
+grep -q 'pi-agent-settings-sync: cannot read local settings' "$TMP_DIR/bad-pi.out" || { cat "$TMP_DIR/bad-pi.out" >&2; exit 1; }
+grep -q 'Claude tracked settings' "$TMP_DIR/bad-pi.out" || { printf 'invalid Pi settings hid the Claude sync:\n' >&2; cat "$TMP_DIR/bad-pi.out" >&2; exit 1; }
+
 printf 'deploy agent workflow smoke test: ok\n'
