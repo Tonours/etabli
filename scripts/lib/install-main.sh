@@ -51,9 +51,9 @@ has_valid_rtk() {
     awk -v major="${BASH_REMATCH[1]}" -v minor="${BASH_REMATCH[2]}" -v patch="${BASH_REMATCH[4]:-0}" -v min="$RTK_MIN_VERSION" '
         BEGIN {
             split(min, m, ".")
-            if (major != m[1]) exit !(major > m[1])
-            if (minor != m[2]) exit !(minor > m[2])
-            exit !(patch >= m[3])
+            if (major + 0 != m[1] + 0) exit !(major + 0 > m[1] + 0)
+            if (minor + 0 != m[2] + 0) exit !(minor + 0 > m[2] + 0)
+            exit !(patch + 0 >= m[3] + 0)
         }'
 }
 
