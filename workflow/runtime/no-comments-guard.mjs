@@ -27,7 +27,6 @@ const CODE_EXTENSIONS = new Set([
 	".mts",
 	".cts",
 	".py",
-	".rb",
 	".go",
 	".rs",
 	".java",
@@ -60,16 +59,14 @@ const CODE_EXTENSIONS = new Set([
 
 const COMMENT_FAMILIES = new Map([
 	[".py", "python"],
-	[".rb", "ruby"],
 	[".sh", "shell"],
 	[".bash", "shell"],
 	[".zsh", "shell"],
 	[".sql", "sql"],
 	[".lua", "lua"],
 ]);
-const HASH_FAMILIES = new Set(["python", "ruby"]);
 const DASH_FAMILIES = new Set(["sql", "lua"]);
-const MULTILINE_STRING_FAMILIES = new Set(["ruby", "shell", "sql"]);
+const MULTILINE_STRING_FAMILIES = new Set(["shell", "sql"]);
 
 function extname(filePath) {
 	const base = String(filePath || "")
@@ -107,12 +104,7 @@ function isExemptComment(text) {
 	return false;
 }
 
-const SHELL_COMMAND_POSITION = /(^|[;&|({]|\b(then|do|else))\s*$/;
 const REGEX_LITERAL_PREFIX = /(^|[=(,:[!&|?{;+]|=>|\breturn)\s*$/;
-const RUBY_LITERAL_PREFIX = /(^|[=(,[{|&:;]|\s\?)\s*$/;
-const RUBY_HEREDOC = /^<<([~-]?)(?:(['"`])([^'"`\n]+)\2|([A-Za-z_]\w*))/;
-const RUBY_PERCENT = /^%([qQwWiIrsx]?)([^\w\s])/;
-const PERCENT_PAIRS = { "(": ")", "[": "]", "{": "}", "<": ">" };
 const MAX_NESTING = 64;
 
 function normalizeComment(text) {
@@ -123,7 +115,7 @@ function lineCommentAt(source, index, family) {
 	const char = source[index];
 	if (family === "clike") return char === "/" && source[index + 1] === "/" && source[index - 1] !== ":";
 	if (DASH_FAMILIES.has(family)) return char === "-" && source[index + 1] === "-";
-	if (HASH_FAMILIES.has(family)) return char === "#";
+	if (family === "python") return char === "#";
 	if (family === "shell") return char === "#" && (index === 0 || /\s/.test(source[index - 1]));
 	return false;
 }
@@ -144,31 +136,6 @@ function blockEnd(source, index, opener, closer, nested) {
 			continue;
 		}
 		cursor += 1;
-	}
-	return -1;
-}
-
-function skipPercentLiteral(source, index) {
-	const match = RUBY_PERCENT.exec(source.slice(index, index + 3));
-	if (!match) return -1;
-	const open = match[2];
-	const close = PERCENT_PAIRS[open] ?? open;
-	let depth = 1;
-	let cursor = index + match[0].length;
-	while (cursor < source.length) {
-		const char = source[cursor];
-		if (char === "\\") {
-			cursor += 2;
-			continue;
-		}
-		if (char === close) depth -= 1;
-		else if (char === open) depth += 1;
-		cursor += 1;
-		if (depth === 0) {
-			const flagsStart = cursor;
-			if (match[1] === "r") while (/[a-z]/.test(source[cursor] ?? "")) cursor += 1;
-			return source.slice(flagsStart, cursor).includes("x") ? -1 : cursor;
-		}
 	}
 	return -1;
 }
@@ -288,10 +255,7 @@ export function collectCommentLines(text, family) {
 
 	const scanCode = (start, closer) => {
 		let lineCode = "";
-		let previousCode = "";
 		let depth = 0;
-		let caseDepth = 0;
-		const arithmetic = closer === ")" && source[start] === "(";
 		const opener = { ")": "(", "}": "{" }[closer];
 		let index = start;
 		const heredocs = [];
@@ -302,7 +266,6 @@ export function collectCommentLines(text, family) {
 		while (index < source.length) {
 			const char = source[index];
 			if (char === "\n") {
-				if (lineCode.trim()) previousCode = lineCode;
 				lineCode = "";
 				index += 1;
 				for (const heredoc of heredocs.splice(0)) index = skipHeredoc(index, heredoc);
@@ -322,11 +285,6 @@ export function collectCommentLines(text, family) {
 					continue;
 				}
 			}
-			if (family === "shell" && !arithmetic && SHELL_COMMAND_POSITION.test(lineCode) && !/\(\(\s*$/.test(lineCode)) {
-				const word = /^(?:case(?=\s)|esac(?=[\s;)&|<>]|$))/.exec(source.slice(index, index + 5))?.[0];
-				if (word === "case") caseDepth += 1;
-				if (word === "esac" && caseDepth > 0) caseDepth -= 1;
-			}
 			if (closer === "`" && char === "`") return index + 1;
 			if (family === "shell" && source.startsWith("$(", index)) {
 				index = skipSubstitution(index);
@@ -335,7 +293,7 @@ export function collectCommentLines(text, family) {
 			}
 			if (opener && char === opener) depth += 1;
 			if (opener && char === closer) {
-				if (depth === 0 && caseDepth === 0) return index + 1;
+				if (depth === 0) return index + 1;
 				if (depth > 0) depth -= 1;
 			}
 			if ((family === "clike" || family === "sql") && source.startsWith("/*", index)) {
@@ -371,36 +329,6 @@ export function collectCommentLines(text, family) {
 					continue;
 				}
 			}
-			if (family === "ruby" && (index === 0 || source[index - 1] === "\n") && /^=begin(\s|$)/.test(source.slice(index, index + 7))) {
-				const end = /\n=end(\s|$)/.exec(source.slice(index));
-				const stop = end ? source.indexOf("\n", index + end.index + 1) : -1;
-				pushBlock(index, stop === -1 ? source.length : stop);
-				index = stop === -1 ? source.length : stop;
-				continue;
-			}
-			if (family === "ruby" && char === "?" && /[^\w\s'"`]/.test(source[index + 1] ?? "") && !/[\w$]/.test(source[index - 1] ?? "")) {
-				index += 2;
-				appendCode("S");
-				continue;
-			}
-			const rubyLiteral = family === "ruby" && (char === "%" || source.startsWith("<<", index)) && !/(^|[^\w]):$/.test(lineCode) && RUBY_LITERAL_PREFIX.test(lineCode.trim() ? lineCode : previousCode);
-			if (rubyLiteral && source.startsWith("<<", index)) {
-				const match = RUBY_HEREDOC.exec(source.slice(index, index + 200));
-				if (match) {
-					heredocs.push({ word: match[3] ?? match[4], indent: match[1] ? /^[ \t]+/ : null, expands: false });
-					appendCode("H");
-					index += match[0].length;
-					continue;
-				}
-			}
-			if (rubyLiteral && char === "%") {
-				const stop = skipPercentLiteral(source, index);
-				if (stop !== -1) {
-					index = stop;
-					appendCode("S");
-					continue;
-				}
-			}
 			if (lineCommentAt(source, index, family)) {
 				const end = source.indexOf("\n", index);
 				const stop = end === -1 ? source.length : end;
@@ -413,8 +341,7 @@ export function collectCommentLines(text, family) {
 				appendCode("S");
 				continue;
 			}
-			const rubySymbol = family === "ruby" && /(^|[^\w]):$/.test(lineCode);
-			if ((family === "clike" || family === "ruby") && !rubySymbol && char === "/" && REGEX_LITERAL_PREFIX.test(lineCode)) {
+			if (family === "clike" && char === "/" && REGEX_LITERAL_PREFIX.test(lineCode)) {
 				const stop = skipRegexLiteral(source, index);
 				if (stop !== -1) {
 					index = stop;
