@@ -14,9 +14,6 @@ learn -> plan -> implement -> review -> validate
 The workflow is ambient in any project that contains `workflow/spec.md`. Users
 should not need to write "use the Etabli workflow" in normal prompts. Agents
 must infer the smallest matching route from the request and local repo state.
-Explicit markers such as `/goal`, `plan-loop`, `workflow`, `subagents`,
-`jusqu'au bout`, `review`, or `verify` select specialized routes; they are not
-required for ordinary bug fixes, feature work, reviews, or verification.
 
 ## Agentic workflow loop
 
@@ -27,7 +24,7 @@ orchestration: `workflow/skills/orchestration.md`. One writer at any instant: th
 The multi-model council was removed (ADR-0013).
 
 ```text
-user intent -> router -> planner -> challenger -> adversary -> implementer -> verifier -> reviewer -> reporter -> stop
+user intent -> planner -> challenger -> adversary -> implementer -> verifier -> reviewer -> reporter -> stop
 ```
 
 ## Statuses
@@ -128,26 +125,21 @@ A plan is `READY` when it has:
 
 ## Routing rules
 
-<!-- ROUTES:begin -->
+Rows are checked top to bottom; the first matching row wins.
+
 | Trigger | Route | Artifact | Stop |
 | --- | --- | --- | --- |
-| Simple question or explanation | `answer` | none | answer delivered |
-| Diagnosis, compare, or pre-existing-capture forensics | `answer` | none | answer delivered; do not write `PLAN.md` |
-| Ordinary coding with no root `PLAN.md` and no explicit plan request | `answer` | code/docs | edit complete; do not skip READY/`plan-implement` when the user asked for a plan or the work is multi-slice |
-| Broad task, unclear implementation, or "fais un plan" | `plan-loop` | `PLAN.md` | `READY` or `CHALLENGED` |
-| Read-only adversarial PLAN.md review, or adversarial review with "do not edit" intent | `review` | findings only | `GO`, `GO WITH NOTES`, or `BLOCK` |
-| Adversarial plan review | `adversary` | updated `PLAN.md` | `READY`, `CHALLENGED`, or blocker |
-| Existing `READY PLAN.md` covering the requested task, plus implementation request | `implement` | code/docs + archive | validated archive and root `PLAN.md` deleted |
-| "plan puis implémente", autonomous `plan-loop`, or equivalent | `plan-implement` | `PLAN.md` then code/docs | validated archive and root `PLAN.md` deleted |
-| Self-improvement request from run evidence, recurring findings, or workflow failures | `plan-implement` | `PLAN.md` + workflow contract/router/check changes | validated archive and root `PLAN.md` deleted, or explicit no-op/blocker |
-| Ambitious project, "A to Z", "de a a z", or end-to-end project request | `plan-implement` | `PLAN.md` + spec/slices/workflow artifacts/code/docs as needed | validated archive and handoff |
-| Natural-language implementation request for a Linear ticket | `plan-implement` (`implement` with a READY plan) | `PLAN.md` from the ticket + code/docs + validation | validated archive and root `PLAN.md` deleted |
-| Review request, including a GitHub PR review in natural language | `review` | findings only | `GO`, `GO WITH NOTES`, or `BLOCK` |
+| Review request (diff, GitHub PR, plan) or adversarial review with "do not edit" intent | `review` | findings only | `GO`, `GO WITH NOTES`, or `BLOCK` |
 | Verify, retest, prove, or completion audit (interface `verify`; internal id `verify-workflow`) | `verify` | verification report | `VERIFIED`, `NOT VERIFIED`, or `INCONCLUSIVE` |
-<!-- ROUTES:end -->
+| Adversarial plan review that may edit `PLAN.md` | `adversary` | updated `PLAN.md` | `READY`, `CHALLENGED`, or blocker |
+| Existing `READY PLAN.md` covering the requested task, plus implementation request | `implement` | code/docs + archive | validated archive and root `PLAN.md` deleted |
+| "plan puis implémente", autonomous `plan-loop`, end-to-end ("A to Z") project, Linear ticket implementation, or self-improvement from run evidence | `plan-implement` | `PLAN.md` then code/docs | validated archive and root `PLAN.md` deleted, or explicit no-op/blocker |
+| Broad task, unclear implementation, or explicit plan request ("fais un plan") | `plan-loop` | `PLAN.md` | `READY` or `CHALLENGED` |
+| Question, explanation, diagnosis, compare, or forensics | `answer` | none | answer delivered; no `PLAN.md` |
+| Ordinary coding with no root `PLAN.md` | `answer` | code/docs | edit complete |
 
-Work commands are explicit commands (work scope), never chosen by the
-router: `/linear-work`, `/linear-ticket-create`, `/linear-project-setup`,
+Work commands are explicit commands (work scope), never chosen from the
+table: `/linear-work`, `/linear-ticket-create`, `/linear-project-setup`,
 `/bug-check`, `/pr-council-review`. Each runs under its own contract. Linear
 commands require Linear MCP or stop with `LINEAR_MCP_UNAVAILABLE` — see
 `docs/mcp-strategy.md` § Linear MCP gap. Rationale: ADR-0027.
@@ -164,8 +156,7 @@ are **opt-in**: load one only when the runtime exposes it and the brief clearly
 matches, never as a mandatory first step on `plan-loop` or `plan-implement`. A project skill wins over a generic language/framework skill when the
 task is about the codebase. When no matching skill is exposed, the route still
 follows its local-source fallback instead of silently skipping the phase.
-Selection stays with the model, never injected per prompt (ADR-0014). There is
-no additional global skill router.
+Selection stays with the model, never injected per prompt (ADR-0014).
 
 ## Human checkpoints
 

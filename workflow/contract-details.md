@@ -14,7 +14,6 @@ behavior in tracked workflow sources.
 Use the smallest workflow that can finish with evidence; the role chain is in
 `workflow/spec.md`. Roles are contracts, not mandatory separate agents:
 
-- `router`: pick the smallest valid route from the `workflow/spec.md` table (the model, not code).
 - `planner`: create or refresh `PLAN.md` and stop at `READY` or `CHALLENGED`.
 - `challenger`: reject vague scope, missing checks, hidden assumptions, and weak
   stop conditions before implementation.
