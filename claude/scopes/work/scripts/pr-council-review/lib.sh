@@ -6,6 +6,7 @@ REVIEW_INCOMPLETE_RC=4
 CLAUDE_PASS_TIMEOUT="${PR_REVIEW_PASS_TIMEOUT:-2700}"
 CLAUDE_MAX_TURNS="${PR_REVIEW_MAX_TURNS:-200}"
 CLAUDE_MAX_BUDGET_USD="${PR_REVIEW_MAX_BUDGET_USD:-25}"
+STOP_GRACE_SECONDS="${PR_REVIEW_STOP_GRACE:-10}"
 READ_ONLY_PROFILE=(--permission-mode auto --permission-prompts none --disallowedTools=Edit,Write,NotebookEdit)
 ISOLATED_SETTINGS=(--settings '{"disableAllHooks":true}' --strict-mcp-config --setting-sources project,local)
 USAGE_TARGET="${USAGE_TARGET:-}"
@@ -93,23 +94,45 @@ record_usage() {
   printf '%s\t%s\t%s\n' "$(date '+%F %T')" "$target" "${line#=== usage }" >>"$PR_REVIEW_USAGE_LOG"
 }
 
-run_with_timeout() {
-  local timeout="$1"
-  shift
-  perl -e 'setpgrp(0, 0); exec @ARGV or die "exec: $!"' "$@" &
-  local pid=$! waited=0
-  while kill -0 "$pid" 2>/dev/null; do
-    if [ "$waited" -ge "$timeout" ]; then
-      echo "=== timeout after ${timeout}s, killing process group $pid" >&2
-      kill -TERM -- "-$pid" 2>/dev/null
-      sleep 5
-      kill -KILL -- "-$pid" 2>/dev/null
-      return 124
-    fi
-    sleep 10
-    waited=$((waited + 10))
+stop_group() {
+  kill -TERM -- "-$1" 2>/dev/null
+  perl -e 'my ($g, $t) = @ARGV; for (1 .. 10 * $t) { kill(0, -$g) or exit; select(undef, undef, undef, 0.1) } kill "KILL", -$g' "$1" "$STOP_GRACE_SECONDS"
+}
+
+stop_children() {
+  local child
+  for child in $(pgrep -P $$); do
+    kill_tree "$child" TERM
   done
-  wait "$pid"
+}
+
+# Runs the command in its own process group; on INT or TERM, or at the timeout
+# (INT, then TERM, then KILL), the whole group stops. Returns 124 on a timeout.
+run_with_timeout() {
+  local timeout="$1" pid watchdog expired rc=0 saved
+  shift
+  expired="$(mktemp "${TMPDIR:-/tmp}/run-timeout.XXXXXX")" && rm -f "$expired"
+  saved="$(trap -p INT TERM)"
+  perl -e '$SIG{INT} = $SIG{QUIT} = "DEFAULT"; setpgrp(0, 0); exec @ARGV or die "exec: $!"' "$@" &
+  pid=$!
+  perl -e 'my ($t, $g, $grace, $flag) = @ARGV; sleep $t; open my $fh, ">", $flag; close $fh;
+    for my $signal ("INT", "TERM") { kill $signal, -$g; for (1 .. 10 * $grace) { kill(0, -$g) or exit; select(undef, undef, undef, 0.1) } }
+    kill "KILL", -$g' "$timeout" "$pid" "$STOP_GRACE_SECONDS" "$expired" </dev/null &
+  watchdog=$!
+  trap 'kill "$watchdog" 2>/dev/null; stop_group "$pid"; exit 130' INT
+  trap 'kill "$watchdog" 2>/dev/null; stop_group "$pid"; exit 143' TERM
+  wait "$pid" || rc=$?
+  kill "$watchdog" 2>/dev/null
+  wait "$watchdog" 2>/dev/null
+  trap - INT TERM
+  eval "$saved"
+  if [ -e "$expired" ]; then
+    rm -f "$expired"
+    kill -KILL -- "-$pid" 2>/dev/null
+    echo "=== timeout after ${timeout}s, process group $pid stopped" >&2
+    return 124
+  fi
+  return "$rc"
 }
 
 # claude_pass <label> <session json> <read-only|bypass> <prompt> [flags]: prints the result; returns 0,

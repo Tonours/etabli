@@ -347,6 +347,59 @@ case_tick_guards() {
   chmod 755 "$TMP_DIR/ro"
 }
 
+cat >"$TMP_DIR/standin.sh" <<'STANDIN'
+#!/bin/bash
+sleep 30017 &
+sleep 30017
+STANDIN
+cat >"$TMP_DIR/standin-traps.sh" <<'STANDIN'
+#!/bin/bash
+trap 'echo INT >>"$1"' INT
+trap 'echo TERM >>"$1"' TERM
+while :; do sleep 0.1; done
+STANDIN
+chmod +x "$TMP_DIR/standin.sh" "$TMP_DIR/standin-traps.sh"
+
+survivors() { pgrep -f "$1" | tr '\n' ' '; }
+
+signal_runner() {
+  local runner
+  perl -e '$SIG{INT} = "DEFAULT"; exec @ARGV' /bin/bash -c \
+    ". '$SCRIPTS/pr-council-review/lib.sh'; run_with_timeout 60 '$TMP_DIR/standin.sh'" &
+  runner=$!
+  sleep 1
+  kill "-$1" "$runner"
+  wait "$runner" 2>/dev/null || true
+  sleep 0.5
+}
+
+case_signals() {
+  signal_runner INT
+  check "signals: INT leaves no stand-in" [ -z "$(survivors 'sleep 30017')" ]
+  signal_runner TERM
+  check "signals: TERM leaves no stand-in" [ -z "$(survivors 'sleep 30017')" ]
+  local started elapsed rc=0
+  started="$(date +%s)"
+  PR_REVIEW_STOP_GRACE=1 /bin/bash -c ". '$SCRIPTS/pr-council-review/lib.sh'; run_with_timeout 1 '$TMP_DIR/standin-traps.sh' '$TMP_DIR/signals.log'" 2>/dev/null || rc=$?
+  elapsed=$(( $(date +%s) - started ))
+  check "timeout: exit 124" [ "$rc" = 124 ]
+  check "timeout: INT, then TERM, then KILL" [ "$(tr '\n' ' ' <"$TMP_DIR/signals.log")" = "INT TERM " ]
+  check "timeout: no stand-in survives" [ -z "$(survivors standin-traps)" ]
+  check "timeout: stopped within the grace periods" [ "$elapsed" -lt 6 ]
+}
+
+case_launchd_plist() {
+  local plist="$HOME/Library/LaunchAgents/com.aguimard.pr-review-watch.plist"
+  mkdir -p "$HOME/.claude/scripts"
+  ln -sfn "$SCRIPTS/pr-review-watch" "$HOME/.claude/scripts/pr-review-watch"
+  PR_REVIEW_WATCH_NO_LOAD=1 /bin/bash "$SCRIPTS/pr-review-watch/install.sh" >/dev/null
+  if command -v plutil >/dev/null; then
+    check "launchd: plist lints" plutil -lint -s "$plist"
+  fi
+  check "launchd: abandons the process group" eval "grep -A1 '<key>AbandonProcessGroup</key>' '$plist' | grep -q '<true/>'"
+  check "launchd: PATH starts with ~/.local/bin" grep -q "<string>$HOME/.local/bin:/opt/homebrew/bin:" "$plist"
+}
+
 case_clean_council_approves
 case_council_findings_wait
 case_phase_a_denial_vetoes
@@ -359,6 +412,8 @@ case_approval_post_failure_stays_pending
 case_verify_retry_skips_delta
 case_pass_caps_and_diagnostics
 case_tick_guards
+case_signals
+case_launchd_plist
 
 if [ "$failures" -ne 0 ]; then
   printf 'PR review flow smoke test: %s failure(s)\n' "$failures"

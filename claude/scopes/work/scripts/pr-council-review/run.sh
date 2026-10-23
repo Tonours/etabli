@@ -135,10 +135,7 @@ cleanup() {
 interrupt() {
   trap - INT TERM
   echo "=== interrupted, stopping every pass" >&2
-  local child
-  for child in $(pgrep -P $$); do
-    kill_tree "$child" TERM
-  done
+  stop_children
   exit 130
 }
 trap cleanup EXIT

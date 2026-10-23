@@ -9,7 +9,7 @@ INTERVAL="${1:-300}"
 [ -x "$SCRIPT" ] || { echo "missing $SCRIPT, run etabli scripts/install.sh first" >&2; exit 1; }
 case "$INTERVAL" in ''|*[!0-9]*) echo "interval must be seconds" >&2; exit 2 ;; esac
 
-mkdir -p "$HOME/.claude/logs"
+mkdir -p "$HOME/.claude/logs" "$(dirname "$PLIST")"
 cat >"$PLIST" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -26,6 +26,13 @@ cat >"$PLIST" <<EOF
   <integer>$INTERVAL</integer>
   <key>RunAtLoad</key>
   <true/>
+  <key>AbandonProcessGroup</key>
+  <true/>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
   <key>StandardOutPath</key>
   <string>$HOME/.claude/logs/pr-review-watch.launchd.out</string>
   <key>StandardErrorPath</key>
@@ -57,6 +64,7 @@ cat >"$AWAKE_PLIST" <<EOF
 </plist>
 EOF
 
+[ -z "${PR_REVIEW_WATCH_NO_LOAD:-}" ] || { echo "wrote $PLIST and $AWAKE_PLIST, not loaded"; exit 0; }
 for label_plist in "$LABEL:$PLIST" "$AWAKE_LABEL:$AWAKE_PLIST"; do
   launchctl bootout "gui/$(id -u)/${label_plist%%:*}" 2>/dev/null || true
   launchctl bootstrap "gui/$(id -u)" "${label_plist#*:}"

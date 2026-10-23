@@ -72,10 +72,19 @@ decide_and_approve() {
   post_approval "$body"
 }
 
+run_shown() {
+  local log="$1" rc
+  shift
+  { run_with_timeout "$TIMEOUT" "$@" </dev/null; echo "$?" >"$log.rc"; } 2>&1 | tee "$log" &
+  wait "$!"
+  rc="$(cat "$log.rc" 2>/dev/null || echo 1)"
+  rm -f "$log.rc"
+  return "$rc"
+}
+
 run_council() {
-  local rc body findings
-  run_with_timeout "$TIMEOUT" "$COUNCIL" "$NUMBER" "$REPO" --post </dev/null 2>&1 | tee "$REPORT"
-  rc="${PIPESTATUS[0]}"
+  local rc=0 body findings
+  run_shown "$REPORT" "$COUNCIL" "$NUMBER" "$REPO" --post || rc=$?
   [ "$rc" -eq 0 ] || return "$rc"
   findings="$(validator_run_findings "$REPORT" "$SHA")"
   [ -n "$findings" ] || { echo "=== no validator run marker for ${SHA:0:8}: the review is incomplete"; return "$REVIEW_INCOMPLETE_RC"; }
@@ -111,9 +120,12 @@ run_verify_fixes() {
   base="$(verify_merge_base)" && [ -n "$base" ] || { echo "cannot resolve the merge base for the verify pass"; return 1; }
   git worktree add -q --detach "$tree" "$SHA" || { echo "cannot create verify worktree"; return 1; }
   neutralize_author_config "$tree" "$SHA" "$base"
-  (cd "$tree" && claude_pass verify "$raw" read-only "$(verify_prompt)" \
-    --model "$VERIFY_MODEL" --effort "$VERIFY_EFFORT" "${ISOLATED_SETTINGS[@]}") | tee "$REPORT"
-  rc="${PIPESTATUS[0]}"
+  rc=0
+  cd "$tree" || return 1
+  claude_pass verify "$raw" read-only "$(verify_prompt)" \
+    --model "$VERIFY_MODEL" --effort "$VERIFY_EFFORT" "${ISOLATED_SETTINGS[@]}" >"$REPORT" || rc=$?
+  cd "$OLDPWD" || return 1
+  cat "$REPORT"
   git worktree remove --force "$tree" >/dev/null 2>&1
   return "$rc"
 }
@@ -163,7 +175,8 @@ run_pending_approval() {
 [ -f "${PR_REVIEW_WATCH_STATE_DIR:-$HOME/.claude/state/pr-review-watch}/off" ] && { echo "kill switch is on"; exit 0; }
 echo $$ >"$KEY.pid"
 trap finish EXIT
-trap 'exit 143' TERM INT
+trap 'stop_children; exit 130' INT
+trap 'stop_children; exit 143' TERM
 USAGE_TARGET="$REPO#$NUMBER"
 ME="$(gh api user --jq .login)" || exit 1
 echo "=== $MODE $REPO#$NUMBER @${SHA:0:8} — $URL"
