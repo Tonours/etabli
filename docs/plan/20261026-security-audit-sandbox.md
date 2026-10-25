@@ -5,7 +5,7 @@
 - Status: DONE
 - Branch: feat/security-audit-sandbox
 - Last revised: 2026-10-25
-- Archive: docs/plan/2026-10-26-security-audit-sandbox.md
+- Archive: docs/plan/20261026-security-audit-sandbox.md
 
 ## Goal
 Give `security-audit-glm` runs an OS-enforced sandbox that meets every control of the skill's "Universal execution safety" section, so verifiers can execute target code and reach `confirmed` instead of stopping at `needs_validation`, on macmini (this host) and macbook-work.
