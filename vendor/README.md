@@ -14,6 +14,7 @@ tree carries an `UPSTREAM_SHA` file with the commit it was taken from.
 | `mattpocock` | `mattpocock/skills` | `shared` | 8 — engineering pack plus `productivity/grilling` (below) |
 | `petergyang` | `petergyang/no-ai-slop` | `shared` | 1 — `no-ai-slop`, AI-slop editing pass |
 | `typesafe-ai` | `typesafe-ai/skills` | `shared` | 1 — `typesafe-ai`, build with TypeSafe System One (Jev) |
+| `cloudflare` | `cloudflare/security-audit-skill` | `shared` | 1 — `security-audit`, six-phase audit with fresh verifier agents; run on GLM by `security-audit-glm` |
 
 Pi receives a vendored skill only when its `workflow/runtime/skill-surface.tsv`
 row sets `pi_core=1` (today `typesafe-ai`); Claude visibility follows
