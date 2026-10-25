@@ -1,0 +1,207 @@
+#!/usr/bin/env bash
+# Run one target-controlled command for the security-audit skill inside a Docker
+# container that enforces the skill's "Universal execution safety" controls.
+set -uo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" >/dev/null 2>&1 && pwd)"
+IMAGE="etabli/security-audit-sandbox:1"
+RC_TIMEOUT=124
+RC_OUTPUT_CAP=120
+RC_SETUP=121
+
+usage() {
+  cat <<EOF
+Usage: security-audit-sandbox --scratch DIR [--target DIR] [--workdir PATH] [--env K=V]...
+                              [--timeout SECS] [--memory SIZE] [--cpus N] [--pids N]
+                              [--disk SIZE] [--file-size SIZE] [--output SIZE] -- CMD...
+       security-audit-sandbox --check | --build
+
+Runs CMD in a container with: no network but an isolated loopback; an env reset by
+env -i to a fixed allowlist plus literal --env values (HOME, TMPDIR and caches under
+/scratch/.sandbox); read-only rootfs, toolchain and target (/target); writes only to
+/scratch, an in-memory copy of DIR capped at --disk and discarded at exit; CPU,
+memory, process, file-size, open-file, disk, output and wall-clock limits.
+
+DIR must be the physical path of <output-dir>/agents/<agent-id>/scratch; it is
+copied in read-only (/seed), never written. Results leave only as stdout and
+stderr, merged and capped at --output. --workdir is a container path under
+/scratch or /target (default /scratch).
+
+Defaults (caps): timeout 300 (1800) s, memory 1g (1536m), cpus 1 (4), pids 256
+(1024), disk 512m (2g), file-size 256m (disk), output 256k (4m).
+Exit: CMD's status; $RC_TIMEOUT timeout; 137 killed (OOM is reported);
+$RC_OUTPUT_CAP output cap; $RC_SETUP seed copy or setup failure; 2 usage.
+--check: Docker and the image are ready. --build: build the image (network).
+EOF
+}
+
+die() { printf 'security-audit-sandbox: %s\n' "$1" >&2; exit "${2:-2}"; }
+
+# to_bytes <size> <cap>: checks the number against cap / unit before multiplying, so it cannot overflow.
+to_bytes() {
+  local n="${1%[kKmMgG]}" unit=1
+  case "${1: -1}" in k | K) unit=1024 ;; m | M) unit=$((1024 * 1024)) ;; g | G) unit=$((1024 * 1024 * 1024)) ;; esac
+  [[ "$n" =~ ^[1-9][0-9]{0,11}$ ]] && [ "$n" -le $(($2 / unit)) ] || return 1
+  echo $((n * unit))
+}
+
+# limit <name> <value> <cap> [size]: echoes the value (bytes for sizes) when it is within the cap.
+limit() {
+  local name="$1" value="$2" cap="$3" bytes
+  if [ "${4:-}" = size ]; then
+    bytes="$(to_bytes "$value" "$cap")" || die "--$name must be a size like 512m, at most $cap bytes"
+    echo "$bytes"
+  else
+    [[ "$value" =~ ^[1-9][0-9]{0,11}$ ]] || die "--$name must be a positive integer"
+    [ "$value" -le "$cap" ] || die "--$name $value exceeds the cap $cap"
+    echo "$value"
+  fi
+}
+
+resolve_docker() {
+  local candidate
+  for candidate in "$(command -v docker 2>/dev/null)" /usr/local/bin/docker /opt/homebrew/bin/docker; do
+    [ -n "$candidate" ] && [ -x "$candidate" ] && { printf '%s' "$candidate"; return 0; }
+  done
+  return 1
+}
+
+DOCKER="$(resolve_docker)" || DOCKER=""
+docker_ready() {
+  [ -n "$DOCKER" ] || die "docker not found; install Docker Desktop" 1
+  "$DOCKER" info >/dev/null 2>&1 || die "the Docker daemon does not answer; start Docker Desktop" 1
+  "$DOCKER" image inspect "$IMAGE" >/dev/null 2>&1 || die "image $IMAGE missing; run security-audit-sandbox --build" 1
+}
+
+SCRATCH="" TARGET="" WORKDIR="/scratch" EXTRA_ENV=()
+TIMEOUT=300 MEMORY=1g CPUS=1 PIDS=256 DISK=512m FILE_SIZE=256m OUTPUT=256k
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+  --check) docker_ready; echo "security-audit-sandbox: ready ($IMAGE)"; exit 0 ;;
+  --build)
+    [ -n "$DOCKER" ] || die "docker not found; install Docker Desktop" 1
+    exec "$DOCKER" build -t "$IMAGE" - <"$SCRIPT_DIR/security-audit-sandbox.Dockerfile" ;;
+  --scratch) shift; SCRATCH="${1:?}" ;;
+  --target) shift; TARGET="${1:?}" ;;
+  --workdir) shift; WORKDIR="${1:?}" ;;
+  --env) shift; [[ "${1:-}" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] || die "--env takes KEY=VALUE"
+    case "${1%%=*}" in
+    PATH | HOME | TMPDIR | XDG_CACHE_HOME | npm_config_* | NPM_CONFIG_* | PIP_* | PYTHON* | LANG | LC_* | CI | NO_COLOR | LD_* | BASH_ENV | ENV)
+      die "--env must not override the sandbox variable ${1%%=*}" ;;
+    esac
+    EXTRA_ENV+=("$1") ;;
+  --timeout) shift; TIMEOUT="${1:?}" ;;
+  --memory) shift; MEMORY="${1:?}" ;;
+  --cpus) shift; CPUS="${1:?}" ;;
+  --pids) shift; PIDS="${1:?}" ;;
+  --disk) shift; DISK="${1:?}" ;;
+  --file-size) shift; FILE_SIZE="${1:?}" ;;
+  --output) shift; OUTPUT="${1:?}" ;;
+  -h | --help) usage; exit 0 ;;
+  --) shift; break ;;
+  *) usage >&2; exit 2 ;;
+  esac
+  shift
+done
+[ "$#" -gt 0 ] || die "no command after --"
+
+TIMEOUT="$(limit timeout "$TIMEOUT" 1800)" || exit 2
+MEMORY_BYTES="$(limit memory "$MEMORY" $((1536 * 1024 * 1024)) size)" || exit 2
+CPUS="$(limit cpus "$CPUS" 4)" || exit 2
+PIDS="$(limit pids "$PIDS" 1024)" || exit 2
+DISK_BYTES="$(limit disk "$DISK" $((2 * 1024 * 1024 * 1024)) size)" || exit 2
+FILE_BYTES="$(limit file-size "$FILE_SIZE" "$DISK_BYTES" size)" || exit 2
+OUTPUT_BYTES="$(limit output "$OUTPUT" $((4 * 1024 * 1024)) size)" || exit 2
+
+physical() { (cd "$1" 2>/dev/null && pwd -P); }
+[ -n "$SCRATCH" ] || die "--scratch is required"
+[ -d "$SCRATCH" ] && [ "$(physical "$SCRATCH")" = "$SCRATCH" ] ||
+  die "--scratch must be an existing directory given by its physical path (pwd -P), with no symlinked component"
+[[ "$SCRATCH" =~ /agents/[a-z0-9][a-z0-9_-]{0,63}/scratch$ ]] ||
+  die "--scratch must be <output-dir>/agents/<agent-id>/scratch"
+HOME_PHYSICAL="$(physical "$HOME")" || HOME_PHYSICAL="$HOME"
+MOUNTS=(-v "$SCRATCH:/seed:ro")
+if [ -n "$TARGET" ]; then
+  [ -d "$TARGET" ] && [ "$(physical "$TARGET")" = "$TARGET" ] ||
+    die "--target must be an existing directory given by its physical path (pwd -P)"
+  for guarded in / "$HOME_PHYSICAL" "$SCRATCH"; do
+    case "$guarded/" in "${TARGET%/}/"*) die "--target must not be /, the home directory, or contain the scratch" ;; esac
+  done
+  case "$TARGET/" in "${SCRATCH%/*/scratch}/"*) die "--target must not be inside the run's agents directory" ;; esac
+  [[ ! "$TARGET/" =~ /agents/[^/]+/(scratch|artifacts)/ ]] || die "--target must not be an agent scratch or artifacts directory"
+  MOUNTS+=(-v "$TARGET:/target:ro")
+fi
+case "$WORKDIR" in /scratch | /scratch/* | /target | /target/*) ;; *) die "--workdir must be under /scratch or /target" ;; esac
+case "$WORKDIR" in *..*) die "--workdir must not contain .." ;; esac
+docker_ready
+
+SANDBOX_ENV=(
+  PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+  HOME=/scratch/.sandbox/home TMPDIR=/scratch/.sandbox/tmp XDG_CACHE_HOME=/scratch/.sandbox/cache
+  npm_config_cache=/scratch/.sandbox/cache/npm npm_config_offline=true npm_config_update_notifier=false
+  PIP_NO_INDEX=1 PIP_CACHE_DIR=/scratch/.sandbox/cache/pip PYTHONDONTWRITEBYTECODE=1
+  LANG=C.UTF-8 CI=1 NO_COLOR=1
+)
+# shellcheck disable=SC2016 # expanded by the container shell
+ENTRY='cp -RP /seed/. /scratch/ || { echo "=== sandbox: seed copy failed (over --disk?)" >&2; exit '"$RC_SETUP"'; }
+rm -rf /scratch/.sandbox && mkdir /scratch/.sandbox /scratch/.sandbox/home /scratch/.sandbox/tmp /scratch/.sandbox/cache || exit '"$RC_SETUP"'
+cd "$0" || exit '"$RC_SETUP"'
+exec "$@"'
+
+NAME="security-audit-sandbox-$$-$RANDOM"
+STATE="$(mktemp -d "${TMPDIR:-/tmp}/security-audit-sandbox.XXXXXX")"
+WATCHDOG=""
+cleanup() {
+  [ -z "$WATCHDOG" ] || kill "$WATCHDOG" 2>/dev/null
+  "$DOCKER" rm -f "$NAME" >/dev/null 2>&1
+  rm -rf "$STATE"
+}
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+trap 'exit 129' HUP
+
+perl -e 'my ($t, $flag, $parent, @kill) = @ARGV; sleep $t; open my $fh, ">", $flag; close $fh;
+  open STDOUT, ">", "/dev/null"; open STDERR, ">", "/dev/null";
+  while (kill 0, $parent) { system @kill; sleep 1 }' \
+  "$TIMEOUT" "$STATE/timeout" "$$" "$DOCKER" kill "$NAME" &
+WATCHDOG=$!
+disown "$WATCHDOG"
+
+cap_output() {
+  perl -e 'my ($max, $flag, @kill) = @ARGV; my $n = 0;
+    while (sysread(STDIN, my $buf, 65536)) {
+      my $room = $max - $n;
+      if (length($buf) > $room) {
+        syswrite(STDOUT, $buf, $room) if $room > 0; open my $fh, ">", $flag; close $fh;
+        if (fork() == 0) { open STDIN, "<", "/dev/null"; open STDOUT, ">", "/dev/null"; open STDERR, ">", "/dev/null"; exec @kill }
+        exit 0;
+      }
+      syswrite(STDOUT, $buf); $n += length $buf;
+    }' "$1" "$2" "$DOCKER" kill "$NAME"
+}
+
+"$DOCKER" run --name "$NAME" --pull never --network none --ipc none --log-driver none --hostname sandbox \
+  --read-only --cap-drop ALL --security-opt no-new-privileges --user 65534:65534 \
+  --memory "$MEMORY_BYTES" --memory-swap "$MEMORY_BYTES" --cpus "$CPUS" --pids-limit "$PIDS" \
+  --ulimit fsize="$FILE_BYTES" --ulimit nofile=1024 --ulimit core=0 \
+  --tmpfs "/scratch:rw,exec,size=$DISK_BYTES,mode=1777" --tmpfs /dev/mqueue:ro,size=4k "${MOUNTS[@]}" --workdir / \
+  "$IMAGE" /usr/bin/env -i "${SANDBOX_ENV[@]}" ${EXTRA_ENV[@]+"${EXTRA_ENV[@]}"} /bin/sh -c "$ENTRY" "$WORKDIR" "$@" \
+  2>&1 | cap_output "$OUTPUT_BYTES" "$STATE/output-cap"
+CLIENT_RC=${PIPESTATUS[0]}
+
+[ "$("$DOCKER" inspect -f '{{.State.Running}}' "$NAME" 2>/dev/null)" != true ] || "$DOCKER" kill "$NAME" >/dev/null 2>&1
+INSPECT="$("$DOCKER" inspect -f '{{.State.ExitCode}} {{.State.OOMKilled}}' "$NAME" 2>/dev/null)"
+EXIT_CODE="${INSPECT%% *}"
+OOM="${INSPECT##* }"
+if [ -e "$STATE/output-cap" ]; then
+  echo "=== sandbox: output cap of $OUTPUT_BYTES bytes reached, run stopped" >&2
+  exit "$RC_OUTPUT_CAP"
+fi
+if [ -e "$STATE/timeout" ]; then
+  echo "=== sandbox: wall-clock limit of ${TIMEOUT}s reached, container killed" >&2
+  exit "$RC_TIMEOUT"
+fi
+[ "$OOM" != true ] || echo "=== sandbox: out of memory (limit $MEMORY_BYTES bytes), killed" >&2
+[[ "$EXIT_CODE" =~ ^[0-9]+$ ]] || { echo "=== sandbox: container did not run (docker exit $CLIENT_RC)" >&2; exit "$RC_SETUP"; }
+exit "$EXIT_CODE"
