@@ -1,7 +1,7 @@
 ---
 name: pr-council-review
-description: Runs a three-pass review of one PR (code-review + thermo-nuclear, then forest:validator as the council), dry-run by default. Use when a GitHub PR needs the full council review; not for local diffs (review).
-argument-hint: "<PR number or URL> [owner/repo] [--post] [--phase-a-model <alias>]"
+description: Runs a cross-family review of one PR (code-review + thermo-nuclear + codex, then forest:validator as the council), dry-run by default. Use when a GitHub PR needs the full council review; not for local diffs (review).
+argument-hint: "<PR number or URL> [owner/repo] [--post] [--phase-a-model <alias>] [--no-codex] [--codex-model <model>]"
 allowed-tools: [Bash, Read, Glob, Grep]
 ---
 
@@ -16,13 +16,17 @@ refuses a closed or merged PR. Agent config files the PR changes are reset to
 the base version in the scratch worktree, so the PR cannot steer phase A. Token
 usage per pass is appended to `~/.claude/logs/pr-review-usage.log`.
 
-- Phase A, in a detached scratch worktree at the PR head: `/code-review` and
-  `/thermo-nuclear-code-quality-review` in parallel. Neither writes to GitHub.
+- Phase A, in a detached scratch worktree at the PR head: `/code-review`,
+  `/thermo-nuclear-code-quality-review` and a `codex exec` review in parallel.
+  None writes to GitHub.
   Phase A runs on `sonnet` (`--phase-a-model` / `PR_COUNCIL_PHASE_A_MODEL`)
   without MCP servers, hooks or user settings, to keep each session's base
   context small; the validator keeps the full setup on `opus`.
-  Both passes are Claude: report the run as a same-family review, never as
-  cross-model.
+  The codex member runs `gpt-6.1-sol` at `xhigh` (`--codex-model`,
+  `--codex-effort`, `PR_COUNCIL_CODEX_*`) in a read-only sandbox without user
+  config; `--no-codex` or `PR_COUNCIL_USE_CODEX=0` skips it. Report the run as
+  cross-family only when the codex pass succeeded; a missing binary or a failed
+  pass leaves a same-family review.
 - Phase B: `/validator` on the PR, with phase A's findings injected as extra
   candidates for its step 6 skeptic gate. One review, the validator's emit
   contract, its writing rules, its markers.

@@ -18,7 +18,7 @@ export GH_ENTERPRISE_TOKEN=invalid-flow-token GITHUB_ENTERPRISE_TOKEN=invalid-fl
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 export PR_REVIEW_WATCH_COUNCIL="$SCRIPTS/pr-council-review/run.sh"
-export PR_COUNCIL_CLAUDE="$HOME/.local/bin/claude" PR_REVIEW_WATCH_LOG="$TMP_DIR/watch.log"
+export PR_COUNCIL_CLAUDE="$HOME/.local/bin/claude" PR_COUNCIL_CODEX="$HOME/.local/bin/codex" PR_REVIEW_WATCH_LOG="$TMP_DIR/watch.log"
 export PR_REVIEW_WATCH_CI_WAIT=0 PR_REVIEW_USAGE_LOG="$TMP_DIR/usage.log"
 mkdir -p "$TMPDIR" "$HOME/.local/bin" "$HOME/.claude/skills/thermo-nuclear-code-quality-review" "$FAKE_DIR" "$GH_CONFIG_DIR"
 echo "thermo stub" >"$HOME/.claude/skills/thermo-nuclear-code-quality-review/SKILL.md"
@@ -79,6 +79,7 @@ case "$prompt" in
   *) echo "fake claude: unknown prompt" >&2; exit 1 ;;
 esac
 printf 'claude %s GIT_TERMINAL_PROMPT=%s %s\n' "$role" "${GIT_TERMINAL_PROMPT:-unset}" "${flags[*]}" >>"$FAKE_LOG"
+[ "$role" != VALIDATOR ] || printf '%s' "$prompt" >"$FAKE_DIR/validator-prompt.txt"
 stderr_var="FAKE_${role}_STDERR"
 [ -z "${!stderr_var:-}" ] || echo "${!stderr_var}" >&2
 sleep_var="FAKE_${role}_SLEEP"
@@ -91,6 +92,18 @@ printf '%s\n' "$out"
 if [ -n "${!rc_var:-}" ]; then exit "${!rc_var}"; fi
 [ "$(printf '%s' "$out" | jq -r .is_error)" = false ]
 CLAUDE
+
+cat >"$HOME/.local/bin/codex" <<'CODEX'
+#!/bin/bash
+printf 'codex %s\n' "${*:1:$#-1}" >>"$FAKE_LOG"
+prev="" out=""
+for arg in "$@"; do
+  [ "$prev" = --output-last-message ] && out="$arg"
+  prev="$arg"
+done
+[ -z "${FAKE_CODEX_RC:-}" ] || exit "$FAKE_CODEX_RC"
+printf '%s\n' "${FAKE_CODEX_TEXT:-codex: no defect found}" >"$out"
+CODEX
 
 cat >"$HOME/.local/bin/terminal-notifier" <<'NOTIFY'
 #!/bin/bash
@@ -140,6 +153,7 @@ run_review() {
   mkdir -p "$STATE/runs"
   : >"$FAKE_LOG"
   : >"$FAKE_DIR/posts.log"
+  rm -f "$FAKE_DIR/validator-prompt.txt"
   RC=0
   (cd "$CLONE" && PR_REVIEW_WATCH_STATE_DIR="$STATE" /bin/bash "$SCRIPTS/pr-review-watch/review-run.sh" \
     "$1" o/r 7 "$2" "$3" https://github.invalid/o/r/pull/7 "$TMP_DIR/report-$1.md" "$KEY") \
@@ -186,6 +200,25 @@ case_council_findings_wait() {
   check "council with findings: no approval" [ "$(approvals)" = 0 ]
   check "council with findings: done" [ "$(cat "$KEY.council-done" 2>/dev/null)" = "$HEAD1" ]
   check "council with findings: not clean" no_file "$KEY.council-clean"
+}
+
+case_codex_member() {
+  reset_state
+  set_head "$HEAD1"
+  FAKE_CODEX_TEXT="codex finding a.txt:1" FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "codex member: read-only sol xhigh" grep -q -- "^codex exec .*--sandbox read-only .*--model gpt-6.1-sol -c model_reasoning_effort=\"xhigh\"" "$FAKE_LOG"
+  check "codex member: report reaches the validator" grep -q "cross-family member" "$FAKE_DIR/validator-prompt.txt"
+  check "codex member: exit 0" rc_is 0
+  reset_state
+  FAKE_CODEX_RC=1 FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "codex failure: validator still runs" called "claude VALIDATOR"
+  check "codex failure: same-family" grep -q "Phase A was same-family" "$FAKE_DIR/validator-prompt.txt"
+  check "codex failure: exit 0" rc_is 0
+  reset_state
+  PR_COUNCIL_USE_CODEX=0 FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "codex opt-out: not called" not_called codex
+  check "codex opt-out: same-family" grep -q "Phase A was same-family" "$FAKE_DIR/validator-prompt.txt"
+  check "codex opt-out: exit 0" rc_is 0
 }
 
 case_phase_a_denial_vetoes() {
@@ -428,16 +461,19 @@ case_autoreview_fails_loudly() {
 
 case_housekeeping() {
   local repo="$TMP_DIR/neutralize" stale="$TMPDIR/pr-verify-99.stale"
-  check "codex: the council has no codex path" eval '[ ! -e "$SCRIPTS/pr-council-review/codex-prompt.md" ] && ! grep -qi codex "$SCRIPTS/pr-council-review/run.sh" "$SCRIPTS/pr-council-review/council-prompt.md"'
   git init -q "$repo"
   git -C "$repo" commit -q --allow-empty -m base
   mkdir -p "$repo/sub"
   echo steer >"$repo/CLAUDE.local.md"
   echo steer >"$repo/sub/CLAUDE.local.md"
+  echo steer >"$repo/sub/AGENTS.override.md"
+  mkdir -p "$repo/.codex"
+  echo steer >"$repo/.codex/config.toml"
   git -C "$repo" add -A
   git -C "$repo" commit -q -m steer
   /bin/bash -c ". '$SCRIPTS/pr-council-review/lib.sh'; neutralize_author_config '$repo' HEAD~1" >/dev/null
   check "author config: CLAUDE.local.md files are reset" eval '[ ! -e "$repo/CLAUDE.local.md" ] && [ ! -e "$repo/sub/CLAUDE.local.md" ]'
+  check "author config: codex instructions are reset" eval '[ ! -e "$repo/sub/AGENTS.override.md" ] && [ ! -e "$repo/.codex/config.toml" ]'
   mkdir -p "$stale"
   touch -t 202001010000 "$stale"
   FAKE_VALIDATOR_TEXT="Review posted. $(marker 2)" verify_after_findings "$HEAD2"
@@ -572,6 +608,7 @@ case_launchd_plist() {
 
 case_clean_council_approves
 case_council_findings_wait
+case_codex_member
 case_phase_a_denial_vetoes
 case_verify_after_findings_approves
 case_incomplete_reviews

@@ -14,7 +14,13 @@ USAGE_TARGET="${USAGE_TARGET:-}"
 export GIT_TERMINAL_PROMPT=0
 . "$(dirname "${BASH_SOURCE[0]}")/../claude-bin.sh"
 CLAUDE="${PR_COUNCIL_CLAUDE:-$CLAUDE}"
-AUTHOR_CONFIG_PATHS=(CLAUDE.md CLAUDE.local.md AGENTS.md .mcp.json .claude ':(glob)**/CLAUDE.md' ':(glob)**/CLAUDE.local.md' ':(glob)**/AGENTS.md' ':(glob)**/.claude/**')
+CODEX="${PR_COUNCIL_CODEX:-}"
+if [ -z "$CODEX" ]; then
+  for candidate in "$HOME/.local/share/fnm/aliases/default/bin/codex" "$HOME/.local/bin/codex" "$(command -v codex 2>/dev/null)"; do
+    [ -n "$candidate" ] && [ -x "$candidate" ] && { CODEX="$candidate"; break; }
+  done
+fi
+AUTHOR_CONFIG_PATHS=(CLAUDE.md CLAUDE.local.md AGENTS.md AGENTS.override.md .mcp.json .claude .codex ':(glob)**/CLAUDE.md' ':(glob)**/CLAUDE.local.md' ':(glob)**/AGENTS.md' ':(glob)**/AGENTS.override.md' ':(glob)**/.claude/**' ':(glob)**/.codex/**')
 
 render_template() {
   local file="$1"
@@ -22,7 +28,7 @@ render_template() {
   env "${@/#/T_}" perl -0pe 's/\{\{(\w+)\}\}/exists $ENV{"T_$1"} ? $ENV{"T_$1"} : $&/ge' "$file"
 }
 
-# Reset every agent config file (CLAUDE.md, CLAUDE.local.md, AGENTS.md, .claude, .mcp.json) in the
+# Reset every agent config file (CLAUDE.md, AGENTS.md and their local/override variants, .claude, .codex, .mcp.json) in the
 # worktree to its version in the trusted commit (default: the staged base), wherever in
 # the PR history it was changed. Paths stay staged against the base so the review diff
 # does not show them.
@@ -175,6 +181,25 @@ claude_pass() {
   if denial_veto "$raw" "$rc"; then return "$REVIEW_VETO_RC"; fi
   [ "$result_rc" -ne 2 ] || return "$REVIEW_INCOMPLETE_RC"
   [ "$rc" -eq 0 ] || return "$rc"
+}
+
+# codex_pass <worktree> <report> <model> <effort> <prompt>: one read-only codex exec run
+# without user config (MCP servers, profiles); its final message goes to the report.
+codex_pass() {
+  local tree="$1" report="$2" model="$3" effort="$4" prompt="$5" rc=0
+  run_with_timeout "$CLAUDE_PASS_TIMEOUT" "$CODEX" exec --cd "$tree" --sandbox read-only \
+    --ignore-user-config --ephemeral --color never --model "$model" \
+    -c model_reasoning_effort="\"$effort\"" --output-last-message "$report" "$prompt" \
+    </dev/null >"$report.log" 2>&1 || rc=$?
+  if [ "$rc" -eq 0 ] && [ ! -s "$report" ]; then
+    echo "=== codex: exited 0 without a final message" >&2
+    rc=1
+  fi
+  if [ "$rc" -ne 0 ]; then
+    echo "=== codex: exited $rc; log tail:" >&2
+    tail -n 20 "$report.log" >&2
+  fi
+  return "$rc"
 }
 
 acquire_lock() {
