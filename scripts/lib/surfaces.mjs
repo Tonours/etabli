@@ -489,7 +489,7 @@ function reconcilePi(ctx) {
   for (const name of repoFiles(join(repoDir, "pi/themes"), ".json")) {
     ensureLink(ctx, join(repoDir, "pi/themes", name), join(agentDir, "themes", name), `Pi theme ${name}`);
   }
-  for (const script of ["fix-links", "deploy-workflow"]) {
+  for (const script of ["fix-links", "deploy-workflow", "security-audit-glm"]) {
     ensureLink(ctx, join(repoDir, "scripts", script), join(homeDir, ".local/bin", script), `script ${script}`);
   }
 }
