@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# Run the vendored Cloudflare security-audit skill in Claude Code on Z.ai GLM only:
+# the session and every subagent it spawns use the same GLM model.
+set -euo pipefail
+
+REPO_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." >/dev/null 2>&1 && pwd)"
+SKILL_DIR="$REPO_DIR/vendor/cloudflare/skills/security-audit"
+
+usage() {
+  cat <<EOF
+Usage: security-audit-glm [target-dir] [--profile quick|standard|deep] [--out DIR]
+                          [--model ID] [--effort low|high|max] [--print] [--dry-run]
+
+Runs the security-audit skill through Claude Code against the Z.ai Anthropic
+endpoint. Needs ZAI_API_KEY. Defaults: glm-5.3[1m], effort max, profile
+standard, reports under ~/security-audit-skill/<repo>/run-N, interactive
+session (--print runs headless). The audited repo's .claude settings, hooks
+and .mcp.json are not loaded.
+EOF
+}
+
+TARGET="."
+PROFILE="standard"
+OUT=""
+MODEL="${SECURITY_AUDIT_GLM_MODEL:-glm-5.3[1m]}"
+EFFORT="${SECURITY_AUDIT_GLM_EFFORT:-max}"
+PRINT=0
+DRY_RUN=0
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+  --profile) shift; PROFILE="${1:?--profile needs a value}" ;;
+  --out) shift; OUT="${1:?--out needs a value}" ;;
+  --model) shift; MODEL="${1:?--model needs a value}" ;;
+  --effort) shift; EFFORT="${1:?--effort needs a value}" ;;
+  --print) PRINT=1 ;;
+  --dry-run) DRY_RUN=1 ;;
+  -h | --help) usage; exit 0 ;;
+  -*) usage >&2; exit 2 ;;
+  *) TARGET="$1" ;;
+  esac
+  shift
+done
+
+case "$PROFILE" in quick | standard | deep) ;; *) echo "unknown profile: $PROFILE (quick, standard or deep)" >&2; exit 2 ;; esac
+case "$EFFORT" in low | high | max) ;; *) echo "unsupported effort: $EFFORT (GLM takes low, high or max)" >&2; exit 2 ;; esac
+[ -f "$SKILL_DIR/SKILL.md" ] || { echo "security-audit skill missing at $SKILL_DIR; run scripts/sync-vendor-skills cloudflare" >&2; exit 1; }
+TARGET="$(cd "$TARGET" 2>/dev/null && pwd)" || { echo "target is not a directory" >&2; exit 1; }
+[ -n "${ZAI_API_KEY:-}" ] || { echo "ZAI_API_KEY is not set; export your Z.ai API key first" >&2; exit 1; }
+CLAUDE="$(command -v claude)" || { echo "claude binary not found on PATH" >&2; exit 1; }
+
+STATE_DIR="${SECURITY_AUDIT_GLM_HOME:-${XDG_STATE_HOME:-$HOME/.local/state}/security-audit-glm}"
+mkdir -p "$STATE_DIR/skills"
+STATE_DIR="$(cd "$STATE_DIR" && pwd)"
+ln -sfn "$SKILL_DIR" "$STATE_DIR/skills/security-audit"
+printf '{"disableAllHooks":true,"skipWebFetchPreflight":true}\n' >"$STATE_DIR/settings.json"
+
+OUT_ROOT="$HOME/security-audit-skill"
+if [ -n "$OUT" ]; then
+  mkdir -p "$OUT"
+  OUT="$(cd "$OUT" && pwd)"
+  OUT_ROOT="$OUT"
+fi
+mkdir -p "$OUT_ROOT"
+
+PROMPT="Run a full security audit of this codebase with the security-audit skill, profile \`$PROFILE\`${OUT:+, output to \`$OUT\`}. On this platform the Task tool is the \`Agent\` tool: load it with ToolSearch \`select:Agent\` before Phase 1. Every agent you spawn runs on the same model as you."
+ARGS=(--model "$MODEL" --effort "$EFFORT" --permission-mode auto --setting-sources user --strict-mcp-config --add-dir "$OUT_ROOT")
+[ "$PRINT" = 0 ] || ARGS+=(--print --output-format text)
+
+RUN=(env -u ANTHROPIC_API_KEY -u ANTHROPIC_CUSTOM_HEADERS -u ANTHROPIC_SMALL_FAST_MODEL -u CLAUDE_CODE_OAUTH_TOKEN
+  -u CLAUDE_CODE_USE_BEDROCK -u CLAUDE_CODE_USE_VERTEX -u CLAUDE_CODE_USE_FOUNDRY
+  CLAUDE_CONFIG_DIR="$STATE_DIR"
+  ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic
+  ANTHROPIC_DEFAULT_OPUS_MODEL="$MODEL" ANTHROPIC_DEFAULT_SONNET_MODEL="$MODEL" ANTHROPIC_DEFAULT_HAIKU_MODEL="$MODEL"
+  CLAUDE_CODE_SUBAGENT_MODEL="$MODEL"
+  API_TIMEOUT_MS=3000000 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+  "$CLAUDE" "${ARGS[@]}" -- "$PROMPT")
+
+echo "security-audit-glm: $TARGET, profile $PROFILE, $MODEL ($EFFORT) via Z.ai" >&2
+if [ "$DRY_RUN" = 1 ]; then
+  printf '%q ' ANTHROPIC_AUTH_TOKEN='$ZAI_API_KEY' "${RUN[@]}"
+  echo
+  exit 0
+fi
+cd "$TARGET"
+ANTHROPIC_AUTH_TOKEN="$ZAI_API_KEY" exec "${RUN[@]}"

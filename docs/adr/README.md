@@ -40,3 +40,4 @@ Decisions live in this directory. Run `/adr` to record one.
 - [0036](0036-drop-the-route-classifier-and-its-orphan-telemetry.md) — Drop the route classifier and its orphan telemetry [accepted]
 - [0037](0037-serve-one-skill-tree-to-both-runtimes.md) — Serve one skill tree to both runtimes [accepted]
 - [0038](0038-reconcile-agent-surfaces-from-one-node-manifest.md) — Reconcile agent surfaces from one Node manifest [accepted]
+- [0039](0039-run-the-cloudflare-security-audit-on-glm.md) — Run the Cloudflare security audit on GLM [accepted]
