@@ -39,3 +39,4 @@ full	shell-docs	pi-skill-load-check-smoke	tests/pi-skill-load-check-smoke.sh
 full	shell-docs	skills-lock-coverage-smoke	tests/skills-lock-coverage-smoke.sh
 full	shell-docs	claude-statusline-smoke	tests/claude-statusline-smoke.sh
 full	shell-docs	security-audit-glm-smoke	tests/security-audit-glm-smoke.sh
+full	shell-docs	security-audit-sandbox-smoke	tests/security-audit-sandbox-smoke.sh
