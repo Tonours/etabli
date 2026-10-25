@@ -2,7 +2,7 @@
 status: accepted
 date: 2026-10-25
 tags: [tooling, security, vendor, claude, glm]
-affected_components: [vendor/sources.tsv, vendor/cloudflare, scripts/security-audit-glm, scripts/lib/surfaces.mjs, workflow/runtime/skill-surface.tsv, claude/settings.skill-overrides.json]
+affected_components: [vendor/sources.tsv, vendor/cloudflare, scripts/security-audit-glm, scripts/security-audit-sandbox, scripts/lib/surfaces.mjs, workflow/runtime/skill-surface.tsv, claude/settings.skill-overrides.json]
 ---
 
 # Run the Cloudflare security audit on GLM
@@ -16,5 +16,6 @@ The harness is Claude Code, not Pi, because the skill needs fresh, isolated veri
 ## Consequences
 
 - The runner uses its own `CLAUDE_CONFIG_DIR` (`~/.local/state/security-audit-glm`), `--setting-sources user` and `--strict-mcp-config`: no Anthropic credential, user hook or MCP server, and none of the audited repo's `.claude` settings, hooks or `.mcp.json`, reach the run.
+- Target code runs only through `scripts/security-audit-sandbox`, a Docker Desktop container that meets the skill's "Universal execution safety" controls: no network but an isolated loopback, `env -i` with a fixed allowlist, read-only rootfs, toolchain and target, writes only to a size-capped in-memory copy of the agent scratch, and CPU, memory, pids, file-size, output and wall-clock limits. Docker won over Apple `container` (absent, and macbook-work runs macOS 14) and `sandbox-exec` (no memory, pids or disk limits). The launcher checks it before each run; without Docker Desktop and the `etabli/security-audit-sandbox:1` image (`security-audit-sandbox --build`) the audit stays source-only. Results leave only as capped stdout and stderr, so the promotion allowlist is empty. Residuals: target code can read every file of the target, including an ignored `.env`, which the agents can already read as source; GLM agents can still run target code on the host with their own shell tool, which only the prompt and the skill forbid.
 - Audited source goes to Z.ai. Running it on a repo is a confidentiality decision for that repo's owner.
 - Review date: 2027-01-25. If the runner is still unused then, delete it and the vendored skill.
