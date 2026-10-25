@@ -28,6 +28,7 @@
     "prototype": "user-invocable-only",
     "research": "on",
     "review": "user-invocable-only",
+    "security-audit": "user-invocable-only",
     "spec": "on",
     "thermo-nuclear-code-quality-review": "user-invocable-only",
     "typesafe-ai": "user-invocable-only",

@@ -145,6 +145,11 @@
       "source": "local",
       "sourceType": "repo",
       "computedHash": "6ff837db47d6ce6d542a9ebd9dc8b4839cae261379cb0593e9ae48181af2ce78"
+    },
+    "security-audit": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "98b97aad2873b3b9a8e064007c25e7827b493ba27fda8bfbdb41dab586767973"
     }
   }
 }
