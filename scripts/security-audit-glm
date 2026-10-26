@@ -74,9 +74,12 @@ fi
 STATE_DIR="${SECURITY_AUDIT_GLM_HOME:-${XDG_STATE_HOME:-$HOME/.local/state}/security-audit-glm}"
 mkdir -p "$STATE_DIR/skills"
 STATE_DIR="$(cd "$STATE_DIR" && pwd)"
-ln -sfn "$SKILL_DIR" "$STATE_DIR/skills/security-audit" 2>/dev/null ||
-  [ "$(readlink "$STATE_DIR/skills/security-audit")" = "$SKILL_DIR" ]
-printf '{"disableAllHooks":true,"skipWebFetchPreflight":true}\n' >"$STATE_DIR/settings.json"
+# Concurrent launches share this state: keep a correct link, replace files atomically.
+SKILL_LINK="$STATE_DIR/skills/security-audit"
+[ "$(readlink "$SKILL_LINK")" = "$SKILL_DIR" ] || ln -sfn "$SKILL_DIR" "$SKILL_LINK" 2>/dev/null ||
+  [ "$(readlink "$SKILL_LINK")" = "$SKILL_DIR" ]
+printf '{"disableAllHooks":true,"skipWebFetchPreflight":true}\n' >"$STATE_DIR/settings.json.$$"
+mv -f "$STATE_DIR/settings.json.$$" "$STATE_DIR/settings.json"
 
 OUT_ROOT="$(cd "$HOME" && pwd -P)/security-audit-skill"
 if [ "$PRINT" = 1 ]; then
@@ -160,16 +163,19 @@ finish() {
 # Claude runs in its own process group so the deadline reaches its ordinary descendants.
 ANTHROPIC_AUTH_TOKEN="$ZAI_API_KEY" perl -e 'setpgrp(0, 0); exec { $ARGV[0] } @ARGV or die "security-audit-glm: exec $ARGV[0]: $!\n"' "${RUN[@]}" &
 CHILD=$!
-stop_after() {
-  perl -e '$SIG{TERM} = sub { exit 0 }; my ($t, $grace, $flag, $pgid) = @ARGV; sleep $t; open my $fh, ">", $flag; close $fh;
-    kill "TERM", -$pgid; for (1 .. $grace) { sleep 1; exit 0 unless kill 0, -$pgid } kill "KILL", -$pgid' \
-    "$1" "$KILL_GRACE" "$STATE/stopped" "$CHILD" &
+# After $1 s: mark $2 (if set), TERM the group once it exists, KILL what is left after the grace.
+stop_group() {
+  perl -e '$SIG{TERM} = sub { exit 0 }; my ($t, $grace, $flag, $pgid) = @ARGV; sleep $t;
+    if ($flag ne "") { open my $fh, ">", $flag; close $fh }
+    for (1 .. 40) { last if kill(0, -$pgid) || !kill(0, $pgid); select undef, undef, undef, 0.05 }
+    kill "TERM", -$pgid or exit 0; for (1 .. $grace) { sleep 1; exit 0 unless kill 0, -$pgid } kill "KILL", -$pgid' \
+    "$1" "$KILL_GRACE" "$2" "$CHILD" &
   WATCHDOG=$!
 }
-stop_after "$TIMEOUT"
+stop_group "$TIMEOUT" "$STATE/stopped"
 # Bash makes background jobs ignore INT, so every signal is forwarded through the watchdog as TERM.
 SIGNAL=""
-on_signal() { SIGNAL=$1; kill "$WATCHDOG" 2>/dev/null || true; stop_after 0; }
+on_signal() { SIGNAL=$1; kill "$WATCHDOG" 2>/dev/null || true; stop_group 0 "$STATE/stopped"; }
 trap 'on_signal 129' HUP
 trap 'on_signal 130' INT
 trap 'on_signal 143' TERM
@@ -180,7 +186,9 @@ while :; do
   if [ -z "$SIGNAL" ] || ! kill -0 "$CHILD" 2>/dev/null; then break; fi
 done
 trap - HUP INT TERM
-if [ -e "$STATE/stopped" ]; then wait "$WATCHDOG" || true; else kill "$WATCHDOG" 2>/dev/null || true; fi
+# Descendants that outlive Claude are ended on every path, not only at the deadline.
+if [ ! -e "$STATE/stopped" ]; then kill "$WATCHDOG" 2>/dev/null || true; stop_group 0 ""; fi
+wait "$WATCHDOG" || true
 
 [ -z "$SIGNAL" ] || finish "interrupted" "$SIGNAL"
 [ ! -e "$STATE/stopped" ] || finish "deadline of ${TIMEOUT}s reached" "$RC_TIMEOUT"
@@ -203,7 +211,12 @@ done
 for doc in findings coverage-ledger; do
   node "$SKILL_DIR/validate-$doc.cjs" "$RUN_DIR/$doc.json" >&2 || finish "validate-$doc.cjs rejected $doc.json" "$RC_INVALID"
 done
-# Validators accept unfinished units; a complete run has none left (VALIDATION-AND-REPORTING.md).
-jq -e 'length > 0 and all(.[]; .status != "planned" and .status != "in_progress")' "$RUN_DIR/coverage-ledger.json" >/dev/null ||
+# Validators accept unfinished units and undecided candidates; a complete run has neither
+# (VALIDATION-AND-REPORTING.md). Merged duplicates (HUNTING.md) let a candidate keep extra fingerprints.
+LEDGER="$RUN_DIR/coverage-ledger.json"
+jq -e 'length > 0 and all(.[]; .status != "planned" and .status != "in_progress")' "$LEDGER" >/dev/null ||
   finish "coverage ledger is empty or still has planned or in_progress units" "$RC_INVALID"
+jq -e --slurpfile findings "$RUN_DIR/findings.json" '($findings[0] | map(.fingerprint)) as $final
+  | all(.[] | select(.status == "candidate"); any(.result_fingerprints[]; IN($final[])))' "$LEDGER" >/dev/null ||
+  finish "a candidate coverage unit has no final record in findings.json" "$RC_INVALID"
 printf 'security-audit-glm: audit complete, reports checked in %s\n' "$RUN_DIR" >&2
