@@ -21,6 +21,7 @@ cat >"$TMP_DIR/bin/claude" <<'CLAUDE'
   printf 'bg_wait=%s tool_search=%s\n' "${CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS:-unset}" "${ENABLE_TOOL_SEARCH:-unset}"
   printf 'args=%s\n' "$*"
 } >"$FAKE_OUT"
+echo "$$" >"$FAKE_DIR/leader.pid"
 for prompt; do :; done
 out="$(sed -n 's/.*output to `\([^`]*\)`.*/\1/p' <<<"$prompt")"
 edit() { jq "$2" "$out/$1" >"$out/$1.tmp" && mv "$out/$1.tmp" "$out/$1"; }
@@ -40,6 +41,7 @@ if [ -n "${FAKE_REPORT:-}" ]; then
   bad-findings) printf '{' >"$out/findings.json" ;;
   missing-file) rm "$out/NEEDS-VALIDATION.md" ;;
   undecided-candidate) echo '[]' >"$out/findings.json" ;;
+  fifo-metadata) rm "$out/run-metadata.json"; mkfifo "$out/run-metadata.json" ;;
   esac
 fi
 case "${FAKE_CHILD:-}" in
@@ -107,12 +109,13 @@ said() { grep -Fq -- "$1" "$TMP_DIR/err"; }
 audit() {
   local name="$1"
   shift
-  rm -f "$FAKE_OUT"
+  rm -f "$FAKE_OUT" "$TMP_DIR/child.pid"
   RC=0
-  ZAI_API_KEY=k "$ROOT_DIR/scripts/security-audit-glm" "$TMP_DIR/target" --profile quick --print --timeout 30 \
+  ZAI_API_KEY=k perl -e 'alarm 60; exec @ARGV' "$ROOT_DIR/scripts/security-audit-glm" "$TMP_DIR/target" --profile quick --print --timeout 30 \
     --out "$TMP_DIR/runs/$name" "$@" >/dev/null 2>"$TMP_DIR/err" || RC=$?
 }
-gone() { ! kill -0 "$(cat "$TMP_DIR/child.pid")" 2>/dev/null; }
+gone() { [ -s "$TMP_DIR/child.pid" ] && ! kill -0 "$(cat "$TMP_DIR/child.pid")" 2>/dev/null; }
+appears() { local i; for i in $(seq 100); do [ -s "$1" ] && return 0; sleep 0.1; done; return 1; }
 runs() { find "$HOME/security-audit-skill/target" -mindepth 1 -maxdepth 1 -name 'run-*' 2>/dev/null | wc -l | tr -d ' '; }
 run_dir() { sed -n 's/.*output to `\([^`]*\)`.*/\1/p' "$1"; }
 
@@ -171,6 +174,8 @@ FAKE_REPORT=empty-ledger audit empty-ledger
 check "complete with an empty ledger is invalid" eval '[ "$RC" = 4 ] && said "coverage ledger is empty"'
 FAKE_REPORT=undecided-candidate audit undecided
 check "a candidate without a final record is invalid" eval '[ "$RC" = 4 ] && said "has no final record"'
+FAKE_REPORT=fifo-metadata audit fifo
+check "non-regular metadata is invalid without blocking" eval '[ "$RC" = 4 ] && said "run-metadata.json is missing"'
 FAKE_REPORT=bad-findings audit bad
 check "malformed findings fail the validator" eval '[ "$RC" = 4 ] && said "validate-findings.cjs"'
 FAKE_REPORT=missing-file audit missing
@@ -185,7 +190,7 @@ FAKE_REPORT=complete audit used
 check "non-empty --out is refused untouched" eval '[ "$RC" = 2 ] && [ "$(ls -A "$TMP_DIR/runs/used")" = keep ] && [ "$(cat "$TMP_DIR/runs/used/keep")" = keep ] && [ ! -e "$FAKE_OUT" ]'
 mkdir -p "$TMP_DIR/runs/empty"
 FAKE_REPORT=complete audit empty
-check "empty --out is accepted" [ "$RC" = 0 ]
+check "existing empty --out is refused" eval '[ "$RC" = 2 ] && said "already exists" && [ -z "$(ls -A "$TMP_DIR/runs/empty")" ]'
 FAKE_REPORT=complete audit "with space/run"
 check "paths with spaces work" [ "$RC" = 0 ]
 BEFORE="$(runs)"
@@ -204,6 +209,7 @@ rm -f "$FAKE_OUT"
 refused() { RC=0; ZAI_API_KEY=k "$ROOT_DIR/scripts/security-audit-glm" "$TMP_DIR/target" --print "$@" 2>"$TMP_DIR/err" || RC=$?; [ "$RC" = 2 ] && said "--print needs --timeout" && [ ! -e "$FAKE_OUT" ]; }
 check "--print without a budget is refused" refused
 check "a zero budget is refused" refused --timeout 0
+check "an oversized budget is refused" refused --timeout 123456789
 RC=0
 FAKE_REPORT=complete SECURITY_AUDIT_GLM_TIMEOUT=30 ZAI_API_KEY=k "$ROOT_DIR/scripts/security-audit-glm" "$TMP_DIR/target" --profile quick --print \
   --out "$TMP_DIR/runs/env" >/dev/null 2>&1 || RC=$?
@@ -221,18 +227,30 @@ check "a descendant ignoring TERM is killed after the grace" eval '[ "$RC" = 124
 FAKE_REPORT=complete FAKE_CHILD=ordinary audit leftover
 check "a descendant left after a clean exit is ended" eval '[ "$RC" = 0 ] && gone'
 interrupt() {
-  FAKE_CHILD=ordinary FAKE_SLEEP=60 ZAI_API_KEY=k "$ROOT_DIR/scripts/security-audit-glm" "$TMP_DIR/target" --print --timeout 30 \
-    --out "$TMP_DIR/runs/$1" >/dev/null 2>&1 &
+  rm -f "$TMP_DIR/child.pid" "$TMP_DIR/leader.pid"
+  FAKE_REPORT=complete ZAI_API_KEY=k perl -e 'setpgrp(0, 0); $SIG{INT} = "DEFAULT"; exec @ARGV' \
+    "$ROOT_DIR/scripts/security-audit-glm" "$TMP_DIR/target" --print --timeout 30 --out "$TMP_DIR/runs/$1-$2" >/dev/null 2>&1 &
   local launcher=$!
-  sleep 1
-  kill "-$1" "$launcher"
+  appears "$TMP_DIR/child.pid"
+  if [ "$2" = group ]; then
+    local i
+    for i in $(seq 100); do kill -0 "$(cat "$TMP_DIR/leader.pid")" 2>/dev/null || break; sleep 0.1; done
+    kill "-$1" -- "-$launcher"
+  else
+    kill "-$1" "$launcher"
+  fi
   RC=0
   wait "$launcher" || RC=$?
 }
-interrupt TERM
+FAKE_CHILD=ordinary FAKE_SLEEP=60 interrupt TERM launcher
 check "TERM interrupts with 143 and ends the group" eval '[ "$RC" = 143 ] && gone'
-interrupt HUP
+FAKE_CHILD=ordinary FAKE_SLEEP=60 interrupt HUP launcher
 check "HUP interrupts with 129 and ends the group" eval '[ "$RC" = 129 ] && gone'
+FAKE_CHILD=ordinary FAKE_SLEEP=60 interrupt INT launcher
+check "INT interrupts with 130 and ends the group" eval '[ "$RC" = 130 ] && gone'
+SECONDS=0
+FAKE_CHILD=ignore interrupt TERM group
+check "a group TERM during the final sweep still kills a TERM-ignoring descendant" eval '[ "$RC" = 143 ] && [ "$SECONDS" -ge 9 ] && gone'
 
 [ "$failures" -eq 0 ] || { printf 'security-audit-glm smoke test: %d failure(s)\n' "$failures"; exit 1; }
 printf 'security-audit-glm smoke test: ok\n'
