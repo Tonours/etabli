@@ -15,7 +15,7 @@ cat >"$TMP_DIR/bin/claude" <<'CLAUDE'
   printf 'token=%s api_key=%s headers=%s foundry=%s\n' "${ANTHROPIC_AUTH_TOKEN:-}" "${ANTHROPIC_API_KEY:-unset}" "${ANTHROPIC_CUSTOM_HEADERS:-unset}" "${CLAUDE_CODE_USE_FOUNDRY:-unset}"
   printf 'base=%s config=%s\n' "$ANTHROPIC_BASE_URL" "$CLAUDE_CONFIG_DIR"
   printf 'models=%s %s %s %s\n' "$ANTHROPIC_DEFAULT_OPUS_MODEL" "$ANTHROPIC_DEFAULT_SONNET_MODEL" "$ANTHROPIC_DEFAULT_HAIKU_MODEL" "$CLAUDE_CODE_SUBAGENT_MODEL"
-  printf 'bg_wait=%s\n' "${CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS:-unset}"
+  printf 'bg_wait=%s tool_search=%s\n' "${CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS:-unset}" "${ENABLE_TOOL_SEARCH:-unset}"
   printf 'args=%s\n' "$*"
 } >"$FAKE_OUT"
 CLAUDE
@@ -42,7 +42,7 @@ check "z.ai token, no anthropic credential or provider" has "token=zai-test api_
 check "z.ai endpoint, own config dir" has "base=https://api.z.ai/api/anthropic config=$TMP_DIR/state"
 check "every tier and subagent on glm" has "models=glm-5.3[1m] glm-5.3[1m] glm-5.3[1m] glm-5.3[1m]"
 check "max effort, isolated settings" has "--model glm-5.3[1m] --effort max --permission-mode auto --setting-sources user --strict-mcp-config --add-dir $HOME/security-audit-skill --print --output-format text -- Run a full"
-check "headless run waits for slow verifiers" has "bg_wait=3600000"
+check "headless run waits for slow verifiers, no deferred tools" has "bg_wait=3600000 tool_search=false"
 check "profile reaches the prompt" has 'profile `quick`'
 check "skill linked into the config dir" [ -f "$TMP_DIR/state/skills/security-audit/SKILL.md" ]
 check "web fetch preflight off" grep -q '"skipWebFetchPreflight":true' "$TMP_DIR/state/settings.json"
