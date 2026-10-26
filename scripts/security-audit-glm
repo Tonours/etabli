@@ -5,11 +5,16 @@ set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." >/dev/null 2>&1 && pwd)"
 SKILL_DIR="$REPO_DIR/vendor/cloudflare/skills/security-audit"
+RC_INCOMPLETE=3
+RC_INVALID=4
+RC_CLAUDE=5
+RC_TIMEOUT=124
 
 usage() {
   cat <<EOF
 Usage: security-audit-glm [target-dir] [--profile quick|standard|deep] [--out DIR]
-                          [--model ID] [--effort low|high|max] [--print] [--dry-run]
+                          [--model ID] [--effort low|high|max] [--dry-run]
+                          [--print --timeout SECONDS]
 
 Runs the security-audit skill through Claude Code against the Z.ai Anthropic
 endpoint. Needs ZAI_API_KEY. Defaults: glm-5.3[1m], effort max, profile
@@ -17,6 +22,14 @@ standard, reports under ~/security-audit-skill/<repo>/run-N, interactive
 session (--print runs headless). The audited repo's .claude settings, hooks
 and .mcp.json are not loaded. When security-audit-sandbox --check passes,
 agents run target code through it; otherwise the audit is source-only.
+
+--print needs a wall-clock budget (--timeout, else SECURITY_AUDIT_GLM_TIMEOUT).
+It runs in a new run directory (--out must be new or empty), stops Claude at
+the deadline, then checks the reports. Exit: 0 complete and checked, 1-2
+refused before launch, $RC_INCOMPLETE audit stopped incomplete, $RC_INVALID
+reports missing or invalid, $RC_CLAUDE Claude failed, $RC_TIMEOUT deadline,
+129/130/143 interrupted. --dry-run prints the bare Claude command, which skips
+the deadline and the checks.
 EOF
 }
 
@@ -25,6 +38,8 @@ PROFILE="standard"
 OUT=""
 MODEL="${SECURITY_AUDIT_GLM_MODEL:-glm-5.3[1m]}"
 EFFORT="${SECURITY_AUDIT_GLM_EFFORT:-max}"
+TIMEOUT="${SECURITY_AUDIT_GLM_TIMEOUT:-}"
+KILL_GRACE=10
 PRINT=0
 DRY_RUN=0
 while [ "$#" -gt 0 ]; do
@@ -33,6 +48,7 @@ while [ "$#" -gt 0 ]; do
   --out) shift; OUT="${1:?--out needs a value}" ;;
   --model) shift; MODEL="${1:?--model needs a value}" ;;
   --effort) shift; EFFORT="${1:?--effort needs a value}" ;;
+  --timeout) shift; TIMEOUT="${1:?--timeout needs a value}" ;;
   --print) PRINT=1 ;;
   --dry-run) DRY_RUN=1 ;;
   -h | --help) usage; exit 0 ;;
@@ -48,28 +64,70 @@ case "$EFFORT" in low | high | max) ;; *) echo "unsupported effort: $EFFORT (GLM
 TARGET="$(cd "$TARGET" 2>/dev/null && pwd -P)" || { echo "target is not a directory" >&2; exit 1; }
 [ -n "${ZAI_API_KEY:-}" ] || { echo "ZAI_API_KEY is not set; export your Z.ai API key first" >&2; exit 1; }
 CLAUDE="$(command -v claude)" || { echo "claude binary not found on PATH" >&2; exit 1; }
+if [ "$PRINT" = 1 ]; then
+  case "$TIMEOUT" in '' | 0* | *[!0-9]*) echo "--print needs --timeout SECONDS (or SECURITY_AUDIT_GLM_TIMEOUT), a positive integer" >&2; exit 2 ;; esac
+  for tool in node jq perl; do
+    command -v "$tool" >/dev/null || { echo "$tool not found on PATH; --print needs it to check the reports" >&2; exit 1; }
+  done
+fi
 
 STATE_DIR="${SECURITY_AUDIT_GLM_HOME:-${XDG_STATE_HOME:-$HOME/.local/state}/security-audit-glm}"
 mkdir -p "$STATE_DIR/skills"
 STATE_DIR="$(cd "$STATE_DIR" && pwd)"
-ln -sfn "$SKILL_DIR" "$STATE_DIR/skills/security-audit"
+ln -sfn "$SKILL_DIR" "$STATE_DIR/skills/security-audit" 2>/dev/null ||
+  [ "$(readlink "$STATE_DIR/skills/security-audit")" = "$SKILL_DIR" ]
 printf '{"disableAllHooks":true,"skipWebFetchPreflight":true}\n' >"$STATE_DIR/settings.json"
 
 OUT_ROOT="$(cd "$HOME" && pwd -P)/security-audit-skill"
-if [ -n "$OUT" ]; then
-  mkdir -p "$OUT"
-  OUT="$(cd "$OUT" && pwd -P)"
-  OUT_ROOT="$OUT"
+if [ "$PRINT" = 1 ]; then
+  # Headless runs own a new directory, so no older run's reports can pass the checks.
+  if [ -n "$OUT" ]; then
+    case "$OUT" in /*) ;; *) OUT="$PWD/$OUT" ;; esac
+    if [ -e "$OUT" ] || [ -L "$OUT" ]; then
+      [ -d "$OUT" ] && [ -z "$(ls -A "$OUT")" ] || { echo "--out $OUT exists and is not an empty directory; give a new path" >&2; exit 2; }
+    elif [ "$DRY_RUN" = 0 ]; then
+      mkdir -p "$(dirname "$OUT")"
+      mkdir "$OUT" || { echo "cannot create --out $OUT" >&2; exit 1; }
+    fi
+    [ ! -d "$OUT" ] || OUT="$(cd "$OUT" && pwd -P)"
+    OUT_ROOT="$OUT"
+    RUN_DIR="$OUT"
+  else
+    REPO_OUT="$OUT_ROOT/$(basename "$TARGET")"
+    [ "$DRY_RUN" = 1 ] || mkdir -p "$REPO_OUT"
+    N=1
+    while :; do
+      RUN_DIR="$REPO_OUT/run-$N"
+      if [ "$DRY_RUN" = 1 ]; then [ -e "$RUN_DIR" ] || break
+      elif mkdir "$RUN_DIR" 2>/dev/null; then break
+      else [ -e "$RUN_DIR" ] || { echo "cannot create $RUN_DIR" >&2; exit 1; }
+      fi
+      N=$((N + 1))
+    done
+  fi
+  PROMPT="Run a full security audit of this codebase with the security-audit skill, profile \`$PROFILE\`, output to \`$RUN_DIR\` (the launcher created this empty directory for this run; use it as is)."
+else
+  if [ -n "$OUT" ]; then
+    mkdir -p "$OUT"
+    OUT="$(cd "$OUT" && pwd -P)"
+    OUT_ROOT="$OUT"
+  fi
+  PROMPT="Run a full security audit of this codebase with the security-audit skill, profile \`$PROFILE\`${OUT:+, output to \`$OUT\`}."
 fi
-mkdir -p "$OUT_ROOT"
+[ "$DRY_RUN" = 1 ] || mkdir -p "$OUT_ROOT"
 
-PROMPT="Run a full security audit of this codebase with the security-audit skill, profile \`$PROFILE\`${OUT:+, output to \`$OUT\`}. On this platform the Task tool is the \`Agent\` tool. Every agent you spawn runs on the same model as you."
+PROMPT+=" On this platform the Task tool is the \`Agent\` tool. Every agent you spawn runs on the same model as you."
 SANDBOX="$REPO_DIR/scripts/security-audit-sandbox"
 if SANDBOX_STATUS="$("$SANDBOX" --check 2>&1)"; then
   PROMPT+=" An OS-enforced sandbox that meets every Universal execution safety control is available: \`$SANDBOX --scratch <physical output-dir>/agents/<agent-id>/scratch --target $TARGET -- <command>\` (see \`--help\` for limits and exit codes). It is the only allowed way to run target-controlled code; pass this exact invocation to every hunter and verifier. It mounts the scratch read-only as a seed and discards the copy, so results leave only as its capped stdout and stderr: the promotion allowlist is empty, and the parent may save that output as evidence."
 else
   printf 'security-audit-glm: no sandbox (%s); the audit stays source-only\n' "$SANDBOX_STATUS" >&2
   PROMPT+=" No OS-enforced sandbox is available on this host: do not execute target code."
+fi
+if [ "$PRINT" = 1 ]; then
+  utc() { perl -MPOSIX -e 'print strftime("%Y-%m-%dT%H:%M:%SZ", gmtime($ARGV[0]))' "$1"; }
+  NOW="$(date +%s)"
+  PROMPT+=" Hard deadline: $(utc $((NOW + TIMEOUT))) UTC, when this session is killed; check the time with \`date -u\`. If the audit cannot finish by $(utc $((NOW + TIMEOUT - TIMEOUT / 10))) UTC, stop launching agents, mark every untouched coverage unit deferred, set run_status \"incomplete\" with its incomplete_reason, and write the partial report."
 fi
 ARGS=(--model "$MODEL" --effort "$EFFORT" --permission-mode auto --setting-sources user --strict-mcp-config --add-dir "$OUT_ROOT")
 [ "$PRINT" = 0 ] || ARGS+=(--print --output-format text)
@@ -91,4 +149,61 @@ if [ "$DRY_RUN" = 1 ]; then
   exit 0
 fi
 cd "$TARGET"
-ANTHROPIC_AUTH_TOKEN="$ZAI_API_KEY" exec "${RUN[@]}"
+[ "$PRINT" = 1 ] || ANTHROPIC_AUTH_TOKEN="$ZAI_API_KEY" exec "${RUN[@]}"
+
+STATE="$(mktemp -d "${TMPDIR:-/tmp}/security-audit-glm.XXXXXX")"
+trap 'rm -rf "$STATE"' EXIT
+finish() {
+  printf 'security-audit-glm: %s; run directory: %s\n' "$1" "$RUN_DIR" >&2
+  exit "$2"
+}
+# Claude runs in its own process group so the deadline reaches its ordinary descendants.
+ANTHROPIC_AUTH_TOKEN="$ZAI_API_KEY" perl -e 'setpgrp(0, 0); exec { $ARGV[0] } @ARGV or die "security-audit-glm: exec $ARGV[0]: $!\n"' "${RUN[@]}" &
+CHILD=$!
+stop_after() {
+  perl -e '$SIG{TERM} = sub { exit 0 }; my ($t, $grace, $flag, $pgid) = @ARGV; sleep $t; open my $fh, ">", $flag; close $fh;
+    kill "TERM", -$pgid; for (1 .. $grace) { sleep 1; exit 0 unless kill 0, -$pgid } kill "KILL", -$pgid' \
+    "$1" "$KILL_GRACE" "$STATE/stopped" "$CHILD" &
+  WATCHDOG=$!
+}
+stop_after "$TIMEOUT"
+# Bash makes background jobs ignore INT, so every signal is forwarded through the watchdog as TERM.
+SIGNAL=""
+on_signal() { SIGNAL=$1; kill "$WATCHDOG" 2>/dev/null || true; stop_after 0; }
+trap 'on_signal 129' HUP
+trap 'on_signal 130' INT
+trap 'on_signal 143' TERM
+while :; do
+  RC=0
+  wait "$CHILD" || RC=$?
+  # A trapped signal interrupts wait while the child still runs (or is not yet reaped).
+  if [ -z "$SIGNAL" ] || ! kill -0 "$CHILD" 2>/dev/null; then break; fi
+done
+trap - HUP INT TERM
+if [ -e "$STATE/stopped" ]; then wait "$WATCHDOG" || true; else kill "$WATCHDOG" 2>/dev/null || true; fi
+
+[ -z "$SIGNAL" ] || finish "interrupted" "$SIGNAL"
+[ ! -e "$STATE/stopped" ] || finish "deadline of ${TIMEOUT}s reached" "$RC_TIMEOUT"
+[ "$RC" = 0 ] || finish "claude exited $RC" "$RC_CLAUDE"
+
+META="$RUN_DIR/run-metadata.json"
+jq -e 'type == "object"' "$META" >/dev/null 2>&1 || finish "run-metadata.json is missing or not a JSON object" "$RC_INVALID"
+[ "$(jq -r '.profile' "$META")" = "$PROFILE" ] || finish "run-metadata.json profile is not $PROFILE" "$RC_INVALID"
+STATUS="$(jq -r '.run_status' "$META")"
+if [ "$STATUS" = incomplete ]; then
+  REASON="$(jq -r '.incomplete_reason // empty' "$META")"
+  [ -n "$REASON" ] && [ -f "$RUN_DIR/REPORT.md" ] && [ -s "$RUN_DIR/REPORT.md" ] ||
+    finish "run_status incomplete without incomplete_reason or REPORT.md" "$RC_INVALID"
+  finish "audit stopped incomplete ($REASON)" "$RC_INCOMPLETE"
+fi
+[ "$STATUS" = complete ] || finish "run_status is $STATUS, not complete" "$RC_INVALID"
+for file in architecture.md coverage-ledger.json findings.json REPORT.md FINDINGS-DETAIL.md NEEDS-VALIDATION.md; do
+  [ -f "$RUN_DIR/$file" ] && [ -s "$RUN_DIR/$file" ] || finish "$file is missing or empty" "$RC_INVALID"
+done
+for doc in findings coverage-ledger; do
+  node "$SKILL_DIR/validate-$doc.cjs" "$RUN_DIR/$doc.json" >&2 || finish "validate-$doc.cjs rejected $doc.json" "$RC_INVALID"
+done
+# Validators accept unfinished units; a complete run has none left (VALIDATION-AND-REPORTING.md).
+jq -e 'length > 0 and all(.[]; .status != "planned" and .status != "in_progress")' "$RUN_DIR/coverage-ledger.json" >/dev/null ||
+  finish "coverage ledger is empty or still has planned or in_progress units" "$RC_INVALID"
+printf 'security-audit-glm: audit complete, reports checked in %s\n' "$RUN_DIR" >&2
