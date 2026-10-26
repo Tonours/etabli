@@ -24,8 +24,8 @@ and .mcp.json are not loaded. When security-audit-sandbox --check passes,
 agents run target code through it; otherwise the audit is source-only.
 
 --print needs a wall-clock budget (--timeout, else SECURITY_AUDIT_GLM_TIMEOUT).
-It runs in a new run directory (--out must be new or empty), stops Claude at
-the deadline, then checks the reports. Exit: 0 complete and checked, 1-2
+It runs in a new run directory (--out must not exist yet), stops Claude at
+the deadline, then checks the reports with node, jq and perl. Exit: 0 complete and checked, 1-2
 refused before launch, $RC_INCOMPLETE audit stopped incomplete, $RC_INVALID
 reports missing or invalid, $RC_CLAUDE Claude failed, $RC_TIMEOUT deadline,
 129/130/143 interrupted. --dry-run prints the bare Claude command, which skips
@@ -65,7 +65,7 @@ TARGET="$(cd "$TARGET" 2>/dev/null && pwd -P)" || { echo "target is not a direct
 [ -n "${ZAI_API_KEY:-}" ] || { echo "ZAI_API_KEY is not set; export your Z.ai API key first" >&2; exit 1; }
 CLAUDE="$(command -v claude)" || { echo "claude binary not found on PATH" >&2; exit 1; }
 if [ "$PRINT" = 1 ]; then
-  case "$TIMEOUT" in '' | 0* | *[!0-9]*) echo "--print needs --timeout SECONDS (or SECURITY_AUDIT_GLM_TIMEOUT), a positive integer" >&2; exit 2 ;; esac
+  case "$TIMEOUT" in '' | 0* | *[!0-9]* | ?????????*) echo "--print needs --timeout SECONDS (or SECURITY_AUDIT_GLM_TIMEOUT), a positive integer of at most 8 digits" >&2; exit 2 ;; esac
   for tool in node jq perl; do
     command -v "$tool" >/dev/null || { echo "$tool not found on PATH; --print needs it to check the reports" >&2; exit 1; }
   done
@@ -87,7 +87,8 @@ if [ "$PRINT" = 1 ]; then
   if [ -n "$OUT" ]; then
     case "$OUT" in /*) ;; *) OUT="$PWD/$OUT" ;; esac
     if [ -e "$OUT" ] || [ -L "$OUT" ]; then
-      [ -d "$OUT" ] && [ -z "$(ls -A "$OUT")" ] || { echo "--out $OUT exists and is not an empty directory; give a new path" >&2; exit 2; }
+      echo "--out $OUT already exists; give a new path" >&2
+      exit 2
     elif [ "$DRY_RUN" = 0 ]; then
       mkdir -p "$(dirname "$OUT")"
       mkdir "$OUT" || { echo "cannot create --out $OUT" >&2; exit 1; }
@@ -160,42 +161,50 @@ finish() {
   printf 'security-audit-glm: %s; run directory: %s\n' "$1" "$RUN_DIR" >&2
   exit "$2"
 }
-# Claude runs in its own process group so the deadline reaches its ordinary descendants.
-ANTHROPIC_AUTH_TOKEN="$ZAI_API_KEY" perl -e 'setpgrp(0, 0); exec { $ARGV[0] } @ARGV or die "security-audit-glm: exec $ARGV[0]: $!\n"' "${RUN[@]}" &
-CHILD=$!
 # After $1 s: mark $2 (if set), TERM the group once it exists, KILL what is left after the grace.
+# The watchdog has its own process group, so a signal sent to the launcher's group cannot stop it.
 stop_group() {
-  perl -e '$SIG{TERM} = sub { exit 0 }; my ($t, $grace, $flag, $pgid) = @ARGV; sleep $t;
+  perl -e 'setpgrp(0, 0); $SIG{TERM} = sub { exit 0 }; my ($t, $grace, $flag, $pgid) = @ARGV; sleep $t;
     if ($flag ne "") { open my $fh, ">", $flag; close $fh }
     for (1 .. 40) { last if kill(0, -$pgid) || !kill(0, $pgid); select undef, undef, undef, 0.05 }
     kill "TERM", -$pgid or exit 0; for (1 .. $grace) { sleep 1; exit 0 unless kill 0, -$pgid } kill "KILL", -$pgid' \
     "$1" "$KILL_GRACE" "$2" "$CHILD" &
   WATCHDOG=$!
 }
-stop_group "$TIMEOUT" "$STATE/stopped"
 # Bash makes background jobs ignore INT, so every signal is forwarded through the watchdog as TERM.
-SIGNAL=""
-on_signal() { SIGNAL=$1; kill "$WATCHDOG" 2>/dev/null || true; stop_group 0 "$STATE/stopped"; }
+# The traps stay set from before the spawn until the last descendant is gone.
+SIGNAL="" WATCHDOG=""
+on_signal() {
+  SIGNAL=$1
+  [ -n "$WATCHDOG" ] || return 0
+  kill "$WATCHDOG" 2>/dev/null || true
+  stop_group 0 "$STATE/stopped"
+}
 trap 'on_signal 129' HUP
 trap 'on_signal 130' INT
 trap 'on_signal 143' TERM
+# Claude runs in its own process group so the deadline reaches its ordinary descendants.
+ANTHROPIC_AUTH_TOKEN="$ZAI_API_KEY" perl -e 'setpgrp(0, 0); exec { $ARGV[0] } @ARGV or die "security-audit-glm: exec $ARGV[0]: $!\n"' "${RUN[@]}" &
+CHILD=$!
+stop_group "$TIMEOUT" "$STATE/stopped"
+[ -z "$SIGNAL" ] || on_signal "$SIGNAL"
 while :; do
   RC=0
   wait "$CHILD" || RC=$?
   # A trapped signal interrupts wait while the child still runs (or is not yet reaped).
   if [ -z "$SIGNAL" ] || ! kill -0 "$CHILD" 2>/dev/null; then break; fi
 done
-trap - HUP INT TERM
 # Descendants that outlive Claude are ended on every path, not only at the deadline.
 if [ ! -e "$STATE/stopped" ]; then kill "$WATCHDOG" 2>/dev/null || true; stop_group 0 ""; fi
-wait "$WATCHDOG" || true
+while kill -0 "$WATCHDOG" 2>/dev/null; do wait "$WATCHDOG" || true; done
+trap - HUP INT TERM
 
 [ -z "$SIGNAL" ] || finish "interrupted" "$SIGNAL"
 [ ! -e "$STATE/stopped" ] || finish "deadline of ${TIMEOUT}s reached" "$RC_TIMEOUT"
 [ "$RC" = 0 ] || finish "claude exited $RC" "$RC_CLAUDE"
 
 META="$RUN_DIR/run-metadata.json"
-jq -e 'type == "object"' "$META" >/dev/null 2>&1 || finish "run-metadata.json is missing or not a JSON object" "$RC_INVALID"
+[ -f "$META" ] && jq -e 'type == "object"' "$META" >/dev/null 2>&1 || finish "run-metadata.json is missing or not a JSON object" "$RC_INVALID"
 [ "$(jq -r '.profile' "$META")" = "$PROFILE" ] || finish "run-metadata.json profile is not $PROFILE" "$RC_INVALID"
 STATUS="$(jq -r '.run_status' "$META")"
 if [ "$STATUS" = incomplete ]; then
@@ -212,7 +221,8 @@ for doc in findings coverage-ledger; do
   node "$SKILL_DIR/validate-$doc.cjs" "$RUN_DIR/$doc.json" >&2 || finish "validate-$doc.cjs rejected $doc.json" "$RC_INVALID"
 done
 # Validators accept unfinished units and undecided candidates; a complete run has neither
-# (VALIDATION-AND-REPORTING.md). Merged duplicates (HUNTING.md) let a candidate keep extra fingerprints.
+# (VALIDATION-AND-REPORTING.md). The ledger does not record which extra fingerprint of a unit was
+# merged as a duplicate (HUNTING.md), so this requires one final record per candidate unit, not per fingerprint.
 LEDGER="$RUN_DIR/coverage-ledger.json"
 jq -e 'length > 0 and all(.[]; .status != "planned" and .status != "in_progress")' "$LEDGER" >/dev/null ||
   finish "coverage ledger is empty or still has planned or in_progress units" "$RC_INVALID"
