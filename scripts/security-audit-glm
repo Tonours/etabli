@@ -172,11 +172,13 @@ stop_group() {
   WATCHDOG=$!
 }
 # Bash makes background jobs ignore INT, so every signal is forwarded through the watchdog as TERM.
-# The traps stay set from before the spawn until the last descendant is gone.
-SIGNAL="" WATCHDOG=""
+# The traps stay set from before the spawn until the last descendant is gone. A stop already under
+# way (deadline or sweep) is never replaced, so repeated signals cannot restart its grace.
+SIGNAL="" WATCHDOG="" SWEEPING=""
 on_signal() {
   SIGNAL=$1
-  [ -n "$WATCHDOG" ] || return 0
+  [ -n "$WATCHDOG" ] && [ -z "$SWEEPING" ] && [ ! -e "$STATE/stopped" ] || return 0
+  SWEEPING=1
   kill "$WATCHDOG" 2>/dev/null || true
   stop_group 0 "$STATE/stopped"
 }
@@ -195,7 +197,11 @@ while :; do
   if [ -z "$SIGNAL" ] || ! kill -0 "$CHILD" 2>/dev/null; then break; fi
 done
 # Descendants that outlive Claude are ended on every path, not only at the deadline.
-if [ ! -e "$STATE/stopped" ]; then kill "$WATCHDOG" 2>/dev/null || true; stop_group 0 ""; fi
+if [ -z "$SWEEPING" ] && [ ! -e "$STATE/stopped" ]; then
+  SWEEPING=1
+  kill "$WATCHDOG" 2>/dev/null || true
+  stop_group 0 ""
+fi
 while kill -0 "$WATCHDOG" 2>/dev/null; do wait "$WATCHDOG" || true; done
 trap - HUP INT TERM
 
