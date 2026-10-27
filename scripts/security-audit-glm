@@ -161,48 +161,48 @@ finish() {
   printf 'security-audit-glm: %s; run directory: %s\n' "$1" "$RUN_DIR" >&2
   exit "$2"
 }
-# After $1 s: mark $2 (if set), TERM the group once it exists, KILL what is left after the grace.
-# The watchdog has its own process group, so a signal sent to the launcher's group cannot stop it.
-stop_group() {
-  perl -e 'setpgrp(0, 0); $SIG{TERM} = sub { exit 0 }; my ($t, $grace, $flag, $pgid) = @ARGV; sleep $t;
-    if ($flag ne "") { open my $fh, ">", $flag; close $fh }
-    for (1 .. 40) { last if kill(0, -$pgid) || !kill(0, $pgid); select undef, undef, undef, 0.05 }
-    kill "TERM", -$pgid or exit 0; for (1 .. $grace) { sleep 1; exit 0 unless kill 0, -$pgid } kill "KILL", -$pgid' \
-    "$1" "$KILL_GRACE" "$2" "$CHILD" &
-  WATCHDOG=$!
-}
-# Bash makes background jobs ignore INT, so every signal is forwarded through the watchdog as TERM.
-# The traps stay set from before the spawn until the last descendant is gone. A stop already under
-# way (deadline or sweep) is never replaced, so repeated signals cannot restart its grace.
-SIGNAL="" WATCHDOG="" SWEEPING=""
-on_signal() {
-  SIGNAL=$1
-  [ -n "$WATCHDOG" ] && [ -z "$SWEEPING" ] && [ ! -e "$STATE/stopped" ] || return 0
-  SWEEPING=1
-  kill "$WATCHDOG" 2>/dev/null || true
-  stop_group 0 "$STATE/stopped"
-}
+# One supervisor owns the deadline and the cleanup. It leaves the launcher's process group before
+# it starts Claude, so a signal sent to that group cannot reach it while Claude runs, and it puts
+# Claude in a group of its own so ordinary descendants are ended too. A stop request (USR1), the
+# deadline or Claude's exit sends TERM to that group once; whatever is left after the grace is
+# KILLed. It exits with Claude's status and marks $3 only when the deadline caused the stop.
+SUPERVISE='use POSIX ":sys_wait_h"; use Time::HiRes qw(time sleep);
+  my ($timeout, $grace, $flag, @cmd) = @ARGV;
+  setpgrp(0, 0);
+  my $requested = 0;
+  $SIG{USR1} = sub { $requested = 1 };
+  my $pid = fork() // die "security-audit-glm: fork: $!\n";
+  if (!$pid) { setpgrp(0, 0); exec { $cmd[0] } @cmd or die "security-audit-glm: exec $cmd[0]: $!\n" }
+  POSIX::setpgid($pid, $pid);
+  my $deadline = time + $timeout;
+  my ($status, $kill_at);
+  while (1) {
+    $status = $? if !defined $status && waitpid($pid, WNOHANG) == $pid;
+    last if defined $status && !kill(0, -$pid);
+    if (!defined $kill_at && (defined $status || $requested || time >= $deadline)) {
+      if (!defined $status && !$requested) { open my $fh, ">", $flag; close $fh }
+      kill "TERM", -$pid;
+      $kill_at = time + $grace;
+    }
+    kill "KILL", -$pid if defined $kill_at && time >= $kill_at;
+    sleep 0.1;
+  }
+  exit($status & 127 ? 128 + ($status & 127) : $status >> 8);'
+# Bash makes background jobs ignore INT, so every signal becomes a stop request to the supervisor.
+SIGNAL="" SUPERVISOR=""
+on_signal() { SIGNAL=$1; [ -z "$SUPERVISOR" ] || kill -USR1 "$SUPERVISOR" 2>/dev/null || true; }
 trap 'on_signal 129' HUP
 trap 'on_signal 130' INT
 trap 'on_signal 143' TERM
-# Claude runs in its own process group so the deadline reaches its ordinary descendants.
-ANTHROPIC_AUTH_TOKEN="$ZAI_API_KEY" perl -e 'setpgrp(0, 0); exec { $ARGV[0] } @ARGV or die "security-audit-glm: exec $ARGV[0]: $!\n"' "${RUN[@]}" &
-CHILD=$!
-stop_group "$TIMEOUT" "$STATE/stopped"
+ANTHROPIC_AUTH_TOKEN="$ZAI_API_KEY" perl -e "$SUPERVISE" "$TIMEOUT" "$KILL_GRACE" "$STATE/stopped" "${RUN[@]}" &
+SUPERVISOR=$!
 [ -z "$SIGNAL" ] || on_signal "$SIGNAL"
 while :; do
   RC=0
-  wait "$CHILD" || RC=$?
-  # A trapped signal interrupts wait while the child still runs (or is not yet reaped).
-  if [ -z "$SIGNAL" ] || ! kill -0 "$CHILD" 2>/dev/null; then break; fi
+  wait "$SUPERVISOR" || RC=$?
+  # A trapped signal interrupts wait while the supervisor still runs (or is not yet reaped).
+  if [ -z "$SIGNAL" ] || ! kill -0 "$SUPERVISOR" 2>/dev/null; then break; fi
 done
-# Descendants that outlive Claude are ended on every path, not only at the deadline.
-if [ -z "$SWEEPING" ] && [ ! -e "$STATE/stopped" ]; then
-  SWEEPING=1
-  kill "$WATCHDOG" 2>/dev/null || true
-  stop_group 0 ""
-fi
-while kill -0 "$WATCHDOG" 2>/dev/null; do wait "$WATCHDOG" || true; done
 trap - HUP INT TERM
 
 [ -z "$SIGNAL" ] || finish "interrupted" "$SIGNAL"

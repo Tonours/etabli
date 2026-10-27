@@ -115,7 +115,7 @@ audit() {
     --out "$TMP_DIR/runs/$name" "$@" >/dev/null 2>"$TMP_DIR/err" || RC=$?
 }
 gone() { [ -s "$TMP_DIR/child.pid" ] && ! kill -0 "$(cat "$TMP_DIR/child.pid")" 2>/dev/null; }
-appears() { local i; for i in $(seq 100); do [ -s "$1" ] && return 0; sleep 0.1; done; return 1; }
+appears() { for _ in $(seq 100); do [ -s "$1" ] && return 0; sleep 0.1; done; return 1; }
 runs() { find "$HOME/security-audit-skill/target" -mindepth 1 -maxdepth 1 -name 'run-*' 2>/dev/null | wc -l | tr -d ' '; }
 run_dir() { sed -n 's/.*output to `\([^`]*\)`.*/\1/p' "$1"; }
 
@@ -233,8 +233,7 @@ interrupt() {
   local launcher=$!
   appears "$TMP_DIR/child.pid"
   if [ "$2" = group ]; then
-    local i
-    for i in $(seq 100); do kill -0 "$(cat "$TMP_DIR/leader.pid")" 2>/dev/null || break; sleep 0.1; done
+    for _ in $(seq 100); do kill -0 "$(cat "$TMP_DIR/leader.pid")" 2>/dev/null || break; sleep 0.1; done
     SWEEP_START=$SECONDS
     if kill -0 "$(cat "$TMP_DIR/leader.pid")" 2>/dev/null; then SWEEP_START=leader-alive; fi
     kill "-$1" -- "-$launcher"
@@ -255,7 +254,8 @@ check "HUP interrupts with 129 and ends the group" eval '[ "$RC" = 129 ] && gone
 FAKE_CHILD=ordinary FAKE_SLEEP=60 interrupt INT launcher
 check "INT interrupts with 130 and ends the group" eval '[ "$RC" = 130 ] && gone'
 FAKE_CHILD=ignore interrupt TERM group
-check "repeated group TERMs during the final sweep keep its grace and kill a TERM-ignoring descendant" eval '[ "$RC" = 143 ] && [ "$SWEEP_START" != leader-alive ] && [ $((SECONDS - SWEEP_START)) -ge 9 ] && [ $((SECONDS - SWEEP_START)) -lt 14 ] && gone'
+swept_in_grace() { [ "$RC" = 143 ] && [ "$SWEEP_START" != leader-alive ] && [ $((SECONDS - SWEEP_START)) -ge 9 ] && [ $((SECONDS - SWEEP_START)) -lt 14 ] && gone; }
+check "repeated group TERMs during the final sweep keep its grace and kill a TERM-ignoring descendant" swept_in_grace
 
 [ "$failures" -eq 0 ] || { printf 'security-audit-glm smoke test: %d failure(s)\n' "$failures"; exit 1; }
 printf 'security-audit-glm smoke test: ok\n'
