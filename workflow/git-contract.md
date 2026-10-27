@@ -63,7 +63,8 @@ valid    chore(deps): bump fastify to 5.2
 ## Default branch and history
 
 No consent gate. Commit, merge, push, rebase, amend, and force-push whenever
-the work calls for it, the default branch included. Prefer
+the work calls for it, the default branch included, except under a host that
+gates effects (`workflow/spec.md` § Human checkpoints). Prefer
 `--force-with-lease` over plain `--force`. If a remote rejects the write,
 report it.
 
