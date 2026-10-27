@@ -93,10 +93,11 @@ plan. After the fresh-context review (Logic hunter + Spec hunter, then lead):
 `workflow/runtime/adversary-model-policy.json` is the canonical model pool.
 A cross-family pass is a pool invocation from any harness, not an agent
 capability: invoke a pool route of non-author family, observe what actually
-ran, and record it. Selection depends on the implementation author's
-effective model family, not on the harness currently driving the workflow:
+ran, and record it. Selection depends on the effective model families of
+every author of the work, not on the harness currently driving the workflow:
 
-1. exclude the author's family;
+1. exclude every family that authored the work, a handover from another
+   harness included, and keep only routes listed for none of them;
 2. choose a configured route from the strongest available frontier pool;
 3. prefer a direct provider route over an aggregator route;
 4. record the model provenance (requested and effective model, provider,
@@ -108,7 +109,7 @@ effective model family, not on the harness currently driving the workflow:
 Plan mode: the pass that counts must be cross-family with provenance
 recorded; a same-family pass is a labeled supplement only and never
 satisfies the independence requirement. The parent verifies
-`effective.family` differs from the author family before counting the pass.
+`effective.family` is none of the author families before counting the pass.
 
 `configured_unverified` means the route exists in the local catalog or harness
 configuration. It is not proof that credentials, quota, or a live call work.
