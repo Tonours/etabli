@@ -151,6 +151,14 @@ rm -f "$FAKE_OUT"
 check "refuses without ZAI_API_KEY" eval '! env -u ZAI_API_KEY "$ROOT_DIR/scripts/security-audit-glm" "$TMP_DIR/target" 2>/dev/null && [ ! -e "$FAKE_OUT" ]'
 check "refuses an effort glm lacks" eval '! ZAI_API_KEY=k "$ROOT_DIR/scripts/security-audit-glm" --effort xhigh 2>/dev/null && [ ! -e "$FAKE_OUT" ]'
 check "dry run keeps the key out" eval '! ZAI_API_KEY=secret-key "$ROOT_DIR/scripts/security-audit-glm" "$TMP_DIR/target" --dry-run 2>&1 | grep -q secret-key'
+DRY="$(env -u ZAI_API_KEY SECURITY_AUDIT_GLM_API_KEY=secret-override-key "$ROOT_DIR/scripts/security-audit-glm" "$TMP_DIR/target" --dry-run 2>&1)"
+check "dry run keeps the override key out" eval '! grep -q secret-override-key <<<"$DRY" && grep -Fq "ANTHROPIC_AUTH_TOKEN=\\\$SECURITY_AUDIT_GLM_API_KEY" <<<"$DRY"'
+DRY="$(env -u SECURITY_AUDIT_GLM_API_KEY ZAI_API_KEY=secret-key "$ROOT_DIR/scripts/security-audit-glm" "$TMP_DIR/target" --dry-run 2>&1)"
+check "dry run names the z.ai key" grep -Fq "ANTHROPIC_AUTH_TOKEN=\\\$ZAI_API_KEY" <<<"$DRY"
+rm -f "$FAKE_OUT"
+SECURITY_AUDIT_GLM_API_KEY=override-test SECURITY_AUDIT_GLM_BASE_URL=https://glm.test/api ZAI_API_KEY=zai-test \
+  "$ROOT_DIR/scripts/security-audit-glm" "$TMP_DIR/target" --print --timeout 30 2>/dev/null || true
+check "override key and endpoint reach claude" eval 'has "token=override-test " && has "base=https://glm.test/api "'
 
 check "fixture passes the upstream validators" eval 'node "$SKILL_DIR/validate-findings.cjs" "$TMP_DIR/fixture/findings.json" >/dev/null && node "$SKILL_DIR/validate-coverage-ledger.cjs" "$TMP_DIR/fixture/coverage-ledger.json" >/dev/null'
 audit none
