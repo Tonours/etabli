@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Run the vendored Cloudflare security-audit skill in Claude Code on Z.ai GLM only:
-# the session and every subagent it spawns use the same GLM model.
+# Run the vendored Cloudflare security-audit skill in Claude Code on one
+# provider's Anthropic-compatible endpoint (Z.ai GLM by default): the session
+# and every subagent it spawns use the same model.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." >/dev/null 2>&1 && pwd)"
@@ -16,8 +17,9 @@ Usage: security-audit-glm [target-dir] [--profile quick|standard|deep] [--out DI
                           [--model ID] [--effort low|high|max] [--dry-run]
                           [--print --timeout SECONDS]
 
-Runs the security-audit skill through Claude Code against the Z.ai Anthropic
-endpoint. Needs ZAI_API_KEY. Defaults: glm-5.3[1m], effort max, profile
+Runs the security-audit skill through Claude Code against an Anthropic
+endpoint (Z.ai by default; SECURITY_AUDIT_GLM_BASE_URL overrides it). Needs
+SECURITY_AUDIT_GLM_API_KEY, or ZAI_API_KEY for Z.ai. Defaults: glm-5.3[1m], effort max, profile
 standard, reports under ~/security-audit-skill/<repo>/run-N, interactive
 session (--print runs headless). The audited repo's .claude settings, hooks
 and .mcp.json are not loaded. When security-audit-sandbox --check passes,
@@ -38,6 +40,8 @@ PROFILE="standard"
 OUT=""
 MODEL="${SECURITY_AUDIT_GLM_MODEL:-glm-5.3[1m]}"
 EFFORT="${SECURITY_AUDIT_GLM_EFFORT:-max}"
+BASE_URL="${SECURITY_AUDIT_GLM_BASE_URL:-https://api.z.ai/api/anthropic}"
+API_KEY="${SECURITY_AUDIT_GLM_API_KEY:-${ZAI_API_KEY:-}}"
 TIMEOUT="${SECURITY_AUDIT_GLM_TIMEOUT:-}"
 KILL_GRACE=10
 PRINT=0
@@ -62,7 +66,7 @@ case "$PROFILE" in quick | standard | deep) ;; *) echo "unknown profile: $PROFIL
 case "$EFFORT" in low | high | max) ;; *) echo "unsupported effort: $EFFORT (GLM takes low, high or max)" >&2; exit 2 ;; esac
 [ -f "$SKILL_DIR/SKILL.md" ] || { echo "security-audit skill missing at $SKILL_DIR; run scripts/sync-vendor-skills cloudflare" >&2; exit 1; }
 TARGET="$(cd "$TARGET" 2>/dev/null && pwd -P)" || { echo "target is not a directory" >&2; exit 1; }
-[ -n "${ZAI_API_KEY:-}" ] || { echo "ZAI_API_KEY is not set; export your Z.ai API key first" >&2; exit 1; }
+[ -n "$API_KEY" ] || { echo "SECURITY_AUDIT_GLM_API_KEY (or ZAI_API_KEY for Z.ai) is not set; export your provider API key first" >&2; exit 1; }
 CLAUDE="$(command -v claude)" || { echo "claude binary not found on PATH" >&2; exit 1; }
 if [ "$PRINT" = 1 ]; then
   case "$TIMEOUT" in '' | 0* | *[!0-9]* | ?????????*) echo "--print needs --timeout SECONDS (or SECURITY_AUDIT_GLM_TIMEOUT), a positive integer of at most 8 digits" >&2; exit 2 ;; esac
@@ -139,21 +143,22 @@ ARGS=(--model "$MODEL" --effort "$EFFORT" --permission-mode auto --setting-sourc
 RUN=(env -u ANTHROPIC_API_KEY -u ANTHROPIC_CUSTOM_HEADERS -u ANTHROPIC_SMALL_FAST_MODEL -u CLAUDE_CODE_OAUTH_TOKEN
   -u CLAUDE_CODE_USE_BEDROCK -u CLAUDE_CODE_USE_VERTEX -u CLAUDE_CODE_USE_FOUNDRY
   CLAUDE_CONFIG_DIR="$STATE_DIR"
-  ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic
+  ANTHROPIC_BASE_URL="$BASE_URL"
   ANTHROPIC_DEFAULT_OPUS_MODEL="$MODEL" ANTHROPIC_DEFAULT_SONNET_MODEL="$MODEL" ANTHROPIC_DEFAULT_HAIKU_MODEL="$MODEL"
   CLAUDE_CODE_SUBAGENT_MODEL="$MODEL"
   API_TIMEOUT_MS=3000000 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=3600000
   ENABLE_TOOL_SEARCH=false
   "$CLAUDE" "${ARGS[@]}" -- "$PROMPT")
 
-echo "security-audit-glm: $TARGET, profile $PROFILE, $MODEL ($EFFORT) via Z.ai" >&2
+PROVIDER="${BASE_URL#*://}"; PROVIDER="${PROVIDER%%/*}"
+echo "security-audit-glm: $TARGET, profile $PROFILE, $MODEL ($EFFORT) via $PROVIDER" >&2
 if [ "$DRY_RUN" = 1 ]; then
-  printf '%q ' ANTHROPIC_AUTH_TOKEN='$ZAI_API_KEY' "${RUN[@]}"
+  printf '%q ' ANTHROPIC_AUTH_TOKEN="$API_KEY" "${RUN[@]}"
   echo
   exit 0
 fi
 cd "$TARGET"
-[ "$PRINT" = 1 ] || ANTHROPIC_AUTH_TOKEN="$ZAI_API_KEY" exec "${RUN[@]}"
+[ "$PRINT" = 1 ] || ANTHROPIC_AUTH_TOKEN="$API_KEY" exec "${RUN[@]}"
 
 STATE="$(mktemp -d "${TMPDIR:-/tmp}/security-audit-glm.XXXXXX")"
 trap 'rm -rf "$STATE"' EXIT
@@ -194,7 +199,7 @@ on_signal() { SIGNAL=$1; [ -z "$SUPERVISOR" ] || kill -USR1 "$SUPERVISOR" 2>/dev
 trap 'on_signal 129' HUP
 trap 'on_signal 130' INT
 trap 'on_signal 143' TERM
-ANTHROPIC_AUTH_TOKEN="$ZAI_API_KEY" perl -e "$SUPERVISE" "$TIMEOUT" "$KILL_GRACE" "$STATE/stopped" "${RUN[@]}" &
+ANTHROPIC_AUTH_TOKEN="$API_KEY" perl -e "$SUPERVISE" "$TIMEOUT" "$KILL_GRACE" "$STATE/stopped" "${RUN[@]}" &
 SUPERVISOR=$!
 [ -z "$SIGNAL" ] || on_signal "$SIGNAL"
 while :; do
