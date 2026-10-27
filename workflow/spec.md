@@ -159,7 +159,9 @@ Selection stays with the model, never injected per prompt (ADR-0014).
 
 None. Deletion, production, billing, history rewrite, pushes, and external
 write-back run without a stop (ADR-0032); secrets are never printed or
-committed.
+committed. Under a host that gates effects, such as a fleet session
+(`FLEET_SESSION_ID` set), the host's rules win: push only the run's branch,
+open its PR, and ask the host for any other effect.
 
 The model routes from the table above (ADR-0036); actual plan state and the
 remaining write gates (no-comments, read-only agents) stay authoritative code.

@@ -21,8 +21,9 @@
 - Answers/handoffs follow `workflow/answer-quality.md` and its live final gate.
 - Assessment/review/diagnosis: findings then stop. Otherwise act once evidence is enough.
 - No approval pauses: destructive work, pushes, deploys, and external writes
-  run directly. Pause only for user-only input (a credential value, a real
-  scope decision). Never print or commit secrets.
+  run directly, except under a host that gates effects (`workflow/spec.md`
+  § Human checkpoints). Pause only for user-only input (a credential value, a
+  real scope decision). Never print or commit secrets.
 
 ## Code, Review, Git
 - YAGNI, KISS, DRY. Preserve unrelated user changes.
