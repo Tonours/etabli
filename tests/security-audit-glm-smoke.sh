@@ -155,6 +155,10 @@ DRY="$(env -u ZAI_API_KEY SECURITY_AUDIT_GLM_API_KEY=secret-override-key "$ROOT_
 check "dry run keeps the override key out" eval '! grep -q secret-override-key <<<"$DRY" && grep -Fq "ANTHROPIC_AUTH_TOKEN=\\\$SECURITY_AUDIT_GLM_API_KEY" <<<"$DRY"'
 DRY="$(env -u SECURITY_AUDIT_GLM_API_KEY ZAI_API_KEY=secret-key "$ROOT_DIR/scripts/security-audit-glm" "$TMP_DIR/target" --dry-run 2>&1)"
 check "dry run names the z.ai key" grep -Fq "ANTHROPIC_AUTH_TOKEN=\\\$ZAI_API_KEY" <<<"$DRY"
+DRY="$(SECURITY_AUDIT_GLM_API_KEY=secret-override-key ZAI_API_KEY=secret-key "$ROOT_DIR/scripts/security-audit-glm" "$TMP_DIR/target" --dry-run 2>&1)"
+check "dry run with both keys names the override" eval '! grep -Eq "secret-(override-)?key" <<<"$DRY" && grep -Fq "ANTHROPIC_AUTH_TOKEN=\\\$SECURITY_AUDIT_GLM_API_KEY" <<<"$DRY"'
+DRY="$(SECURITY_AUDIT_GLM_API_KEY= ZAI_API_KEY=secret-key "$ROOT_DIR/scripts/security-audit-glm" "$TMP_DIR/target" --dry-run 2>&1)"
+check "dry run with an empty override names the z.ai key" eval '! grep -q secret-key <<<"$DRY" && grep -Fq "ANTHROPIC_AUTH_TOKEN=\\\$ZAI_API_KEY" <<<"$DRY"'
 rm -f "$FAKE_OUT"
 SECURITY_AUDIT_GLM_API_KEY=override-test SECURITY_AUDIT_GLM_BASE_URL=https://glm.test/api ZAI_API_KEY=zai-test \
   "$ROOT_DIR/scripts/security-audit-glm" "$TMP_DIR/target" --print --timeout 30 2>/dev/null || true
