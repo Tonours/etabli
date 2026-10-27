@@ -52,8 +52,9 @@ codex exec --cd "$PWD" --sandbox read-only --model gpt-6.1-sol \
   "Review PLAN.md as an adversarial reviewer from a different model family. Do not edit. Hunt blockers, weak assumptions, missing edge cases, validation gaps, plan drift, and simpler or safer routes. Cite sections and end with READY or CHALLENGED."
 ```
 
-Escalate or replace an unavailable Sol route with `gpt-6-astra`. Eligible Z.ai
-fallback, when zai wrote none of the work: `pi -p --model zai/glm-5.3 --tools read`. For an OpenAI author, skip
+Escalate or replace an unavailable Sol route with `gpt-6-astra`. Eligible
+Z.ai fallback, when zai wrote none of the work:
+`pi -p --model zai/glm-5.3 --tools read`. For an OpenAI author, skip
 both Codex routes and select Claude `claude-opus-5-5` first, then GLM. Never
 send an Opus model ID to Pi. Record which requested route ran and which
 effective model the transcript or runtime proved; requested-model success

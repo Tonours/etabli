@@ -97,7 +97,8 @@ ran, and record it. Selection depends on the effective model families of
 every author of the work, not on the harness currently driving the workflow:
 
 1. exclude every family that authored the work, a handover from another
-   harness included, and keep only routes listed for none of them;
+   harness included, and keep only routes listed for each of them in
+   `author_family_routes` of `workflow/runtime/model-routing.json`;
 2. choose a configured route from the strongest available frontier pool;
 3. prefer a direct provider route over an aggregator route;
 4. record the model provenance (requested and effective model, provider,
