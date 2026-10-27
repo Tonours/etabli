@@ -153,7 +153,9 @@ RUN=(env -u ANTHROPIC_API_KEY -u ANTHROPIC_CUSTOM_HEADERS -u ANTHROPIC_SMALL_FAS
 PROVIDER="${BASE_URL#*://}"; PROVIDER="${PROVIDER%%/*}"
 echo "security-audit-glm: $TARGET, profile $PROFILE, $MODEL ($EFFORT) via $PROVIDER" >&2
 if [ "$DRY_RUN" = 1 ]; then
-  printf '%q ' ANTHROPIC_AUTH_TOKEN="$API_KEY" "${RUN[@]}"
+  KEY_VAR='$ZAI_API_KEY'
+  [ -z "${SECURITY_AUDIT_GLM_API_KEY:-}" ] || KEY_VAR='$SECURITY_AUDIT_GLM_API_KEY'
+  printf '%q ' ANTHROPIC_AUTH_TOKEN="$KEY_VAR" "${RUN[@]}"
   echo
   exit 0
 fi
