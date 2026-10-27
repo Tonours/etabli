@@ -228,14 +228,20 @@ FAKE_REPORT=complete FAKE_CHILD=ordinary audit leftover
 check "a descendant left after a clean exit is ended" eval '[ "$RC" = 0 ] && gone'
 interrupt() {
   rm -f "$TMP_DIR/child.pid" "$TMP_DIR/leader.pid"
-  FAKE_REPORT=complete ZAI_API_KEY=k perl -e 'setpgrp(0, 0); $SIG{INT} = "DEFAULT"; exec @ARGV' \
+  FAKE_REPORT=complete ZAI_API_KEY=k perl -e 'setpgrp(0, 0); $SIG{INT} = "DEFAULT"; alarm 60; exec @ARGV' \
     "$ROOT_DIR/scripts/security-audit-glm" "$TMP_DIR/target" --print --timeout 30 --out "$TMP_DIR/runs/$1-$2" >/dev/null 2>&1 &
   local launcher=$!
   appears "$TMP_DIR/child.pid"
   if [ "$2" = group ]; then
     local i
     for i in $(seq 100); do kill -0 "$(cat "$TMP_DIR/leader.pid")" 2>/dev/null || break; sleep 0.1; done
+    SWEEP_START=$SECONDS
+    if kill -0 "$(cat "$TMP_DIR/leader.pid")" 2>/dev/null; then SWEEP_START=leader-alive; fi
     kill "-$1" -- "-$launcher"
+    sleep 4
+    kill "-$1" -- "-$launcher" 2>/dev/null || true
+    sleep 4
+    kill "-$1" -- "-$launcher" 2>/dev/null || true
   else
     kill "-$1" "$launcher"
   fi
@@ -248,9 +254,8 @@ FAKE_CHILD=ordinary FAKE_SLEEP=60 interrupt HUP launcher
 check "HUP interrupts with 129 and ends the group" eval '[ "$RC" = 129 ] && gone'
 FAKE_CHILD=ordinary FAKE_SLEEP=60 interrupt INT launcher
 check "INT interrupts with 130 and ends the group" eval '[ "$RC" = 130 ] && gone'
-SECONDS=0
 FAKE_CHILD=ignore interrupt TERM group
-check "a group TERM during the final sweep still kills a TERM-ignoring descendant" eval '[ "$RC" = 143 ] && [ "$SECONDS" -ge 9 ] && gone'
+check "repeated group TERMs during the final sweep keep its grace and kill a TERM-ignoring descendant" eval '[ "$RC" = 143 ] && [ "$SWEEP_START" != leader-alive ] && [ $((SECONDS - SWEEP_START)) -ge 9 ] && [ $((SECONDS - SWEEP_START)) -lt 14 ] && gone'
 
 [ "$failures" -eq 0 ] || { printf 'security-audit-glm smoke test: %d failure(s)\n' "$failures"; exit 1; }
 printf 'security-audit-glm smoke test: ok\n'
