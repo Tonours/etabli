@@ -278,6 +278,11 @@ function isReadOnlyGhSegment(segment) {
 	}
 
 	return !args.some((argument, index) => {
+		const attachedJq = /^(?:--jq=|-[^-]*?q)(.*)$/.exec(argument);
+		let filter = "";
+		if (argument === "--jq") filter = args[index + 1] || "";
+		else if (attachedJq) filter = attachedJq[1] || args[index + 1] || "";
+		if (/\benv\b|\$ENV\b/.test(filter)) return true;
 		if (argument === "--method" || argument === "-X") {
 			return String(args[index + 1] || "").toUpperCase() !== "GET";
 		}
