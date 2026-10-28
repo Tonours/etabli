@@ -26,8 +26,8 @@ depends on that code.
 A fired Threat trigger with `threat: n/a`, or a Threat report with a missing or
 `partial:` table, forbids `GO` and `GO WITH NOTES`.
 A hunter dispatched without its template text in the brief (`template:
-missing`), or a hunter report ending `STATUS: truncated`, did not finish its
-hunt: `GO` and `GO WITH NOTES` are forbidden; the parent re-dispatches.
+missing`), or a hunter report whose last line is not `STATUS: complete`, did
+not finish its hunt: `GO` and `GO WITH NOTES` are forbidden; the parent re-dispatches.
 
 ## Status
 

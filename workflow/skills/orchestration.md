@@ -23,7 +23,8 @@ but cannot confirm runtime support.
   Pi profile remains parent-only while its subagent capability is `unknown`.
 - A Claude `scout`, `reviewer`, or `adversary` agent report whose last line is
   not `STATUS: complete` counts as truncated: rerun or narrow it, never read it
-  as clean. Pi hunter templates end on their `Verdict:` line instead.
+  as clean. Review hunter templates end on the same line on every runner, Pi
+  included.
 
 ## Capability Labels
 

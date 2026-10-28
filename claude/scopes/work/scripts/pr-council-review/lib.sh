@@ -25,7 +25,9 @@ fi
 # ~/.config/pr-council-review/verify-skill. Prints `/<name>`; fails when unset or malformed.
 verify_skill() {
   local name="${PR_COUNCIL_VERIFY_SKILL:-}"
-  [ -n "$name" ] || name="$(head -1 "$HOME/.config/pr-council-review/verify-skill" 2>/dev/null | tr -d '[:space:]')"
+  [ -n "$name" ] || name="$(head -1 "$HOME/.config/pr-council-review/verify-skill" 2>/dev/null)"
+  name="${name#"${name%%[![:space:]]*}"}"
+  name="${name%"${name##*[![:space:]]}"}"
   name="${name#/}"
   [[ "$name" =~ ^[A-Za-z0-9][A-Za-z0-9:_-]*$ ]] || return 1
   printf '/%s' "$name"

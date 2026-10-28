@@ -390,6 +390,10 @@ case_verify_skill_config() {
   check "verify skill: env wins over file" grep -q "^/test-verify-fixes 7 o/r" "$FAKE_DIR/verify-prompt.txt"
   printf 'bad name!\n' >"$conf"
   check "verify skill: malformed file is unconfigured" [ "$(PR_COUNCIL_VERIFY_SKILL='' attempt_after 5 1 "$old")" = unconfigured ]
+  printf 'test-verify -fixes\n' >"$conf"
+  check "verify skill: inner whitespace is unconfigured" [ "$(PR_COUNCIL_VERIFY_SKILL='' attempt_after 5 1 "$old")" = unconfigured ]
+  printf '  /file-verify-fixes  \n' >"$conf"
+  check "verify skill: outer whitespace and slash are trimmed" [ "$(PR_COUNCIL_VERIFY_SKILL='' attempt_after 5 1 "$old")" = 1 ]
   rm -f "$conf"
   unset FAKE_VERIFY_TEXT
 }
