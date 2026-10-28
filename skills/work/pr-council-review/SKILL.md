@@ -31,6 +31,23 @@ usage per pass is appended to `~/.claude/logs/pr-review-usage.log`.
   candidates for its step 6 skeptic gate. One review, the validator's emit
   contract, its writing rules, its markers.
 
+Validator already on this head: the validator refuses a SHA it already
+reviewed. When the validator's login (`PR_COUNCIL_VALIDATOR_LOGIN`, else the
+machine-local `~/.config/pr-council-review/validator-login`) has a completed
+review on the current head SHA, the script runs phase A only, every pass on
+`opus` at `high` (`--with-validator` forces the validator, `--phase-a-only`
+forces this mode, `PR_COUNCIL_PHASE_A_ONLY=auto|0|1`). With no login
+configured, `auto` keeps the validator and `--phase-a-only` exits 2. An opus
+pass verifies phase A's findings against the code and, with `--post`, posts
+one `COMMENT` review (changed lines inline, the rest in the body), or nothing
+when none survive. It never approves: it ends with the validator's run marker.
+The script reads the head's reviews again after that pass: when the
+validator's latest review is not an approval, it appends a marker counting it
+as open, and when findings were kept under `--post` but no new review of ours
+is on the head, it exits 1 so the watcher retries. The watcher approves only
+behind its gates and only when nothing stands; a validator approval on the head
+is taken as its completion.
+
 A permission denial in any pass is a veto: the validator does not run or its
 review is not approved, and the script exits 3. A session that ends incomplete
 (an error, a turn or budget cap) exits 4; the watcher also counts a validator run
