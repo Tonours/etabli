@@ -325,7 +325,7 @@ watch_fn() {
 }
 
 attempt_after() {
-  printf '%s\t%s\t%s\t%s\n' "${4:-$HEAD1}" "${ATTEMPT_MODE:-council}" "$1" "$2" >"$KEY.status"
+  printf '%s\tcouncil\t%s\t%s\n' "${4:-$HEAD1}" "$1" "$2" >"$KEY.status"
   touch -t "$3" "$KEY.status"
   watch_fn "next_attempt '$KEY' '$HEAD1'"
 }
@@ -368,12 +368,18 @@ case_verify_skill_config() {
   check "verify unconfigured: no verify pass" not_called "claude VERIFY"
   check "verify unconfigured: no watermark" no_file "$KEY.watermark"
   check "verify unconfigured: no approval" [ "$(approvals)" = 0 ]
-  check "verify unconfigured: the watcher waits" [ "$(PR_COUNCIL_VERIFY_SKILL='' ATTEMPT_MODE=verify attempt_after 5 1 "$old")" = unconfigured ]
-  check "verify unconfigured: retried once configured" [ "$(ATTEMPT_MODE=verify attempt_after 5 1 "$old")" = 2 ]
-  check "rc 5 from a configured verify run spends the cap" [ "$(ATTEMPT_MODE=verify attempt_after 5 3 "$old")" = exhausted ]
-  check "rc 5 from a council run is an ordinary failure" [ "$(PR_COUNCIL_VERIFY_SKILL='' attempt_after 5 1 "$old")" = 2 ]
+  check "verify unconfigured: marker names the sha" [ "$(cat "$KEY.verify-unconfigured" 2>/dev/null)" = "$HEAD2" ]
+  printf '%s\n' "$HEAD1" >"$KEY.verify-unconfigured"
+  check "verify unconfigured: the watcher waits" [ "$(PR_COUNCIL_VERIFY_SKILL='' attempt_after 5 1 "$old")" = unconfigured ]
+  check "verify unconfigured: no attempt spent once configured" [ "$(attempt_after 5 1 "$old")" = 1 ]
+  check "verify unconfigured: resumes at the cap once configured" [ "$(attempt_after 5 3 "$old")" = 3 ]
+  rm -f "$KEY.verify-unconfigured"
+  check "rc 5 without the marker spends the cap" [ "$(attempt_after 5 3 "$old")" = exhausted ]
+  check "rc 5 without the marker, skill missing, retries" [ "$(PR_COUNCIL_VERIFY_SKILL='' attempt_after 5 1 "$old")" = 2 ]
+  printf '%s\n' "$HEAD1" >"$KEY.verify-unconfigured"
   run_review verify "$HEAD2" "$HEAD1"
   check "verify configured later: same sha verified" called "claude VERIFY"
+  check "verify configured later: marker cleared" no_file "$KEY.verify-unconfigured"
   check "verify configured later: watermark" [ "$(cat "$KEY.watermark" 2>/dev/null)" = "$HEAD2" ]
   check "verify configured later: one approval" [ "$(approvals)" = 1 ]
   mkdir -p "$(dirname "$conf")"
@@ -390,12 +396,13 @@ case_verify_skill_config() {
   set_head "$HEAD2" '[{"state":"COMMENTED","author":{"login":"me"}}]'
   run_review verify "$HEAD2" "$HEAD1"
   check "verify skill: env wins over file" grep -q "^/test-verify-fixes 7 o/r" "$FAKE_DIR/verify-prompt.txt"
+  printf '%s\n' "$HEAD1" >"$KEY.verify-unconfigured"
   printf 'bad name!\n' >"$conf"
-  check "verify skill: malformed file is unconfigured" [ "$(PR_COUNCIL_VERIFY_SKILL='' ATTEMPT_MODE=verify attempt_after 5 1 "$old")" = unconfigured ]
+  check "verify skill: malformed file is unconfigured" [ "$(PR_COUNCIL_VERIFY_SKILL='' attempt_after 5 1 "$old")" = unconfigured ]
   printf 'test-verify -fixes\n' >"$conf"
-  check "verify skill: inner whitespace is unconfigured" [ "$(PR_COUNCIL_VERIFY_SKILL='' ATTEMPT_MODE=verify attempt_after 5 1 "$old")" = unconfigured ]
+  check "verify skill: inner whitespace is unconfigured" [ "$(PR_COUNCIL_VERIFY_SKILL='' attempt_after 5 1 "$old")" = unconfigured ]
   printf '  /file-verify-fixes  \n' >"$conf"
-  check "verify skill: outer whitespace and slash are trimmed" [ "$(PR_COUNCIL_VERIFY_SKILL='' ATTEMPT_MODE=verify attempt_after 5 1 "$old")" = 2 ]
+  check "verify skill: outer whitespace and slash are trimmed" [ "$(PR_COUNCIL_VERIFY_SKILL='' attempt_after 5 1 "$old")" = 1 ]
   rm -f "$conf"
   unset FAKE_VERIFY_TEXT
 }
