@@ -89,4 +89,4 @@ REPO_BASE="${REPO_OVERRIDE:-$REPO_DIR}"
 SKILL_NAMES="$(node "$SCRIPT_DIR/lib/surfaces.mjs" skill-names "$REPO_BASE" "$HOME_DIR")"
 export SKILL_NAMES
 
-node "$SCRIPT_DIR/lib/claude-skill-load-check.mjs" "$CLAUDE_DIR" "$REPO_BASE" "$GATE" "$ALERT" "$FIX"
+node "$SCRIPT_DIR/lib/claude-skill-load-check.mjs" "$CLAUDE_DIR" "$REPO_BASE" "$GATE" "$ALERT" "$FIX" "$HOME_DIR"

@@ -3,6 +3,7 @@
 PR_REVIEW_USAGE_LOG="${PR_REVIEW_USAGE_LOG:-$HOME/.claude/logs/pr-review-usage.log}"
 REVIEW_VETO_RC=3
 REVIEW_INCOMPLETE_RC=4
+VERIFY_UNCONFIGURED_RC=5
 CLAUDE_PASS_TIMEOUT="${PR_REVIEW_PASS_TIMEOUT:-2700}"
 CLAUDE_MAX_TURNS="${PR_REVIEW_MAX_TURNS:-200}"
 CLAUDE_MAX_BUDGET_USD="${PR_REVIEW_MAX_BUDGET_USD:-25}"
@@ -20,6 +21,16 @@ if [ -z "$CODEX" ]; then
     [ -n "$candidate" ] && [ -x "$candidate" ] && { CODEX="$candidate"; break; }
   done
 fi
+# The fix-verification skill is machine-local: PR_COUNCIL_VERIFY_SKILL, else the first line of
+# ~/.config/pr-council-review/verify-skill. Prints `/<name>`; fails when unset or malformed.
+verify_skill() {
+  local name="${PR_COUNCIL_VERIFY_SKILL:-}"
+  [ -n "$name" ] || name="$(head -1 "$HOME/.config/pr-council-review/verify-skill" 2>/dev/null | tr -d '[:space:]')"
+  name="${name#/}"
+  [[ "$name" =~ ^[A-Za-z0-9][A-Za-z0-9:_-]*$ ]] || return 1
+  printf '/%s' "$name"
+}
+
 AUTHOR_CONFIG_PATHS=(CLAUDE.md CLAUDE.local.md AGENTS.md AGENTS.override.md .mcp.json .claude .codex ':(glob)**/CLAUDE.md' ':(glob)**/CLAUDE.local.md' ':(glob)**/AGENTS.md' ':(glob)**/AGENTS.override.md' ':(glob)**/.claude/**' ':(glob)**/.codex/**')
 
 render_template() {

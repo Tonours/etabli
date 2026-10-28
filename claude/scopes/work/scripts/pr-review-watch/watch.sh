@@ -176,6 +176,8 @@ next_attempt() {
       elif [ "$s_attempts" -ge "$MAX_ATTEMPTS" ]; then echo exhausted
       else echo $((s_attempts + 1)); fi ;;
     "$REVIEW_VETO_RC"|"$REVIEW_INCOMPLETE_RC") echo stopped ;;
+    "$VERIFY_UNCONFIGURED_RC")
+      if verify_skill >/dev/null; then echo "$s_attempts"; else echo unconfigured; fi ;;
     *)
       if [ "$s_attempts" -ge "$MAX_ATTEMPTS" ]; then echo exhausted
       elif [ "$(status_age "$key")" -lt "$RETRY_BACKOFF_SECONDS" ]; then echo wait
@@ -226,6 +228,12 @@ consider() {
   attempt="$(next_attempt "$key" "$sha")"
   case "$attempt" in
     done|wait) return ;;
+    unconfigured)
+      if [ "$(cat "$key.unconfigured" 2>/dev/null)" != "$sha" ]; then
+        echo "$sha" >"$key.unconfigured"
+        log "$repo#$number @${sha:0:8} verify skill unconfigured, waiting for PR_COUNCIL_VERIFY_SKILL or ~/.config/pr-council-review/verify-skill"
+      fi
+      return ;;
     exhausted|stopped)
       if [ "$(cat "$key.exhausted" 2>/dev/null)" != "$sha" ]; then
         echo "$sha" >"$key.exhausted"
@@ -281,7 +289,7 @@ process_watched() {
     if [ "$state" != "OPEN" ] || [ "$involved" != "true" ] || [ "$approved" = "true" ]; then
       herdr_available && close_review_tab "${repo#*/}#$number"
       log "unwatching $repo#$number ($state, involved=$involved, approved=$approved)"
-      [ "$state" = OPEN ] || rm -f "$(run_key "$repo" "$number")".{status,seen,watermark,council-done,council-clean,approval-pending,approval-body,skipped,exhausted,delta-done}
+      [ "$state" = OPEN ] || rm -f "$(run_key "$repo" "$number")".{status,seen,watermark,council-done,council-clean,approval-pending,approval-body,skipped,exhausted,delta-done,unconfigured}
       continue
     fi
     [ "$draft" = "false" ] && consider "$me" "$repo" "$number" "$sha" "$url" </dev/null

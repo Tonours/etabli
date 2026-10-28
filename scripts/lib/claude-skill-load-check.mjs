@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { backupFile, writeJsonAtomic } from "./surfaces.mjs";
 
-const [claudeDir, repoDir, gateRaw, alertRaw, fixRaw] = process.argv.slice(2);
+const [claudeDir, repoDir, gateRaw, alertRaw, fixRaw, homeDir] = process.argv.slice(2);
 const FIX = fixRaw === "1";
 const GATE = Number(gateRaw);
 const ALERT = Number(alertRaw);
@@ -330,7 +330,18 @@ const pluginsFile = path.join(claudeDir, "plugins/installed_plugins.json");
 const plugins = readJson(pluginsFile, {});
 const enabled =
 	liveSettings.enabledPlugins ?? {};
-const MACHINE_LOCAL_PLUGINS = new Set(readJson(path.join(repoDir, "claude/machine-local-plugins.json"), []));
+function pluginList(file) {
+  const list = readJson(file, []);
+  if (!Array.isArray(list) || !list.every((key) => typeof key === "string")) {
+    console.error(`FAIL: ${file} must be a JSON array of plugin keys; fix it by hand, nothing written`);
+    process.exit(1);
+  }
+  return list;
+}
+const MACHINE_LOCAL_PLUGINS = new Set([
+  ...pluginList(path.join(repoDir, "claude/machine-local-plugins.json")),
+  ...(homeDir ? pluginList(path.join(homeDir, ".config/etabli/machine-local-plugins.json")) : []),
+]);
 for (const [key, on] of Object.entries(enabled)) {
   if (on !== true || MACHINE_LOCAL_PLUGINS.has(key)) continue;
   const records = plugins.plugins?.[key] ?? [];
