@@ -177,9 +177,9 @@ next_attempt() {
       else echo $((s_attempts + 1)); fi ;;
     "$REVIEW_VETO_RC"|"$REVIEW_INCOMPLETE_RC") echo stopped ;;
     *)
-      # rc 5 means unconfigured only for a verify run while the skill is still missing;
-      # any other rc 5 (a child process) is an ordinary failure.
-      if [ "$s_mode" = verify ] && [ "$s_rc" = "$VERIFY_UNCONFIGURED_RC" ] && ! verify_skill >/dev/null; then echo unconfigured
+      # rc 5 alone is ambiguous (a child can exit 5); only the marker run_verify writes means unconfigured.
+      if [ "$s_rc" = "$VERIFY_UNCONFIGURED_RC" ] && [ "$(cat "$key.verify-unconfigured" 2>/dev/null)" = "$sha" ]; then
+        if verify_skill >/dev/null; then echo "$s_attempts"; else echo unconfigured; fi
       elif [ "$s_attempts" -ge "$MAX_ATTEMPTS" ]; then echo exhausted
       elif [ "$(status_age "$key")" -lt "$RETRY_BACKOFF_SECONDS" ]; then echo wait
       else echo $((s_attempts + 1)); fi ;;
@@ -290,7 +290,7 @@ process_watched() {
     if [ "$state" != "OPEN" ] || [ "$involved" != "true" ] || [ "$approved" = "true" ]; then
       herdr_available && close_review_tab "${repo#*/}#$number"
       log "unwatching $repo#$number ($state, involved=$involved, approved=$approved)"
-      [ "$state" = OPEN ] || rm -f "$(run_key "$repo" "$number")".{status,seen,watermark,council-done,council-clean,approval-pending,approval-body,skipped,exhausted,delta-done,unconfigured}
+      [ "$state" = OPEN ] || rm -f "$(run_key "$repo" "$number")".{status,seen,watermark,council-done,council-clean,approval-pending,approval-body,skipped,exhausted,delta-done,unconfigured,verify-unconfigured}
       continue
     fi
     [ "$draft" = "false" ] && consider "$me" "$repo" "$number" "$sha" "$url" </dev/null

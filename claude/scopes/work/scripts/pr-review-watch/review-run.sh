@@ -146,6 +146,7 @@ council_in_history() {
 
 run_verify() {
   local delta_log="${REPORT%.md}-delta.md" delta_findings reviewed history=0
+  rm -f "$KEY.verify-unconfigured"
   council_in_history || history=$?
   case "$history" in
     0) ;;
@@ -176,6 +177,7 @@ run_verify() {
   fi
 
   VERIFY_SKILL_NAME="$(verify_skill)" || {
+    echo "$SHA" >"$KEY.verify-unconfigured"
     echo "=== step 2: verify: unconfigured (set PR_COUNCIL_VERIFY_SKILL or ~/.config/pr-council-review/verify-skill); no watermark, ${SHA:0:8} stays due"
     return "$VERIFY_UNCONFIGURED_RC"
   }
