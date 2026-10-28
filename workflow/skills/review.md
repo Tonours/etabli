@@ -31,6 +31,12 @@ Same-session Logic self-review is forbidden.
 4. Write the pinned patch to a temp file (must be non-empty). Dispatch
    **Logic hunter** with `workflow/templates/review-logic-hunter.md` in a fresh
    context. First line: `Axis: Logic`. Do not hunt Logic in the parent.
+   Every runner delivers the hunter template's full text in the brief (Pi:
+   `--append-system-prompt`; Claude and Cursor: the `Axis:` line, then the
+   template text, then the Intent and `Standards:` lines and the patch file
+   path). A brief that only names the template path is not a dispatch: the
+   Claude reviewer does not open it. Record `template: inline` once every
+   hunter brief carried its template, else `template: missing`.
    - Claude: `Agent` → existing `reviewer` agent. `runner: claude-agent`.
    - Cursor: Task with model `claude-opus-5-thinking-high`. Do not spawn
      `pi -p` from Cursor. `runner: cursor-task`.
@@ -129,7 +135,8 @@ no-sibling gap excepted), when the whole-diff `n/a` lists a changed path that
 is not a document or pure rename, or when `isolation: none`. `GO WITH NOTES`
 is not a workaround for those gates. A triggered Threat axis without its
 complete report (a table missing or `partial:`) blocks `GO` and `GO WITH NOTES`
-the same way.
+the same way, as do `template: missing` and a hunter report ending
+`STATUS: truncated`.
 
 ## Rules
 

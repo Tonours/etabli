@@ -25,10 +25,13 @@ in Act on, and a high one is `BLOCK`. A declared follow-up is
 depends on that code.
 A fired Threat trigger with `threat: n/a`, or a Threat report with a missing or
 `partial:` table, forbids `GO` and `GO WITH NOTES`.
+A hunter dispatched without its template text in the brief (`template:
+missing`), or a hunter report ending `STATUS: truncated`, did not finish its
+hunt: `GO` and `GO WITH NOTES` are forbidden; the parent re-dispatches.
 
 ## Status
 
-Six bare lines, one per field — no bullets, no backticks, no bold, exact
+Seven bare lines, one per field — no bullets, no backticks, no bold, exact
 prefixes:
 
 isolation: isolated|none
@@ -37,6 +40,7 @@ hunter_model:
 spec: n/a|parent|isolated
 quality: none|ran
 threat: n/a|isolated
+template: inline|missing
 
 ## Act on
 

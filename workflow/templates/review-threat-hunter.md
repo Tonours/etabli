@@ -108,4 +108,5 @@ No preamble, no repeated Axis line. Findings sorted `high`, then `medium`, then
 finding appears under Findings, never as a table row only. Then the attacker
 paragraph, then the six tables with the headings above verbatim.
 
-End with one final line: `Verdict: GO | GO WITH NOTES | BLOCK`.
+Then the line `Verdict: GO | GO WITH NOTES | BLOCK`, and last `STATUS: complete`,
+or `STATUS: truncated` when the turn budget or a tool limit cut the work short.
