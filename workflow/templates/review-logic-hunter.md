@@ -57,4 +57,5 @@ Then `### Deciding-code table` — header verbatim
 `| Changed behavior | Deciding code opened (file:line) | Sibling / resolver | Result |`
 Then `Extra-lens: yes | no`.
 
-End with one final line: `Verdict: GO | GO WITH NOTES | BLOCK`.
+Then the line `Verdict: GO | GO WITH NOTES | BLOCK`, and last `STATUS: complete`,
+or `STATUS: truncated` when the turn budget or a tool limit cut the work short.

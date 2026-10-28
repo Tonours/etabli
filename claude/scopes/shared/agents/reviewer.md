@@ -23,7 +23,8 @@ can prove in the requested scope. An empty finding list is valid.
 ## Axis
 
 The parent names **Axis: Logic**, **Axis: Spec** or **Axis: Threat** in the
-first line. Follow `workflow/templates/review-<axis>-hunter.md`. Do not mix axes.
+first line, then the hunter template text: follow it. If the brief lacks it,
+read `workflow/templates/review-<axis>-hunter.md` first. Do not mix axes.
 
 - Logic: do not read `PLAN.md` as correctness authority. Extra-lens bugs are
   reportable. Fill lens + deciding-code tables. If the parent set

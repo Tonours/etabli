@@ -119,6 +119,7 @@ paths.each do |path|
     end
     raise "#{path}: reviewer must preserve the concrete-failure evidence bar." unless body.include?("concrete failure")
     raise "#{path}: reviewer must emit the exact three-value verdict contract." unless body.include?("GO WITH NOTES") && body.include?("BLOCK")
+    raise "#{path}: reviewer must follow the hunter template text carried in the brief." unless body.include?("then the hunter template text: follow it")
   end
 end
 
