@@ -193,6 +193,13 @@ read_only_controls=(
 	"git grep -eFOO x"
 	"git log -GTODO"
 )
+for gh_command in "gh api repos/o/r" "gh pr view 1 --json title" "gh issue view 1 --json title" "gh release view v1 --json name"; do
+	for filter in "--jq '\$ENV'" "--jq env" "--jq='\$ENV'" "-q '\$ENV'" "-q='\$ENV'" "-q'\$ENV'" "-qenv" "-iq env"; do
+		add_readonly_cases deny "$gh_command $filter" "rtk $gh_command $filter"
+	done
+	add_readonly_cases allow "$gh_command --jq '.title'" "$gh_command -q '.title'"
+done
+add_readonly_cases allow "gh repo view env/whatever" "gh pr list -R env-x/y" "gh api repos/o/r -q '.environment'"
 add_readonly_cases deny "${read_only_probes[@]}"
 add_readonly_cases allow "${read_only_controls[@]}"
 ROOT_DIR="$ROOT_DIR" CASES="$readonly_cases" CASE_COUNT="$readonly_case_count" CWD="$TMP_DIR" node --input-type=module <<'NODE'
