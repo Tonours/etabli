@@ -36,7 +36,10 @@ for arg in "$@"; do
 done
 case "$1 $2" in
   "auth status") exit 0 ;;
-  "api user") out='{"login":"me"}' ;;
+  "api user")
+    echo x >>"$FAKE_DIR/user-calls"
+    [ -z "${FAKE_GH_USER_FAIL_FROM:-}" ] || [ "$(wc -l <"$FAKE_DIR/user-calls")" -lt "$FAKE_GH_USER_FAIL_FROM" ] || exit 1
+    out='{"login":"me"}' ;;
   "pr view") [ -z "${FAKE_GH_VIEW_FAIL:-}" ] || exit 1; out="$(cat "$FAKE_DIR/pr.json")" ;;
   "pr checks") out='[{"bucket":"pass"}]' ;;
   "pr list") out="$(jq -c --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '[{number, author: {login: "me"}, url, createdAt: $now, reviews: [], headRefOid}]' "$FAKE_DIR/pr.json")" ;;
@@ -159,7 +162,7 @@ run_review() {
   mkdir -p "$STATE/runs"
   : >"$FAKE_LOG"
   : >"$FAKE_DIR/posts.log"
-  rm -f "$FAKE_DIR/validator-prompt.txt" "$FAKE_DIR/phasea-prompt.txt" "$FAKE_DIR/phase-a-ran"
+  rm -f "$FAKE_DIR/validator-prompt.txt" "$FAKE_DIR/phasea-prompt.txt" "$FAKE_DIR/phase-a-ran" "$FAKE_DIR/user-calls"
   RC=0
   (cd "$CLONE" && PR_REVIEW_WATCH_STATE_DIR="$STATE" /bin/bash "$SCRIPTS/pr-review-watch/review-run.sh" \
     "$1" o/r 7 "$2" "$3" https://github.invalid/o/r/pull/7 "$TMP_DIR/report-$1.md" "$KEY") \
@@ -653,6 +656,12 @@ case_phase_a_only() {
     FAKE_PHASEA_ONLY_TEXT="Submission failed. $(marker 1)" run_review council "$HEAD1" -
   check "review of ours posted during phase A: retryable failure" rc_is 1
   check "review of ours posted during phase A: not done" no_file "$KEY.council-done"
+  reset_state
+  FAKE_GH_USER_FAIL_FROM=2 FAKE_GH_REVIEWS="[$(review some-validator[bot] Bot "$HEAD1" APPROVED)]" \
+    FAKE_PHASEA_ONLY_TEXT="$(marker 0)" run_review council "$HEAD1" -
+  check "unreadable gh login: retryable failure" rc_is 1
+  check "unreadable gh login: no verify pass" not_called "claude PHASEA_ONLY"
+  check "unreadable gh login: reported by the council" eval 'grep -q "cannot read the gh login" "$TMP_DIR/run.out"'
   reset_state
   FAKE_GH_REVIEWS="[$(review some-validator[bot] Bot "$HEAD1" APPROVED)]" \
     FAKE_PHASEA_ONLY_TEXT="Submission failed. $(marker 1)" run_review council "$HEAD1" -
