@@ -21,6 +21,12 @@ function resolveActiveTargets() {
 	if (launcherTrace.status === 0 && activeExec) {
 		return { activeNode: activeExec[1], activeCli: activeExec[2], version: launcherTrace.stdout.trim() };
 	}
+	if (launcherTrace.status === 0 && /^\+ exec asdf exec pi --version$/m.test(launcherTrace.stderr)) {
+		const asdfPi = spawnSync("asdf", ["which", "pi"], { encoding: "utf8" });
+		const asdfNode = spawnSync("asdf", ["which", "node"], { encoding: "utf8" });
+		if (asdfPi.status !== 0 || asdfNode.status !== 0) throw new Error("unable to resolve active Pi runtime");
+		return { activeNode: asdfNode.stdout.trim(), activeCli: realpathSync(asdfPi.stdout.trim()), version: launcherTrace.stdout.trim() };
+	}
 	const managedReleaseExec = launcherTrace.stderr.match(/^\+ exec (\S+) --version$/m);
 	const linkedCli = realpathSync(launcherTrace.status === 0 && managedReleaseExec ? managedReleaseExec[1] : piLauncher);
 	if (!/\/dist\/(?:bundle\/)?cli\.js$/.test(linkedCli)) throw new Error("unable to resolve active Pi runtime");

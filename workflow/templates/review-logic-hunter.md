@@ -21,7 +21,10 @@ reading stops changing the verdict.
 
 ## Lenses (answer every one)
 
-precedence (two sources for one value, which wins) · degraded modes ·
+precedence (two sources for one value, which wins) · degraded modes (a
+decision read from a client cache — React Query, SWR, Apollo… — is checked on
+the entry after a failed refetch, which keeps the last `data`; an error flag or
+empty default on the hook result refutes nothing) ·
 impossible states · prose vs machine-readable (prose behavior needs a
 declaration `file:line`; none → finding) · exhaustive reachability ·
 asymmetry (inverse ops round-trip; rule applied to one sibling only) ·
