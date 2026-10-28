@@ -26,7 +26,10 @@ checks, edge cases, plan drift, and simpler or safer routes.
    - plan drift against current repo state;
    - simpler or safer approaches;
    - named files/areas for risky changes — block `READY` when a risky
-     change names none (this checklist owns the check; no fuzzy gate).
+     change names none (this checklist owns the check; no fuzzy gate);
+   - plan mode: the four plan-loop step 6 inventories (sibling surfaces,
+     deploy state, lifecycle states, per-behavior test mutations) — a
+     missing or incomplete one is a finding.
 5. Do not implement.
 6. Do not create `REVIEW.md` or any secondary active artifact.
 7. Decide each finding as accepted or rejected with concrete evidence.

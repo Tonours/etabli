@@ -38,6 +38,12 @@ and report the missing paths as a warning, not a blocker.
    requirement, compare its source with observed code/tests; identify missing
    actors/permissions, preconditions, nominal/error/recovery flows, boundary
    states, persistence, dependencies, and observable success as applicable.
+   Record four inventories in the Requirement Trace or Risks: the sibling
+   surfaces the change must cover (route family, sibling handlers, inverse
+   operations); deploy state (existing rows, caches, tokens, sessions, old
+   clients, CI required checks); the lifecycle states of each stateful
+   component; and the test plan, naming per behavior the mutation its test
+   must catch.
    Classify every material gap as in-scope correction, verifiable assumption,
    bounded experiment, blocking question, or justified non-goal. Keep this
    trace in `PLAN.md`; do not create a second active artifact.
