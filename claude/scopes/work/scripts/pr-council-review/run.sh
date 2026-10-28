@@ -119,6 +119,7 @@ elif [ "$PHASE_A_ONLY" != 0 ]; then
   [ "$PHASE_A_ONLY" = 1 ] || { [ "${VALIDATOR_REVIEWS:-0}" -gt 0 ] && PHASE_A_ONLY=1 || PHASE_A_ONLY=0; }
 fi
 if [ "$PHASE_A_ONLY" = 1 ]; then
+  [ -n "$ME" ] || { echo "cannot read the gh login, needed to find our review on the head" >&2; exit 1; }
   PHASE_A_MODEL=opus PHASE_A_EFFORT=high MODEL=opus EFFORT=high
   PROMPT_FILE="$HERE/phase-a-only-prompt.md"
   [ -f "$PROMPT_FILE" ] || { echo "phase-a-only-prompt.md not found" >&2; exit 1; }
