@@ -48,6 +48,7 @@ FILES=(
   "$REPO_DIR/workflow/templates/escaped-defect.md|workflow/templates/escaped-defect.md"
   "$REPO_DIR/workflow/templates/review-logic-hunter.md|workflow/templates/review-logic-hunter.md"
   "$REPO_DIR/workflow/templates/review-spec-hunter.md|workflow/templates/review-spec-hunter.md"
+  "$REPO_DIR/workflow/templates/review-threat-hunter.md|workflow/templates/review-threat-hunter.md"
   "$REPO_DIR/workflow/templates/review-lead.md|workflow/templates/review-lead.md"
   "$REPO_DIR/workflow/templates/plan-archive.md|workflow/templates/plan-archive.md"
   "$REPO_DIR/PLAN_TEMPLATE.md|PLAN_TEMPLATE.md"

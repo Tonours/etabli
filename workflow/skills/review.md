@@ -24,8 +24,8 @@ Same-session Logic self-review is forbidden.
 
 1. Resolve the target (below), then **pin the patch once** (capture `git diff` /
    `git show` bytes). Hunters receive that text and do not re-run `git diff`.
-2. Supply Intent plus current plan/Decision Log to Spec and lead; omit these
-   from Logic. Reconcile conflicts before dispatch.
+2. Supply Intent plus current plan/Decision Log to Spec, Threat and lead; omit
+   these from Logic. Reconcile conflicts before dispatch.
 3. Detect language/UI surface. Set `Standards: yes` or `Standards: none` on the
    Logic brief.
 4. Write the pinned patch to a temp file (must be non-empty). Dispatch
@@ -56,6 +56,28 @@ Same-session Logic self-review is forbidden.
    Logic and the adversary stay independent.
 5. If neither `PLAN.md` nor PR/user intent exists, record `spec: n/a` and skip
    the Spec spawn.
+5b. **Threat trigger**: the diff adds or changes an access decision
+   (authentication, authorization, permission, block, tenant or IP filter), a
+   trust boundary (request headers, tokens, proxy chain), or a public API's
+   accepted inputs or responses. Fired → dispatch **Threat hunter**
+   (`workflow/templates/review-threat-hunter.md`, `Axis: Threat`) in a fresh
+   context with the same runner and model as Logic (Pi: a second child with
+   the same argv, after Logic), giving it the pinned patch, Intent and the
+   repository tree; record `threat: isolated`. Not fired → `threat: n/a`.
+   With no Intent, Threat derives the asset from the patch and takes its
+   Deferrals claims from code comments only.
+   Attack tests: inside an implementation loop, the parent writes each attack
+   test the report lists into the project's own test suite, runs it, and
+   records expected versus observed. Each Threat finding becomes `proven`
+   (the named assertion ran and failed with the wrong result), `refuted` (it
+   ran and passed through the real decision code, the protection under test
+   unmocked, next to a control request that the same code accepts) or
+   `unproven` (anything else: no run, import, setup or skip failure, a mocked
+   protection, no control). Dispositions: `workflow/templates/review-lead.md`.
+   Green attack tests ship as regression tests and are part of the shippable
+   patch the final review covers; adding them after a review is a
+   delta under the normal budget (`workflow/skills/review-rounds.md`). A pure
+   review request writes nothing: every Threat finding stays `unproven`.
 6. If `Standards: yes`, run `code-quality` when exposed, otherwise the narrowest
    exposed domain or project skill. If none is exposed, compare the diff directly
    with 1–3 local sibling implementations. If neither a skill nor a relevant
@@ -79,11 +101,13 @@ Same-session Logic self-review is forbidden.
 
 ## Review Scope
 
-Review only the target scope. Cover:
+Review only the target scope; the Threat hunter reads the system around it. Cover:
 
 - self-check;
 - Logic-hunter correctness (lenses + deciding-code);
 - Spec-hunter plan/intent fit;
+- Threat-hunter attacker inputs, entry points, reused guards, deferrals and
+  rollout, when the trigger fires;
 - regressions, safety, validation;
 - convention and pattern fit (Standards hunter, or Logic when `Standards: none`);
 - plan drift;
@@ -103,7 +127,9 @@ Keep findings axis-tagged. Lead output uses Act on / Consider / Dismissed.
 `not run`, when any other lens row is `not run` (Convention §5's no-skill,
 no-sibling gap excepted), when the whole-diff `n/a` lists a changed path that
 is not a document or pure rename, or when `isolation: none`. `GO WITH NOTES`
-is not a workaround for those gates.
+is not a workaround for those gates. A triggered Threat axis without its
+complete report (a table missing or `partial:`) blocks `GO` and `GO WITH NOTES`
+the same way.
 
 ## Rules
 

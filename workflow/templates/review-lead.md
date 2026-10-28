@@ -17,10 +17,18 @@ sibling pins the behavior) is `not run`, even when it narrates the search
 that found none. Notes carry residual risk and test gaps on otherwise-
 verified changes — never an unaddressed Logic finding that names a concrete
 failure (input or state → wrong output); that finding is `BLOCK`.
+Threat findings carry the parent's attack-test outcome: `proven` is `BLOCK`
+until fixed; `refuted` goes to Dismissed with the test path; `unproven` stays
+in Act on, and a high one is `BLOCK`. A declared follow-up is
+`accepted risk: <ticket>` with a human checkpoint, never Dismissed;
+`pre-existing` and `out of scope` dismiss nothing when the change's goal
+depends on that code.
+A fired Threat trigger with `threat: n/a`, or a Threat report with a missing or
+`partial:` table, forbids `GO` and `GO WITH NOTES`.
 
 ## Status
 
-Five bare lines, one per field — no bullets, no backticks, no bold, exact
+Six bare lines, one per field — no bullets, no backticks, no bold, exact
 prefixes:
 
 isolation: isolated|none
@@ -28,6 +36,7 @@ runner: pi-child|cursor-task|claude-agent
 hunter_model:
 spec: n/a|parent|isolated
 quality: none|ran
+threat: n/a|isolated
 
 ## Act on
 

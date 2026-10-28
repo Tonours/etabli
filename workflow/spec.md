@@ -78,7 +78,8 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   age alone is not abandonment (`workflow/plan-archive.md`).
 - Validation: focused checks over full-suite ritual (`scripts/verify-agentic-infra core`,
   `bun test pi/extensions/__tests__/`); record commands and results.
-- Review: Logic hunter then Spec hunter; `GO` needs a filled deciding-code table
+- Review: Logic hunter then Spec hunter, plus the Threat hunter on access,
+  trust-boundary or public-API changes; `GO` needs a filled deciding-code table
   for runtime diffs (`workflow/review-rubric.md`). An escaped defect after `GO`
   fills `workflow/templates/escaped-defect.md`.
 - Cold contracts, opened only on their trigger: bounded re-review
