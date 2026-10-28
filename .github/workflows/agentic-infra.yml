@@ -35,7 +35,11 @@ jobs:
           echo "$RUNNER_TEMP/gitleaks-bin" >>"$GITHUB_PATH"
 
       - name: Secret scan of the full history
-        run: gitleaks git --no-banner --redact --log-opts="--all --full-history --diff-merges=first-parent" .
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          case "$BASE_SHA" in ''|0000000000000000000000000000000000000000) BASE_SHA=- ;; esac
+          .githooks/scan-secrets "$BASE_SHA" "--all --full-history --diff-merges=first-parent"
 
       - name: Cache bun install
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

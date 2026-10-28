@@ -10,11 +10,18 @@ status=0
 while read -r _local_ref local_sha _remote_ref remote_sha; do
   case "$local_sha" in *[!0]*) ;; *) continue ;; esac
   range="$local_sha"
-  case "$remote_sha" in *[!0]*) git cat-file -e "$remote_sha^{commit}" 2>/dev/null && range="$remote_sha..$local_sha" ;; esac
-  gitleaks git --no-banner --redact --log-opts="$range --diff-merges=first-parent" . || status=1
+  base=-
+  case "$remote_sha" in *[!0]*)
+    if git cat-file -e "$remote_sha^{commit}" 2>/dev/null; then
+      range="$remote_sha..$local_sha"
+      base="$remote_sha"
+    fi
+    ;;
+  esac
+  "$(dirname "$0")/scan-secrets" "$base" "$range --diff-merges=first-parent" || status=1
 done
 
 if [ "$status" -ne 0 ]; then
-  printf 'pre-push: gitleaks flagged the pushed commits, push blocked. Remove the secret from history, or add the fingerprint of a verified false positive to .gitleaksignore.\n' >&2
+  printf 'pre-push: gitleaks flagged the pushed commits, push blocked. Remove the secret from history, or have a verified false-positive fingerprint reviewed into the trusted base .gitleaksignore first.\n' >&2
 fi
 exit "$status"

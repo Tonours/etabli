@@ -83,7 +83,8 @@ unpinned_pi_packages="$(jq -r '.packages[] | (if type == "string" then . else .s
 
 grep -Fq 'gitleaks_8.30.1_linux_x64.tar.gz' "$WORKFLOW" &&
   grep -Eq '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb +gitleaks_8.30.1_linux_x64.tar.gz" [|] sha256sum -c -$' "$WORKFLOW" &&
-  grep -Fq 'gitleaks git --no-banner --redact --log-opts="--all --full-history --diff-merges=first-parent" .' "$WORKFLOW" ||
+  grep -Fq '.githooks/scan-secrets "$BASE_SHA" "--all --full-history --diff-merges=first-parent"' "$WORKFLOW" &&
+  grep -Fq 'BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}' "$WORKFLOW" ||
   fail "CI must scan history with gitleaks 8.30.1 checked against its pinned sha256"
 
 if grep -nE 'curl[^|]*refs/heads/[^|]*[|]' "$ROOT_DIR/scripts/install.sh" "$ROOT_DIR"/scripts/lib/*.sh; then
@@ -200,5 +201,53 @@ if PATH="$hook_tmp/bin:/usr/bin:/bin" git -C "$hook_clone" push -q origin HEAD:r
   fail "pre-push let a push through without gitleaks"
 fi
 grep -Fq 'gitleaks is not installed' "$hook_tmp/missing.err" || fail "pre-push without gitleaks lacks its remediation line"
+
+git -C "$hook_clone" reset -q --hard origin/main
+base_sha="$(git -C "$hook_clone" rev-parse HEAD)"
+commit_file hidden.env "GITHUB_TOKEN=$(printf 'gh%s_%s' p "$(openssl rand -hex 18)")"
+leak_sha="$(git -C "$hook_clone" rev-parse HEAD)"
+printf '%s:hidden.env:github-pat:1\n' "$leak_sha" >"$hook_clone/.gitleaksignore"
+git -C "$hook_clone" rm -q hidden.env
+git -C "$hook_clone" add .gitleaksignore
+git -C "$hook_clone" commit -qm 'hide and revert the dummy leak'
+if git -C "$hook_clone" push -q origin HEAD:refs/heads/main 2>"$hook_tmp/suppressed.err"; then
+  fail "pre-push let a candidate fingerprint suppress a reverted secret"
+fi
+
+scan="$ROOT_DIR/.githooks/scan-secrets"
+[ -x "$scan" ] || fail "missing executable .githooks/scan-secrets"
+[ "$(gitleaks version)" = 8.30.1 ] || fail "fixtures require CI-pinned gitleaks 8.30.1"
+for policy in ignore config inline; do
+  git -C "$hook_clone" reset -q --hard "$base_sha"
+  commit_file hidden.env "GITHUB_TOKEN=$(printf 'gh%s_%s' p "$(openssl rand -hex 18)") # gitleaks:allow"
+  leak_sha="$(git -C "$hook_clone" rev-parse HEAD)"
+  case "$policy" in
+    ignore) commit_file .gitleaksignore "$leak_sha:hidden.env:github-pat:1" ;;
+    config) commit_file .gitleaks.toml $'[extend]\nuseDefault = true\n[allowlist]\nregexes = [\".*\"]' ;;
+    inline) ;;
+  esac
+  git -C "$hook_clone" rm -q hidden.env
+  git -C "$hook_clone" commit -qm 'revert dummy secret'
+  before_scan="$(git -C "$hook_clone" status --porcelain)"
+  if (cd "$hook_clone" && "$scan" "$base_sha" '--all --full-history --diff-merges=first-parent') >"$hook_tmp/ci.out" 2>&1; then
+    fail "CI scanner accepted candidate $policy suppression"
+  fi
+  grep -q 'leaks found' "$hook_tmp/ci.out" || fail "CI scan failed without detecting the $policy leak"
+  if (cd "$hook_clone" && "$scan" '' 'HEAD --diff-merges=first-parent') >/dev/null 2>&1; then
+    fail "initial scan accepted candidate $policy suppression"
+  fi
+  if [ "$policy" = ignore ]; then
+    trusted_sha="$(git -C "$hook_clone" rev-parse HEAD)"
+    (cd "$hook_clone" && "$scan" "$trusted_sha" '--all --full-history --diff-merges=first-parent') >"$hook_tmp/trusted.out" 2>&1 ||
+      fail "trusted base false-positive fingerprints no longer work"
+  fi
+  git -C "$hook_clone" status --porcelain >"$hook_tmp/tree.out"
+  [ "$(cat "$hook_tmp/tree.out")" = "$before_scan" ] || fail "scanner mutated the candidate tree"
+done
+
+if (cd "$hook_clone" && "$scan" 0000000000000000000000000000000000000001 HEAD) >"$hook_tmp/base.err" 2>&1; then
+  fail "scanner accepted an unavailable nonzero trusted base"
+fi
+grep -q 'trusted base is unavailable' "$hook_tmp/base.err" || fail "unavailable base needs fetch remediation"
 
 printf 'supply chain smoke test: ok\n'
