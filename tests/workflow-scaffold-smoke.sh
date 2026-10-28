@@ -42,6 +42,7 @@ assert_contains "$NEW_PROJECT/workflow/skills/review.md" "Every runner delivers 
 assert_contains "$NEW_PROJECT/workflow/templates/review-lead.md" "template: inline|missing"
 assert_contains "$NEW_PROJECT/workflow/templates/review-logic-hunter.md" "and last \`STATUS: complete\`"
 assert_contains "$NEW_PROJECT/workflow/templates/review-threat-hunter.md" "and last \`STATUS: complete\`"
+assert_contains "$NEW_PROJECT/workflow/templates/review-spec-hunter.md" "Last line: \`STATUS: complete\`"
 assert_contains "$NEW_PROJECT/workflow/skills/plan-loop.md" "Record four inventories"
 assert_not_exists "$NEW_PROJECT/workflow/templates/review-execution-hunter.md"
 assert_not_contains "$NEW_PROJECT/workflow/templates/review-lead.md" "execution:"

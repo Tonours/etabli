@@ -176,10 +176,11 @@ next_attempt() {
       elif [ "$s_attempts" -ge "$MAX_ATTEMPTS" ]; then echo exhausted
       else echo $((s_attempts + 1)); fi ;;
     "$REVIEW_VETO_RC"|"$REVIEW_INCOMPLETE_RC") echo stopped ;;
-    "$VERIFY_UNCONFIGURED_RC")
-      if verify_skill >/dev/null; then echo "$s_attempts"; else echo unconfigured; fi ;;
     *)
-      if [ "$s_attempts" -ge "$MAX_ATTEMPTS" ]; then echo exhausted
+      # rc 5 means unconfigured only for a verify run while the skill is still missing;
+      # any other rc 5 (a child process) is an ordinary failure.
+      if [ "$s_mode" = verify ] && [ "$s_rc" = "$VERIFY_UNCONFIGURED_RC" ] && ! verify_skill >/dev/null; then echo unconfigured
+      elif [ "$s_attempts" -ge "$MAX_ATTEMPTS" ]; then echo exhausted
       elif [ "$(status_age "$key")" -lt "$RETRY_BACKOFF_SECONDS" ]; then echo wait
       else echo $((s_attempts + 1)); fi ;;
   esac
