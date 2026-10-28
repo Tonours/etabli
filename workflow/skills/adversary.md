@@ -76,8 +76,10 @@ plan. After the fresh-context review (Logic hunter + Spec hunter, then lead):
    - **Forbidden at every tier:** a single same-family pass presented as
      independent review. Stop as `blocked` (autonomous **and** supervised).
 3. Hunt for: correctness bugs, regressions, unhandled edge cases, acceptance
-   criteria not actually met, silent scope drift, unrequested abstraction or
-   new dependency, reinvented stdlib/native feature, and simpler or safer
+   criteria not actually met, client-controlled inputs that decide access,
+   entry points to the same asset the change leaves ungated, silent scope
+   drift, unrequested abstraction or new dependency, reinvented
+   stdlib/native feature, and simpler or safer
    implementations that were overlooked (same rungs as implementation-loop 12b).
 4. **Arbitration of findings:**
    - `low` / `medium`: implementer may accept or reject with concrete evidence.

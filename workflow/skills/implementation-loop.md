@@ -111,7 +111,9 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
     committed `git diff <merge-base-with-base-branch>...HEAD`. A clean
     single-commit branch may review that commit; per-slice reviews are insufficient.
     Pin once; dispatch fresh Logic and Spec hunters: both for high-risk;
-    standard may use Daily Pi per `workflow/skills/review.md`. Autonomous
+    standard may use Daily Pi per `workflow/skills/review.md`. When its
+    trigger fires, add the Threat hunter and write and run its attack tests
+    (`workflow/skills/review.md` step 5b). Autonomous
     runs require fresh context (subagent reviewer or cross-model).
     Record `reviewer_model` and whether deciding-code rows were complete. A
     `GO` without runtime deciding-code is invalid: `blocked` / re-review.

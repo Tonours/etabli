@@ -44,6 +44,9 @@ list is valid and useful.
      resurface?" Nowhere = finding, unless a comment names the recovery.
    - **Network-controlled keys** — object keys built from field/collection
      names off the wire (`toString`, `constructor`, `__proto__`).
+   - **Client-controlled deciding inputs** — a forwarded-IP header, or an ID
+     in a header that must name the same object as the path resource: where
+     is each bound server-side? Unbound and deciding access = finding.
    - **Double-submit / idempotency** — can the same action fire twice; is a
      retry safe on every network path.
    - **Cache invalidation** — what stale window does each touched cache leave.

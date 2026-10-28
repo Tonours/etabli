@@ -10,7 +10,8 @@ Intent or `PLAN.md` as correctness authority.
 
 ## Hunt and filter
 
-Procedure (pin once, Logic then Spec hunter, Standards lens, lead filter):
+Procedure (pin once, Logic then Spec hunter, Threat hunter when triggered,
+Standards lens, lead filter):
 `workflow/skills/review.md` § Hunt and filter.
 
 ## Review stack
@@ -47,6 +48,15 @@ including nothing:
 - **asymmetry** — inverse operations round-trip; rule applied to one sibling only?
 - **boundary drift** — one concept in two places, still in agreement, which is authoritative?
 
+### 4b. Threat and system surface (Threat hunter)
+
+When an access decision, trust boundary or public API contract changes
+(`workflow/skills/review.md` § Hunt and filter, step 5b), an isolated Threat
+hunter replays the Intent's threat over the whole repository: who controls each
+deciding input, every entry point to the protected asset, what reused guards
+really refuse, which deferrals the change depends on, and who breaks on
+deploy. Its attack tests turn findings into `proven`, `refuted` or `unproven`.
+
 ### 5. Convention & pattern fit
 
 When the parent set `Standards: yes`, the Logic hunter records Convention as
@@ -65,7 +75,11 @@ preference or maintenance taste.
 
 For each candidate, argue the opposite and try to make it stick — what would
 have to be true for this to be correct? Is there a caller, default, guard,
-or test that already prevents it? Then apply the evidence bar:
+or test that already prevents it? `pre-existing`, `intended`, `out of scope`
+and `owned by <ticket>` refute nothing when the change's stated goal depends
+on that code; a declared follow-up sets the disposition (`accepted risk:
+<ticket>`, human checkpoint), never removes the finding. Then apply the
+evidence bar:
 a finding ships only with a concrete failure — specific input or state, the
 path it takes, the wrong output. "Looks fragile" or "consider hardening" are
 open questions, not findings. Lead filters after the hunt; it does not
@@ -159,7 +173,7 @@ If human arbitration is needed, add:
 - `human_checkpoint: yes`
 - why the reviewer is escalating
 
-Only report findings grounded in the reviewed diff. Verify that every reported line or range exists in the supplied diff before including it. If no issue names its concrete failure (input or state → wrong output), put exactly `No findings.` as the only finding — style, whitespace, and behavior-preserving renames never qualify, at any severity — and do not wrap it in severity/file fields.
+Only report findings grounded in the reviewed diff. Verify that every reported line or range exists in the supplied diff before including it. Exception: a Threat finding may cite an entry point, guard caller or deciding input outside the diff when its tables show it reaching the asset the change protects. If no issue names its concrete failure (input or state → wrong output), put exactly `No findings.` as the only finding — style, whitespace, and behavior-preserving renames never qualify, at any severity — and do not wrap it in severity/file fields.
 
 ## Verdict
 
@@ -169,7 +183,7 @@ End with a final line in this exact shape:
 - `Verdict: GO WITH NOTES`
 - `Verdict: BLOCK`
 
-**GO** and **GO WITH NOTES** require: every runtime deciding-code row filled with a real `file:line` (or a whole-diff `n/a` whose listed paths are all documents or pure renames), and no lens row left `not run` or unsanctioned.
+**GO** and **GO WITH NOTES** require: every runtime deciding-code row filled with a real `file:line` (or a whole-diff `n/a` whose listed paths are all documents or pure renames), no lens row left `not run` or unsanctioned, and a complete Threat report (all six tables, none `partial:`) whenever the Threat trigger fired. A `proven` Threat finding, or an `unproven` high one, is `BLOCK`.
 Notes on `GO WITH NOTES` state remaining risk or test gaps only — never a style, naming, or formatting change request.
 
 ## Rules

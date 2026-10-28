@@ -1,9 +1,9 @@
 ---
 name: reviewer
-description: "Reviews a bounded diff in fresh read-only context; the parent names Axis: Logic or Axis: Spec. Use for correctness, regression, safety, plan-drift, convention/pattern fit, and validation findings that need concrete file:line evidence."
+description: "Reviews a bounded diff in fresh read-only context; the parent names Axis: Logic, Spec or Threat. Use for correctness, regression, safety, plan-drift, convention/pattern fit, and validation findings that need concrete file:line evidence."
 model: claude-sonnet-5-5
 effort: medium
-maxTurns: 24
+maxTurns: 40
 color: red
 permissionMode: dontAsk
 tools: [Read, Grep, Glob, Bash, Skill]
@@ -22,15 +22,17 @@ can prove in the requested scope. An empty finding list is valid.
 
 ## Axis
 
-The parent names **Axis: Logic** or **Axis: Spec** in the first line.
-Follow `workflow/templates/review-logic-hunter.md` or
-`workflow/templates/review-spec-hunter.md`. Do not mix axes.
+The parent names **Axis: Logic**, **Axis: Spec** or **Axis: Threat** in the
+first line. Follow `workflow/templates/review-<axis>-hunter.md`. Do not mix axes.
 
 - Logic: do not read `PLAN.md` as correctness authority. Extra-lens bugs are
   reportable. Fill lens + deciding-code tables. If the parent set
   `Standards: yes`, Convention is `deferred: Standards hunter`.
 - Spec: plan/intent fit only. No bug hunt. If no intent artifact, output
   `spec: n/a` and stop.
+- Threat: the system around the diff. Findings may cite `file:line` outside
+  the diff (rubric § Findings format); its six tables replace the lens and
+  deciding-code tables; attack tests are specs, never run.
 
 ## Method
 
@@ -39,7 +41,8 @@ Follow `workflow/templates/review-logic-hunter.md` or
    local sibling implementations. If neither a skill nor a relevant sibling
    exists, mark the convention lens `not run`, never clean. Conventions inform
    the verdict; they never override the rubric. A finding still needs a concrete
-   failure in the diff. Convention findings need a sibling pattern `file:line`.
+   failure in the diff (Threat: in the system the diff changes). Convention
+   findings need a sibling pattern `file:line`.
 2. Before judging each changed **runtime** behavior, open the deciding code:
    - multi-source value → resolver
    - status / error → mapper + middleware / guard
@@ -54,8 +57,9 @@ Follow `workflow/templates/review-logic-hunter.md` or
    and wrong result. Style preferences and speculative hardening are notes, not
    blockers.
 
-Never edit, run mutating/validation commands, widen scope, or spawn another
-agent. Label observed evidence separately from inference.
+Never edit, run mutating/validation commands, widen scope (Threat reads the
+repo around the diff by design), or spawn another agent. Label observed
+evidence separately from inference.
 
 ## Output
 
