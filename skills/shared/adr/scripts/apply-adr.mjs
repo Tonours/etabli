@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join, relative, sep } from "node:path";
 import { spawnSync } from "node:child_process";
 import {
   findRecord,
@@ -19,10 +19,17 @@ const CLAUDE_POINTER = [
 ].join("\n");
 
 const args = parseArgs(process.argv.slice(2));
-const root = args.root || process.cwd();
+const root = realpathSync(args.root || process.cwd());
 const inputPath = args.input;
 const dryRun = args.dryRun || false;
 const touched = new Map();
+
+for (const path of [join(root, "docs/adr/README.md"), join(root, "CLAUDE.md")]) assertManagedPath(path);
+if (existsSync(join(root, "docs/adr"))) {
+  for (const file of readdirSync(join(root, "docs/adr"))) {
+    if (file.endsWith(".md")) assertManagedPath(join(root, "docs/adr", file));
+  }
+}
 
 if (args.reindex) {
   const action = updateClaudeIndex(root, [...readRecords(root)]);
@@ -337,7 +344,21 @@ function isGitRepo(projectRoot) {
   return result.status === 0 && result.stdout.trim() === "true";
 }
 
+function assertManagedPath(path) {
+  let current = root;
+  const parts = relative(root, path).split(sep);
+  for (const [index, part] of parts.entries()) {
+    current = join(current, part);
+    const stat = lstatSync(current, { throwIfNoEntry: false });
+    if (stat?.isSymbolicLink()) die(`Managed symlink refused: ${relative(root, current)}. Replace it with a regular project path.`);
+    if (stat && !(index === parts.length - 1 ? stat.isFile() : stat.isDirectory())) {
+      die(`Invalid managed path: ${relative(root, current)}. Use regular files and directories.`);
+    }
+  }
+}
+
 function writeTracked(path, content) {
+  assertManagedPath(path);
   if (!touched.has(path)) {
     touched.set(path, existsSync(path) ? readFileSync(path, "utf8") : null);
   }
