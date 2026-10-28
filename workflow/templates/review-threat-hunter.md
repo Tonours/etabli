@@ -17,7 +17,10 @@ Evidence bar: a finding names the attacker, the exact request, and the wrong
 outcome. Refute each candidate once: look for the server-side binding, the
 upstream gate, or the proxy configuration that strips or overwrites the
 input. If the refutation does not stick, ship the finding. A helper comment
-calling an input spoofable settles that question.
+calling an input spoofable settles that question. A decision read from a
+client cache (React Query, SWR, Apollo…) is checked on the cache entry after a
+failed refetch: those libraries keep the last `data` beside the error, so an
+error flag or an empty default on the hook result refutes nothing.
 
 Severity: `high` when the attacker defeats the protection the Intent claims
 (the new gate decides on an unbound client input, or the asset stays reachable
@@ -79,7 +82,13 @@ change's goal depends on refutes nothing → `high` finding with disposition
 `| Existing caller whose outcome changes on deploy | Before → after | Flag, log-only phase or measurement? |`
 
 A legitimate existing caller that breaks on deploy with no flag, log-only
-phase or measurement → `medium` finding naming the caller type.
+phase or measurement → `medium` finding naming the caller type, even when the
+Intent intends or discloses the break: the fix asks for a flag, a log-only
+phase or a measurement, not for dropping the enforcement. A caller in the
+class the change exists to refuse (the revoked session, the blocked team or
+environment, the IP outside the rules) is not legitimate even when the old
+code served it, and its refusal is no rollout finding; a valid caller refused
+as a side effect is.
 
 ### Attack tests
 
@@ -95,7 +104,8 @@ accepts.
 No preamble, no repeated Axis line. Findings sorted `high`, then `medium`, then
 `low`, one line per field:
 `severity / file / line / issue / impact / review_comment / suggested_fix`
-— or exactly `No findings.` Then the attacker paragraph, then the six tables
-with the headings above verbatim.
+— or exactly `No findings.` Every table row the rules above turn into a
+finding appears under Findings, never as a table row only. Then the attacker
+paragraph, then the six tables with the headings above verbatim.
 
 End with one final line: `Verdict: GO | GO WITH NOTES | BLOCK`.
