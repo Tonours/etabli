@@ -1,6 +1,6 @@
 ---
 name: pr-council-review
-description: Runs a cross-family review of one PR (code-review + thermo-nuclear + codex, then forest:validator as the council), dry-run by default. Use when a GitHub PR needs the full council review; not for local diffs (review).
+description: Runs a cross-family review of one PR (code-review + thermo-nuclear + codex, then the validator skill as the council), dry-run by default. Use when a GitHub PR needs the full council review; not for local diffs (review).
 argument-hint: "<PR number or URL> [owner/repo] [--post] [--phase-a-model <alias>] [--no-codex] [--codex-model <model>]"
 allowed-tools: [Bash, Read, Glob, Grep]
 ---

@@ -32,9 +32,10 @@
 - TypeScript strict, no `any`, ES modules, local runner.
 - Run focused checks; type-check code changes when available.
 - Reviews lead with severity-ordered findings and file/line evidence.
-- Memory: before investigating, check the memory vault first: `alambic-brain` / `~/work/brain` for ForestAdmin repos;
-  all other projects use `alambic-obvault` / `~/work/obvault`. Match GitHub remote organization,
-  not machine scope; no cross-vault fallback. See `workflow/skills/obvault-memory.md`.
+- Memory: before investigating, check the memory vault first: `alambic-brain` / `~/work/brain` for repos
+  whose GitHub org is listed in the machine-local `~/.config/etabli/work-orgs`; all other projects use
+  `alambic-obvault` / `~/work/obvault`. Match GitHub remote organization, not machine scope; no
+  cross-vault fallback. See `workflow/skills/obvault-memory.md`.
 - Fleet: when you run under fleet (`FLEET_SESSION_ID` set) or operate it, read
   brain `ref/fleet-memory.md` first (`vault_read`, or the file in `~/work/brain`),
   whatever the repo; it is fleet's global memory. Skip when brain is absent.

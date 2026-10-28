@@ -18,11 +18,19 @@ graph database:
   durable cross-project memory. No dual-write of live tickets, raw PLAN.md, or
   transcripts into `kb/`.
 
-Vault selection: exact GitHub
-remote organization ForestAdmin -> `~/work/brain`; every other project ->
-`~/work/obvault`. Use session cwd (including worktrees/subdirectories), not
-`~/.etabli-scope`. Missing brain is unavailable, never a personal-vault fallback.
-`OBVAULT_ROOT` is an exclusive override. Read `<root>/AGENTS.md` if present;
+Vault selection: `OBVAULT_ROOT`, when set, is an exclusive override and wins
+in every case below. Otherwise read the GitHub organization of the session
+cwd's repository (`origin` URL on github.com, SSH or HTTPS; worktrees and
+subdirectories included, not `~/.etabli-scope`) and the machine-local work-org
+list `~/.config/etabli/work-orgs` (one org per line; blank and `#` lines
+ignored; every other line must be a GitHub org name,
+`[A-Za-z0-9][A-Za-z0-9-]{0,38}`):
+- org listed (exact, case-insensitive) -> `~/work/brain`, the work vault;
+- list valid and org unlisted -> `~/work/obvault`;
+- no `origin`, or a host other than github.com -> `~/work/obvault`;
+- list missing, unreadable or invalid -> no vault read or write; report
+  `vault: routing unconfigured`, never a personal-vault fallback.
+Missing brain is unavailable, never a personal-vault fallback. Read `<root>/AGENTS.md` if present;
 the vault CLI remains usable without that file. Pointers:
 
 - `kb/derived-graph-markdown-canonical`
@@ -34,7 +42,7 @@ the vault CLI remains usable without that file. Pointers:
 ## Mandatory first check
 
 Before answering or planning a request that matches **Retrieve when**, consult
-the project-selected vault first (`<root>` below: ForestAdmin -> `~/work/brain`,
+the project-selected vault first (`<root>` below: work org -> `~/work/brain`,
 otherwise `~/work/obvault`); do not wait for the user to mention it.
 Read `<root>/AGENTS.md` when present, then use the
 vault's retrieval, not `grep`. The vault contract, status, freshness, and
@@ -42,7 +50,7 @@ abstention rules take precedence over retrieved prose.
 
 Use the same local read interface from Claude and Pi:
 
-1. **MCP**, when the host registers the vault server (ForestAdmin: `alambic-brain`, other projects: `alambic-obvault`; Claude also exposes
+1. **MCP**, when the host registers the vault server (work orgs: `alambic-brain`, other projects: `alambic-obvault`; Claude also exposes
    same-named skills):
    `vault_context` for a bounded cited pack, `vault_search` for a ranked list,
    `vault_read` to open a cited note, `vault_health` for backend state.

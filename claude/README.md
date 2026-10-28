@@ -73,7 +73,8 @@ Personal skills (outside the repo) are governed in the live
 is gone from the surface, and drops a personal `on` unless the skill is named
 in `machine-local-skills.json` (today the
 `alambic-brain` and `alambic-obvault` memory skills, `on` on the machines that
-have them). Plugins named in `machine-local-plugins.json` (`datadog`, `forest`)
+have them). Plugins named in `machine-local-plugins.json` (`datadog`) or in the machine-local
+`~/.config/etabli/machine-local-plugins.json` (work plugins)
 may ship skills: they bring an MCP server, hooks or agents that vendoring would
 break, so their skills stay ungoverned and outside the index gate.
 

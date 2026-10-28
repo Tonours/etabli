@@ -1,6 +1,6 @@
 /validator {{PR_NUMBER}} {{REPO}}{{VALIDATOR_FLAGS}}
 
-Run the Forest Validator pass exactly as the skill defines it. Every mandated
+Run the validator pass exactly as the skill defines it. Every mandated
 retrieval, every mandated delegation, every failure class. Nothing below
 replaces a lens, weakens the skeptic gate, or changes the emit contract.
 

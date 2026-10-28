@@ -34,7 +34,7 @@ my_review_count() {
 }
 
 verify_prompt() {
-  render_template "$HERE/../pr-council-review/verify-prompt.md" PR_NUMBER="$NUMBER" REPO="$REPO" SINCE_SHORT="${SINCE:0:8}"
+  render_template "$HERE/../pr-council-review/verify-prompt.md" VERIFY_SKILL="$(verify_skill)" PR_NUMBER="$NUMBER" REPO="$REPO" SINCE_SHORT="${SINCE:0:8}"
 }
 
 keep_pending_approval() {
@@ -175,6 +175,10 @@ run_verify() {
     return
   fi
 
+  verify_skill >/dev/null || {
+    echo "=== step 2: verify: unconfigured (set PR_COUNCIL_VERIFY_SKILL or ~/.config/pr-council-review/verify-skill); no watermark, ${SHA:0:8} stays due"
+    return "$VERIFY_UNCONFIGURED_RC"
+  }
   echo "=== step 2: verify-fixes"
   run_verify_fixes || return
   echo "$SHA" >"$KEY.watermark"

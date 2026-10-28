@@ -28,7 +28,7 @@ Full layout, scopes and managed surfaces: `docs/symlink-layout.md`.
 - Default plan: `PLAN_TEMPLATE.md`
 - Full plan for risky work: `PLAN_TEMPLATE_FULL.md`
 - Review rubric: `workflow/review-rubric.md`
-- Memory: `~/work/brain` for ForestAdmin repos, `~/work/obvault` otherwise; see `workflow/skills/obvault-memory.md`.
+- Memory: `~/work/brain` for repos of a work org listed in `~/.config/etabli/work-orgs`, `~/work/obvault` otherwise; see `workflow/skills/obvault-memory.md`.
 - Risk tier: a change confined to local agent-surface links
   (`scripts/lib/surfaces.mjs` and its deploy/check entry points) is standard
   with one cross-model code-diff pass; settings sync, hooks and guards, secrets

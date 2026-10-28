@@ -18,7 +18,7 @@ own `.mcp.json` is `{"mcpServers": {}}` on purpose.
    `~/work/brain` and `alambic-obvault` serves `~/work/obvault`
    (`ALAMBIC_ROOT` pins the vault, `ALAMBIC_STATE_DIR` its state). The vault is
    chosen by the project's GitHub remote organization, not by machine scope:
-   ForestAdmin repos use `alambic-brain`, every other project
+   repos of an org listed in `~/.config/etabli/work-orgs` use `alambic-brain`, every other project
    `alambic-obvault` (`workflow/skills/obvault-memory.md`). A machine registers
    only the vaults it has checked out.
 4. **No runtime-wide availability claim.** A skill that needs a server stops

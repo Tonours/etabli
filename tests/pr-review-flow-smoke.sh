@@ -19,7 +19,7 @@ export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid GIT_COMMITTER_NAME=t
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 export PR_REVIEW_WATCH_COUNCIL="$SCRIPTS/pr-council-review/run.sh"
 export PR_COUNCIL_CLAUDE="$HOME/.local/bin/claude" PR_COUNCIL_CODEX="$HOME/.local/bin/codex" PR_REVIEW_WATCH_LOG="$TMP_DIR/watch.log"
-export PR_REVIEW_WATCH_CI_WAIT=0 PR_REVIEW_USAGE_LOG="$TMP_DIR/usage.log"
+export PR_REVIEW_WATCH_CI_WAIT=0 PR_REVIEW_USAGE_LOG="$TMP_DIR/usage.log" PR_COUNCIL_VERIFY_SKILL=test-verify-fixes
 mkdir -p "$TMPDIR" "$HOME/.local/bin" "$HOME/.claude/skills/thermo-nuclear-code-quality-review" "$FAKE_DIR" "$GH_CONFIG_DIR"
 echo "thermo stub" >"$HOME/.claude/skills/thermo-nuclear-code-quality-review/SKILL.md"
 
@@ -81,13 +81,14 @@ case "$prompt" in
   /code-review*) role=QUALITY ;;
   *thermo-nuclear*) role=THERMO ;;
   "Incremental review"*) role=DELTA ;;
-  /forest:verify-fixes*) role=VERIFY ;;
+  /test-verify-fixes*|/file-verify-fixes*) role=VERIFY ;;
   "You are the automatic PR review agent"*) role=AUTOREVIEW ;;
   *) echo "fake claude: unknown prompt" >&2; exit 1 ;;
 esac
 printf 'claude %s GIT_TERMINAL_PROMPT=%s %s\n' "$role" "${GIT_TERMINAL_PROMPT:-unset}" "${flags[*]}" >>"$FAKE_LOG"
 [ "$role" != VALIDATOR ] || printf '%s' "$prompt" >"$FAKE_DIR/validator-prompt.txt"
 [ "$role" != PHASEA_ONLY ] || printf '%s' "$prompt" >"$FAKE_DIR/phasea-prompt.txt"
+[ "$role" != VERIFY ] || printf '%s' "$prompt" >"$FAKE_DIR/verify-prompt.txt"
 [ "$role" != QUALITY ] || : >"$FAKE_DIR/phase-a-ran"
 stderr_var="FAKE_${role}_STDERR"
 [ -z "${!stderr_var:-}" ] || echo "${!stderr_var}" >&2
@@ -351,6 +352,46 @@ case_next_attempt() {
   rm -f "$KEY.exhausted"
   attempt_after 1 3 "$old" >/dev/null
   check "attempt: an exhausted sha is logged once" [ "$(watch_fn "consider me o/r 7 '$HEAD1' url; consider me o/r 7 '$HEAD1' url" | grep -c 'giving up')" = 1 ]
+}
+
+case_verify_skill_config() {
+  local conf="$HOME/.config/pr-council-review/verify-skill" old=202001010000
+  reset_state
+  rm -f "$conf"
+  set_head "$HEAD1"
+  FAKE_VALIDATOR_TEXT="Review posted. $(marker 2)" run_review council "$HEAD1" -
+  set_head "$HEAD2" '[{"state":"COMMENTED","author":{"login":"me"}}]'
+  export FAKE_VERIFY_TEXT=$'all fixed\nVERIFY_VERDICT reviewed=2 reopened=0 regressions=0 complete=true confident=true\nCONFIDENCE fixed'
+  PR_COUNCIL_VERIFY_SKILL='' run_review verify "$HEAD2" "$HEAD1"
+  check "verify unconfigured: own exit code" rc_is 5
+  check "verify unconfigured: reported" grep -q "verify: unconfigured" "$TMP_DIR/run.out"
+  check "verify unconfigured: no verify pass" not_called "claude VERIFY"
+  check "verify unconfigured: no watermark" no_file "$KEY.watermark"
+  check "verify unconfigured: no approval" [ "$(approvals)" = 0 ]
+  check "verify unconfigured: the watcher waits" [ "$(PR_COUNCIL_VERIFY_SKILL='' attempt_after 5 1 "$old")" = unconfigured ]
+  check "verify unconfigured: no attempt spent once configured" [ "$(attempt_after 5 1 "$old")" = 1 ]
+  run_review verify "$HEAD2" "$HEAD1"
+  check "verify configured later: same sha verified" called "claude VERIFY"
+  check "verify configured later: watermark" [ "$(cat "$KEY.watermark" 2>/dev/null)" = "$HEAD2" ]
+  check "verify configured later: one approval" [ "$(approvals)" = 1 ]
+  mkdir -p "$(dirname "$conf")"
+  printf 'file-verify-fixes\n' >"$conf"
+  reset_state
+  set_head "$HEAD1"
+  FAKE_VALIDATOR_TEXT="Review posted. $(marker 2)" run_review council "$HEAD1" -
+  set_head "$HEAD2" '[{"state":"COMMENTED","author":{"login":"me"}}]'
+  PR_COUNCIL_VERIFY_SKILL='' run_review verify "$HEAD2" "$HEAD1"
+  check "verify skill from file" grep -q "^/file-verify-fixes 7 o/r" "$FAKE_DIR/verify-prompt.txt"
+  reset_state
+  set_head "$HEAD1"
+  FAKE_VALIDATOR_TEXT="Review posted. $(marker 2)" run_review council "$HEAD1" -
+  set_head "$HEAD2" '[{"state":"COMMENTED","author":{"login":"me"}}]'
+  run_review verify "$HEAD2" "$HEAD1"
+  check "verify skill: env wins over file" grep -q "^/test-verify-fixes 7 o/r" "$FAKE_DIR/verify-prompt.txt"
+  printf 'bad name!\n' >"$conf"
+  check "verify skill: malformed file is unconfigured" [ "$(PR_COUNCIL_VERIFY_SKILL='' attempt_after 5 1 "$old")" = unconfigured ]
+  rm -f "$conf"
+  unset FAKE_VERIFY_TEXT
 }
 
 case_approval_post_failure_stays_pending() {
@@ -739,6 +780,7 @@ case_unverified_envelopes
 case_ticketed_then_clean_delta_waits
 case_watch_mode
 case_next_attempt
+case_verify_skill_config
 case_approval_post_failure_stays_pending
 case_verify_retry_skips_delta
 case_delta_structured

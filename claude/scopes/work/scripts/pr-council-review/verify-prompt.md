@@ -1,4 +1,4 @@
-/forest:verify-fixes {{PR_NUMBER}} {{REPO}}
+{{VERIFY_SKILL}} {{PR_NUMBER}} {{REPO}}
 
 This run is unattended: nobody answers questions, so the skill withholds its own approval offer.
 Run the skill to the end, then judge the pull request as its reviewer, on what you verified.
