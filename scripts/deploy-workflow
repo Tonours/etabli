@@ -315,6 +315,12 @@ preflight_conflicts() {
       continue
     fi
 
+    if ! inside_target "$relative_path"; then
+      status_line CONFLICT "$(dirname "$relative_path") resolves outside the target or through a dangling symlink; deploy refused"
+      CONFLICTS=$((CONFLICTS + 1))
+      continue
+    fi
+
     if [ "$FORCE" -eq 0 ] && [ -e "$parent_path" ] && [ ! -d "$parent_path" ]; then
       status_line CONFLICT "$(dirname "$relative_path") exists but is not a directory"
       CONFLICTS=$((CONFLICTS + 1))
@@ -393,6 +399,18 @@ write_file() {
     return 0
   fi
 
+  if ! inside_target "$relative_path"; then
+    status_line CONFLICT "$(dirname "$relative_path") resolves outside the target or through a dangling symlink; write refused"
+    CONFLICTS=$((CONFLICTS + 1))
+    return 0
+  fi
+
+  if [ -L "$destination_path" ] && is_tracked "$relative_path"; then
+    status_line PROTECTED "$relative_path is a tracked symlink; refresh its target by hand"
+    UNCHANGED=$((UNCHANGED + 1))
+    return 0
+  fi
+
   if [ -f "$destination_path" ] && cmp -s "$source_path" "$destination_path"; then
     status_line OK "$relative_path"
     UNCHANGED=$((UNCHANGED + 1))
@@ -417,11 +435,6 @@ write_file() {
         return 0
         ;;
     esac
-    if [ -L "$destination_path" ]; then
-      status_line PROTECTED "$relative_path is a tracked symlink; refresh its target by hand"
-      UNCHANGED=$((UNCHANGED + 1))
-      return 0
-    fi
     if ! git -C "$TARGET_DIR" diff --quiet HEAD -- "$relative_path"; then
       status_line PROTECTED "$relative_path has uncommitted changes; commit or stash them before --refresh-tracked"
       UNCHANGED=$((UNCHANGED + 1))
@@ -474,7 +487,7 @@ write_file() {
 
   mkdir -p "$destination_dir"
 
-  if [ -e "$destination_path" ]; then
+  if [ -e "$destination_path" ] || [ -L "$destination_path" ]; then
     backup="$(backup_path "$destination_path")"
     mv "$destination_path" "$backup"
     status_line BACKUP "${backup#$TARGET_DIR/}"
@@ -495,10 +508,16 @@ has_staged_change() {
 }
 
 inside_target() {
-  local physical_root physical_parent
+  local physical_root physical_parent parent
 
+  if [ "$DRY_RUN" -eq 1 ] && [ ! -d "$TARGET_DIR" ]; then return 0; fi
   physical_root="$(cd "$TARGET_DIR" >/dev/null 2>&1 && pwd -P)" || return 1
-  physical_parent="$(cd "$TARGET_DIR/$(dirname "$1")" >/dev/null 2>&1 && pwd -P)" || return 1
+  parent="$(dirname "$1")"
+  while [ ! -d "$TARGET_DIR/$parent" ]; do
+    [ ! -L "$TARGET_DIR/$parent" ] && [ "$parent" != . ] || return 1
+    parent="$(dirname "$parent")"
+  done
+  physical_parent="$(cd "$TARGET_DIR/$parent" >/dev/null 2>&1 && pwd -P)" || return 1
   case "$physical_parent/" in
     "$physical_root"/*) return 0 ;;
   esac

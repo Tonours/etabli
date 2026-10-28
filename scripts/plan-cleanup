@@ -4,6 +4,16 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync }
 import { createHash } from "node:crypto";
 import { relative, resolve, sep } from "node:path";
 
+function assertArchivePath(cwd, path) {
+  let current = cwd;
+  for (const part of relative(cwd, path).split(sep)) {
+    current = resolve(current, part);
+    if (lstatSync(current, { throwIfNoEntry: false })?.isSymbolicLink()) {
+      fail(`symlinked archive path refused: ${relative(cwd, current)}; use a real docs/plan directory`);
+    }
+  }
+}
+
 function fail(message) {
   process.stderr.write(`plan-cleanup: ${message}\n`);
   process.exit(2);
@@ -94,6 +104,7 @@ function archiveMode(cwd, archiveArgument) {
   if (!existsSync(planPath) || !lstatSync(planPath).isFile()) {
     fail("root PLAN.md must exist as a regular file");
   }
+  assertArchivePath(cwd, archivePath);
   if (!existsSync(archivePath) || !lstatSync(archivePath).isFile()) {
     fail("implemented archive must exist as a regular file");
   }
@@ -128,9 +139,9 @@ function discardMode(cwd, reason) {
     plan.match(/^\s*-\s*Status:\s*(.+)\s*$/m)?.[1]?.trim() || "unknown";
   const day = new Date().toISOString().slice(0, 10).replaceAll("-", "");
   const archiveDir = resolve(cwd, "docs", "plan");
-  mkdirSync(archiveDir, { recursive: true });
   const discardedName = `${day}-discarded-${reason}.md`;
   const discardedPath = resolve(archiveDir, discardedName);
+  assertArchivePath(cwd, discardedPath);
   if (existsSync(discardedPath)) {
     fail(`discarded record already exists: docs/plan/${discardedName}`);
   }
@@ -150,7 +161,8 @@ function discardMode(cwd, reason) {
     "This is not an implemented-plan archive.",
     "",
   ].join("\n");
-  writeFileSync(discardedPath, body);
+  mkdirSync(archiveDir, { recursive: true });
+  writeFileSync(discardedPath, body, { flag: "wx" });
   removeRootPlan(cwd);
   process.stdout.write(
     `${JSON.stringify({

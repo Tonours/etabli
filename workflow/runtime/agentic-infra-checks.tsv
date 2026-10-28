@@ -4,6 +4,7 @@ core	shell-docs	deploy-agent-workflow-smoke	tests/deploy-agent-workflow-smoke.sh
 core	shell-docs	surfaces-test	tests/surfaces.test.mjs
 core	shell-docs	workflow-contract-coverage-smoke	tests/workflow-contract-coverage-smoke.sh
 core	shell-docs	plan-cleanup-smoke	tests/plan-cleanup-smoke.sh
+core	shell-docs	security-paths	tests/security-paths.test.mjs
 core	pi	pi-typecheck	tests/pi-typecheck-smoke.sh
 full	pi	pi-audit	builtin:pi-audit
 core	shell-docs	shell-syntax	builtin:shell-syntax

@@ -93,7 +93,7 @@ if "$SCRIPT" "$STALE_PROJECT" >"$TMP_DIR/stale-outside.out" 2>&1; then
   printf 'expected a refresh through a symlinked parent to conflict\n' >&2
   exit 1
 fi
-assert_contains "$TMP_DIR/stale-outside.out" "CONFLICT  workflow/answer-quality.md exists"
+assert_contains "$TMP_DIR/stale-outside.out" "CONFLICT  workflow resolves outside the target"
 assert_same "$TMP_DIR/stale-outside.before" "$STALE_OUTSIDE/workflow/answer-quality.md"
 
 printf 'workflow scaffold check smoke test: ok\n'
