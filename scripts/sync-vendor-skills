@@ -20,6 +20,7 @@ if ! git -C "$REPO_DIR" diff --quiet -- "$VENDOR_ROOT" ||
 fi
 
 WORK_DIR="$(mktemp -d)"
+WORK_DIR="$(cd "$WORK_DIR" && pwd -P)"
 trap 'rm -rf "$WORK_DIR"' EXIT
 
 synced=0
@@ -35,10 +36,24 @@ adapt_vendored_paths() {
 
 # Copies LICENSE or LICENSE.md (first match) from $1 into the vendor root.
 copy_first_license() {
-  local base="$1" extra
+  local base extra destination
+  base="$(cd "$1" && pwd -P)" || return 1
+  case "$base/" in
+    "$WORK_DIR/$vendor/"*) ;;
+    *) printf 'license source escapes upstream through a symlink; replace it with a regular upstream path\n' >&2; exit 1 ;;
+  esac
   for extra in LICENSE LICENSE.md; do
+    destination="$VENDOR_ROOT/$vendor/$extra"
+    if [ -L "$base/$extra" ] || [ -L "$destination" ]; then
+      printf 'refusing symlinked license %s; use regular source and destination files\n' "$extra" >&2
+      exit 1
+    fi
     if [ -f "$base/$extra" ]; then
-      cp "$base/$extra" "$VENDOR_ROOT/$vendor/$extra"
+      if [ -e "$destination" ] && [ ! -f "$destination" ]; then
+        printf 'license destination %s is not a regular file; move it aside and retry\n' "$extra" >&2
+        exit 1
+      fi
+      cp "$base/$extra" "$destination"
       return 0
     fi
   done

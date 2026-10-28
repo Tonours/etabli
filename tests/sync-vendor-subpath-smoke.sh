@@ -121,4 +121,34 @@ if "$consumer/scripts/sync-vendor-skills" missing >/dev/null 2>&1; then
      fail "sync must fail closed when a subpath skill is absent upstream"
 fi
 
+printf 'outside private sentinel\n' >"$TMP_DIR/private.txt"
+for license in LICENSE LICENSE.md; do
+     git -C "$up_root" reset -q --hard HEAD
+     rm -f "$up_root/LICENSE" "$up_root/LICENSE.md"
+     ln -s "$TMP_DIR/private.txt" "$up_root/$license"
+     git -C "$up_root" add -A
+     git -C "$up_root" -c user.email=f@f -c user.name=f commit -qm 'linked license'
+     if "$consumer/scripts/sync-vendor-skills" legacy >"$TMP_DIR/license.out" 2>&1; then
+          fail "sync followed upstream $license symlink"
+     fi
+     grep -qi symlink "$TMP_DIR/license.out" || fail "unsafe license refusal needs a symlink remediation"
+     if grep -rq 'outside private sentinel' "$consumer/vendor"; then
+          fail "sync copied the private source sentinel"
+     fi
+     git -C "$consumer" checkout -- vendor/legacy
+done
+rm -f "$up_root/LICENSE" "$up_root/LICENSE.md"
+printf 'regular license\n' >"$up_root/LICENSE.md"
+git -C "$up_root" add -A
+git -C "$up_root" -c user.email=f@f -c user.name=f commit -qm 'regular license'
+rm "$consumer/vendor/legacy/LICENSE.md"
+ln -s "$TMP_DIR/private.txt" "$consumer/vendor/legacy/LICENSE.md"
+git -C "$consumer" add vendor/legacy/LICENSE.md
+git -C "$consumer" -c user.email=f@f -c user.name=f commit -qm 'destination symlink fixture'
+if "$consumer/scripts/sync-vendor-skills" legacy >"$TMP_DIR/license.out" 2>&1; then
+     fail "sync followed destination LICENSE.md symlink"
+fi
+[ "$(cat "$TMP_DIR/private.txt")" = 'outside private sentinel' ] || fail "sync overwrote the destination sentinel"
+grep -qi symlink "$TMP_DIR/license.out" || fail "destination refusal needs remediation"
+
 printf 'PASS: sync-vendor-skills subpath smoke\n'
