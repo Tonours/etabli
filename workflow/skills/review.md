@@ -135,8 +135,8 @@ no-sibling gap excepted), when the whole-diff `n/a` lists a changed path that
 is not a document or pure rename, or when `isolation: none`. `GO WITH NOTES`
 is not a workaround for those gates. A triggered Threat axis without its
 complete report (a table missing or `partial:`) blocks `GO` and `GO WITH NOTES`
-the same way, as do `template: missing` and a hunter report ending
-`STATUS: truncated`.
+the same way, as do `template: missing` and a hunter report whose last line
+is not `STATUS: complete`.
 
 ## Rules
 
