@@ -27,11 +27,11 @@ cat >"$HOME/.local/bin/gh" <<'GH'
 #!/bin/bash
 printf 'gh %s\n' "$*" >>"$FAKE_LOG"
 [ -z "${FAKE_GH_SLEEP:-}" ] || sleep "$FAKE_GH_SLEEP"
-filter="" prev="" write=0
+filter="" prev="" write=0 paginate=0
 for arg in "$@"; do
   [ "$prev" = --jq ] && filter="$arg"
   [ "$prev" = --input ] && cp "$arg" "$FAKE_DIR/payload.json"
-  case "$arg" in -f|-F|--input|-X|--method) write=1 ;; esac
+  case "$arg" in -f|-F|--input|-X|--method) write=1 ;; --paginate) paginate=1 ;; esac
   prev="$arg"
 done
 case "$1 $2" in
@@ -49,7 +49,10 @@ case "$1 $2" in
           [ -z "${FAKE_GH_POST_FAIL:-}" ] || exit 1
           out='{"html_url":"https://github.invalid/o/r/pull/7#review"}'
         else
-          out='[]'
+          out="${FAKE_GH_REVIEWS:-[]}"
+          [ ! -f "$FAKE_DIR/phase-a-ran" ] || [ -z "${FAKE_GH_REVIEWS_MID:-}" ] || out="$FAKE_GH_REVIEWS_MID"
+          [ ! -f "$FAKE_DIR/phasea-prompt.txt" ] || [ -z "${FAKE_GH_REVIEWS_AFTER:-}" ] || out="$FAKE_GH_REVIEWS_AFTER"
+          [ "$paginate" = 0 ] || [ -z "${FAKE_GH_REVIEWS_PAGE2:-}" ] || out="$out$FAKE_GH_REVIEWS_PAGE2"
         fi ;;
       *) echo "fake gh: unexpected call: $*" >&2; exit 1 ;;
     esac ;;
@@ -71,6 +74,7 @@ done
 if [ -z "$prompt" ]; then prompt="${flags[${#flags[@]}-1]}"; unset 'flags[${#flags[@]}-1]'; fi
 case "$prompt" in
   /validator*) role=VALIDATOR ;;
+  "The validator already reviewed"*) role=PHASEA_ONLY ;;
   /code-review*) role=QUALITY ;;
   *thermo-nuclear*) role=THERMO ;;
   "Incremental review"*) role=DELTA ;;
@@ -80,6 +84,8 @@ case "$prompt" in
 esac
 printf 'claude %s GIT_TERMINAL_PROMPT=%s %s\n' "$role" "${GIT_TERMINAL_PROMPT:-unset}" "${flags[*]}" >>"$FAKE_LOG"
 [ "$role" != VALIDATOR ] || printf '%s' "$prompt" >"$FAKE_DIR/validator-prompt.txt"
+[ "$role" != PHASEA_ONLY ] || printf '%s' "$prompt" >"$FAKE_DIR/phasea-prompt.txt"
+[ "$role" != QUALITY ] || : >"$FAKE_DIR/phase-a-ran"
 stderr_var="FAKE_${role}_STDERR"
 [ -z "${!stderr_var:-}" ] || echo "${!stderr_var}" >&2
 sleep_var="FAKE_${role}_SLEEP"
@@ -153,7 +159,7 @@ run_review() {
   mkdir -p "$STATE/runs"
   : >"$FAKE_LOG"
   : >"$FAKE_DIR/posts.log"
-  rm -f "$FAKE_DIR/validator-prompt.txt"
+  rm -f "$FAKE_DIR/validator-prompt.txt" "$FAKE_DIR/phasea-prompt.txt" "$FAKE_DIR/phase-a-ran"
   RC=0
   (cd "$CLONE" && PR_REVIEW_WATCH_STATE_DIR="$STATE" /bin/bash "$SCRIPTS/pr-review-watch/review-run.sh" \
     "$1" o/r 7 "$2" "$3" https://github.invalid/o/r/pull/7 "$TMP_DIR/report-$1.md" "$KEY") \
@@ -594,6 +600,114 @@ case_tick_guards() {
   chmod 755 "$TMP_DIR/ro"
 }
 
+case_phase_a_only() {
+  local review label reviews page2
+  review() { printf '{"user":{"login":"%s","type":"%s"},"commit_id":"%s","state":"%s"}' "$1" "$2" "$3" "$4"; }
+  export PR_COUNCIL_VALIDATOR_LOGIN=some-validator[bot]
+  reset_state
+  set_head "$HEAD1"
+  FAKE_GH_REVIEWS="[$(review some-validator[bot] Bot "$HEAD1" APPROVED)]" \
+    FAKE_PHASEA_ONLY_TEXT="Nothing survived. $(marker 0)" run_review council "$HEAD1" -
+  check "phase A only: validator not run" not_called "claude VALIDATOR"
+  check "phase A only: verify pass runs on opus high" eval 'grep "^claude PHASEA_ONLY" "$FAKE_LOG" | grep -q -- "--model opus --effort high"'
+  check "phase A only: phase A on opus high" eval 'grep "^claude QUALITY" "$FAKE_LOG" | grep -q -- "--model opus --effort high"'
+  check "phase A only: exit 0" rc_is 0
+  check "phase A only: one watcher approval" [ "$(approvals)" = 1 ]
+  check "phase A only: recorded clean" [ "$(cat "$KEY.council-clean" 2>/dev/null)" = "$HEAD1" ]
+  reset_state
+  FAKE_GH_REVIEWS="[$(review some-validator[bot] Bot "$HEAD1" COMMENTED)]" \
+    FAKE_PHASEA_ONLY_TEXT="Nothing new. $(marker 0)" run_review council "$HEAD1" -
+  check "validator comment stands: no approval" [ "$(approvals)" = 0 ]
+  check "validator comment stands: not clean" no_file "$KEY.council-clean"
+  check "validator comment stands: done" [ "$(cat "$KEY.council-done" 2>/dev/null)" = "$HEAD1" ]
+  reset_state
+  FAKE_GH_REVIEWS="[$(review some-validator[bot] Bot "$HEAD1" COMMENTED),$(review some-validator[bot] Bot "$HEAD1" APPROVED)]" \
+    FAKE_PHASEA_ONLY_TEXT="$(marker 0)" run_review council "$HEAD1" -
+  check "validator approved after commenting: one approval" [ "$(approvals)" = 1 ]
+  reset_state
+  FAKE_GH_REVIEWS="[$(review some-validator[bot] Bot "$HEAD1" APPROVED)]" \
+    FAKE_GH_REVIEWS_AFTER="[$(review some-validator[bot] Bot "$HEAD1" APPROVED),$(review some-validator[bot] Bot "$HEAD1" COMMENTED)]" \
+    FAKE_PHASEA_ONLY_TEXT="Nothing new. $(marker 0)" run_review council "$HEAD1" -
+  check "validator commented during the run: no approval" [ "$(approvals)" = 0 ]
+  check "validator commented during the run: not clean" no_file "$KEY.council-clean"
+  reset_state
+  FAKE_GH_REVIEWS="[$(review some-validator[bot] Bot "$HEAD1" APPROVED)]" \
+    FAKE_GH_REVIEWS_AFTER="[$(review some-validator[bot] Bot "$HEAD1" DISMISSED)]" \
+    FAKE_PHASEA_ONLY_TEXT="Nothing new. $(marker 0)" run_review council "$HEAD1" -
+  check "validator approval dismissed during the run: no approval" [ "$(approvals)" = 0 ]
+  check "validator approval dismissed during the run: not clean" no_file "$KEY.council-clean"
+  reset_state
+  FAKE_GH_REVIEWS="[$(review some-validator[bot] Bot "$HEAD1" APPROVED)]" \
+    FAKE_GH_REVIEWS_AFTER="[$(review some-validator[bot] Bot "$HEAD1" APPROVED),$(review me User "$HEAD1" COMMENTED)]" \
+    FAKE_PHASEA_ONLY_TEXT="Posted. $(marker 1)" run_review council "$HEAD1" -
+  check "phase A only with findings: no approval" [ "$(approvals)" = 0 ]
+  check "phase A only with findings: done" [ "$(cat "$KEY.council-done" 2>/dev/null)" = "$HEAD1" ]
+  reset_state
+  FAKE_GH_REVIEWS="[$(review some-validator[bot] Bot "$HEAD1" APPROVED),$(review me User "$HEAD1" COMMENTED)]" \
+    FAKE_PHASEA_ONLY_TEXT="Submission failed. $(marker 1)" run_review council "$HEAD1" -
+  check "only an older review of ours: retryable failure" rc_is 1
+  check "only an older review of ours: not done" no_file "$KEY.council-done"
+  reset_state
+  FAKE_GH_REVIEWS="[$(review some-validator[bot] Bot "$HEAD1" APPROVED)]" \
+    FAKE_GH_REVIEWS_MID="[$(review some-validator[bot] Bot "$HEAD1" APPROVED),$(review me User "$HEAD1" COMMENTED)]" \
+    FAKE_PHASEA_ONLY_TEXT="Submission failed. $(marker 1)" run_review council "$HEAD1" -
+  check "review of ours posted during phase A: retryable failure" rc_is 1
+  check "review of ours posted during phase A: not done" no_file "$KEY.council-done"
+  reset_state
+  FAKE_GH_REVIEWS="[$(review some-validator[bot] Bot "$HEAD1" APPROVED)]" \
+    FAKE_PHASEA_ONLY_TEXT="Submission failed. $(marker 1)" run_review council "$HEAD1" -
+  check "findings kept but not posted: retryable failure" rc_is 1
+  check "findings kept but not posted: not done" no_file "$KEY.council-done"
+  for label in "old head" "other bot" "similar bot" "dismissed" "pending"; do
+    case "$label" in
+      "old head") reviews="[$(review some-validator[bot] Bot "$HEAD2" COMMENTED)]" ;;
+      "other bot") reviews="[$(review other[bot] Bot "$HEAD1" APPROVED)]" ;;
+      "similar bot") reviews="[$(review openapi-validator[bot] Bot "$HEAD1" APPROVED)]" ;;
+      dismissed) reviews="[$(review some-validator[bot] Bot "$HEAD1" DISMISSED)]" ;;
+      pending) reviews="[$(review some-validator[bot] Bot "$HEAD1" PENDING)]" ;;
+    esac
+    reset_state
+    FAKE_GH_REVIEWS="$reviews" FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+    check "$label: validator runs" called "claude VALIDATOR"
+    check "$label: no phase A only" not_called "claude PHASEA_ONLY"
+  done
+  reset_state
+  page2="[$(review some-validator[bot] Bot "$HEAD1" CHANGES_REQUESTED)]"
+  FAKE_GH_REVIEWS="[$(review dev User "$HEAD1" COMMENTED)]" FAKE_GH_REVIEWS_PAGE2="$page2" \
+    FAKE_PHASEA_ONLY_TEXT="$(marker 0)" run_review council "$HEAD1" -
+  check "second page: phase A only" called "claude PHASEA_ONLY"
+  reset_state
+  PR_COUNCIL_PHASE_A_ONLY=0 FAKE_GH_REVIEWS="[$(review some-validator[bot] Bot "$HEAD1" COMMENTED)]" \
+    FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "forced validator: validator runs" called "claude VALIDATOR"
+  reset_state
+  PR_COUNCIL_PHASE_A_ONLY=1 FAKE_PHASEA_ONLY_TEXT="$(marker 0)" run_review council "$HEAD1" -
+  check "forced phase A only: no validator" not_called "claude VALIDATOR"
+  check "forced phase A only: reviews still listed" called "gh api --paginate"
+  reset_state
+  FAKE_GH_REVIEWS="[$(review some-validator[bot] Bot "$HEAD1" COMMENTED)]" FAKE_PHASEA_ONLY_TEXT="Nothing survived." \
+    run_review council "$HEAD1" -
+  check "phase A only without marker: incomplete" eval 'grep -q "no validator run marker" "$TMP_DIR/run.out"'
+  check "phase A only without marker: no approval" [ "$(approvals)" = 0 ]
+  unset PR_COUNCIL_VALIDATOR_LOGIN
+  mkdir -p "$HOME/.config/pr-council-review"
+  echo some-validator[bot] >"$HOME/.config/pr-council-review/validator-login"
+  reset_state
+  FAKE_GH_REVIEWS="[$(review some-validator[bot] Bot "$HEAD1" COMMENTED)]" \
+    FAKE_PHASEA_ONLY_TEXT="$(marker 0)" run_review council "$HEAD1" -
+  check "login from config file: phase A only" called "claude PHASEA_ONLY"
+  rm -f "$HOME/.config/pr-council-review/validator-login"
+  reset_state
+  FAKE_GH_REVIEWS="[$(review some-validator[bot] Bot "$HEAD1" COMMENTED)]" \
+    FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "no login: validator runs" called "claude VALIDATOR"
+  check "no login: reviews not listed" not_called "gh api --paginate"
+  reset_state
+  PR_COUNCIL_PHASE_A_ONLY=1 run_review council "$HEAD1" -
+  check "no login, forced phase A only: usage error" rc_is 2
+  check "no login, forced phase A only: no model call" not_called "claude"
+}
+
 case_launchd_plist() {
   local plist="$HOME/Library/LaunchAgents/com.aguimard.pr-review-watch.plist"
   mkdir -p "$HOME/.claude/scripts"
@@ -630,6 +744,7 @@ case_housekeeping
 case_pass_caps_and_diagnostics
 case_tick_guards
 case_launchd_plist
+case_phase_a_only
 
 if [ "$failures" -ne 0 ]; then
   printf 'PR review flow smoke test: %s failure(s)\n' "$failures"

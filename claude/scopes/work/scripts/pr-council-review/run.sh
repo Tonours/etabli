@@ -5,6 +5,7 @@ usage() {
   echo "usage: run.sh <pr-number|url> [owner/repo] [--post] [--model <alias>] [--effort <level>]" >&2
   echo "                              [--phase-a-model <alias>] [--phase-a-effort <level>]" >&2
   echo "                              [--no-codex] [--codex-model <model>] [--codex-effort <level>]" >&2
+  echo "                              [--phase-a-only | --with-validator]" >&2
   exit 2
 }
 
@@ -17,13 +18,14 @@ PR_ARG="$1"; shift
 REPO=""
 POST_MODE="dry-run"
 MODEL="${PR_COUNCIL_MODEL:-opus}"
-EFFORT="${PR_COUNCIL_EFFORT:-low}"
+EFFORT="${PR_COUNCIL_EFFORT:-high}"
 PHASE_A_MODEL="${PR_COUNCIL_PHASE_A_MODEL:-sonnet}"
 PHASE_A_EFFORT="${PR_COUNCIL_PHASE_A_EFFORT:-}"
 REVIEW_LEVEL="${PR_COUNCIL_REVIEW_LEVEL:-high}"
 CODEX_MODEL="${PR_COUNCIL_CODEX_MODEL:-gpt-6.1-sol}"
 CODEX_EFFORT="${PR_COUNCIL_CODEX_EFFORT:-xhigh}"
 USE_CODEX="${PR_COUNCIL_USE_CODEX:-1}"
+PHASE_A_ONLY="${PR_COUNCIL_PHASE_A_ONLY:-auto}"
 while [ $# -gt 0 ]; do
   case "$1" in
     --post) POST_MODE="post" ;;
@@ -34,6 +36,8 @@ while [ $# -gt 0 ]; do
     --codex-model) shift; CODEX_MODEL="${1:?--codex-model needs a value}" ;;
     --codex-effort) shift; CODEX_EFFORT="${1:?--codex-effort needs a value}" ;;
     --no-codex) USE_CODEX=0 ;;
+    --phase-a-only) PHASE_A_ONLY=1 ;;
+    --with-validator) PHASE_A_ONLY=0 ;;
     -h|--help) usage ;;
     *)
       if [[ "$1" == *"/"* ]]; then
@@ -47,6 +51,10 @@ while [ $# -gt 0 ]; do
   shift
 done
 
+case "$PHASE_A_ONLY" in
+  auto|0|1) ;;
+  *) echo "PR_COUNCIL_PHASE_A_ONLY must be auto, 0 or 1" >&2; usage ;;
+esac
 [ -n "$PHASE_A_EFFORT" ] || PHASE_A_EFFORT="$EFFORT"
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -91,10 +99,35 @@ case "$PR_NUMBER" in
 esac
 USAGE_TARGET="$REPO#$PR_NUMBER"
 [ "$PR_STATE" = "OPEN" ] || { echo "$REPO#$PR_NUMBER is $PR_STATE, nothing to review" >&2; exit 1; }
+VALIDATOR_LOGIN="${PR_COUNCIL_VALIDATOR_LOGIN:-$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/pr-council-review/validator-login" 2>/dev/null)}"
+# Prints "<validator reviews on head> <0 only when its latest is an approval, else 1> <our COMMENTED reviews on head>".
+head_review_counts() {
+  "$GH" api --paginate "repos/$REPO/pulls/$PR_NUMBER/reviews" 2>/dev/null \
+    | jq -rs --arg sha "$HEAD_SHA" --arg login "$VALIDATOR_LOGIN" --arg me "$ME" '[.[][] | select(.commit_id == $sha)] as $head
+      | ([$head[] | select(.user.login == $login and (.state | IN("COMMENTED", "APPROVED", "CHANGES_REQUESTED")))]
+        | sort_by(.submitted_at)) as $validator
+      | "\($validator | length) \(if ($validator | length) > 0 and ($validator | last | .state) == "APPROVED" then 0 else 1 end) \([$head[] | select(.user.login == $me and .state == "COMMENTED")] | length)"' \
+    || { echo "cannot read the reviews of $REPO#$PR_NUMBER" >&2; return 1; }
+}
+if [ -z "$VALIDATOR_LOGIN" ]; then
+  [ "$PHASE_A_ONLY" != 1 ] || { echo "--phase-a-only needs the validator login (PR_COUNCIL_VALIDATOR_LOGIN or ~/.config/pr-council-review/validator-login)" >&2; exit 2; }
+  PHASE_A_ONLY=0
+elif [ "$PHASE_A_ONLY" != 0 ]; then
+  ME="$("$GH" api user --jq .login 2>/dev/null)"
+  COUNTS="$(head_review_counts)" || exit 1
+  read -r VALIDATOR_REVIEWS _ <<< "$COUNTS"
+  [ "$PHASE_A_ONLY" = 1 ] || { [ "${VALIDATOR_REVIEWS:-0}" -gt 0 ] && PHASE_A_ONLY=1 || PHASE_A_ONLY=0; }
+fi
+if [ "$PHASE_A_ONLY" = 1 ]; then
+  PHASE_A_MODEL=opus PHASE_A_EFFORT=high MODEL=opus EFFORT=high
+  PROMPT_FILE="$HERE/phase-a-only-prompt.md"
+  [ -f "$PROMPT_FILE" ] || { echo "phase-a-only-prompt.md not found" >&2; exit 1; }
+fi
 
 echo "=== pr-council-review $REPO#$PR_NUMBER ($PR_STATE) @${HEAD_SHA:0:8}"
 printf '=== %s\n' "$PR_TITLE" | strip_control_chars
 echo "=== $PR_URL"
+[ "$PHASE_A_ONLY" = 0 ] || echo "=== phase A only: no validator run"
 echo "=== mode: $POST_MODE / phase A: $PHASE_A_MODEL ($PHASE_A_EFFORT) / validator: $MODEL ($EFFORT)"
 if [ "$USE_CODEX" = 1 ]; then
   echo "=== council: claude x2 + codex $CODEX_MODEL ($CODEX_EFFORT), cross-family"
@@ -219,10 +252,33 @@ PROMPT="$(render_template "$PROMPT_FILE" \
   MERGE_BASE="$MERGE_BASE" REPORT_QUALITY="$REPORT_QUALITY" REPORT_THERMO="$REPORT_THERMO" POST_MODE="$POST_MODE")"
 
 echo
-echo "=== phase B: /validator with phase A findings as extra step 6 candidates"
+if [ "$PHASE_A_ONLY" = 1 ]; then
+  echo "=== phase B: verify phase A findings, comment or stay silent"
+else
+  echo "=== phase B: /validator with phase A findings as extra step 6 candidates"
+fi
 RC_VALIDATOR=0
+if [ "$PHASE_A_ONLY" = 1 ]; then
+  COUNTS="$(head_review_counts)" || exit 1
+  read -r _ _ OWN_BEFORE <<< "$COUNTS"
+fi
 claude_pass validator "$RAW_VALIDATOR" auto "$PROMPT" --allowedTools "Bash(gh api repos/$REPO/pulls/$PR_NUMBER/reviews:*)" \
-  "${CLAUDE_ARGS[@]}" || RC_VALIDATOR=$?
+  "${CLAUDE_ARGS[@]}" | tee "$WORK_DIR/phase-b.md" || RC_VALIDATOR=$?
+
+if [ "$PHASE_A_ONLY" = 1 ] && [ "$RC_VALIDATOR" -eq 0 ]; then
+  KEPT="$(grep -o '"kind":"run"[^>]*' "$WORK_DIR/phase-b.md" | grep -F "\"sha\":\"$HEAD_SHA\"" | tail -1 \
+    | sed -n 's/.*"findings":\([0-9]*\).*/\1/p')"
+  COUNTS="$(head_review_counts)" || exit 1
+  read -r _ VALIDATOR_OPEN OWN_AFTER <<< "$COUNTS"
+  if [ -n "$KEPT" ] && [ "$KEPT" -gt 0 ] && [ "$POST_MODE" = post ] && [ "${OWN_AFTER:-0}" -le "${OWN_BEFORE:-0}" ]; then
+    echo "=== phase A only: $KEPT findings kept but no new review of ours on ${HEAD_SHA:0:8}" >&2
+    exit 1
+  fi
+  if [ -n "$KEPT" ] && [ "${VALIDATOR_OPEN:-0}" -gt 0 ]; then
+    printf '<!-- claudine:v1 {"kind":"run","run":"phase-a-only","sha":"%s","findings":%s,"floor":"should-fix","suppressed":0,"security":"clean","lenses":{"phase-a":"verified","validator":"open"}} -->\n' \
+      "$HEAD_SHA" "$((KEPT + VALIDATOR_OPEN))"
+  fi
+fi
 
 echo
 echo "=== done (validator exit $RC_VALIDATOR)"
