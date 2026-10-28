@@ -8,7 +8,7 @@ TMP_DIR="$(cd "$TMP_DIR" && pwd -P)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 NODE_DIR="$(dirname "$(node -p process.execPath)")"
 export HOME="$TMP_DIR/home" SECURITY_AUDIT_GLM_HOME="$TMP_DIR/state"
-unset SECURITY_AUDIT_GLM_TIMEOUT
+unset SECURITY_AUDIT_GLM_TIMEOUT SECURITY_AUDIT_GLM_API_KEY SECURITY_AUDIT_GLM_BASE_URL SECURITY_AUDIT_GLM_MODEL SECURITY_AUDIT_GLM_EFFORT
 mkdir -p "$HOME" "$TMP_DIR/bin" "$TMP_DIR/target" "$TMP_DIR/fixture" "$TMP_DIR/runs"
 
 cat >"$TMP_DIR/bin/claude" <<'CLAUDE'
@@ -151,6 +151,15 @@ rm -f "$FAKE_OUT"
 check "refuses without ZAI_API_KEY" eval '! env -u ZAI_API_KEY "$ROOT_DIR/scripts/security-audit-glm" "$TMP_DIR/target" 2>/dev/null && [ ! -e "$FAKE_OUT" ]'
 check "refuses an effort glm lacks" eval '! ZAI_API_KEY=k "$ROOT_DIR/scripts/security-audit-glm" --effort xhigh 2>/dev/null && [ ! -e "$FAKE_OUT" ]'
 check "dry run keeps the key out" eval '! ZAI_API_KEY=secret-key "$ROOT_DIR/scripts/security-audit-glm" "$TMP_DIR/target" --dry-run 2>&1 | grep -q secret-key'
+preview="$(ZAI_API_KEY=zai-private SECURITY_AUDIT_GLM_API_KEY=provider-private SECURITY_AUDIT_GLM_BASE_URL=https://api.deepseek.com/anthropic \
+  "$ROOT_DIR/scripts/security-audit-glm" "$TMP_DIR/target" --dry-run 2>&1)"
+check "custom-provider preview references the key variable" grep -Fq '\$SECURITY_AUDIT_GLM_API_KEY' <<<"$preview"
+check "custom-provider preview prints neither key" eval '! grep -Eq "zai-private|provider-private" <<<"$preview"'
+ZAI_API_KEY=zai-private SECURITY_AUDIT_GLM_API_KEY=provider-private SECURITY_AUDIT_GLM_BASE_URL=https://api.deepseek.com/anthropic \
+  SECURITY_AUDIT_GLM_MODEL='deepseek-flash[1m]' "$ROOT_DIR/scripts/security-audit-glm" "$TMP_DIR/target" >/dev/null 2>&1
+check "custom provider receives its own key, not Z.ai's" has "token=provider-private api_key=unset"
+check "custom provider receives its endpoint" has "base=https://api.deepseek.com/anthropic"
+check "custom provider overrides every model tier" has "models=deepseek-flash[1m] deepseek-flash[1m] deepseek-flash[1m] deepseek-flash[1m]"
 
 check "fixture passes the upstream validators" eval 'node "$SKILL_DIR/validate-findings.cjs" "$TMP_DIR/fixture/findings.json" >/dev/null && node "$SKILL_DIR/validate-coverage-ledger.cjs" "$TMP_DIR/fixture/coverage-ledger.json" >/dev/null'
 audit none
