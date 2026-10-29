@@ -5,6 +5,8 @@ REVIEW_VETO_RC=3
 REVIEW_INCOMPLETE_RC=4
 VERIFY_UNCONFIGURED_RC=5
 CLAUDE_PASS_TIMEOUT="${PR_REVIEW_PASS_TIMEOUT:-2700}"
+CLAUDE_PASS_IDLE="${PR_REVIEW_PASS_IDLE:-900}"
+[[ "$CLAUDE_PASS_IDLE" =~ ^[0-9]+$ ]] || CLAUDE_PASS_IDLE=900
 CLAUDE_MAX_TURNS="${PR_REVIEW_MAX_TURNS:-200}"
 CLAUDE_MAX_BUDGET_USD="${PR_REVIEW_MAX_BUDGET_USD:-25}"
 STOP_GRACE_SECONDS="${PR_REVIEW_STOP_GRACE:-10}"
@@ -137,18 +139,32 @@ stop_children() {
   done
 }
 
-# Runs the command in its own process group; on INT, TERM or HUP, or at the timeout
-# (INT, then TERM, then KILL), the whole group stops. Returns 124 on a timeout.
+# run_with_timeout [--idle <seconds> <file>] <timeout> <command...>: runs the command in its own
+# process group; on INT, TERM or HUP, at the timeout, or once the file has not changed for the idle
+# seconds (INT, then TERM, then KILL), the whole group stops. Returns 124 on a timeout or a stall;
+# a stall also writes the file's size at that moment to <file>.stalled.
 run_with_timeout() {
-  local timeout="$1" pid watchdog expired rc=0 saved
+  local idle=0 idle_file="" timeout pid watchdog expired rc=0 saved reason
+  if [ "${1:-}" = --idle ]; then
+    idle="$2" idle_file="$3"
+    shift 3
+  fi
+  timeout="$1"
   shift
   expired="$(mktemp "${TMPDIR:-/tmp}/run-timeout.XXXXXX")" && rm -f "$expired"
   saved="$(trap -p INT TERM HUP)"
   perl -e '$SIG{INT} = $SIG{QUIT} = "DEFAULT"; setpgrp(0, 0); exec @ARGV or die "exec: $!"' "$@" &
   pid=$!
-  perl -e 'my ($t, $g, $grace, $flag) = @ARGV; sleep $t; open my $fh, ">", $flag; close $fh;
+  perl -e 'use Time::HiRes qw(time stat); my ($t, $g, $grace, $flag, $idle, $file) = @ARGV; my $start = time; my $why;
+    while (1) {
+      my $now = time;
+      if ($now - $start >= $t) { $why = "timeout"; last }
+      if ($idle > 0) { my $m = (stat $file)[9] // $start; $m = $start if $m < $start; if ($now - $m >= $idle) { $why = "idle " . (-s $file // 0); last } }
+      sleep 1;
+    }
+    open my $fh, ">", $flag; print $fh $why; close $fh;
     for my $signal ("INT", "TERM") { kill $signal, -$g; for (1 .. 10 * $grace) { kill(0, -$g) or exit; select(undef, undef, undef, 0.1) } }
-    kill "KILL", -$g' "$timeout" "$pid" "$STOP_GRACE_SECONDS" "$expired" </dev/null &
+    kill "KILL", -$g' "$timeout" "$pid" "$STOP_GRACE_SECONDS" "$expired" "$idle" "$idle_file" </dev/null &
   watchdog=$!
   trap 'kill "$watchdog" 2>/dev/null; stop_group "$pid"; exit 130' INT
   trap 'kill "$watchdog" 2>/dev/null; stop_group "$pid"; exit 143' TERM
@@ -159,9 +175,15 @@ run_with_timeout() {
   trap - INT TERM HUP
   eval "$saved"
   if [ -e "$expired" ]; then
+    reason="$(cat "$expired")"
     rm -f "$expired"
     kill -KILL -- "-$pid" 2>/dev/null
-    echo "=== timeout after ${timeout}s, process group $pid stopped" >&2
+    if [ "${reason%% *}" = idle ]; then
+      echo "${reason#idle }" >"$idle_file.stalled"
+      echo "=== stalled: no session output for ${idle}s, process group $pid stopped" >&2
+    else
+      echo "=== timeout after ${timeout}s, process group $pid stopped" >&2
+    fi
     return 124
   fi
   return "$rc"
@@ -177,6 +199,14 @@ validator_checkout() {
   git clone -q --shared --no-checkout "$root" "$dest" && git -C "$dest" remote set-url origin "$origin" \
     && git -C "$dest" checkout -q --detach "$head" || return 1
   [ ! -f "$root/.claude/settings.local.json" ] || { mkdir -p "$dest/.claude" && cp "$root/.claude/settings.local.json" "$dest/.claude/"; }
+}
+
+linked_section() {
+  local linked
+  mkdir -p "$3" && linked="$(linked_prs "$1" "$2" "$3")" && [ -n "$linked" ] || return 0
+  echo "=== linked: $(cut -f1 <<< "$linked" | paste -sd' ' -)" >&2
+  render_template "$(dirname "${BASH_SOURCE[0]}")/linked-prompt.md" \
+    LINKED_LIST="$(awk -F'\t' '{ printf "- `%s` at `%s`: %s. Diff: `%s`\n", $1, $2, $4, $3 }' <<< "$linked")"
 }
 
 linked_prs() {
@@ -220,11 +250,22 @@ claude_pass() {
     auto) set -- "${AUTO_PROFILE[@]}" "$@" ;;
     *) echo "=== $label: unknown profile $profile" >&2; return 1 ;;
   esac
-  run_with_timeout "$CLAUDE_PASS_TIMEOUT" "$CLAUDE" -p "$prompt" --output-format json \
-    --max-turns "$CLAUDE_MAX_TURNS" --max-budget-usd "$CLAUDE_MAX_BUDGET_USD" "$@" </dev/null >"$raw" 2>"$raw.err" || rc=$?
+  rm -f "$raw.stream.stalled"
+  run_with_timeout --idle "$CLAUDE_PASS_IDLE" "$raw.stream" "$CLAUDE_PASS_TIMEOUT" "$CLAUDE" -p "$prompt" \
+    --output-format stream-json --verbose --max-turns "$CLAUDE_MAX_TURNS" --max-budget-usd "$CLAUDE_MAX_BUDGET_USD" "$@" \
+    </dev/null >"$raw.stream" 2>"$raw.err" || rc=$?
+  jq -cR 'fromjson? | select(type == "object" and .type == "result")' "$raw.stream" 2>/dev/null | tail -n 1 >"$raw"
   if [ "$rc" -ne 0 ]; then
     echo "=== $label: claude exited $rc; stderr tail:" >&2
     tail -n 20 "$raw.err" >&2
+  fi
+  if [ "$rc" -eq 124 ]; then
+    [ ! -f "$raw.stream.stalled" ] || head -c "$(cat "$raw.stream.stalled")" "$raw.stream" | jq -rRs --arg label "$label" '
+      [split("\n")[] | fromjson? | select(type == "object")] as $events
+      | ([$events[] | .message.content[]? | select(.type == "tool_use") | .name] | last // "none") as $tool
+      | ($events | last // {} | "\(.type // "none")\(if .subtype then "/\(.subtype)" else "" end)") as $event
+      | "=== \($label): last session event \($event), last tool call \($tool)"' >&2 2>/dev/null
+    return 124
   fi
   extract_result "$raw" || result_rc=$?
   record_usage "$raw" "$label" "$USAGE_TARGET" >&2

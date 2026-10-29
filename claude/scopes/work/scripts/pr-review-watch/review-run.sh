@@ -33,8 +33,19 @@ my_review_count() {
     | jq --arg me "$ME" '[.latestReviews[] | select(.author.login == $me)] | length'
 }
 
+LINKED_FILE=""
+linked_once() {
+  local dir
+  [ -z "$LINKED_FILE" ] || return 0
+  purge_old_dirs "${TMPDIR:-/tmp}" "pr-linked-*" 7
+  dir="$(mktemp -d "${TMPDIR:-/tmp}/pr-linked-$NUMBER.XXXXXX")" || return 0
+  LINKED_FILE="$dir/section.md"
+  linked_section "$REPO" "$NUMBER" "$dir" >"$LINKED_FILE"
+}
+
 verify_prompt() {
-  render_template "$HERE/../pr-council-review/verify-prompt.md" VERIFY_SKILL="$VERIFY_SKILL_NAME" PR_NUMBER="$NUMBER" REPO="$REPO" SINCE_SHORT="${SINCE:0:8}"
+  render_template "$HERE/../pr-council-review/verify-prompt.md" VERIFY_SKILL="$VERIFY_SKILL_NAME" PR_NUMBER="$NUMBER" REPO="$REPO" SINCE_SHORT="${SINCE:0:8}" \
+    LINKED_SECTION="$(cat "$LINKED_FILE" 2>/dev/null)"
 }
 
 keep_pending_approval() {
@@ -99,7 +110,8 @@ run_council() {
 
 run_delta() {
   local log="$1" rc
-  run_with_timeout "$TIMEOUT" "$HERE/delta-review.sh" "$REPO" "$NUMBER" "$SINCE" </dev/null >"$log" 2>&1
+  linked_once
+  run_with_timeout "$TIMEOUT" "$HERE/delta-review.sh" "$REPO" "$NUMBER" "$SINCE" "$LINKED_FILE" </dev/null >"$log" 2>&1
   rc=$?
   cat "$log"
   return "$rc"
@@ -119,6 +131,7 @@ run_verify_fixes() {
   tree="$(mktemp -d "${TMPDIR:-/tmp}/pr-verify-$NUMBER.XXXXXX")/tree"
   raw="${REPORT%.md}.json"
   base="$(verify_merge_base)" && [ -n "$base" ] || { echo "cannot resolve the merge base for the verify pass"; return 1; }
+  linked_once
   git worktree add -q --detach "$tree" "$SHA" || { echo "cannot create verify worktree"; return 1; }
   neutralize_author_config "$tree" "$SHA" "$base"
   rc=0

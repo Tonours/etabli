@@ -4,6 +4,7 @@ set -uo pipefail
 REPO="${1:?usage: delta-review.sh <owner/repo> <number> <since-sha>}"
 NUMBER="${2:?}"
 SINCE="${3:?}"
+LINKED_FILE="${4:-}"
 MODEL="${PR_REVIEW_WATCH_DELTA_MODEL:-sonnet}"
 LEVEL="${PR_REVIEW_WATCH_DELTA_LEVEL:-medium}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -49,7 +50,7 @@ neutralize_author_config "$WORKTREE" "$SINCE" "$MERGE_BASE"
 
 echo "=== delta ${SINCE:0:8}..${HEAD_SHA:0:8}: $(git -C "$WORKTREE" diff --cached --shortstat)"
 PROMPT="$(render_template "$PROMPT_FILE" REPO="$REPO" PR_NUMBER="$NUMBER" PR_URL="$PR_URL" \
-  SINCE_SHA="$SINCE" HEAD_SHA="$HEAD_SHA" SINCE_SHORT="${SINCE:0:8}" HEAD_SHORT="${HEAD_SHA:0:8}" REVIEW_LEVEL="$LEVEL")"
+  SINCE_SHA="$SINCE" HEAD_SHA="$HEAD_SHA" LINKED_SECTION="$(cat "$LINKED_FILE" 2>/dev/null)" SINCE_SHORT="${SINCE:0:8}" HEAD_SHORT="${HEAD_SHA:0:8}" REVIEW_LEVEL="$LEVEL")"
 
 (cd "$WORKTREE" && claude_pass delta "$WORK_DIR/delta.json" read-only "$PROMPT" --model "$MODEL" --effort low \
   --json-schema "$FINDINGS_SCHEMA" "${ISOLATED_SETTINGS[@]}" >/dev/null) || exit
