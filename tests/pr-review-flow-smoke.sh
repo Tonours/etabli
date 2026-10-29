@@ -43,6 +43,7 @@ case "$1 $2" in
     out='{"login":"me"}' ;;
   "pr view") [ -z "${FAKE_GH_VIEW_FAIL:-}" ] || exit 1; out="$(cat "$FAKE_DIR/pr.json")" ;;
   "pr checks") out='[{"bucket":"pass"}]' ;;
+  "search prs") [ -z "${FAKE_GH_DISCOVERY_FAIL:-}" ] || exit 1; out="${FAKE_GH_SEARCH:-[]}" ;;
   "pr list") out="$(jq -c --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '[{number, author: {login: "me"}, url, createdAt: $now, reviews: [], headRefOid}]' "$FAKE_DIR/pr.json")" ;;
   "api graphql") out='{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[],"pageInfo":{"hasNextPage":false}}}}}}' ;;
   *)
@@ -58,6 +59,15 @@ case "$1 $2" in
           [ ! -f "$FAKE_DIR/phasea-prompt.txt" ] || [ -z "${FAKE_GH_REVIEWS_AFTER:-}" ] || out="$FAKE_GH_REVIEWS_AFTER"
           [ "$paginate" = 0 ] || [ -z "${FAKE_GH_REVIEWS_PAGE2:-}" ] || out="$out$FAKE_GH_REVIEWS_PAGE2"
         fi ;;
+      api*repos/*/issues/*/timeline*)
+        [ -z "${FAKE_GH_DISCOVERY_SLEEP:-}" ] || sleep "$FAKE_GH_DISCOVERY_SLEEP"
+        [ -z "${FAKE_GH_DISCOVERY_FAIL:-}" ] || exit 1
+        out="${FAKE_GH_TIMELINE:-[]}" ;;
+      api*repos/*/compare/*) [ -z "${FAKE_GH_DISCOVERY_FAIL:-}" ] || exit 1; out="diff --git a/f b/f" ;;
+      api*repos/*/pulls/[0-9]*)
+        pull="$*" pull="${pull#*repos/}" pull="${pull%% *}" pull="$FAKE_DIR/linked/${pull//\//_}.json"
+        [ -z "${FAKE_GH_DISCOVERY_FAIL:-}" ] && [ -f "$pull" ] || exit 1
+        out="$(cat "$pull")" ;;
       *) echo "fake gh: unexpected call: $*" >&2; exit 1 ;;
     esac ;;
 esac
@@ -143,8 +153,8 @@ set_head() {
   git -C "$TMP_DIR/seed" push -q -f "$TMP_DIR/origin.git" "$1:refs/pull/7/head"
   local files='[{"path":"a.txt","additions":1,"deletions":0}]' author='{"login":"dev","is_bot":false}'
   files="${FAKE_PR_FILES:-$files}" author="${FAKE_PR_AUTHOR:-$author}"
-  printf '{"number":7,"headRefOid":"%s","baseRefName":"main","url":"https://github.invalid/o/r/pull/7","title":"t","state":"OPEN","isDraft":false,"latestReviews":%s,"reviewRequests":[{"login":"me"}],"author":%s,"files":%s,"changedFiles":%s,"additions":%s,"deletions":0}' \
-    "$1" "${2:-[]}" "$author" "$files" \
+  printf '{"number":7,"body":%s,"headRefOid":"%s","baseRefName":"main","url":"https://github.invalid/o/r/pull/7","title":"t","state":"OPEN","isDraft":false,"latestReviews":%s,"reviewRequests":[{"login":"me"}],"author":%s,"files":%s,"changedFiles":%s,"additions":%s,"deletions":0}' \
+    "$(jq -n --arg b "${FAKE_PR_BODY:-}" '$b')" "$1" "${2:-[]}" "$author" "$files" \
     "$(printf '%s' "$files" | jq length)" "$(printf '%s' "$files" | jq 'map(.additions) | add')" >"$FAKE_DIR/pr.json"
 }
 
@@ -191,6 +201,58 @@ called() { grep -q "^$1" "$FAKE_LOG"; }
 not_called() { ! called "$1"; }
 rc_is() { [ "$RC" = "$1" ]; }
 no_file() { [ ! -e "$1" ]; }
+
+linked_pinned() {
+  local prompt="$1" ref
+  shift
+  for ref in "$@"; do
+    grep -qF "\`$ref\` at \`$(printf '%040d' "${ref##*#}")\`" "$prompt" || return 1
+  done
+}
+
+case_linked_prs() {
+  local prompt="$FAKE_DIR/validator-prompt.txt"
+  pull() { printf '{"state":"%s","author_association":"%s","title":"%s","base":{"sha":"%040d"},"head":{"sha":"%040d"}}' "$1" "${4:-MEMBER}" "$2" 1 "$3"; }
+  xref() { printf '{"event":"cross-referenced","source":{"issue":{"number":%s,"pull_request":{},"repository":{"full_name":"%s"}}}}' "$2" "$1"; }
+  mkdir -p "$FAKE_DIR/linked"
+  pull open "front fix" 11 >"$FAKE_DIR/linked/o_front_pulls_11.json"
+  pull open "back fix" 12 >"$FAKE_DIR/linked/o_back_pulls_12.json"
+  pull closed "old" 13 >"$FAKE_DIR/linked/o_closed_pulls_13.json"
+  pull open "api fix" 14 >"$FAKE_DIR/linked/o_api_pulls_14.json"
+  pull open "fork pr" 15 CONTRIBUTOR >"$FAKE_DIR/linked/o_front_pulls_15.json"
+  export FAKE_PR_BODY=$'fixes PRD-9\nSee o/back#12, bad/ref#x and https://github.com/o/closed/pull/13'
+  FAKE_GH_TIMELINE="$(printf '[%s,%s,%s,%s,{"event":"labeled"}]' "$(xref o/front 11)" "$(xref x/evil 3)" "$(xref o/r 7)" "$(xref o/front 15)")"
+  export FAKE_GH_TIMELINE
+  export FAKE_GH_SEARCH='[{"repository":{"nameWithOwner":"o/api"},"number":14},{"repository":{"nameWithOwner":"o/front"},"number":11}]'
+  reset_state
+  set_head "$HEAD1"
+  FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "linked: validator ran" called "claude VALIDATOR"
+  check "linked: section in the gate prompt" grep -q '^## Linked pull requests' "$prompt"
+  check "linked: timeline, body and ticket PRs kept, pinned" linked_pinned "$prompt" o/front#11 o/back#12 o/api#14
+  check "linked: closed, non-member, foreign, malformed and self dropped" eval '! grep "^- \`" "$prompt" | grep -qE "o/closed#13|o/front#15|x/evil|bad/ref|o/r#7"'
+  check "linked: foreign owner never queried" eval '! grep -q "repos/x/evil" "$FAKE_LOG"'
+  check "linked: ticket searched within the owner" eval 'grep -q "^gh search prs PRD-9 --owner o " "$FAKE_LOG"'
+  check "linked: one line per PR" [ "$(grep -c '^- `o/' "$prompt")" = 3 ]
+  reset_state
+  FAKE_GH_DISCOVERY_FAIL=1 FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "linked discovery fails: validator still runs" called "claude VALIDATOR"
+  check "linked discovery fails: no section" eval '! grep -q "Linked pull requests" "$FAKE_DIR/validator-prompt.txt"'
+  reset_state
+  PR_COUNCIL_LINKED_TIMEOUT=1 FAKE_GH_DISCOVERY_SLEEP=30 FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "linked discovery hangs: bounded, validator runs" called "claude VALIDATOR"
+  check "linked discovery hangs: exit 0" rc_is 0
+  reset_state
+  PR_COUNCIL_LINKED_MAX_LINES=0 FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "linked diff above the line cap: no section" eval '! grep -q "Linked pull requests" "$FAKE_DIR/validator-prompt.txt"'
+  reset_state
+  PR_COUNCIL_VALIDATOR_LOGIN='some-validator[bot]' \
+    FAKE_GH_REVIEWS='[{"user":{"login":"some-validator[bot]","type":"Bot"},"commit_id":"'"$HEAD1"'","state":"APPROVED"}]' \
+    FAKE_PHASEA_ONLY_TEXT="Nothing survived. $(marker 0)" run_review council "$HEAD1" -
+  check "linked: section in the phase A only prompt" grep -q '^## Linked pull requests' "$FAKE_DIR/phasea-prompt.txt"
+  unset FAKE_PR_BODY FAKE_GH_TIMELINE FAKE_GH_SEARCH
+  rm -rf "$FAKE_DIR/linked"
+}
 
 case_clean_council_approves() {
   reset_state
@@ -826,6 +888,7 @@ case_pass_caps_and_diagnostics
 case_tick_guards
 case_launchd_plist
 case_phase_a_only
+case_linked_prs
 
 if [ "$failures" -ne 0 ]; then
   printf 'PR review flow smoke test: %s failure(s)\n' "$failures"

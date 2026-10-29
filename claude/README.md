@@ -146,7 +146,9 @@ reviews a head sha after 600 s of quiet, skips diffs above 5000 lines, runs at
 most 2 reviews at once and 20 a day, and retries a failed review 3 times. Each
 review opens in a `pr-reviews` herdr tab, or runs detached.
 
-The first review is `/pr-council-review --post`; later pushes get
+The first review is `/pr-council-review --post`, which also reads open PRs
+linked to this one in the owner's repositories and turns a finding one of
+them already fixes into a merge-order note; later pushes get
 `/code-review` on the new commits, then the machine-local fix-verification
 skill (`PR_COUNCIL_VERIFY_SKILL`, else the first line of
 `~/.config/pr-council-review/verify-skill`). Without one, that step is marked
