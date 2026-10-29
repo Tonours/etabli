@@ -324,6 +324,21 @@ watch_fn() {
     ". '$SCRIPTS/pr-review-watch/watch.sh'; launch() { echo \"launch \$5\"; }; $1" 2>&1)
 }
 
+unwatch_as() {
+  printf 'o/r\t7\n' >"$STATE/watched.tsv"
+  echo "$HEAD1" >"$KEY.council-done"
+  watch_fn "pr_snapshot() { printf '$1\tfalse\t$HEAD1\turl\t$2\t$3\n'; }; herdr_available() { return 1; }; remove_finished_clones() { :; }; process_watched me" >/dev/null
+}
+
+case_unwatch_state() {
+  reset_state
+  mkdir -p "$STATE/runs"
+  unwatch_as CLOSED true false
+  check "unwatch: a closed PR drops its run state" no_file "$KEY.council-done"
+  unwatch_as OPEN true true
+  check "unwatch: an approved open PR keeps its run state" [ -f "$KEY.council-done" ]
+}
+
 attempt_after() {
   printf '%s\tcouncil\t%s\t%s\n' "${4:-$HEAD1}" "$1" "$2" >"$KEY.status"
   touch -t "$3" "$KEY.status"
@@ -792,6 +807,7 @@ case_incomplete_reviews
 case_unverified_envelopes
 case_ticketed_then_clean_delta_waits
 case_watch_mode
+case_unwatch_state
 case_next_attempt
 case_verify_skill_config
 case_approval_post_failure_stays_pending
