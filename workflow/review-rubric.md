@@ -5,7 +5,12 @@ Run a production-minded review. Parent hunts via isolated hunters, then filters.
 ## Intent
 
 The parent writes one Intent paragraph (user message, PR body, or commits)
-after pinning the patch once; hunters receive it. Logic does not treat
+after pinning the patch once; hunters receive it. When the branch under
+review (the current branch for workspace and branch targets; for
+`commit <sha>`, only a branch the request names) carries a ticket id
+(`workflow/git-contract.md`), the parent copies that ticket's acceptance
+criteria into the Intent when the runtime exposes the tracker, and otherwise
+says in the Intent that the ticket was not read. Logic does not treat
 Intent or `PLAN.md` as correctness authority.
 
 ## Hunt and filter

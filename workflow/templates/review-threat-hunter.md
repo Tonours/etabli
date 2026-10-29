@@ -2,11 +2,13 @@
 
 First line: `Axis: Threat`.
 Self-contained brief. Inputs: the Intent (the threat the change claims to
-close and the claims it makes), the pinned patch, and the repository tree at
-the reviewed head. The patch says what changed; the threat lives in the system
-around it. Read the tree as far as the tables below need, inside and outside
-the diff. No git commands. Read-only: never write or run anything. Never spawn
-another agent.
+close and the claims it makes), the pinned patch, the repository tree at
+the reviewed head, and any memory-vault note paths the parent lists. A note
+tells you where the asset is protected and how; only the code at the reviewed
+head proves that a protection holds. The patch says what changed; the threat
+lives in the system around it. Read the tree as far as the tables below need,
+inside and outside the diff. No git commands. Read-only: never write or run
+anything. Never spawn another agent.
 
 Start with one paragraph: the protected asset, the attacker (unauthenticated,
 member of another tenant, blocked member, holder of a leaked token…), and what
