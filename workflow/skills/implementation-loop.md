@@ -19,8 +19,8 @@ never downgrade mid-run.
   No plan file and no READY gate unless the surface is contractual — in which
   case the tier is not small.
 - **standard** (default) — runtime code change on a known surface. Full
-  sequence below, except step 13b accepts a documented same-family
-  double-sample instead of cross-model.
+  sequence below; step 13b falls back to a documented same-family
+  double-sample only when every eligible cross-model route is unavailable.
 - **high-risk** — kernel guards, installer/deploy scripts, security, multi-surface contract changes, or a third
   recurrence of the same failure. Full sequence, cross-model adversary
   mandatory (13b), both hunters mandatory (13).
@@ -119,10 +119,12 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
     `GO` without runtime deciding-code is invalid: `blocked` / re-review.
     Missing eligible runner or required authorization: `blocked`.
 13b. Code-diff adversary per `workflow/skills/adversary.md`: tiered —
-    **high-risk requires cross-model**; **standard accepts a documented
-    double-sample same-family pass**; **small skips**. Single same-family pass
-    alone → `blocked`.
-    Name `adversary_model` (or `same-family-pass` ids).
+    **high-risk and standard require cross-model**; **small skips**. Standard
+    falls back to a documented double-sample only when every eligible route is
+    technically unavailable (`workflow/skills/adversary.md` § Code diff mode).
+    Single same-family pass alone → `blocked`.
+    Name `adversary_model` (or `same-family-pass` ids plus
+    `cross_model: unavailable (<category>)`).
     **High** findings: accept/reject via cross-model (or second sample), not
     the implementer alone. Fold accepted findings and re-run checks. Any
     accepted fix invalidates cumulative review and code-diff adversary evidence
@@ -147,7 +149,9 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
     status (both N/A for small: no plan, no archive), remaining risks,
     next action if any, and final status.
 18. Before any push, run the project's complete relevant check group on the
-    final diff. A red group blocks push even when focused checks passed.
+    final diff. A red group blocks push even when focused checks passed. When
+    the branch has an open PR, re-read its body against the final diff first
+    (`workflow/pr-body-contract.md` § Honest status).
 
 ## Long loops
 
@@ -159,7 +163,8 @@ Autonomous completion requires:
 
 - recorded risk tier;
 - adversary plan review (standard/high-risk);
-- adversary code-diff review (standard/high-risk: named model or documented double-sample);
+- adversary code-diff review (standard/high-risk: named model; standard
+  fallback: double-sample with `cross_model: unavailable (<category>)`);
 - focused validation;
 - product-flow evidence when required by the plan;
 - simplification pass result (`simplify: clean` or `simplify: removed N`);
