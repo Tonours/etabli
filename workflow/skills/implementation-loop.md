@@ -122,8 +122,8 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
     **high-risk and standard require cross-model**; **small skips**. Standard
     falls back to a documented double-sample only when every eligible route is
     technically unavailable (`workflow/skills/adversary.md` § Code diff mode).
-    An answer without effective-model provenance, or truncated, is rerun once,
-    then `blocked`; it never triggers the fallback.
+    An answer without effective-model provenance, or truncated, is rerun once;
+    still unproven or truncated → `blocked`, never the fallback.
     Single same-family pass alone → `blocked`.
     Name `adversary_model` (or `same-family-pass` ids plus
     `cross_model: unavailable (<category>)`).
