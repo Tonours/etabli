@@ -41,4 +41,3 @@ Decisions live in this directory. Run `/adr` to record one.
 - [0037](0037-serve-one-skill-tree-to-both-runtimes.md) — Serve one skill tree to both runtimes [accepted]
 - [0038](0038-reconcile-agent-surfaces-from-one-node-manifest.md) — Reconcile agent surfaces from one Node manifest [accepted]
 - [0039](0039-run-the-cloudflare-security-audit-on-glm.md) — Run the Cloudflare security audit on GLM [accepted]
-- [0040](0040-judge-test-strength-with-a-sandboxed-mutation-probe.md) — Judge test strength with a sandboxed mutation probe [accepted]
