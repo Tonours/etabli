@@ -36,7 +36,18 @@ usage per pass is appended to `~/.claude/logs/pr-review-usage.log`.
   at most 5, each diff pinned to its head SHA and at most 5000 lines
   (`PR_COUNCIL_LINKED_MAX_LINES`; `PR_COUNCIL_LINKED_TIMEOUT`, 20 s per `gh`
   call; any failure skips it). The gate reads them: a finding a linked PR already fixes is posted as a
-  merge dependency on that PR, not as a fix request.
+  merge dependency on that PR, not as a fix request. On a later push the watch
+  collects them once more and gives the same section to the delta review and
+  the fix verification.
+- Stalled passes: every Claude pass streams its session
+  (`--output-format stream-json`). One that writes nothing for 900 s
+  (`PR_REVIEW_PASS_IDLE`, 0 turns it off) is stopped with exit 124, like the
+  2700 s cap (`PR_REVIEW_PASS_TIMEOUT`), and the log names its last event and
+  last tool call. The watch retries a stalled gate, delta or verify pass; a
+  stalled phase A pass leaves the gate running without it.
+- Untrusted input: every prompt we own says the diff, the PR text and the
+  commit messages are author data. The `/code-review` pass is a bare slash
+  command and gets no such line.
 - Validator checkout: the validator runs in a throwaway `git clone --shared`
   of your checkout, at your head, with your origin URL and
   `.claude/settings.local.json`. Its security pass opens an agent worktree, and

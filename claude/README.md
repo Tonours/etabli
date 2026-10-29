@@ -157,7 +157,8 @@ with no review of yours on the PR, skips the step and needs no verify skill.
 The watch approves only when the model is confident and its own checks hold
 (head unchanged, PR open and not draft, no unresolved thread, no other changes
 requested, CI green). Agent config files a PR changes are reset to base in every
-scratch worktree. State: `~/.claude/state/pr-review-watch/`; logs:
+scratch worktree. Later pushes read the linked PRs too. A Claude pass silent for
+900 s is stopped and retried like one that hits the 2700 s cap. State: `~/.claude/state/pr-review-watch/`; logs:
 `~/.claude/logs/pr-review-watch.log` and `pr-review-usage.log`. `watch.sh stop`
 sets the kill switch and stops reviews in flight. `tests/pr-review-gates-smoke.sh`
 covers the approval gates.

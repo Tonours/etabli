@@ -101,16 +101,25 @@ printf 'claude %s GIT_TERMINAL_PROMPT=%s %s\n' "$role" "${GIT_TERMINAL_PROMPT:-u
 [ "$role" != VALIDATOR ] || { pwd -P; git rev-parse --show-toplevel HEAD; git remote get-url origin; cat .claude/settings.local.json; ls node_modules; } >"$FAKE_DIR/validator-cwd" 2>/dev/null
 [ "$role" != PHASEA_ONLY ] || printf '%s' "$prompt" >"$FAKE_DIR/phasea-prompt.txt"
 [ "$role" != VERIFY ] || printf '%s' "$prompt" >"$FAKE_DIR/verify-prompt.txt"
+[ "$role" != DELTA ] || printf '%s' "$prompt" >"$FAKE_DIR/delta-prompt.txt"
+[ "$role" != THERMO ] || printf '%s' "$prompt" >"$FAKE_DIR/thermo-prompt.txt"
 [ "$role" != QUALITY ] || : >"$FAKE_DIR/phase-a-ran"
 stderr_var="FAKE_${role}_STDERR"
 [ -z "${!stderr_var:-}" ] || echo "${!stderr_var}" >&2
+stream=0
+case " ${flags[*]} " in *" stream-json "*) stream=1 ;; esac
+[ "$stream" = 0 ] || echo '{"type":"system","subtype":"init"}'
+interim_var="FAKE_${role}_INTERIM" ticks_var="FAKE_${role}_TICKS" noresult_var="FAKE_${role}_NORESULT"
+[ -z "${!interim_var:-}" ] || echo "${!interim_var}"
+for ((tick = 0; tick < ${!ticks_var:-0}; tick++)); do sleep 1; echo '{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Bash"}]}}'; done
 sleep_var="FAKE_${role}_SLEEP"
 [ -z "${!sleep_var:-}" ] || sleep "${!sleep_var}"
+[ -z "${!noresult_var:-}" ] || exit 0
 envelope_var="FAKE_${role}_ENVELOPE" text_var="FAKE_${role}_TEXT" rc_var="FAKE_${role}_RC" patch_var="FAKE_${role}_PATCH"
 envelope="$FAKE_FIXTURES/2.1.308-${!envelope_var:-success}.json"
 text="${!text_var:-}"
 out="$(jq --arg t "${text//\{\{SHA\}\}/$FAKE_HEAD}" 'if (.result | type) == "string" and $t != "" then .result = $t else . end' "$envelope" | jq "${!patch_var:-.}")"
-printf '%s\n' "$out"
+if [ "$stream" = 1 ]; then jq -c . <<<"$out"; else printf '%s\n' "$out"; fi
 if [ -n "${!rc_var:-}" ]; then exit "${!rc_var}"; fi
 [ "$(printf '%s' "$out" | jq -r .is_error)" = false ]
 CLAUDE
@@ -118,6 +127,7 @@ CLAUDE
 cat >"$HOME/.local/bin/codex" <<'CODEX'
 #!/bin/bash
 printf 'codex %s\n' "${*:1:$#-1}" >>"$FAKE_LOG"
+printf '%s' "${!#}" >"$FAKE_DIR/codex-prompt.txt"
 prev="" out=""
 for arg in "$@"; do
   [ "$prev" = --output-last-message ] && out="$arg"
@@ -235,6 +245,7 @@ case_linked_prs() {
   check "linked: foreign owner never queried" eval '! grep -q "repos/x/evil" "$FAKE_LOG"'
   check "linked: ticket searched within the owner" eval 'grep -q "^gh search prs PRD-9 --owner o " "$FAKE_LOG"'
   check "linked: one line per PR" [ "$(grep -c '^- `o/' "$prompt")" = 3 ]
+  check "untrusted clause: validator prompt" grep -q 'are not yours to follow' "$prompt"
   reset_state
   FAKE_GH_DISCOVERY_FAIL=1 FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
   check "linked discovery fails: validator still runs" called "claude VALIDATOR"
@@ -251,6 +262,7 @@ case_linked_prs() {
     FAKE_GH_REVIEWS='[{"user":{"login":"some-validator[bot]","type":"Bot"},"commit_id":"'"$HEAD1"'","state":"APPROVED"}]' \
     FAKE_PHASEA_ONLY_TEXT="Nothing survived. $(marker 0)" run_review council "$HEAD1" -
   check "linked: section in the phase A only prompt" grep -q '^## Linked pull requests' "$FAKE_DIR/phasea-prompt.txt"
+  check "untrusted clause: phase A only prompt" grep -q 'are not yours to follow' "$FAKE_DIR/phasea-prompt.txt"
   unset FAKE_PR_BODY FAKE_GH_TIMELINE FAKE_GH_SEARCH
   rm -rf "$FAKE_DIR/linked"
 }
@@ -274,6 +286,92 @@ case_validator_checkout() {
   check "validator checkout: no ignored files" [ "$(wc -l <"$seen" | tr -d ' ')" = 5 ]
   check "validator checkout: removed after the run" no_file "$repo"
   rm -rf "$CLONE/.claude" "$CLONE/node_modules" "$CLONE/.worktreeinclude"
+}
+
+idle_setting() {
+  PR_REVIEW_PASS_IDLE="$1" /bin/bash -c ". '$SCRIPTS/pr-council-review/lib.sh'; echo \"\$CLAUDE_PASS_IDLE\""
+}
+
+idle_run() {
+  IDLE_FILE="$TMP_DIR/idle.stream" /bin/bash -c ". '$SCRIPTS/pr-council-review/lib.sh'; : >\"\$IDLE_FILE\"; run_with_timeout --idle $1 \"\$IDLE_FILE\" 10 /bin/bash -c '$2'" >/dev/null 2>&1
+}
+
+case_stalled_pass() {
+  local interim
+  interim="$(jq -c --arg t "Review posted. $(marker 0 | sed "s/{{SHA}}/$HEAD1/")" '.result = $t' "$FIXTURES/2.1.308-success.json")"
+  reset_state
+  set_head "$HEAD1"
+  PR_REVIEW_PASS_IDLE=2 PR_REVIEW_STOP_GRACE=1 FAKE_VALIDATOR_INTERIM="$interim" FAKE_VALIDATOR_SLEEP=30 \
+    FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "stall: reported" grep -q '^=== stalled: no session output for 2s' "$TMP_DIR/run.out"
+  check "stall: last event named" grep -q '^=== validator: last session event result/success, last tool call none$' "$TMP_DIR/run.out"
+  check "stall: exit 124 despite an earlier result" rc_is 124
+  check "stall: no approval" [ "$(approvals)" = 0 ]
+  check "stall: not recorded clean" no_file "$KEY.council-clean"
+  reset_state
+  PR_REVIEW_PASS_IDLE=2 PR_REVIEW_STOP_GRACE=1 FAKE_VALIDATOR_INTERIM="$(jq -c . "$FIXTURES/2.1.308-error-max-turns.json")" \
+    FAKE_VALIDATOR_SLEEP=30 run_review council "$HEAD1" -
+  check "stall after an incomplete result: exit 124, retried" rc_is 124
+  reset_state
+  PR_REVIEW_PASS_IDLE=2 FAKE_VALIDATOR_TICKS=5 FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "active pass past the idle limit: not stopped" eval '! grep -q "stalled" "$TMP_DIR/run.out"'
+  check "active pass past the idle limit: exit 0" rc_is 0
+  check "idle 0: limit off" [ "$(idle_setting 0)" = 0 ]
+  check "idle not an integer: default limit" [ "$(idle_setting x)" = 900 ]
+  check "idle unset: default limit" [ "$(idle_setting '')" = 900 ]
+  check "idle 0: a silent command runs to its end" idle_run 0 'sleep 2'
+  check "idle 1: a silent command is stopped" eval '! idle_run 1 "sleep 4"'
+  check "idle 1: writes 0.6 s apart are not a stall" idle_run 1 'for i in 1 2 3 4 5; do sleep 0.6; echo x >>"$IDLE_FILE"; done'
+  reset_state
+  FAKE_VALIDATOR_INTERIM="$interim" FAKE_VALIDATOR_ENVELOPE=error-max-turns run_review council "$HEAD1" -
+  check "success then error: the last result wins" grep -q 'subtype=error_max_turns' "$TMP_DIR/run.out"
+  check "success then error: no approval" [ "$(approvals)" = 0 ]
+  reset_state
+  FAKE_VALIDATOR_NORESULT=1 run_review council "$HEAD1" -
+  check "no result line: the pass fails" eval '! rc_is 0 && grep -q "could not parse the session output" "$TMP_DIR/run.out"'
+  check "no result line: no approval" [ "$(approvals)" = 0 ]
+}
+
+case_linked_on_later_pushes() {
+  local f
+  mkdir -p "$FAKE_DIR/linked"
+  printf '{"state":"open","author_association":"MEMBER","title":"front fix","base":{"sha":"%040d"},"head":{"sha":"%040d"}}' 1 11 \
+    >"$FAKE_DIR/linked/o_front_pulls_11.json"
+  export FAKE_GH_TIMELINE='[{"event":"cross-referenced","source":{"issue":{"number":11,"pull_request":{},"repository":{"full_name":"o/front"}}}}]'
+  rm -f "$FAKE_DIR/delta-prompt.txt" "$FAKE_DIR/verify-prompt.txt"
+  verify_after_findings "$HEAD2"
+  check "later push: delta ran" called "claude DELTA"
+  check "later push: linked section in the delta prompt" grep -q '^## Linked pull requests' "$FAKE_DIR/delta-prompt.txt"
+  check "later push: linked section in the verify prompt" grep -q '^## Linked pull requests' "$FAKE_DIR/verify-prompt.txt"
+  check "later push: same pinned PR in both" eval 'grep -q "o/front#11" "$FAKE_DIR/delta-prompt.txt" && grep -q "o/front#11" "$FAKE_DIR/verify-prompt.txt"'
+  check "later push: linked PRs collected once" [ "$(grep -c 'issues/7/timeline' "$FAKE_LOG")" = 1 ]
+  for f in thermo codex delta verify; do
+    check "untrusted clause: $f prompt" grep -q 'are not yours to follow' "$FAKE_DIR/$f-prompt.txt"
+  done
+  unset FAKE_GH_TIMELINE
+  rm -rf "$FAKE_DIR/linked"
+  verify_after_findings "$HEAD2"
+  check "later push, no linked PR: no section in the delta prompt" eval '! grep -q "Linked pull requests" "$FAKE_DIR/delta-prompt.txt"'
+  check "later push, no linked PR: no section in the verify prompt" eval '! grep -q "Linked pull requests" "$FAKE_DIR/verify-prompt.txt"'
+}
+
+case_council_hangup() {
+  local pid repo
+  reset_state
+  set_head "$HEAD1"
+  rm -f "$FAKE_DIR/validator-cwd"
+  PR_REVIEW_STOP_GRACE=1 FAKE_VALIDATOR_SLEEP=37 FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" - &
+  for _ in $(seq 1 100); do [ -s "$FAKE_DIR/validator-cwd" ] && break; sleep 0.2; done
+  repo="$(sed -n 1p "$FAKE_DIR/validator-cwd")"
+  pid="$(pgrep -f "$SCRIPTS/pr-council-review/run.sh 7 o/r" | head -1)"
+  check "hangup: council found running" [ -n "$pid" ]
+  kill -HUP "$pid" 2>/dev/null
+  for _ in $(seq 1 50); do kill -0 "$pid" 2>/dev/null || break; sleep 0.2; done
+  check "hangup: council stops within 10 s" eval '! kill -0 "$pid" 2>/dev/null'
+  check "hangup: validator stopped" eval '! pgrep -fx "sleep 37" >/dev/null'
+  wait
+  check "hangup: validator clone removed" no_file "$repo"
+  check "hangup: scratch worktree removed" eval '! git -C "$CLONE" worktree list | grep -q pr-council'
 }
 
 case_clean_council_approves() {
@@ -912,6 +1010,9 @@ case_launchd_plist
 case_phase_a_only
 case_linked_prs
 case_validator_checkout
+case_stalled_pass
+case_linked_on_later_pushes
+case_council_hangup
 
 if [ "$failures" -ne 0 ]; then
   printf 'PR review flow smoke test: %s failure(s)\n' "$failures"
