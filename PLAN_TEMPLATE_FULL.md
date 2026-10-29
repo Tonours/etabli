@@ -48,7 +48,7 @@ One line each: `AC-n [product|process|judgment]: criterion`; a product AC adds `
 
 ## Facts And Assumptions
 ### Observed Facts
-- file/path/command/source:
+- path:line or command → observed:
 
 ### Assumptions
 - None / ...

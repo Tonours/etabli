@@ -20,6 +20,9 @@ and report the missing paths as a warning, not a blocker.
    code, launch/tests and recipe. Record precedence, freshness and conflicts;
    derive provisional criteria from the request/confirmed decisions if no spec
    exists. Classify ACs; include missing verification setup in scope.
+   Every Observed Fact an AC, step or check depends on cites `path:line`, or
+   a command with its observed output; a private source cites the command
+   and a redacted result.
    Load domain skills only on a clear
    match; name them or `none` in `Notes / Handoff`.
 2. Create or refresh `PLAN.md` from `PLAN_TEMPLATE.md`; set the `Branch`

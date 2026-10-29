@@ -20,9 +20,11 @@ Read and follow `workflow/skills/adversary.md` (plan mode **and** code-diff mode
 Rules:
 - `PLAN.md` remains the only active execution artifact in plan mode.
 - Code-diff mode follows `workflow/skills/adversary.md` runner independence:
-  **small** skips it; **standard** accepts cross-model or two fresh independent
-  same-family samples; **high-risk** requires cross-model. Required passes run
-  after Logic+Spec lead review; a single same-family pass cannot replace them.
+  **small** skips it; **standard** and **high-risk** require cross-model.
+  Standard falls back to two fresh independent same-family samples only when
+  every eligible route is technically unavailable, recorded as
+  `cross_model: unavailable (<category>)`. Required passes run after
+  Logic+Spec lead review; a single same-family pass cannot replace them.
 - Name `adversary_model` (or `same-family-pass: double-sample` + run ids).
 - Resolve frontier candidates through
   `workflow/runtime/adversary-model-policy.json`; exclude the author's

@@ -29,7 +29,10 @@ checks, edge cases, plan drift, and simpler or safer routes.
      change names none (this checklist owns the check; no fuzzy gate);
    - plan mode: the four plan-loop step 6 inventories (sibling surfaces,
      deploy state, lifecycle states, per-behavior test mutations) — a
-     missing or incomplete one is a finding.
+     missing or incomplete one is a finding;
+   - plan mode: re-open each cited Observed Fact — a contradicted fact, or a
+     fact an AC, step or check depends on with no `path:line` or command
+     source, is a finding.
 5. Do not implement.
 6. Do not create `REVIEW.md` or any secondary active artifact.
 7. Decide each finding as accepted or rejected with concrete evidence.
@@ -69,11 +72,21 @@ plan. After the fresh-context review (Logic hunter + Spec hunter, then lead):
    when shipping), plus the active `PLAN.md` (or acceptance criteria if archived).
 2. **Runner independence (tiered hard gate, per implementation-loop risk
    tiers):**
-   - **high-risk tier: cross-model required.** Read-only, name
+   - **high-risk and standard tiers: cross-model required.** Read-only, name
      `adversary_model` in the handoff.
-   - **standard tier:** cross-model preferred; a documented **double-sample**
-     — two fresh same-family reviewers, independent contexts, merged
-     findings — is acceptable. Record `same-family-pass` ids.
+   - **Provenance missing or output truncated:** rerun once; still missing
+     or truncated → `blocked`, never a fallback.
+   - **Technical unavailability:** the runner produced no review (launch
+     error, network, auth, quota or rate limit, or a timeout of at least 30
+     minutes fixed before launch and never shortened). Try every eligible
+     route once, with one retry on a transient error. All unavailable:
+     high-risk → `blocked`; standard → a documented **double-sample** — two
+     fresh same-family reviewers, independent contexts, merged findings —
+     recorded as `cross_model: unavailable (<category>)` with
+     `same-family-pass` ids and a residual-risk line in the final report.
+     Record the category only; the raw error stays out of committed files.
+   - A `BLOCK` verdict, high findings or a wait under the deadline are never
+     unavailability (items 4 and 6).
    - **small tier:** code-diff adversary is skipped (the loop's self-review
      covers it); a single same-family pass is never a substitute.
    - **Forbidden at every tier:** a single same-family pass presented as

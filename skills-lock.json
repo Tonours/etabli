@@ -74,7 +74,7 @@
     "shared/adversary": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "e4d2dd67353b49dfd93b3a31b5127b447a7c08c51588a5a68b51802416f246fd"
+      "computedHash": "2648c63dc7ac7b697fc2cdf0a06732aa08cf1a16889908adf4ad861365514f42"
     },
     "shared/review": {
       "source": "local",
