@@ -74,8 +74,10 @@ plan. After the fresh-context review (Logic hunter + Spec hunter, then lead):
    tiers):**
    - **high-risk and standard tiers: cross-model required.** Read-only, name
      `adversary_model` in the handoff.
-   - **Provenance missing or output truncated:** rerun once; still missing
-     or truncated → `blocked`, never a fallback.
+   - **Answered without provenance or truncated:** a route returned a
+     review, but its effective model is not proven or the output is cut
+     short: rerun once; still unproven or truncated → `blocked`, never a
+     fallback.
    - **Technical unavailability:** the runner produced no review (launch
      error, network, auth, quota or rate limit, or a timeout of at least 30
      minutes fixed before launch and never shortened). Try every eligible
@@ -84,7 +86,8 @@ plan. After the fresh-context review (Logic hunter + Spec hunter, then lead):
      fresh same-family reviewers, independent contexts, merged findings —
      recorded as `cross_model: unavailable (<category>)` with
      `same-family-pass` ids and a residual-risk line in the final report.
-     Record the category only; the raw error stays out of committed files.
+     Keep each attempt's route, command, deadline, duration and result in
+     the run's evidence; committed files carry the category only.
    - A `BLOCK` verdict, high findings or a wait under the deadline are never
      unavailability (items 4 and 6).
    - **small tier:** code-diff adversary is skipped (the loop's self-review

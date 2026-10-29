@@ -41,7 +41,7 @@ The code that decides a runtime behavior the diff touches, opened by the Logic h
 _Avoid_: relevant code, context
 
 **Double-sample**:
-Two independent same-family adversary passes with recorded run ids, accepted for the standard tier instead of a cross-model pass (`workflow/skills/adversary.md`).
+Two independent same-family adversary passes with recorded run ids: the standard-tier fallback when every eligible cross-model route is technically unavailable, recorded as `cross_model: unavailable (<category>)` (`workflow/skills/adversary.md`).
 _Avoid_: second opinion, cross-check
 
 **Daily Pi**:
