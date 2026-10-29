@@ -3,8 +3,8 @@
 How to write a pull request description. Applies whenever a PR body is authored
 or rewritten, whether through a runtime command that opens a PR or a direct
 request to redo a description. It does not govern mechanical edits to an
-existing body, such as ticking its checkboxes. It also applies before each
-push to a branch with an open PR (§ Honest status).
+existing body, such as ticking its checkboxes. Its freshness check
+(§ Honest status) also applies before each push to a branch with an open PR.
 
 The reader is a busy human reviewer, not a changelog. They decide in about
 thirty seconds whether they can review this now.
