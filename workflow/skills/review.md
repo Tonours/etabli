@@ -49,6 +49,20 @@ Same-session Logic self-review is forbidden.
      `HUNTER_SPAWN_UNAVAILABLE`; timeout → `HUNTER_TIMEOUT`. Either
      sentinel stops the lead verdict. Record `hunter_model:` (or
      `hunter_model: default` when `--model` is omitted). `runner: pi-child`.
+   Author-family inversion: when the run knows every model family that
+   authored the work (`workflow/skills/adversary.md` § Cross-harness frontier
+   pool, step 1), the parent picks once per review a non-author route listed
+   both in `pi_enabled_models` and in `author_family_routes` for every author
+   family of `workflow/runtime/model-routing.json` (workspace, then
+   `~/.pi/agent/`, then `~/.claude/`), and runs every hunter of that review
+   (Logic, Spec, Threat) as a Pi child above with `--model <provider>/<model>`
+   of that route, from a Claude or Pi parent; Spec and Threat are further
+   children, never the parent. Standards stays where step 6 runs it. An
+   unknown author (a PR reviewed from outside the run), no such route or no
+   readable routing file keeps the runner above. A sentinel from any inverted
+   child moves every hunter of that review to the parent's runner above once,
+   re-dispatching hunters already returned; note the fallback and its
+   sentinel under Consider.
    Hunter templates are self-contained; the parent reads the rubric for
    filtering. Open deciding APIs when needed. Unresolved inspection errors
    forbid GO. Helper executions capture native JSON. An empty patch is not a
@@ -68,8 +82,10 @@ Same-session Logic self-review is forbidden.
    accepted inputs or responses. Fired → dispatch **Threat hunter**
    (`workflow/templates/review-threat-hunter.md`, `Axis: Threat`) in a fresh
    context with the same runner and model as Logic (Pi: a second child with
-   the same argv, after Logic), giving it the pinned patch, Intent and the
-   repository tree; record `threat: isolated`. Not fired → `threat: n/a`.
+   the same argv, after Logic), giving it the pinned patch, Intent, the
+   repository tree, and the paths of memory-vault notes on the protected asset
+   when the vault selected by `workflow/skills/obvault-memory.md` has any;
+   record `threat: isolated`. Not fired → `threat: n/a`.
    With no Intent, Threat derives the asset from the patch and takes its
    Deferrals claims from code comments only.
    Attack tests: inside an implementation loop, the parent writes each attack

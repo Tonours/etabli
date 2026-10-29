@@ -35,6 +35,13 @@ Full layout, scopes and managed surfaces: `docs/symlink-layout.md`.
   and remote machines stay high-risk.
 - Before any push, run the complete relevant `scripts/verify-agentic-infra`
   group on the final diff; a red group blocks the push.
+- A change to a review hunter template, `workflow/review-rubric.md`, or the
+  hunter runner or model replays the recorded escaped defects reachable on this
+  machine (at most three, plus one control when one exists) through the changed
+  hunter before it ships: once each, no tuning on them. A run not ending in
+  `STATUS: complete` is void and reruns once. Record hit or miss per case
+  letter in `PLAN.md` § Checks; no reachable case, or a case still void →
+  `replay: unavailable (<reason>)` as residual risk.
 - Pi review hunters run through `scripts/pi-review-hunter`
   (`PI_REVIEW_HUNTER_TIMEOUT` overrides the 600 s timeout).
 
