@@ -146,6 +146,7 @@ echo "=== merge-base ${MERGE_BASE:0:8}"
 
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/pr-council-$PR_NUMBER.XXXXXX")"
 WORKTREE="$WORK_DIR/tree"
+VALIDATOR_REPO="$WORK_DIR/repo"
 REPORT_QUALITY="$WORK_DIR/code-review.md"
 REPORT_THERMO="$WORK_DIR/thermo.md"
 REPORT_CODEX="$WORK_DIR/codex.md"
@@ -155,6 +156,7 @@ RAW_VALIDATOR="$WORK_DIR/validator.json"
 
 cleanup() {
   git worktree remove --force "$WORKTREE" >/dev/null 2>&1
+  rm -rf "$VALIDATOR_REPO"
   echo "=== reports kept in $WORK_DIR"
 }
 interrupt() {
@@ -272,8 +274,12 @@ if [ "$PHASE_A_ONLY" = 1 ]; then
   COUNTS="$(head_review_counts)" || exit 1
   read -r _ _ OWN_BEFORE <<< "$COUNTS"
 fi
-claude_pass validator "$RAW_VALIDATOR" auto "$PROMPT" --allowedTools "Bash(gh api repos/$REPO/pulls/$PR_NUMBER/reviews:*)" \
-  "${CLAUDE_ARGS[@]}" | tee "$WORK_DIR/phase-b.md" || RC_VALIDATOR=$?
+validator_checkout "$VALIDATOR_REPO" || { echo "cannot create the validator checkout" >&2; exit 1; }
+(
+  cd "$VALIDATOR_REPO" || exit 1
+  claude_pass validator "$RAW_VALIDATOR" auto "$PROMPT" --allowedTools "Bash(gh api repos/$REPO/pulls/$PR_NUMBER/reviews:*)" \
+    "${CLAUDE_ARGS[@]}"
+) | tee "$WORK_DIR/phase-b.md" || RC_VALIDATOR=$?
 
 if [ "$PHASE_A_ONLY" = 1 ] && [ "$RC_VALIDATOR" -eq 0 ]; then
   KEPT="$(grep -o '"kind":"run"[^>]*' "$WORK_DIR/phase-b.md" | grep -F "\"sha\":\"$HEAD_SHA\"" | tail -1 \

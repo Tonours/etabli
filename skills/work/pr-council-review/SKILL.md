@@ -37,6 +37,14 @@ usage per pass is appended to `~/.claude/logs/pr-review-usage.log`.
   (`PR_COUNCIL_LINKED_MAX_LINES`; `PR_COUNCIL_LINKED_TIMEOUT`, 20 s per `gh`
   call; any failure skips it). The gate reads them: a finding a linked PR already fixes is posted as a
   merge dependency on that PR, not as a fix request.
+- Validator checkout: the validator runs in a throwaway `git clone --shared`
+  of your checkout, at your head, with your origin URL and
+  `.claude/settings.local.json`. Its security pass opens an agent worktree, and
+  Claude Code copies every `.worktreeinclude` match of the main repository into
+  it (388k files on a monorepo `node_modules`, longer than the pass timeout).
+  The clone has no ignored files, so nothing is copied, and the agent worktrees
+  go away with the clone instead of piling up in your checkout. Git config
+  local to your checkout, or loaded by `includeIf gitdir:`, does not follow.
 
 Validator already on this head: the validator refuses a SHA it already
 reviewed. When the validator's login (`PR_COUNCIL_VALIDATOR_LOGIN`, else the

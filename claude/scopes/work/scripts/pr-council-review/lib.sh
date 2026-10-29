@@ -171,6 +171,14 @@ LINKED_PR_TIMEOUT="${PR_COUNCIL_LINKED_TIMEOUT:-20}"
 LINKED_PR_MAX_LINES="${PR_COUNCIL_LINKED_MAX_LINES:-5000}"
 linked_gh() { run_with_timeout "$LINKED_PR_TIMEOUT" "${GH:-gh}" "$@" 2>/dev/null; }
 
+validator_checkout() {
+  local dest="$1" root origin head
+  root="$(git rev-parse --show-toplevel)" && origin="$(git remote get-url origin)" && head="$(git rev-parse HEAD)" || return 1
+  git clone -q --shared --no-checkout "$root" "$dest" && git -C "$dest" remote set-url origin "$origin" \
+    && git -C "$dest" checkout -q --detach "$head" || return 1
+  [ ! -f "$root/.claude/settings.local.json" ] || { mkdir -p "$dest/.claude" && cp "$root/.claude/settings.local.json" "$dest/.claude/"; }
+}
+
 linked_prs() {
   local repo="$1" pr="$2" dir="$3" body ticket ref r n meta state member base head title file kept=0
   body="$(linked_gh pr view "$pr" --repo "$repo" --json body --jq '.body // ""')"
