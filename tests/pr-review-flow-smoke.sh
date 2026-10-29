@@ -10,6 +10,7 @@ TMP_DIR="$(mktemp -d "$REAL_HOME/.cache/pr-review-flow-smoke.XXXXXX")"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
 export HOME="$TMP_DIR/home" TMPDIR="$TMP_DIR/tmp"
+unset XDG_CONFIG_HOME
 export FAKE_DIR="$TMP_DIR/fake"
 export FAKE_LOG="$FAKE_DIR/calls.log"
 export FAKE_FIXTURES="$FIXTURES"
