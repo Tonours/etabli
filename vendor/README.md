@@ -1,6 +1,6 @@
 # vendor/
 
-Skill libraries maintained outside `etabli` and vendored in, so every harness
+You get skill libraries maintained outside `etabli`, copied in so every harness
 sees the same content and a fresh clone deploys a complete surface.
 
 ## Manifest
@@ -16,15 +16,12 @@ tree carries an `UPSTREAM_SHA` file with the commit it was taken from.
 | `typesafe-ai` | `typesafe-ai/skills` | `shared` | 1 — `typesafe-ai`, build with TypeSafe System One (Jev) |
 | `cloudflare` | `cloudflare/security-audit-skill` | `shared` | 1 — `security-audit`, six-phase audit with fresh verifier agents; run on GLM by `security-audit-glm` |
 
-Pi receives a vendored skill only when its `workflow/runtime/skill-surface.tsv`
-row sets `pi_core=1` (today `typesafe-ai`); Claude visibility follows
+Pi gets a vendored skill only when its `workflow/runtime/skill-surface.tsv`
+row sets `pi_core=1`; no vendored row does today. Claude visibility follows
 `claude/settings.skill-overrides.json`.
 
-pstack (ADR-0023, then removed by ADR-0033), ember-skills, adonisjs-skills,
-generic language packs (mcollina) and React packs (vercel, tanstack) were
-removed as unused surface. Full restore procedure for a dropped pack (all
-inputs recoverable from git history — e.g.
-`git show 18bc2f0^:vendor/sources.tsv`):
+To restore a dropped pack, take its rows from git history (for example
+`git show 18bc2f0^:vendor/sources.tsv`), then:
 
 1. re-add the pack's row to `vendor/sources.tsv`;
 2. re-add its skill rows to `workflow/runtime/skill-surface.tsv`;
@@ -43,17 +40,14 @@ Scope follows `claude/README.md`: `shared` deploys everywhere, `work` and
 Catalog rows use the upstream path (`engineering/<name>`); the skills deploy
 under their frontmatter names.
 
-Skipped on purpose, one canonical owner per name:
+Skipped on purpose, so each name has one owner:
 
 - `engineering/code-review` → etabli's `review` route (`workflow/skills/review.md`).
 - `engineering/implement` → etabli's `implement` route.
 - `engineering/setup-matt-pocock-skills` → configures the suite's own installer
   conventions; etabli's vendoring replaces it.
 
-Pruned 2026-10-16 (ADR-0033): `ask-matt`, `diagnosing-bugs`,
-`resolving-merge-conflicts`, `to-spec`, `to-tickets`, `triage`, `wayfinder`.
-
-Under etabli, suite references to skipped or pruned names resolve to the etabli
+Under etabli, suite references to skipped or dropped names resolve to the etabli
 equivalents, and the suite's own repo conventions degrade to Linear plus
 `workflow/`. `research` delegates reading to a background agent; parent-only Pi
 runs it as sequential reads. The etabli routes own gating and evidence; vendored
@@ -83,8 +77,3 @@ silently overwritten. `bun run verify:skills` is the read-only check used by
 Never hand-edit a file under `<vendor>/skills/`. A local fix drifts silently and
 the next sync overwrites it. Fix it upstream and re-sync, or fork the skill into
 `skills/<scope>/` under a different name.
-
-This rule has already been paid for once: three vendored descriptions had an
-unquoted `: ` in their YAML frontmatter, which truncates the description at the
-colon and strips the trigger keywords an agent matches on. The fix lived only in
-`etabli` until it was pushed upstream.
