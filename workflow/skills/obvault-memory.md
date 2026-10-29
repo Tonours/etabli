@@ -86,8 +86,8 @@ Semantic reranking belongs to the vault engine, which calls TypeSafe Jev by
 default and degrades to lexical results without a key (`health` reports
 `typesafe: active|degraded`). Etabli never adds a second provider path.
 
-Self-improvement contract: `kb/obvault-self-improvement-loop.md` (miss → review
-→ promote → check). Multi-harness recipe: `kb/obvault-multi-harness-access.md`.
+Self-improvement contract: `kb/alambic-self-improvement-loop.md` (miss → review
+→ promote → check). Multi-harness recipe: `kb/alambic-multi-harness-access.md`.
 
 ## Retrieve when
 

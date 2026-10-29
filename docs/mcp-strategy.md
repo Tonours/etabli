@@ -13,12 +13,16 @@ own `.mcp.json` is `{"mcpServers": {}}` on purpose.
 2. **`mcp/servers.template.json` is sanitized reference data.** Server names,
    portable commands, public endpoints and `${VAR}` placeholders only. Copy the
    one entry a runtime needs; never link the file wholesale.
-3. **Memory vaults are served by the alambic engine**, a separate checkout at
-   `~/work/alambic` that etabli does not deploy. `alambic-brain` serves
-   `~/work/brain` and `alambic-obvault` serves `~/work/obvault`
-   (`ALAMBIC_ROOT` pins the vault, `ALAMBIC_STATE_DIR` its state). The vault is
-   chosen by the project's GitHub remote organization, not by machine scope:
-   repos of an org listed in `~/.config/etabli/work-orgs` use `alambic-brain`, every other project
+3. **Memory vaults are served by the alambic engine.** `alambic-brain` serves
+   `~/work/brain` and `alambic-obvault` serves `~/work/obvault`;
+   `ALAMBIC_ROOT` pins the vault and `ALAMBIC_STATE_DIR` its state. The engine
+   runs from the vault's own `_meta/` copy or from a `~/work/alambic` checkout.
+   From the vault, `_meta/alambic setup --name <vault>` registers the MCP entry
+   and the CLI shim. From the checkout, add `--mcp`, or no MCP entry is
+   written, and `--vault <path>` on the first setup of a name, or the entry
+   points at the checkout. Etabli deploys none of it. The project's GitHub remote
+   organization picks the vault, not the machine scope: repos of an org listed
+   in `~/.config/etabli/work-orgs` use `alambic-brain`, every other project
    `alambic-obvault` (`workflow/skills/obvault-memory.md`). A machine registers
    only the vaults it has checked out.
 4. **No runtime-wide availability claim.** A skill that needs a server stops
@@ -48,7 +52,7 @@ runtime-managed.
 Inspect names only; never dump complete live files:
 
 ```bash
-jq -r '.mcpServers | keys[]' ~/.claude.json
+jq -r '.mcpServers | keys[]' "${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json"
 jq -r '.mcpServers | keys[]' ~/.pi/agent/mcp.json
 jq -r '.mcpServers | keys[]' .mcp.json mcp/servers.template.json
 ```
@@ -56,6 +60,9 @@ jq -r '.mcpServers | keys[]' .mcp.json mcp/servers.template.json
 When a vault returns nothing, check its engine before blaming a skill
 (`vault_health` through the MCP, or the vault's own validator). When the
 intended server set changes, update the template and this doc together and run
-the repository secret scan (`gitleaks git --no-banner --redact .`, also run by
-the `.githooks/pre-push` hook and the `agentic-infra` CI job). A local mismatch
+the repository secret scan:
+`.githooks/scan-secrets "$(git rev-parse origin/main)" "--all --full-history --diff-merges=first-parent"`,
+with the published `origin/main` as the trusted base for exclusions. The
+`.githooks/pre-push` hook and the `agentic-infra` CI job run the same script
+(`SECURITY.md` § Secret-scan policy). A local mismatch
 alone never authorizes copying a live file into Git.

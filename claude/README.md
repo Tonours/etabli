@@ -1,9 +1,9 @@
 # Claude
 
-Claude Code-specific files for `etabli`. Workflow rules live in
-`../workflow/spec.md`; every managed link is listed in
-`../docs/symlink-layout.md`. `scripts/check-fix-symlinks.sh` validates and
-repairs them.
+This directory gives you the Claude Code side of `etabli`: hooks, agents,
+settings fragments and the work-scope scripts. Workflow rules live in
+`../workflow/spec.md`, and `../docs/symlink-layout.md` lists every managed
+link. `scripts/check-fix-symlinks.sh` checks them; add `--fix` to repair.
 
 ## Scopes
 
@@ -72,8 +72,8 @@ Personal skills (outside the repo) are governed in the live
 `~/.claude/settings.json`; deploy keeps their states, drops entries whose skill
 is gone from the surface, and drops a personal `on` unless the skill is named
 in `machine-local-skills.json` (today the
-`alambic-brain` and `alambic-obvault` memory skills, `on` on the machines that
-have them). Plugins named in `machine-local-plugins.json` (`datadog`) or in the machine-local
+`alambic-brain` and `alambic-obvault` memory skills and `fleet`, `on` on the
+machines that have them). Plugins named in `machine-local-plugins.json` (`datadog`) or in the machine-local
 `~/.config/etabli/machine-local-plugins.json` (work plugins)
 may ship skills: they bring an MCP server, hooks or agents that vendoring would
 break, so their skills stay ungoverned and outside the index gate.
@@ -147,7 +147,11 @@ most 2 reviews at once and 20 a day, and retries a failed review 3 times. Each
 review opens in a `pr-reviews` herdr tab, or runs detached.
 
 The first review is `/pr-council-review --post`; later pushes get
-`/code-review` on the new commits, then the employer plugin's `verify-fixes`.
+`/code-review` on the new commits, then the machine-local fix-verification
+skill (`PR_COUNCIL_VERIFY_SKILL`, else the first line of
+`~/.config/pr-council-review/verify-skill`). Without one, that step is marked
+unconfigured and the head stays due. A head whose full review found nothing,
+with no review of yours on the PR, skips the step and needs no verify skill.
 The watch approves only when the model is confident and its own checks hold
 (head unchanged, PR open and not draft, no unresolved thread, no other changes
 requested, CI green). Agent config files a PR changes are reset to base in every
