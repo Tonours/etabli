@@ -67,7 +67,7 @@ One line each: `AC-n [product|process|judgment]: criterion`; a product AC adds `
 ## Review Changes
 - Plan adversary (model, `shasum -a 256 PLAN.md` at dispatch, verdict, deltas):
 - Code review and code-diff adversary (reviewers, rounds, verdicts):
-- simplify: / quality:
+- simplify: / quality: / mutation:
 
 ## Open Questions
 - None / ...
