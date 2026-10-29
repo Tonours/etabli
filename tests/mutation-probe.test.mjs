@@ -6,12 +6,40 @@ import { chmodSync, closeSync, existsSync, linkSync, lstatSync, mkdirSync, mkdte
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { addedLines, codeOnly, excluded, fileMutants, inside, lineMutants, maskedLines, parseArgs, parseProcesses, profile, sourceKind, summary, tableRow, trackTree } from "../workflow/runtime/mutation-probe.mjs";
+import { addedLines, codeOnly, excluded, fileMutants, inside, lineMutants, maskedLines, parseArgs, parseProcesses, profile, sourceKind, summary, tableRow, trackTree, witnessRefusal } from "../workflow/runtime/mutation-probe.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const probe = join(root, "workflow/runtime/mutation-probe.mjs");
 const darwin = process.platform === "darwin";
 const temp = realpathSync.native(tmpdir());
+
+async function denialsStop() {
+  if (!darwin || !existsSync("/usr/bin/sandbox-exec")) return false;
+  const dir = mkdtempSync(join(temp, "mp-stop-"));
+  const child = spawn("/usr/bin/sandbox-exec", ["-p", "(version 1)(allow default)(deny file-write* (with send-signal SIGSTOP))", "/usr/bin/touch", join(dir, "f")], { stdio: "ignore" });
+  const ended = new Promise((done) => {
+    child.on("exit", done);
+    child.on("error", done);
+  });
+  let stopped = false;
+  try {
+    const deadline = Date.now() + 10000;
+    while (!stopped && child.pid && child.exitCode === null && Date.now() < deadline) {
+      await new Promise((done) => setTimeout(done, 100));
+      const listing = spawnSync("/bin/ps", ["-o", "stat=", "-p", String(child.pid)], { encoding: "utf8", timeout: Math.max(1, deadline - Date.now()), killSignal: "SIGKILL" });
+      if (listing.error) break;
+      stopped = (listing.stdout ?? "").trim().startsWith("T");
+    }
+  } finally {
+    if (child.pid && child.exitCode === null && child.signalCode === null) {
+      child.kill("SIGKILL");
+      await ended;
+    }
+    rmSync(dir, { recursive: true, force: true });
+  }
+  return stopped;
+}
+const stops = await denialsStop();
 
 test("unit: options", () => {
   assert.deepEqual(parseArgs(["--base", "main", "--test", "t"]), { paths: [], allowWrite: [], max: 30, timeout: 300, base: "main", test: "t" });
@@ -141,6 +169,13 @@ test("unit: paths and process groups", () => {
   assert.equal(codeOnly("a 'b' # c", "sh"), "a     ");
 });
 
+test("unit: witnesses", () => {
+  assert.equal(witnessRefusal("create", { stopped: "touch x", code: 137 }), null);
+  assert.equal(witnessRefusal("create", { failure: "cannot list processes: x", stopped: "touch x" }), "no write sandbox: cannot list processes: x");
+  assert.equal(witnessRefusal("remove", { timedOut: true, code: 143 }), "no write sandbox: the remove witness timed out");
+  assert.equal(witnessRefusal("rename", { code: 1 }), "no write sandbox: a denied rename does not stop the writer on this macOS; denials cannot be told from test failures");
+});
+
 test("unit: profile", () => {
   const text = profile({ roots: ["/r/top", "/r/top/.git", "/c/common"], work: "/w/work", allowed: ["/private/tmp", "/dev"], own: "/w/work/m1" });
   const lines = text.trim().split("\n");
@@ -219,7 +254,7 @@ function assertDenied(t, repo, command, extra = []) {
   return result;
 }
 
-describe("integration", { skip: !darwin && "needs the macOS write sandbox" }, () => {
+describe("integration", { skip: !stops && "needs the macOS write sandbox with denied writes stopped" }, () => {
   test("outcomes, summary, timeout bound and cleanup", (t) => {
     const { dir, repo } = basic(t);
     const decoys = [join(temp, `mutation-probe-999999-${basename(dir)}`), join(dir, ".mutation-probe-999999-decoy")];
@@ -548,8 +583,14 @@ describe("integration", { skip: !darwin && "needs the macOS write sandbox" }, ()
   });
 });
 
-test("refusal without the macOS sandbox", { skip: darwin && "macOS cannot simulate a missing sandbox without an override" }, () => {
-  const result = runProbe(temp, ["--base", "HEAD", "--test", "true"]);
+test("refusal without a stopping write sandbox", { skip: stops && "denied writes are stopped here" }, (t) => {
+  const { repo } = basic(t);
+  const result = runProbe(repo, ["--base", "HEAD", "--test", "true"]);
   assert.equal(result.status, 2, result.out);
   assert.match(result.out, /no write sandbox/);
+  const work = /work directory: (.*)/.exec(result.out)?.[1];
+  if (work) {
+    assert.match(result.out, /no write sandbox: a denied create does not stop the writer/);
+    assert.equal(existsSync(work), false, work);
+  }
 });

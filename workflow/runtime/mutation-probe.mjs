@@ -13,7 +13,8 @@ Mutates the added lines of the diff against <ref> (staged, unstaged and untracke
 sources), runs the test per mutant in a fresh clone of the work tree under a macOS
 write sandbox, and lists the survivors. No process it starts can write the original
 repository or its copies. It refuses to run without sandbox-exec, inside another
-sandbox, or with hard-linked files or symlinks in git metadata.
+sandbox, where a denied write does not stop the writer (measured on macOS 14.4), or with
+hard-linked files or symlinks in git metadata.
 Outcomes: killed, survived, invalid (a check failed), denied (a write was denied),
 timeout. Only killed and survived are scored.
 Tests that detach children from their process tree (double fork, daemons) are not
@@ -295,6 +296,13 @@ export function trackTree(processes, tracked, group) {
   return processes.filter((entry) => tracked.has(entry.pid));
 }
 
+export function witnessRefusal(name, result) {
+  if (result.failure) return `no write sandbox: ${result.failure}`;
+  if (result.stopped) return null;
+  if (result.timedOut) return `no write sandbox: the ${name} witness timed out`;
+  return `no write sandbox: a denied ${name} does not stop the writer on this macOS; denials cannot be told from test failures`;
+}
+
 export const inside = (path, root) => path === root || path.startsWith(root.endsWith(sep) ? root : root + sep);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const canonical = (path) => realpathSync.native(path);
@@ -482,6 +490,12 @@ async function probe(options, out) {
   const readProfile = profilePath("read", null);
   const usable = await sandboxed(readProfile, ["/usr/bin/true"], work, 60);
   if (usable.code !== 0) throw new Refusal(`no write sandbox: ${usable.failure ?? lastLines(usable.output, 3)}`);
+  const witness = join(work, "stop-witness");
+  writeFileSync(witness, "", { flag: "wx" });
+  for (const [name, argv] of [["create", ["/usr/bin/touch", join(work, "stop-new")]], ["remove", ["/bin/rm", "-f", witness]], ["rename", ["/bin/mv", witness, join(work, "stop-moved")]]]) {
+    const refusal = witnessRefusal(name, await sandboxed(readProfile, ["/bin/sh", "-c", '"$@"; exit $?', "sh", ...argv], work, 10));
+    if (refusal) throw new Refusal(refusal);
+  }
 
   let policy = baseGit;
   const git = async (args, accept = [0]) => {

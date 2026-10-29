@@ -85,8 +85,9 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
     and `--allow-write <dir>` only for a directory the test is known to write
     (from its code), recorded with its reason.
     Resolve `<probe>`: workspace `workflow/runtime/mutation-probe.mjs`, then `~/.pi/agent/workflow/runtime/`, then `~/.claude/workflow/runtime/`.
-    It needs the macOS write sandbox and refuses inside another sandbox: on
-    Claude Code, run it in the unsandboxed Bash mode. Each survivor gets a
+    It needs the macOS write sandbox and refuses inside another sandbox (on
+    Claude Code, run it in the unsandboxed Bash mode) and where a denied write
+    does not stop the writer (measured on macOS 14.4). Each survivor gets a
     killing test or a one-line justification (equivalent mutant, untestable
     side effect) in `PLAN.md` § Checks (the final report without a plan).
     Record in § Review Changes:
