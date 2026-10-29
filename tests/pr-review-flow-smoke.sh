@@ -98,6 +98,7 @@ case "$prompt" in
 esac
 printf 'claude %s GIT_TERMINAL_PROMPT=%s %s\n' "$role" "${GIT_TERMINAL_PROMPT:-unset}" "${flags[*]}" >>"$FAKE_LOG"
 [ "$role" != VALIDATOR ] || printf '%s' "$prompt" >"$FAKE_DIR/validator-prompt.txt"
+[ "$role" != VALIDATOR ] || { pwd -P; git rev-parse --show-toplevel HEAD; git remote get-url origin; cat .claude/settings.local.json; ls node_modules; } >"$FAKE_DIR/validator-cwd" 2>/dev/null
 [ "$role" != PHASEA_ONLY ] || printf '%s' "$prompt" >"$FAKE_DIR/phasea-prompt.txt"
 [ "$role" != VERIFY ] || printf '%s' "$prompt" >"$FAKE_DIR/verify-prompt.txt"
 [ "$role" != QUALITY ] || : >"$FAKE_DIR/phase-a-ran"
@@ -252,6 +253,27 @@ case_linked_prs() {
   check "linked: section in the phase A only prompt" grep -q '^## Linked pull requests' "$FAKE_DIR/phasea-prompt.txt"
   unset FAKE_PR_BODY FAKE_GH_TIMELINE FAKE_GH_SEARCH
   rm -rf "$FAKE_DIR/linked"
+}
+
+case_validator_checkout() {
+  local seen="$FAKE_DIR/validator-cwd" repo
+  mkdir -p "$CLONE/.claude" "$CLONE/node_modules/pkg"
+  echo '{"local":1}' >"$CLONE/.claude/settings.local.json"
+  : >"$CLONE/node_modules/pkg/index.js"
+  printf 'node_modules/\n' >"$CLONE/.worktreeinclude"
+  reset_state
+  set_head "$HEAD1"
+  FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  repo="$(sed -n 1p "$seen")"
+  check "validator checkout: validator ran" called "claude VALIDATOR"
+  check "validator checkout: its own repository" [ "$(sed -n 2p "$seen")" = "$repo" ]
+  check "validator checkout: not the user's checkout" [ "$repo" != "$(cd "$CLONE" && pwd -P)" ]
+  check "validator checkout: at the user's head" [ "$(sed -n 3p "$seen")" = "$(git -C "$CLONE" rev-parse HEAD)" ]
+  check "validator checkout: same origin" [ "$(sed -n 4p "$seen")" = "$(git -C "$CLONE" remote get-url origin)" ]
+  check "validator checkout: local settings carried" [ "$(sed -n 5p "$seen")" = '{"local":1}' ]
+  check "validator checkout: no ignored files" [ "$(wc -l <"$seen" | tr -d ' ')" = 5 ]
+  check "validator checkout: removed after the run" no_file "$repo"
+  rm -rf "$CLONE/.claude" "$CLONE/node_modules" "$CLONE/.worktreeinclude"
 }
 
 case_clean_council_approves() {
@@ -889,6 +911,7 @@ case_tick_guards
 case_launchd_plist
 case_phase_a_only
 case_linked_prs
+case_validator_checkout
 
 if [ "$failures" -ne 0 ]; then
   printf 'PR review flow smoke test: %s failure(s)\n' "$failures"
