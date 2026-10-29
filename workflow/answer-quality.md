@@ -62,7 +62,7 @@ Emit the matching reply shape in the last message:
 - Hillclimb: frozen command, budget, ≥3 measured rows, stop reason, next lever.
   If the metric command hangs or a serve/coverage check fails twice, abort it
   and answer with the rows you have — being killed is not a progression.
-- Implementation: files, checks `N/N`, `simplify: clean|removed N`, and the `mutation:` record when the probe applies.
+- Implementation: files, checks `N/N`, `simplify: clean|removed N`.
 
 ## Route Rules
 
