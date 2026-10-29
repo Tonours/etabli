@@ -76,6 +76,27 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
     accepted fix — readiness never rests on checks predating the latest product-flow edit.
     Small tier (no plan): run the surface's own focused checks instead —
     the checks named by the task or the touched surface's suite.
+    Mutation probe (standard and high-risk tiers, diffs touching executable
+    sources: `.sh`, `.bash`, `.js`, `.mjs`, `.cjs`, `.ts`, `.tsx`, or an
+    extensionless `bash`, `sh` or `node` script), once these checks are green: run
+    `node <probe> --base <base> --test "<focused test command>"` with the
+    plan's base commit (`git merge-base HEAD <default branch>`), adding
+    `--check "<type-check command>"` when TypeScript is touched and one exists,
+    and `--allow-write <dir>` only for a directory the test is known to write
+    (from its code), recorded with its reason.
+    Resolve `<probe>`: workspace `workflow/runtime/mutation-probe.mjs`, then `~/.pi/agent/workflow/runtime/`, then `~/.claude/workflow/runtime/`.
+    It needs the macOS write sandbox and refuses inside another sandbox: on
+    Claude Code, run it in the unsandboxed Bash mode. Each survivor gets a
+    killing test or a one-line justification (equivalent mutant, untestable
+    side effect) in `PLAN.md` § Checks (the final report without a plan).
+    Record in § Review Changes:
+    - `mutation: N survived of M, K justified` (append `, no type check` when
+      TypeScript was mutated without `--check`);
+    - `mutation: n/a (<reason>)`: no mutable lines, no runnable test command;
+    - `mutation: inconclusive (<reason>)` after fixing the check or test
+      command once, as residual risk;
+    - `mutation: unavailable (<reason>)` when the tool cannot be resolved or
+      run (no sandbox, refusal), as residual risk, never a block.
 12b. Simplification pass once checks are green. Walk **this diff only**.
     Stop at the first rung that holds; delete or rewrite what a higher rung
     already covers. No behavior change.
@@ -169,6 +190,8 @@ Autonomous completion requires:
   fallback: double-sample with `cross_model: unavailable (<category>)`);
 - focused validation;
 - product-flow evidence when required by the plan;
+- mutation probe result (`mutation: …`) on standard and high-risk diffs
+  touching executable sources;
 - simplification pass result (`simplify: clean` or `simplify: removed N`);
 - quality pass result (or explicit skip for docs/plan-only);
 - Logic+Spec lead review on the cumulative shippable workspace patch with a
