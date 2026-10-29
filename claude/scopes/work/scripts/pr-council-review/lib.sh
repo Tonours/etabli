@@ -167,6 +167,39 @@ run_with_timeout() {
   return "$rc"
 }
 
+LINKED_PR_TIMEOUT="${PR_COUNCIL_LINKED_TIMEOUT:-20}"
+LINKED_PR_MAX_LINES="${PR_COUNCIL_LINKED_MAX_LINES:-5000}"
+linked_gh() { run_with_timeout "$LINKED_PR_TIMEOUT" "${GH:-gh}" "$@" 2>/dev/null; }
+
+linked_prs() {
+  local repo="$1" pr="$2" dir="$3" body ticket ref r n meta state member base head title file kept=0
+  body="$(linked_gh pr view "$pr" --repo "$repo" --json body --jq '.body // ""')"
+  ticket="$(printf '%s\n' "$body" | grep -ioE '(^|[^A-Za-z])(fix(es|ed)?|close[sd]?|resolve[sd]?|refs?)[: ]+[A-Za-z][A-Za-z0-9]*-[0-9]+' \
+    | head -1 | grep -oE '[A-Za-z][A-Za-z0-9]*-[0-9]+$' | tr '[:lower:]' '[:upper:]')"
+  {
+    linked_gh api "repos/$repo/issues/$pr/timeline?per_page=100" \
+      --jq '.[] | select(.event == "cross-referenced" and .source.issue.pull_request != null) | "\(.source.issue.repository.full_name)#\(.source.issue.number)"'
+    printf '%s\n' "$body" | grep -oE '(github\.com/)?[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(#|/pull/)[0-9]+' | sed -E 's#^github\.com/##; s#/pull/#\##'
+    [ -z "$ticket" ] || linked_gh search prs "$ticket" --owner "${repo%%/*}" --state open --limit 10 \
+      --json repository,number --jq '.[] | "\(.repository.nameWithOwner)#\(.number)"'
+  } | awk -v self="$repo#$pr" -v owner="${repo%%/*}/" '{ k = tolower($0) }
+      /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+#[0-9]+$/ && index(k, tolower(owner)) == 1 && k != tolower(self) && !seen[k]++' \
+    | head -8 | while IFS= read -r ref && [ "$kept" -lt 5 ]; do
+      r="${ref%#*}" n="${ref##*#}"
+      meta="$(linked_gh api "repos/$r/pulls/$n" --jq '[.state, (.author_association | IN("OWNER", "MEMBER", "COLLABORATOR")), .base.sha, .head.sha, (.title | gsub("[\\t\\n\\r]"; " "))] | @tsv')" || continue
+      IFS=$'\t' read -r state member base head title <<< "$meta"
+      [ "$state" = open ] && [ "$member" = true ] && [[ "$base" =~ ^[0-9a-f]{40}$ ]] && [[ "$head" =~ ^[0-9a-f]{40}$ ]] || continue
+      file="$dir/${r//\//_}_$n.diff"
+      if linked_gh api -H 'Accept: application/vnd.github.diff' "repos/$r/compare/$base...$head" >"$file" && [ -s "$file" ] \
+        && [ "$(wc -l <"$file")" -le "$LINKED_PR_MAX_LINES" ]; then
+        printf '%s\t%s\t%s\t%s\n' "$r#$n" "$head" "$file" "$title"
+        kept=$((kept + 1))
+      else
+        rm -f "$file"
+      fi
+    done
+}
+
 # claude_pass <label> <session json> <read-only|auto> <prompt> [flags]: prints the result; returns 0,
 # REVIEW_VETO_RC on a denial, REVIEW_INCOMPLETE_RC on an error or cap hit, else the claude exit code
 # (1 when claude exited 0 without a session envelope).

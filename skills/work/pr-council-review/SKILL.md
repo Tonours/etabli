@@ -30,6 +30,13 @@ usage per pass is appended to `~/.claude/logs/pr-review-usage.log`.
 - Phase B: `/validator` on the PR, with phase A's findings injected as extra
   candidates for its step 6 skeptic gate. One review, the validator's emit
   contract, its writing rules, its markers.
+- Linked PRs: before phase B, the run collects open PRs of the same owner that
+  ship with this one (they cross-reference it, its body references them, or
+  they carry the ticket its body declares), opened by a member or collaborator,
+  at most 5, each diff pinned to its head SHA and at most 5000 lines
+  (`PR_COUNCIL_LINKED_MAX_LINES`; `PR_COUNCIL_LINKED_TIMEOUT`, 20 s per `gh`
+  call; any failure skips it). The gate reads them: a finding a linked PR already fixes is posted as a
+  merge dependency on that PR, not as a fix request.
 
 Validator already on this head: the validator refuses a SHA it already
 reviewed. When the validator's login (`PR_COUNCIL_VALIDATOR_LOGIN`, else the

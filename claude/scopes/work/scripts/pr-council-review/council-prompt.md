@@ -4,7 +4,7 @@ Run the validator pass exactly as the skill defines it. Every mandated
 retrieval, every mandated delegation, every failure class. Nothing below
 replaces a lens, weakens the skeptic gate, or changes the emit contract.
 
-Two additions, and only these two.
+These additions, and only these.
 
 ## Extra candidate findings for step 6
 
@@ -37,6 +37,8 @@ job, not the author's obligation.
 
 Where a phase A finding and one of your own describe the same defect, emit one
 finding, not two.
+
+{{LINKED_SECTION}}
 
 The target checkout stays read-only for this run, as the skill requires: the
 scratch worktree already exists and is not yours to manage.

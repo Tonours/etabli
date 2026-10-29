@@ -238,6 +238,15 @@ PHASE_A_GAPS=""
 VALIDATOR_FLAGS=""
 [ "$POST_MODE" = "dry-run" ] && VALIDATOR_FLAGS=" --dry-run"
 
+mkdir -p "$WORK_DIR/linked"
+LINKED="$(linked_prs "$REPO" "$PR_NUMBER" "$WORK_DIR/linked")"
+LINKED_SECTION=""
+if [ -n "$LINKED" ]; then
+  echo "=== linked: $(cut -f1 <<< "$LINKED" | paste -sd' ' -)"
+  LINKED_SECTION="$(render_template "$HERE/linked-prompt.md" \
+    LINKED_LIST="$(awk -F'\t' '{ printf "- `%s` at `%s`: %s. Diff: `%s`\n", $1, $2, $4, $3 }' <<< "$LINKED")")"
+fi
+
 if [ "$USE_CODEX" = 1 ]; then
   CODEX_SECTION="- \`$REPORT_CODEX\` — a review by \`codex\` on \`$CODEX_MODEL\` (reasoning effort $CODEX_EFFORT), a non-Claude model. It is the council's only cross-family member, so a finding only it raised is the most interesting kind: the defect two Claude passes agreed to miss. It is still a candidate with no privilege, verified or discarded on the same criteria as the others.
 
@@ -248,7 +257,7 @@ Phase A was same-family (two Claude passes, the codex member did not run). Say s
 fi
 
 PROMPT="$(render_template "$PROMPT_FILE" \
-  CODEX_SECTION="$CODEX_SECTION" PHASE_A_GAPS="$PHASE_A_GAPS" VALIDATOR_FLAGS="$VALIDATOR_FLAGS" \
+  CODEX_SECTION="$CODEX_SECTION" PHASE_A_GAPS="$PHASE_A_GAPS" LINKED_SECTION="$LINKED_SECTION" VALIDATOR_FLAGS="$VALIDATOR_FLAGS" \
   REPO="$REPO" PR_NUMBER="$PR_NUMBER" PR_URL="$PR_URL" HEAD_SHA="$HEAD_SHA" BASE_REF="$BASE_REF" \
   MERGE_BASE="$MERGE_BASE" REPORT_QUALITY="$REPORT_QUALITY" REPORT_THERMO="$REPORT_THERMO" POST_MODE="$POST_MODE")"
 

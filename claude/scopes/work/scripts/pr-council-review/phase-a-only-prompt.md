@@ -7,9 +7,11 @@ Phase A ran against `{{HEAD_SHA}}` over `{{MERGE_BASE}}...{{HEAD_SHA}}` in a scr
 {{CODEX_SECTION}}
 {{PHASE_A_GAPS}}
 
+{{LINKED_SECTION}}
+
 Read every file. Each finding is a candidate with no privilege. Verify it against the code with `git show {{HEAD_SHA}}:<path>` and keep it only if it has a `file:line`, a stated functional consequence, and you can reproduce or argue it from the code. Drop intentional behaviour read as a defect, exaggerated severity, convention claims you cannot point to, and pure restructuring proposals with no functional cost. Drop when unsure. Merge duplicates.
 
-Also read the validator's review on this head (`gh api repos/{{REPO}}/pulls/{{PR_NUMBER}}/reviews`, then `.../reviews/<review_id>/comments`) and drop any finding it already made.
+Also read the validator's review on this head (`gh api repos/{{REPO}}/pulls/{{PR_NUMBER}}/reviews`, then `.../reviews/<review_id>/comments`) and drop any finding it already made. One exception, only when a Linked pull requests section follows: a finding the validator posted without naming the linked PR that already makes its fix is kept once, its text limited to that PR and the merge order.
 
 ## Emit mode: {{POST_MODE}}
 
