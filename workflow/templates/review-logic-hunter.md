@@ -13,7 +13,9 @@ Candidate pass, before the verdict: for each changed function or branch,
 name at least one concrete candidate per lens that applies, tied to a changed
 line, then refute or ship each. A changed path with no candidate was not
 hunted. A candidate the opened code neither confirms nor refutes ships at
-`low`, with the unverified step named in `impact`.
+`low`, with the unverified step named in `impact` — after one read of its
+nearest caller, validator or type: drop it when that code already rules out
+the failing input or state.
 "Looks fragile", style, whitespace, and behavior-preserving renames never
 qualify.
 Scale deliberation to the diff; do not re-derive or prove the obvious.
