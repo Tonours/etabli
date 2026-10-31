@@ -9,6 +9,11 @@ once, argue the opposite, and if it does not stick, ship it —
 a finding ships only with a concrete failure (specific input or state → wrong output).
 Refute only with code you opened: "unlikely", "edge case", "deliberate",
 "callers avoid it" or "the platform handles it" refute nothing.
+Candidate pass, before the verdict: for each changed function or branch,
+name at least one concrete candidate per lens that applies, tied to a changed
+line, then refute or ship each. A changed path with no candidate was not
+hunted. A candidate the opened code neither confirms nor refutes ships at
+`low`, with the unverified step named in `impact`.
 "Looks fragile", style, whitespace, and behavior-preserving renames never
 qualify.
 Scale deliberation to the diff; do not re-derive or prove the obvious.
