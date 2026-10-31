@@ -7,6 +7,8 @@ or the PR body as correctness authority.
 Hunt what breaks. Extra-lens bugs reportable. Refute each candidate
 once, argue the opposite, and if it does not stick, ship it —
 a finding ships only with a concrete failure (specific input or state → wrong output).
+Refute only with code you opened: "unlikely", "edge case", "deliberate",
+"callers avoid it" or "the platform handles it" refute nothing.
 "Looks fragile", style, whitespace, and behavior-preserving renames never
 qualify.
 Scale deliberation to the diff; do not re-derive or prove the obvious.
@@ -21,15 +23,27 @@ reading stops changing the verdict.
 
 ## Lenses (answer every one)
 
-precedence (two sources for one value, which wins) · degraded modes (a
-decision read from a client cache — React Query, SWR, Apollo… — is checked on
-the entry after a failed refetch, which keeps the last `data`; an error flag or
-empty default on the hook result refutes nothing) ·
-impossible states · prose vs machine-readable (prose behavior needs a
-declaration `file:line`; none → finding) · exhaustive reachability ·
-asymmetry (inverse ops round-trip; rule applied to one sibling only) ·
-boundary drift · convention (sibling pattern `file:line` or `not run`;
-`deferred: Standards hunter` when the parent set `Standards: yes`).
+precedence (two sources for one value, which wins; a partial or defaulted
+write over stored state) · degraded modes (every failure, empty, partial,
+retry or terminal path the diff adds or reaches: what it leaves behind —
+cleanup scope, guard undone, cause kept, results already gathered; a decision
+read from a client cache — React Query, SWR, Apollo… — is checked on the entry
+after a failed refetch, which keeps the last `data`; an error flag or empty
+default on the hook result refutes nothing) ·
+impossible states (list every state the changed code reads — absent, empty,
+pending, disabled, terminal, filtered out — and walk each) · prose vs
+machine-readable (prose behavior needs a declaration `file:line`; none →
+finding) · exhaustive reachability (every entry point, caller and legacy path
+doing the same operation) ·
+asymmetry (inverse ops round-trip; a guard, filter, flag, field or side effect
+present on one sibling — branch, entry point, list vs single lookup, read vs
+write shape — and missing on another is a finding until opened code shows it
+safe) ·
+boundary drift (empty, null, out-of-range, non-ASCII, prefix and suffix edges;
+both sides of a comparison canonicalized the same way; a test that still
+passes with the behavior removed) · convention (sibling pattern `file:line`
+or `not run`; `deferred: Standards hunter` when the parent set
+`Standards: yes`).
 
 ## Deciding code
 
