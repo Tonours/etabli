@@ -11,6 +11,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 STATE_DIR="$HOME/.claude/state"
 LOG="$HOME/.claude/logs/pr-autoreview.log"
 SEEN="$STATE_DIR/pr-autoreview-seen"
+HEADS="$STATE_DIR/pr-autoreview-heads"
 KILL_SWITCH="$STATE_DIR/pr-autoreview.off"
 LOCKS="$STATE_DIR/pr-autoreview-locks"
 PROFILE_DIR="$HERE/profiles"
@@ -33,15 +34,15 @@ ME="$(gh api user --jq .login 2>&1)" || { echo "gh failed: $ME"; exit 0; }
 
 pr_line() {
   gh pr list --repo "$REPO" --head "$BRANCH" --state open \
-    --json number,author,url,createdAt,reviews,headRefOid --limit 1 \
-    --jq '.[0] // empty | [.number, .author.login, .url, (((now - (.createdAt | fromdateiso8601)) / 86400) | floor), .headRefOid, ([.reviews[].author.login] | unique | join(","))] | @tsv'
+    --json number,author,url,createdAt,reviews,headRefOid,baseRefName --limit 1 \
+    --jq '.[0] // empty | [.number, .author.login, .url, (((now - (.createdAt | fromdateiso8601)) / 86400) | floor), .headRefOid, .baseRefName, ([.reviews[].author.login] | unique | join(","))] | @tsv'
 }
 
 WAITED=0
 while :; do
   PR_LINE="$(pr_line 2>&1)" || { echo "gh pr list failed: $PR_LINE"; exit 0; }
   [ -n "$PR_LINE" ] || { echo "no open PR for $BRANCH, skip"; exit 0; }
-  IFS=$'\t' read -r PR_NUMBER PR_AUTHOR PR_URL PR_AGE_DAYS PR_HEAD PR_REVIEWERS <<< "$PR_LINE"
+  IFS=$'\t' read -r PR_NUMBER PR_AUTHOR PR_URL PR_AGE_DAYS PR_HEAD PR_BASE PR_REVIEWERS <<< "$PR_LINE"
   [ "$PR_HEAD" = "$SHA" ] && break
   [ "$WAITED" -lt "$HEAD_WAIT" ] || { echo "PR head is ${PR_HEAD:0:8}, push of ${SHA:0:8} never landed, skip"; exit 0; }
   sleep 15
@@ -72,7 +73,8 @@ if [ -f "$SEEN" ] && grep -qxF "$SEEN_KEY" "$SEEN" 2>/dev/null; then
 fi
 CURRENT_HEAD=""
 for attempt in 1 2 3; do
-  CURRENT_HEAD="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefOid --jq .headRefOid 2>/dev/null)" && [ -n "$CURRENT_HEAD" ] && break
+  CURRENT="$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefOid,baseRefName --jq '[.headRefOid, .baseRefName] | @tsv' 2>/dev/null)" &&
+    IFS=$'\t' read -r CURRENT_HEAD PR_BASE <<< "$CURRENT" && [ -n "$CURRENT_HEAD" ] && break
   CURRENT_HEAD=""
   [ "$attempt" -lt 3 ] && sleep 10
 done
@@ -81,6 +83,7 @@ if [ "$CURRENT_HEAD" != "$SHA" ]; then
   echo "a newer push superseded ${SHA:0:8}, skip"
   exit 0
 fi
+PREV_SHA="$(awk -F'\t' -v key="$REPO#$PR_NUMBER" -v base="$PR_BASE" '$1 == key { sha = ($3 == base) ? $2 : "" } END { print sha }' "$HEADS" 2>/dev/null)"
 
 PROFILE="$PROFILE_DIR/$PROFILE_NAME.md"
 [ -f "$PROFILE" ] || { echo "no review profile $PROFILE_NAME.md for $REPO, skip"; exit 0; }
@@ -94,7 +97,7 @@ RUN_DIR="$(mktemp -d "${TMPDIR:-/tmp}/pr-autoreview-$PR_NUMBER.XXXXXX")"
 DONE_FILE="$RUN_DIR/delivered"
 RAW="$RUN_DIR/session.json"
 PROMPT="$(render_template "$PROMPT_FILE" REPO="$REPO" PR_NUMBER="$PR_NUMBER" PR_URL="$PR_URL" HEAD_SHA="$SHA" \
-  PROFILE_PATH="$PROFILE" WORKTREE="$WORKTREE" DONE_FILE="$DONE_FILE" HUMAN_REVIEWERS="${HUMAN_REVIEWERS:-none}")"
+  PREV_SHA="${PREV_SHA:-none}" PROFILE_PATH="$PROFILE" WORKTREE="$WORKTREE" DONE_FILE="$DONE_FILE" HUMAN_REVIEWERS="${HUMAN_REVIEWERS:-none}")"
 
 echo "reviewing PR #$PR_NUMBER ($PR_URL) at ${SHA:0:8} with $MODEL"
 cd "$HOME"
@@ -105,6 +108,7 @@ claude_pass autoreview "$RAW" read-only "$PROMPT" --model "$MODEL" --effort "$EF
 
 if [ "$RC" -eq 0 ] && [ -f "$DONE_FILE" ]; then
   echo "$SEEN_KEY" >> "$SEEN"
+  printf '%s\t%s\t%s\n' "$REPO#$PR_NUMBER" "$SHA" "$PR_BASE" >> "$HEADS"
   echo "=== $(date '+%F %T') delivered PR #$PR_NUMBER ==="
   exit 0
 fi
