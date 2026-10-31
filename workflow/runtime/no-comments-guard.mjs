@@ -432,7 +432,7 @@ function deny(reason) {
 
 function denyReason(filePath, comments) {
 	const sample = comments[0] || "//";
-	return `no-comments: ${filePath} adds a code comment (${sample}). Cut comments that restate the code (implementation-loop 12b). Rewrite without the comment.`;
+	return `no-comments: ${filePath} adds a code comment (${sample}). Cut comments that restate the code (implementation-loop 12b). Rewrite without the comment: another prefix (SAFETY:, NOTE:, a doc comment) is refused the same way, so put the reason in a name, a type or the commit message.`;
 }
 
 export function noCommentsGuardDecision(event) {

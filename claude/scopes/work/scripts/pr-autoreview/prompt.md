@@ -11,6 +11,7 @@ Write the Slack report in French. The suggested review comments inside it stay i
 - Repo: `{{REPO}}`
 - PR: #{{PR_NUMBER}} — {{PR_URL}}
 - Pushed commit: `{{HEAD_SHA}}`
+- Last commit reviewed on this PR against the same base: `{{PREV_SHA}}`
 - Local worktree: `{{WORKTREE}}`
 - Human reviewers already present: {{HUMAN_REVIEWERS}}
 
@@ -27,6 +28,8 @@ gh pr checks {{PR_NUMBER}} --repo {{REPO}}
 ```
 
 If CI is still running, note it in the report but continue the review.
+
+When the last commit reviewed is not `none`, this PR was already reviewed at that commit. If `git -C {{WORKTREE}} merge-base --is-ancestor {{PREV_SHA}} {{HEAD_SHA}}` succeeds, review only what `git -C {{WORKTREE}} diff {{PREV_SHA}} {{HEAD_SHA}}` changed: every finding is anchored in that delta, and the full PR diff is context. Otherwise (a rebase or a force push), review the full diff.
 
 Read the inline comments already posted, so you never repeat what was already said:
 
@@ -65,6 +68,8 @@ Write each comment as you would post it: one sentence, collegial (`We could…`,
 # Step 4 — Slack report
 
 Post ONE message in `#routines`, then run `touch {{DONE_FILE}}` through Bash and nothing else.
+
+When the last commit reviewed is not `none` and you have no finding, post nothing: only run `touch {{DONE_FILE}}`.
 
 Exact format (labels in French, as posted):
 

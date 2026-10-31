@@ -9,6 +9,8 @@ Run `~/.claude/scripts/pr-council-review/run.sh $ARGUMENTS` from the repository
 the PR belongs to, and stream its output.
 
 The script does the orchestration; you do not re-run any of the passes yourself.
+To run a round again (interrupted, or a new head), run the same command again.
+The script, its prompts and `lib.sh` live in `~/.claude/scripts/pr-council-review/`.
 
 It needs the `thermo-nuclear-code-quality-review` skill on the Claude or Pi
 skill surface and stops without it. It

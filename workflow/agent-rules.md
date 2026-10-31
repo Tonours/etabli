@@ -8,6 +8,8 @@
 - Read local sources first: `AGENTS.md`, `CLAUDE.md`, docs, then
   `workflow/spec.md` (entry and map, wins on conflict).
 - If `workflow/spec.md` exists, activate the Etabli workflow automatically.
+- A `workflow/...` file missing from the current directory is read under
+  `~/.claude/workflow/` (Claude) or `~/.pi/agent/workflow/` (Pi).
 - Smallest route. On Pi, execution and mutation stay parent-only; Claude may
   delegate one READY plan step to a `worker` (`workflow/skills/implementation-loop.md`).
 - On Pi, skills are instruction folders, not tools: read its SKILL.md, then run
@@ -31,6 +33,7 @@
   `workflow/skills/implementation-loop.md` section 12b.
 - TypeScript strict, no `any`, ES modules, local runner.
 - Run focused checks; type-check code changes when available.
+- macOS has BSD `sed`: `sed -i ''`, and no `N,+M` ranges (`sed -n 'N,Mp'`).
 - Reviews lead with severity-ordered findings and file/line evidence.
 - Memory: before investigating, check the memory vault first: `alambic-brain` / `~/work/brain` for repos
   whose GitHub org is listed in the machine-local `~/.config/etabli/work-orgs`; all other projects use

@@ -44,7 +44,7 @@ case "$1 $2" in
   "pr view") [ -z "${FAKE_GH_VIEW_FAIL:-}" ] || exit 1; out="$(cat "$FAKE_DIR/pr.json")" ;;
   "pr checks") out='[{"bucket":"pass"}]' ;;
   "search prs") [ -z "${FAKE_GH_DISCOVERY_FAIL:-}" ] || exit 1; out="${FAKE_GH_SEARCH:-[]}" ;;
-  "pr list") out="$(jq -c --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '[{number, author: {login: "me"}, url, createdAt: $now, reviews: [], headRefOid}]' "$FAKE_DIR/pr.json")" ;;
+  "pr list") out="$(jq -c --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '[{number, author: {login: "me"}, url, createdAt: $now, reviews: [], headRefOid, baseRefName}]' "$FAKE_DIR/pr.json")" ;;
   "api graphql") out='{"data":{"repository":{"pullRequest":{"reviewThreads":{"nodes":[],"pageInfo":{"hasNextPage":false}}}}}}' ;;
   *)
     case "$*" in
@@ -103,6 +103,7 @@ printf 'claude %s GIT_TERMINAL_PROMPT=%s %s\n' "$role" "${GIT_TERMINAL_PROMPT:-u
 [ "$role" != VERIFY ] || printf '%s' "$prompt" >"$FAKE_DIR/verify-prompt.txt"
 [ "$role" != DELTA ] || printf '%s' "$prompt" >"$FAKE_DIR/delta-prompt.txt"
 [ "$role" != THERMO ] || printf '%s' "$prompt" >"$FAKE_DIR/thermo-prompt.txt"
+[ "$role" != AUTOREVIEW ] || printf '%s' "$prompt" >"$FAKE_DIR/autoreview-prompt.txt"
 [ "$role" != QUALITY ] || : >"$FAKE_DIR/phase-a-ran"
 stderr_var="FAKE_${role}_STDERR"
 [ -z "${!stderr_var:-}" ] || echo "${!stderr_var}" >&2
@@ -720,6 +721,21 @@ case_autoreview_fails_loudly() {
   check "autoreview without DONE: notifies" called "notify "
 }
 
+case_autoreview_reads_the_last_reviewed_head() {
+  set_head "$HEAD1"
+  local heads="$HOME/.claude/state/pr-autoreview-heads"
+  rm -f "$heads"
+  autoreview
+  check "first autoreview: no prior head" grep -qF 'the same base: `none`' "$FAKE_DIR/autoreview-prompt.txt"
+  printf 'o/r#7\t%s\tmain\no/r#70\t%s\tmain\no/rr#7\t%s\tmain\n' "$(printf '%040d' 1)" "$HEAD2" "$HEAD2" >"$heads"
+  autoreview
+  check "later autoreview: the last head of this PR only" grep -qF "the same base: \`$(printf '%040d' 1)\`" "$FAKE_DIR/autoreview-prompt.txt"
+  printf 'o/r#7\t%s\tfeature\n' "$HEAD2" >>"$heads"
+  autoreview
+  check "later autoreview: a new base reviews the full diff" grep -qF 'the same base: `none`' "$FAKE_DIR/autoreview-prompt.txt"
+  rm -f "$heads"
+}
+
 case_housekeeping() {
   local repo="$TMP_DIR/neutralize" stale="$TMPDIR/pr-verify-99.stale"
   git init -q "$repo"
@@ -1003,6 +1019,7 @@ case_force_push_reruns_council
 case_patch_id_failure_reviews
 case_watch_skips
 case_autoreview_fails_loudly
+case_autoreview_reads_the_last_reviewed_head
 case_housekeeping
 case_pass_caps_and_diagnostics
 case_tick_guards

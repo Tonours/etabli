@@ -135,7 +135,9 @@ machine-local `~/.claude/state/pr-autoreview/repos.tsv` (`<owner/repo><TAB><prof
 no file means no review. Break-in mode: findings go to Slack `#routines` only
 (`prompt.md`). Guards: PR younger than 30 days, one pass per
 `repo#pr@headSha`, one run per PR, kill switch
-`~/.claude/state/pr-autoreview.off`. `pr-autoreview/install.sh` wires a machine.
+`~/.claude/state/pr-autoreview.off`. A later push is reviewed on the commits
+since the last reviewed head (the full diff after a rebase or a new base), and posts nothing
+when it finds nothing. `pr-autoreview/install.sh` wires a machine.
 
 ## PR review watch
 
