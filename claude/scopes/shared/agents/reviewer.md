@@ -85,7 +85,7 @@ evidence separately from inference.
    | --- | --- | --- | --- |
 
    Empty deciding code on a runtime row **forbids `Verdict: GO`**.
-4. **Open questions** — rejected candidates and evidence needed to settle them.
+4. **Open questions** — Refuted candidates briefly; Logic: potential severity, scenario, missing evidence, next check. An unverified decisive step in a concrete runtime-failure candidate blocks both passing verdicts at any severity; never demote it to low. Threat rules stay unchanged.
 5. **Verdict** — exactly `GO`, `GO WITH NOTES`, or `BLOCK`.
 6. Final line: exactly `STATUS: complete`, or `STATUS: truncated` when the turn
    budget or a tool limit cut the work short.

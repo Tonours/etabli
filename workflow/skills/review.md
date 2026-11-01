@@ -26,8 +26,11 @@ Same-session Logic self-review is forbidden.
    `git show` bytes). Hunters receive that text and do not re-run `git diff`.
 2. Supply Intent plus current plan/Decision Log to Spec, Threat and lead; omit
    these from Logic. Reconcile conflicts before dispatch.
-3. Detect language/UI surface. Set `Standards: yes` or `Standards: none` on the
-   Logic brief.
+3. Give hunters a short project-context brief from trusted scoped rules: changed
+   areas, relevant invariants and known intentional exceptions with source paths.
+   Code at the reviewed head must confirm any exception; prose alone refutes
+   nothing. Keep ticket/plan acceptance criteria on the Spec axis. Detect
+   language/UI surface. Set `Standards: yes` or `Standards: none` on the Logic brief.
 4. Write the pinned patch to a temp file (must be non-empty). Dispatch
    **Logic hunter** with `workflow/templates/review-logic-hunter.md` in a fresh
    context. First line: `Axis: Logic`. Do not hunt Logic in the parent.
@@ -106,6 +109,11 @@ Same-session Logic self-review is forbidden.
    sibling exists, report the convention lens as `not run`; never present it as
    clean (see rubric § Convention & pattern fit). If `Standards: none`, record
    `quality: none` in the lead report.
+   For a large patch, Logic inventories touched runtime behaviors, inspects
+   groups with their callers/shared state, then checks interactions between
+   groups. A missing group is incomplete coverage, never a clean result. Keep
+   one pinned patch and the existing hunters; splitting inspection does not
+   authorize extra passes or hide cross-group regressions.
 7. Lead-filter with `workflow/templates/review-lead.md`. Do not re-hunt.
 
 ## Target Resolution
@@ -151,8 +159,9 @@ no-sibling gap excepted), when the whole-diff `n/a` lists a changed path that
 is not a document or pure rename, or when `isolation: none`. `GO WITH NOTES`
 is not a workaround for those gates. A triggered Threat axis without its
 complete report (a table missing or `partial:`) blocks `GO` and `GO WITH NOTES`
-the same way, as do `template: missing` and a hunter report whose last line
-is not `STATUS: complete`.
+the same way. A concrete unresolved material Logic candidate under Open questions
+also blocks both passing verdicts. So do `template: missing` and a hunter report
+whose last line is not `STATUS: complete`.
 
 ## Rules
 
@@ -163,3 +172,42 @@ is not `STATUS: complete`.
   explicitly.
 - If the request is to prove completion rather than review a diff, route to the
   verification workflow instead of treating it as code review.
+
+## Effectiveness comparison (cold)
+
+Open before changing a hunter's model, prompt, extra pass or inspection method.
+Reuse private escaped-defect records, confirmed incident/fix pairs and clean
+controls; keep raw project code, oracles and reports outside tracked/public
+Etabli files. Use a temporary driver, not a new evaluator subsystem.
+
+Before calls, freeze case selection, defect mechanism/severity, clean controls,
+base/head and tree-content hashes, patch bytes, template hashes, runner, tools,
+requested model/effort, scoring rule, repetitions and time/call cap. Verify the
+tree hash before each arm. Keep development and held-out cases separate; a
+known or previously tuned case is a regression diagnostic, never held-out proof.
+A historical hash mismatch makes that replay unavailable; a newly frozen paired
+comparison is a different diagnostic, not comparable to old scores.
+
+Compare the current setup with one changed factor on identical inputs. Withhold
+oracles and earlier reviews from hunters; score the exact failure mechanism,
+not merely the same file or another true bug. Audit unmatched findings as true,
+false or indeterminate instead of treating every unmatched finding as false.
+Incomplete, denied or truncated runs are void, rerun once with the recovery
+recorded, and remain visible in completion counts. Never count them as clean.
+
+Report detected/known defects by severity, false and indeterminate findings,
+clean-control false alarms, open questions, completion, wall time, native token
+usage (cache categories separate) and necessary human correction time when
+observed. Fixed/agreed comments are an acceptance signal, not precision or
+recall. Report each pass's unique verified defects and extra noise, time and
+rounds before proposing to add or remove it. An open question is not a detected
+confirmed defect; count it separately so moving findings cannot fake a gain.
+
+Predeclare the adoption bar: no loss of critical known defects or control
+safety, improved target metric, bounded noise/incompletion/time, followed by a
+representative held-out comparison. Repeat stochastic runs when estimating
+rates; a small one-run replay is descriptive only. No default model or pass
+change follows an inconclusive result. Production benefit needs observed escaped
+bugs, reverts/incidents and human effort; fixtures and a green runner alone do
+not establish it. Promote recurring objective defects into the subject
+project's existing type/lint/test/CI constraint (workflow/project-constraints.md).

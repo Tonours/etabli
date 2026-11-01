@@ -167,25 +167,18 @@ Prefer a smaller number of high-conviction comments over a long list of cosmetic
 
 ## Approval Bar
 
-Do not approve merely because behavior seems correct.
-The bar for approval is:
+Keep the structural ambition of this audit, but separate suggestions from
+verified defects using `workflow/review-rubric.md`.
 
-- no clear structural regression
-- no obvious missed opportunity to make the implementation dramatically simpler when such a path is visible
-- no unjustified file-size explosion
-- no obvious spaghetti-growth from special-case branching
-- no obviously hacky or magical abstraction that makes the code harder to reason about
-- no unnecessary wrapper/cast/optionality churn obscuring the real design
-- no clear architecture-boundary leak or avoidable canonical-helper duplication
-- no missed opportunity for an obvious decomposition that would materially improve maintainability
+A blocker needs a concrete correctness or operability failure in this diff:
+specific input/state, decisive code and wrong result, after attempting to
+refute it through a caller, validator or type. File size, a cleaner possible
+abstraction, naming or behavior-preserving restructuring alone do not meet
+that bar. Put those proposals in Consider with their concrete maintenance
+cost and smallest useful change; they do not oblige the author to restructure.
 
-Treat these as blockers when they carry a concrete maintenance cost in this diff (`workflow/review-rubric.md`); naming, formatting, and whitespace alone never block:
-
-- the PR preserves a lot of incidental complexity when there is a plausible code-judo move that would delete it
-- the PR pushes a file from below 1000 lines to above 1000 lines
-- the PR adds ad-hoc branching that makes an existing flow more tangled
-- the PR solves a local problem by scattering feature checks across shared code
-- the PR adds an unnecessary abstraction, wrapper, or cast-heavy contract that makes the design more indirect
-- the PR duplicates an existing helper or puts logic in the wrong layer when there is a clear canonical home
-
-If those conditions are not met, leave explicit, actionable feedback and push for a cleaner decomposition.
+Severity describes consequence, not uncertainty. Put a concrete unresolved
+failure candidate in Open questions with potential severity, missing evidence
+and next check. Do not publish it as a low defect or declare the material
+risk settled. The shared lead owns the verdict; this specialized audit does
+not override its evidence or uncertainty gates.

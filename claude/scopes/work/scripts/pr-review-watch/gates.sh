@@ -80,8 +80,9 @@ objective_blocker() {
 }
 
 verify_blocker() {
-  local log="$1" delta_findings="$2" reviewed
+  local log="$1" delta_findings="$2" delta_log="${3:-}" reviewed
   [ "${delta_findings:-x}" = 0 ] || { echo "delta review posted ${delta_findings:-unknown} findings"; return; }
+  [ "$(field "$delta_log" DELTA_CONFIDENT value 2>/dev/null)" = true ] || { echo "delta reviewer not confident"; return; }
   grep -qE '^VERIFY_VERDICT ' "$log" || { echo "no VERIFY_VERDICT line"; return; }
   reviewed="$(field "$log" VERIFY_VERDICT reviewed)"
   [ "$reviewed" -ge 0 ] 2>/dev/null || { echo "unreadable finding count"; return; }

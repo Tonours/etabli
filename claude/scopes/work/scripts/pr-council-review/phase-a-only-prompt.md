@@ -9,7 +9,12 @@ Phase A ran against `{{HEAD_SHA}}` over `{{MERGE_BASE}}...{{HEAD_SHA}}` in a scr
 
 {{LINKED_SECTION}}
 
-Read every file. Each finding is a candidate with no privilege. Verify it against the code with `git show {{HEAD_SHA}}:<path>` and keep it only if it has a `file:line`, a stated functional consequence, and you can reproduce or argue it from the code. Drop intentional behaviour read as a defect, exaggerated severity, convention claims you cannot point to, and pure restructuring proposals with no functional cost. Drop when unsure. Merge duplicates.
+Read every file. Each finding is a candidate with no privilege. Verify it against the code with `git show {{HEAD_SHA}}:<path>` and keep it only if it has a `file:line`, a stated functional consequence, and you can reproduce or argue it from the code. Drop intentional behaviour read as a defect, exaggerated severity, convention claims you cannot point to, and pure restructuring proposals with no functional cost. Merge duplicates. A concrete runtime-failure candidate whose decisive step is
+unverified stays an open question in the terminal report: potential severity,
+scenario, missing evidence, next check. Do not publish or demote it. In that
+case set the phase-a lens to `pending`, never `verified`, even with zero kept
+findings; the invoker must withhold approval. Generic background questions do
+not make the lens pending.
 
 Also read the validator's review on this head (`gh api repos/{{REPO}}/pulls/{{PR_NUMBER}}/reviews`, then `.../reviews/<review_id>/comments`) and drop any finding it already made. One exception, only when a Linked pull requests section follows: a finding the validator posted without naming the linked PR that already makes its fix is kept once, its text limited to that PR and the merge order.
 
@@ -23,6 +28,9 @@ Write in English, short, one finding per inline comment, no model or vendor name
 
 Only your final message reaches the invoker. It holds, in this order: the `WOULD SUBMIT` block in `dry-run`; this run marker on its own line, with `<kept>` the number of findings kept, whether or not the submission succeeded, and `<dropped>` the number of candidates dropped:
 
-<!-- claudine:v1 {"kind":"run","run":"phase-a-only","sha":"{{HEAD_SHA}}","findings":<kept>,"floor":"should-fix","suppressed":<dropped>,"security":"clean","lenses":{"phase-a":"verified"}} -->
+<!-- claudine:v1 {"kind":"run","run":"phase-a-only","sha":"{{HEAD_SHA}}","findings":<kept>,"floor":"should-fix","suppressed":<dropped>,"security":"clean","lenses":{"phase-a":<lens>}} -->
+
+Replace `<lens>` with the JSON string `"pending"` when any material candidate
+is unresolved, otherwise `"verified"`. Never emit the placeholder literally.
 
 then a short report in French listing what each phase A pass found, how many candidates survived, what was posted (or would be), the review URL, and any submission error.

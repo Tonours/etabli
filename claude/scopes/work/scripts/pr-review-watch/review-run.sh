@@ -111,7 +111,7 @@ run_council() {
 run_delta() {
   local log="$1" rc
   linked_once
-  run_with_timeout "$TIMEOUT" "$HERE/delta-review.sh" "$REPO" "$NUMBER" "$SINCE" "$LINKED_FILE" </dev/null >"$log" 2>&1
+  run_with_timeout "$TIMEOUT" "$HERE/delta-review.sh" "$REPO" "$NUMBER" "$SINCE" "$LINKED_FILE" "$SHA" </dev/null >"$log" 2>&1
   rc=$?
   cat "$log"
   return "$rc"
@@ -170,14 +170,13 @@ run_verify() {
       return ;;
     *) echo "=== cannot check the head's history against the council"; return 1 ;;
   esac
-  if [ "$(head -1 "$KEY.delta-done" 2>/dev/null)" = "$SHA" ]; then
+  if [ "$(head -1 "$KEY.delta-done" 2>/dev/null)" = "$SHA" ] && grep -qxF "DELTA_HEAD $SHA" "$KEY.delta-done"; then
     echo "=== step 1: skipped, the commits since ${SINCE:0:8} were already reviewed for ${SHA:0:8}"
     tail -n +2 "$KEY.delta-done" >"$delta_log"
   else
     echo "=== step 1: /code-review on the commits since ${SINCE:0:8}, findings posted"
     run_delta "$delta_log" || return
-    grep -q '^=== nothing new since' "$delta_log" && printf 'DELTA_FINDINGS 0\nDELTA_CONFIDENT value=true\n' >>"$delta_log"
-    { echo "$SHA"; grep -E '^DELTA_(FINDINGS|CONFIDENT) ' "$delta_log"; } >"$KEY.delta-done"
+    { echo "$SHA"; grep -E '^DELTA_(HEAD|FINDINGS|CONFIDENT) ' "$delta_log"; } >"$KEY.delta-done"
   fi
   delta_findings="$(sed -n 's/^DELTA_FINDINGS \([0-9]*\).*/\1/p' "$delta_log" | tail -1)"
 
@@ -200,7 +199,7 @@ run_verify() {
   echo "=== step 3: approval"
   grep -E '^CONFIDENCE ' "$REPORT" | tail -1
   reviewed="$(field "$REPORT" VERIFY_VERDICT reviewed)"
-  decide_and_approve "$(verify_blocker "$REPORT" "$delta_findings")" \
+  decide_and_approve "$(verify_blocker "$REPORT" "$delta_findings" "$delta_log")" \
     "Approved after /verify-fixes: ${reviewed:-0} findings closed or accepted, none reopened, no new finding since ${SINCE:0:8}."
 }
 
