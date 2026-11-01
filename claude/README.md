@@ -194,3 +194,22 @@ and other completed vendor statuses keep the normal fix-verification path.
 Parser refusal details are retained in the council report, including headless
 runs. These strict producer requirements need the same real-report rollout
 check above; they are not deployed by this worktree.
+
+Process timing goes to stderr and the existing `pr-review-usage.log`, alongside
+native usage: `timing <pass>: elapsed_s=<integer> process_exit=<code>`. Claude
+quality, thermo, validator, verify, delta and autoreview share this measurement;
+Codex has its own timing line. It covers subprocess wall time, including a
+timeout when control returns, with one-second resolution. `process_exit=0`
+means the CLI exited successfully: semantic completion, permission checks and
+approval gates still decide the result. Malformed/missing results can therefore
+have exit 0. A signal that terminates the shell may leave no timing line;
+exclude incomplete samples instead of treating them as zero seconds.
+Phase A already runs in parallel: sum-of-pass time is not council latency.
+Measure queue/start, first useful finding, full review and approval/CI waits
+separately when evaluating a deployment. Usage/cache categories stay separate;
+unique verified defects, false alarms, completion and human correction effort
+must accompany any speed comparison. No pass or effort default is removed or
+lowered on timing evidence alone.
+
+All Codex timing lines share the `codex` label; correlate them with the target,
+run report and invocation settings rather than inferring the effort from it.
