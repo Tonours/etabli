@@ -164,3 +164,33 @@ scratch worktree. Later pushes read the linked PRs too. A Claude pass silent for
 `~/.claude/logs/pr-review-watch.log` and `pr-review-usage.log`. `watch.sh stop`
 sets the kill switch and stops reviews in flight. `tests/pr-review-gates-smoke.sh`
 covers the approval gates.
+
+A council with a pending lens, ticketed security or a malformed run marker is
+incomplete even when it posted findings: it creates no completed-council state.
+The current SHA stops with exit 4; a new push gets a full council until that
+state is resolved, which can cost more than the ordinary fix-verification path.
+Before reusing a completed council or retrying approval, the runner validates
+its original canonical council report, including the full stored SHA. Missing,
+legacy-incomplete or inconsistent state gets a full council under normal
+watcher caps; invalid pending approval is requeued on the next tick, never
+reviewed synchronously inside that tick. Reports expire after 30 days, so an
+older PR may need another full review after each report-retention interval.
+Standalone HTML and `=== run marker:` encodings remain supported; inline and
+blockquote copies do not count. Standalone copies cannot override an earlier
+unresolved marker: every matching marker must be complete, and the maximum
+finding count wins (including the native phase-A override). Lenses must be nonempty arrays/objects of strings.
+The external validator is not installed on this machine: its live compatibility
+has not been verified. Before rollout, check a real report for these fields;
+`run marker has no lenses` identifies a nonconforming producer. Keep the old
+configuration until that producer emits the required fields. This source change
+does not deploy or reset any existing state directory.
+
+A report must contain exactly one phase-B header. Extra header-like model text
+or a PR title beginning `phase B: ` makes it ambiguous and incomplete. Each
+marker must contain exactly one JSON object without duplicate keys; whole
+objects are checked against the full SHA, including fields before `kind`.
+Security must be a nonempty string; ticketed is refused in any letter case,
+and other completed vendor statuses keep the normal fix-verification path.
+Parser refusal details are retained in the council report, including headless
+runs. These strict producer requirements need the same real-report rollout
+check above; they are not deployed by this worktree.

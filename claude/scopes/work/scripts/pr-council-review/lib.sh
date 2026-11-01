@@ -340,32 +340,60 @@ notify() {
 }
 
 phase_b_output() {
-  awk '/^=== phase B: / { text = ""; seen = 1; next } seen { text = text $0 "\n" } END { printf "%s", text }' "$1" 2>/dev/null
+  awk '/^=== phase B: / { count++; next } count { text = text $0 "\n" }
+    END { if (count == 1) printf "%s", text; else exit 1 }' "$1" 2>/dev/null
 }
 
 validator_run_findings() {
-  phase_b_output "$1" | grep -o '"kind":"run"[^>]*' | grep -F "\"sha\":\"$2\"" | tail -1 | sed -n 's/.*"findings":\([0-9]*\).*/\1/p'
+  local marker
+  marker="$(validator_marker_json "$1" "$2")" || return 1
+  printf '%s' "$marker" | jq -r .findings
 }
 
 validator_marker_json() {
-  local raw
-  raw="$(phase_b_output "$1" | grep -o '"kind":"run"[^>]*' | grep -F "\"sha\":\"$2\"" | tail -1)"
-  [ -n "$raw" ] || return 1
-  raw="{$raw"
-  raw="$(printf '%s' "$raw" | sed -E 's/[[:space:]-]+$//')"
-  printf '%s' "$raw" | jq -e . >/dev/null 2>&1 || return 1
-  printf '%s' "$raw"
+  local lines line raw marker markers='' blocker
+  lines="$(phase_b_output "$1")" || { echo "validator report needs exactly one phase-B header" >&2; return 1; }
+  while IFS= read -r line; do
+    case "$line" in '<!-- claudine:v1 '*|'=== run marker: claudine:v1 '*) ;; *) continue ;; esac
+    raw="$(printf '%s' "$line" | sed -E 's/^(<!-- claudine:v1 |=== run marker: claudine:v1 )//; s/[[:space:]]*--(>)?[[:space:]]*$//')"
+    # Streaming paths preserve duplicate keys that ordinary JSON parsing drops.
+    if ! printf '%s' "$raw" | jq --stream -ne 'reduce inputs as $e ({done:{}, duplicate:false};
+  if ($e|length)==2 then
+    $e[0] as $p | .done as $done
+    | .duplicate = (.duplicate or any(range(1; ($p|length)+1); . as $n | $done[($p[:$n]|tojson)] == true))
+    | .done[($p|tojson)] = true
+  else .done[($e[0][:-1]|tojson)] = true end)
+| select(.duplicate|not)' >/dev/null; then
+      echo "validator marker has duplicate keys or malformed JSON" >&2
+      return 1
+    fi
+    marker="$(printf '%s' "$raw" | jq -cse 'select(length == 1 and (.[0] | type) == "object") | .[0]')" || {
+      echo "validator marker must contain exactly one JSON object" >&2; return 1;
+    }
+    printf '%s' "$marker" | jq -e --arg sha "$2" '.kind == "run" and .sha == $sha' >/dev/null || continue
+    markers="$markers$marker"$'\n'
+  done <<<"$lines"
+  [ -n "$markers" ] || { echo "no validator run marker for ${2:0:8}" >&2; return 1; }
+  blocker="$(printf '%s' "$markers" | jq -sr '
+    if any(.[]; has("lenses") | not) then "run marker has no lenses"
+    elif any(.[]; ((.lenses | type) != "object" and (.lenses | type) != "array")) then "validator lenses are malformed"
+    elif any(.[]; (.lenses | length) == 0 or any(.lenses[]; type != "string")) then "validator lenses are malformed"
+    elif any(.[]; (.security | type) != "string") then "validator security is missing or malformed"
+    elif any(.[]; .security | test("\\S") | not) then "validator security is blank"
+    elif any(.[]; .security | ascii_downcase | gsub("^\\s+|\\s+$"; "") == "ticketed") then "a security finding waits on a ticket"
+    elif any(.[]; ([.lenses[] | ascii_downcase | gsub("^\\s+|\\s+$"; "")] | index("pending")) != null) then "a validator lens is still pending"
+    elif any(.[]; (.findings | type) != "number") then "validator finding count is invalid"
+    elif any(.[]; .findings < 0 or .findings != (.findings | floor)) then "validator finding count is invalid"
+    else empty end')" || return 1
+  [ -z "$blocker" ] || { printf '%s\n' "$blocker" >&2; return 1; }
+  printf '%s' "$markers" | jq -cs 'max_by(.findings)'
 }
 
 validator_approval_body() {
-  local marker blocker
-  marker="$(validator_marker_json "$1" "$2")" || { echo "no validator run marker for ${2:0:8}" >&2; return 1; }
-  blocker="$(printf '%s' "$marker" | jq -r '
-    if .findings != 0 then "validator posted \(.findings) findings"
-    elif .security == "ticketed" then "a security finding waits on a ticket"
-    elif ([.lenses[]?] | index("pending")) != null then "a validator lens is still pending"
-    else empty end')"
-  [ -z "$blocker" ] || { echo "$blocker" >&2; return 1; }
+  local marker findings
+  marker="$(validator_marker_json "$1" "$2")" || return 1
+  findings="$(printf '%s' "$marker" | jq -r .findings)"
+  [ "$findings" = 0 ] || { echo "validator posted $findings findings" >&2; return 1; }
   printf 'Approved after /validator run %s: nothing at or above `%s` posted, %s suppressed.\n<!-- claudine:v1 %s -->' \
     "$(printf '%s' "$marker" | jq -r .run)" "$(printf '%s' "$marker" | jq -r .floor)" \
     "$(printf '%s' "$marker" | jq -r .suppressed)" "$marker"
