@@ -117,6 +117,15 @@ record_usage() {
   printf '%s\t%s\t%s\n' "$(date '+%F %T')" "$target" "${line#=== usage }" >>"$PR_REVIEW_USAGE_LOG"
 }
 
+# Process timing is advisory: the CLI exit is not the semantic review verdict.
+record_timing() {
+  local line="=== timing $1: elapsed_s=$((SECONDS - $2)) process_exit=$3"
+  printf '%s\n' "$line" >&2 || :
+  { mkdir -p "$(dirname "$PR_REVIEW_USAGE_LOG")" &&
+    printf '%s\t%s\t%s\n' "$(date '+%F %T')" "$USAGE_TARGET" "${line#=== }" >>"$PR_REVIEW_USAGE_LOG";
+  } 2>/dev/null || :
+}
+
 patch_id() { git diff --binary "$1" "$2" | git patch-id --verbatim | cut -d' ' -f1; }
 
 # same_patch <base ref> <old sha> <new sha>: both carry the same changes on their
@@ -242,7 +251,7 @@ linked_prs() {
 # REVIEW_VETO_RC on a denial, REVIEW_INCOMPLETE_RC on an error or cap hit, else the claude exit code
 # (1 when claude exited 0 without a session envelope).
 claude_pass() {
-  local label="$1" raw="$2" profile="$3" prompt="$4" rc=0 result_rc=0
+  local label="$1" raw="$2" profile="$3" prompt="$4" rc=0 result_rc=0 started
   shift 4
   [ -n "$CLAUDE" ] || { echo "=== $label: claude binary not found" >&2; return 1; }
   case "$profile" in
@@ -251,9 +260,11 @@ claude_pass() {
     *) echo "=== $label: unknown profile $profile" >&2; return 1 ;;
   esac
   rm -f "$raw.stream.stalled"
+  started=$SECONDS
   run_with_timeout --idle "$CLAUDE_PASS_IDLE" "$raw.stream" "$CLAUDE_PASS_TIMEOUT" "$CLAUDE" -p "$prompt" \
     --output-format stream-json --verbose --max-turns "$CLAUDE_MAX_TURNS" --max-budget-usd "$CLAUDE_MAX_BUDGET_USD" "$@" \
     </dev/null >"$raw.stream" 2>"$raw.err" || rc=$?
+  record_timing "$label" "$started" "$rc"
   jq -cR 'fromjson? | select(type == "object" and .type == "result")' "$raw.stream" 2>/dev/null | tail -n 1 >"$raw"
   if [ "$rc" -ne 0 ]; then
     echo "=== $label: claude exited $rc; stderr tail:" >&2
@@ -281,11 +292,12 @@ claude_pass() {
 # codex_pass <worktree> <report> <model> <effort> <prompt>: one read-only codex exec run
 # without user config (MCP servers, profiles); its final message goes to the report.
 codex_pass() {
-  local tree="$1" report="$2" model="$3" effort="$4" prompt="$5" rc=0
+  local tree="$1" report="$2" model="$3" effort="$4" prompt="$5" rc=0 started=$SECONDS
   run_with_timeout "$CLAUDE_PASS_TIMEOUT" "$CODEX" exec --cd "$tree" --sandbox read-only \
     --ignore-user-config --ephemeral --color never --model "$model" \
     -c model_reasoning_effort="\"$effort\"" --output-last-message "$report" "$prompt" \
     </dev/null >"$report.log" 2>&1 || rc=$?
+  record_timing codex "$started" "$rc"
   if [ "$rc" -eq 0 ] && [ ! -s "$report" ]; then
     echo "=== codex: exited 0 without a final message" >&2
     rc=1

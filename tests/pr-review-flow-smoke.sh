@@ -309,6 +309,7 @@ case_stalled_pass() {
     FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
   check "stall: reported" grep -q '^=== stalled: no session output for 2s' "$TMP_DIR/run.out"
   check "stall: last event named" grep -q '^=== validator: last session event result/success, last tool call none$' "$TMP_DIR/run.out"
+  check "stall: process timing recorded" grep -Eq "^=== timing validator: elapsed_s=[0-9]+ process_exit=124$" "$TMP_DIR/run.out"
   check "stall: exit 124 despite an earlier result" rc_is 124
   check "stall: no approval" [ "$(approvals)" = 0 ]
   check "stall: not recorded clean" no_file "$KEY.council-clean"
@@ -405,11 +406,13 @@ case_codex_member() {
   FAKE_CODEX_TEXT="codex finding a.txt:1" FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
   check "codex member: read-only sol xhigh" grep -q -- "^codex exec .*--sandbox read-only .*--model gpt-6.1-sol -c model_reasoning_effort=\"xhigh\"" "$FAKE_LOG"
   check "codex member: report reaches the validator" grep -q "cross-family member" "$FAKE_DIR/validator-prompt.txt"
+  check "codex member: process timing recorded" grep -Eq "^=== timing codex: elapsed_s=[0-9]+ process_exit=0$" "$TMP_DIR/run.out"
   check "codex member: exit 0" rc_is 0
   reset_state
   FAKE_CODEX_RC=1 FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
   check "codex failure: validator still runs" called "claude VALIDATOR"
   check "codex failure: same-family" grep -q "Phase A was same-family" "$FAKE_DIR/validator-prompt.txt"
+  check "codex failure: process timing recorded" grep -Eq "^=== timing codex: elapsed_s=[0-9]+ process_exit=1$" "$TMP_DIR/run.out"
   check "codex failure: exit 0" rc_is 0
   reset_state
   PR_COUNCIL_USE_CODEX=0 FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
@@ -516,6 +519,64 @@ unwatch_as() {
   echo "$HEAD1" >"$KEY.council-done"
   watch_fn "pr_snapshot() { printf '$1\tfalse\t$HEAD1\turl\t$2\t$3\n'; }; herdr_available() { return 1; }; remove_finished_clones() { :; }; process_watched me" >/dev/null
 }
+
+
+
+case_timing_returns() {
+  local sample log rc expected process_rc envelope missing mode expected_text
+  for sample in success missing passthrough denied incomplete timeout; do
+    expected=0 process_rc=0 envelope=success missing='' mode=normal expected_text=timing-sentinel
+    case "$sample" in
+      missing) expected=1 missing=1 expected_text='' ;;
+      passthrough) expected=7 process_rc=7 ;;
+      denied) expected=3 envelope=denied ;;
+      incomplete) expected=4 envelope=error-max-turns process_rc=1 ;;
+      timeout) expected=124 process_rc=124 mode=timeout expected_text='' ;;
+    esac
+    for log in "$TMP_DIR/timing.log" /dev/null/timing.log; do
+      rc=0
+      PR_REVIEW_USAGE_LOG="$log" FAKE_QUALITY_ENVELOPE="$envelope" FAKE_QUALITY_NORESULT="$missing" \
+        FAKE_QUALITY_PATCH='.result = "timing-sentinel"' FAKE_QUALITY_TEXT=timing-sentinel FAKE_QUALITY_RC="$process_rc" /bin/bash -c '
+          . "$1"
+          if [ "$3" = timeout ]; then run_with_timeout() { return 124; }; fi
+          claude_pass code-review "$2" read-only "/code-review high"
+        ' _ "$SCRIPTS/pr-council-review/lib.sh" "$TMP_DIR/timed.json" "$mode" >"$TMP_DIR/timed.out" 2>"$TMP_DIR/timed.err" || rc=$?
+      check "timing $sample ($log): semantic exit unchanged" [ "$rc" = "$expected" ]
+      if [ -n "$expected_text" ]; then printf '%s\n' "$expected_text"; fi >"$TMP_DIR/timed.expected"
+      check "timing $sample ($log): report bytes unchanged" cmp -s "$TMP_DIR/timed.expected" "$TMP_DIR/timed.out"
+      check "timing $sample ($log): process exit recorded" grep -Eq "^=== timing code-review: elapsed_s=[0-9]+ process_exit=$process_rc$" "$TMP_DIR/timed.err"
+    done
+  done
+  /bin/bash -c '. "$1"; SECONDS=20; record_timing clock-test 13 7' _ "$SCRIPTS/pr-council-review/lib.sh" 2>"$TMP_DIR/clock.err"
+  check "timing: elapsed uses caller clock" grep -Eq '^=== timing clock-test: elapsed_s=(7|8) process_exit=7$' "$TMP_DIR/clock.err"
+  check "timing: failed log write is safe under errexit" env PR_REVIEW_USAGE_LOG=/dev/null/timing.log /bin/bash -ec '. "$1"; record_timing clock-test "$SECONDS" 0' _ "$SCRIPTS/pr-council-review/lib.sh"
+  check "timing: elapsed persists in usage log" grep -Eq 'timing clock-test: elapsed_s=(7|8) process_exit=7$' "$PR_REVIEW_USAGE_LOG"
+}
+
+case_codex_timing_returns() {
+  local sample log rc expected process_rc mode
+  for sample in success missing failure timeout; do
+    expected=0 process_rc='' mode=normal
+    case "$sample" in
+      missing) expected=1 process_rc=0 ;;
+      failure) expected=1 process_rc=1 ;;
+      timeout) expected=124 process_rc=124 mode=timeout ;;
+    esac
+    for log in "$TMP_DIR/timing.log" /dev/null/timing.log; do
+      rm -f "$TMP_DIR/timed-codex.md"
+      rc=0
+      PR_REVIEW_USAGE_LOG="$log" FAKE_CODEX_RC="$process_rc" FAKE_CODEX_TEXT=timing-sentinel /bin/bash -c '
+        . "$1"
+        if [ "$4" = timeout ]; then run_with_timeout() { return 124; }; fi
+        codex_pass "$2" "$3" gpt-6.1-sol xhigh "test"
+      ' _ "$SCRIPTS/pr-council-review/lib.sh" "$CLONE" "$TMP_DIR/timed-codex.md" "$mode" >"$TMP_DIR/timed.out" 2>"$TMP_DIR/timed.err" || rc=$?
+      check "codex timing $sample ($log): semantic exit" [ "$rc" = "$expected" ]
+      check "codex timing $sample ($log): stdout empty" [ ! -s "$TMP_DIR/timed.out" ]
+      check "codex timing $sample ($log): process exit" grep -Eq "^=== timing codex: elapsed_s=[0-9]+ process_exit=${process_rc:-0}$" "$TMP_DIR/timed.err"
+    done
+  done
+}
+
 
 case_unresolved_council_lifecycle() {
   local state count unresolved reviews after
@@ -808,6 +869,7 @@ case_delta_structured() {
     '.event == "COMMENT" and .commit_id == $sha and .comments == [{"path":"a.txt","line":2,"side":"RIGHT","body":"two is wrong"}]' "$FAKE_DIR/payload.json"
   check "delta: an unanchored finding goes to the body" eval 'jq -r .body "$FAKE_DIR/payload.json" | grep -q "m.py.*outside the diff"'
   check "delta: confirmed severity visible" grep -q '\[medium, confirmed\]' "$TMP_DIR/run.out"
+  check "delta: timing stays outside review payload" eval '! jq -r ".body, (.comments[]?.body)" "$FAKE_DIR/payload.json" | grep -q "=== timing"'
   check "delta: findings counted" grep -q '^DELTA_FINDINGS 2$' "$TMP_DIR/run.out"
   check "delta: no approval" [ "$(approvals)" = 0 ]
   check "delta: the prompt does not post" eval '! grep -q "gh api" "$SCRIPTS/pr-review-watch/delta-prompt.md"'
@@ -1041,6 +1103,7 @@ case_autoreview_fails_loudly() {
   check "autoreview timeout: notifies" called "notify "
   autoreview
   check "autoreview without DONE: fakes answered" called "claude AUTOREVIEW"
+  check "autoreview: timing recorded outside result" eval 'grep -Eq "^=== timing autoreview: elapsed_s=[0-9]+ process_exit=0$" "$TMP_DIR/run.out" && ! find "$TMPDIR" -name result.md -exec grep -l "=== timing" {} + | grep -q .'
   check "autoreview without DONE: exits non-zero" [ "$RC" != 0 ]
   check "autoreview without DONE: notifies" called "notify "
 }
@@ -1330,6 +1393,8 @@ case_incomplete_reviews
 case_unverified_envelopes
 case_ticketed_then_clean_delta_waits
 case_watch_mode
+case_timing_returns
+case_codex_timing_returns
 case_unresolved_council_lifecycle
 case_legacy_council_state
 case_ambiguous_marker_attacks
