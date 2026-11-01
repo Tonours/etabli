@@ -276,8 +276,7 @@ validator_checkout "$VALIDATOR_REPO" || { echo "cannot create the validator chec
 wait "$!" || RC_VALIDATOR=$?
 
 if [ "$PHASE_A_ONLY" = 1 ] && [ "$RC_VALIDATOR" -eq 0 ]; then
-  KEPT="$(grep -o '"kind":"run"[^>]*' "$WORK_DIR/phase-b.md" | grep -F "\"sha\":\"$HEAD_SHA\"" | tail -1 \
-    | sed -n 's/.*"findings":\([0-9]*\).*/\1/p')"
+  KEPT="$(validator_run_findings <(printf '=== phase B: \n'; cat "$WORK_DIR/phase-b.md") "$HEAD_SHA")"
   COUNTS="$(head_review_counts)" || exit 1
   read -r _ VALIDATOR_OPEN OWN_AFTER <<< "$COUNTS"
   if [ -n "$KEPT" ] && [ "$KEPT" -gt 0 ] && [ "$POST_MODE" = post ] && [ "${OWN_AFTER:-0}" -le "${OWN_BEFORE:-0}" ]; then

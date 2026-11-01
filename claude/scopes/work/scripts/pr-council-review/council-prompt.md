@@ -73,3 +73,15 @@ cannot see is worse than no dry-run — it reads as though the review was
 inspectable when it never was.
 
 The PR is {{PR_URL}}, base `{{BASE_REF}}`.
+
+The invoker accepts the skill's existing HTML `<!-- claudine:v1 ... -->` or
+terminal `=== run marker: claudine:v1 ... --` encoding. Put the actual run
+marker on its own line, starting with that prefix; prose and quoted copies do
+not count. Include a nonempty `lenses` object or array of strings, with
+`pending` for any unresolved material candidate. Missing or malformed lenses
+make the run incomplete. Keep the skill's GitHub payload and write rules.
+
+`security` must be a nonempty string; use `ticketed` while a security ticket
+remains unresolved. Other states from the skill remain supported. Emit only
+one JSON object per marker and never duplicate object keys. Report excerpts
+must not masquerade as phase headers or run control markers.

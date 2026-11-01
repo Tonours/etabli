@@ -94,11 +94,30 @@ run_shown() {
   return "$rc"
 }
 
+council_report_path() {
+  printf '%s/%s-%s-%s-council.md' "$(dirname "$REPORT")" "${REPO//\//_}" "$NUMBER" "${1:0:8}"
+}
+
+council_state_complete() {
+  local council findings
+  council="$(cat "$KEY.council-done" 2>/dev/null)" && [ -n "$council" ] || return 1
+  findings="$(validator_run_findings "$(council_report_path "$council")" "$council")" || return 1
+  if [ -f "$KEY.council-clean" ]; then
+    [ "$findings" = 0 ] && [ "$(cat "$KEY.council-clean")" = "$council" ] || return 1
+  fi
+}
+
 run_council() {
   local body findings
+  REPORT="$(council_report_path "$SHA")"
+  rm -f "$KEY.council-done" "$KEY.council-clean" || return "$REVIEW_INCOMPLETE_RC"
   run_shown "$REPORT" "$COUNCIL" "$NUMBER" "$REPO" --post || return
-  findings="$(validator_run_findings "$REPORT" "$SHA")"
-  [ -n "$findings" ] || { echo "=== no validator run marker for ${SHA:0:8}: the review is incomplete"; return "$REVIEW_INCOMPLETE_RC"; }
+  findings="$(validator_run_findings "$REPORT" "$SHA" 2>>"$REPORT")"
+  [ -n "$findings" ] || {
+    rm -f "$KEY.council-done" "$KEY.council-clean"
+    echo "=== no complete validator run marker for ${SHA:0:8} (pending, ticketed, malformed or missing): the review is incomplete" | tee -a "$REPORT"
+    return "$REVIEW_INCOMPLETE_RC"
+  }
   echo "$SHA" >"$KEY.council-done"
   [ "$findings" = 0 ] || return 0
   echo "=== approval"
@@ -160,6 +179,12 @@ council_in_history() {
 run_verify() {
   local delta_log="${REPORT%.md}-delta.md" delta_findings reviewed history=0
   rm -f "$KEY.verify-unconfigured"
+  if ! council_state_complete; then
+    echo "=== stored council report missing, incomplete or inconsistent: full council again"
+    rm -f "$KEY".{council-done,council-clean,watermark,delta-done} || return "$REVIEW_INCOMPLETE_RC"
+    run_council
+    return
+  fi
   council_in_history || history=$?
   case "$history" in
     0) ;;
@@ -208,6 +233,11 @@ run_pending_approval() {
   pending_sha="$(cat "$KEY.approval-pending" 2>/dev/null)"
   [ -f "$KEY.approval-body" ] || { rm -f "$KEY.approval-pending"; echo "=== pending approval has no body, dropped"; return 0; }
   [ "$pending_sha" = "$SHA" ] || { rm -f "$KEY.approval-pending" "$KEY.approval-body"; echo "=== pending approval was for ${pending_sha:0:8}, dropped"; return 0; }
+  if ! council_state_complete; then
+    rm -f "$KEY".{council-done,council-clean,watermark,delta-done,approval-pending,approval-body,status} || return "$REVIEW_INCOMPLETE_RC"
+    echo "=== approval deferred: stored council report invalid; queued for a normal council next tick"
+    return 0
+  fi
   CI_WAIT_SECONDS=0
   blocker="$(objective_blocker)"
   [ -z "$blocker" ] || { echo "=== approval still pending: $blocker"; return 0; }
