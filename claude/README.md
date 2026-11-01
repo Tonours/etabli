@@ -142,9 +142,9 @@ when it finds nothing. `pr-autoreview/install.sh` wires a machine.
 ## PR review watch
 
 `scopes/work/scripts/pr-review-watch/` reviews PRs where the user's review is
-requested (never the user's own PRs). A LaunchAgent runs `watch.sh` every 300 s:
+requested (never the user's own PRs). A LaunchAgent runs `watch.sh` every 60 s by default:
 it watches open PRs until closed, approved or no longer involving the user,
-reviews a head sha after 600 s of quiet, skips diffs above 5000 lines, runs at
+reviews a head sha after 120 s since first observation of that sha, skips diffs above 5000 lines, runs at
 most 2 reviews at once and 20 a day, and retries a failed review 3 times. Each
 review opens in a `pr-reviews` herdr tab, or runs detached.
 
@@ -165,10 +165,47 @@ scratch worktree. Later pushes read the linked PRs too. A Claude pass silent for
 sets the kill switch and stops reviews in flight. `tests/pr-review-gates-smoke.sh`
 covers the approval gates.
 
+The settle clock resets when the observed head changes; it does not measure the
+last push timestamp. Polling rounds the wait up to a later tick, and launchd
+scheduling, queue caps and review runtime can delay it further. At the default
+60 s interval, snapshot lookups alone are approximately 60 per watched PR per
+hour (previously 12), plus discovery, size and other lookups. This is invocation
+frequency, not measured GitHub API points or a quota guarantee. Watch API
+failures, changed heads during review and daily-cap exhaustion when trialing it.
+
+`PR_REVIEW_WATCH_SETTLE` overrides the settle default for direct invocations.
+The LaunchAgent only configures PATH: a shell export does not configure its
+job; add a settle override to the plist's EnvironmentVariables if needed.
+`pr-review-watch/install.sh <seconds>` sets the polling interval. Scripts are
+linked to the checkout, so changing that checkout changes settle and timing on
+the next invocation; existing installed plists keep their interval until
+regenerated. Roll back the source change for the old settle behavior, and
+regenerate the plist with `install.sh 300` for the old polling interval. A
+separate worktree does not change the linked checkout or load a LaunchAgent.
+
+Process timing goes to stderr and the existing `pr-review-usage.log`, alongside
+native usage: `timing <pass>: elapsed_s=<integer> process_exit=<code>`. Claude
+quality, thermo, validator, verify, delta and autoreview share this measurement;
+Codex has its own timing line. It covers subprocess wall time, including a
+timeout when control returns, with one-second resolution. `process_exit=0`
+means the CLI exited successfully: semantic completion, permission checks and
+approval gates still decide the result. Malformed/missing results can therefore
+have exit 0. A signal that terminates the shell may leave no timing line;
+exclude incomplete samples instead of treating them as zero seconds.
+Phase A already runs in parallel: sum-of-pass time is not council latency.
+Measure queue/start, first useful finding, full review and approval/CI waits
+separately when evaluating a deployment. Usage/cache categories stay separate;
+unique verified defects, false alarms, completion and human correction effort
+must accompany any speed comparison. No pass or effort default is removed or
+lowered on timing evidence alone.
+
 A council with a pending lens, ticketed security or a malformed run marker is
 incomplete even when it posted findings: it creates no completed-council state.
 The current SHA stops with exit 4; a new push gets a full council until that
 state is resolved, which can cost more than the ordinary fix-verification path.
+All Codex timing lines share the `codex` label; correlate them with the target,
+run report and invocation settings rather than inferring the effort from it.
+
 Before reusing a completed council or retrying approval, the runner validates
 its original canonical council report, including the full stored SHA. Missing,
 legacy-incomplete or inconsistent state gets a full council under normal
@@ -194,22 +231,3 @@ and other completed vendor statuses keep the normal fix-verification path.
 Parser refusal details are retained in the council report, including headless
 runs. These strict producer requirements need the same real-report rollout
 check above; they are not deployed by this worktree.
-
-Process timing goes to stderr and the existing `pr-review-usage.log`, alongside
-native usage: `timing <pass>: elapsed_s=<integer> process_exit=<code>`. Claude
-quality, thermo, validator, verify, delta and autoreview share this measurement;
-Codex has its own timing line. It covers subprocess wall time, including a
-timeout when control returns, with one-second resolution. `process_exit=0`
-means the CLI exited successfully: semantic completion, permission checks and
-approval gates still decide the result. Malformed/missing results can therefore
-have exit 0. A signal that terminates the shell may leave no timing line;
-exclude incomplete samples instead of treating them as zero seconds.
-Phase A already runs in parallel: sum-of-pass time is not council latency.
-Measure queue/start, first useful finding, full review and approval/CI waits
-separately when evaluating a deployment. Usage/cache categories stay separate;
-unique verified defects, false alarms, completion and human correction effort
-must accompany any speed comparison. No pass or effort default is removed or
-lowered on timing evidence alone.
-
-All Codex timing lines share the `codex` label; correlate them with the target,
-run report and invocation settings rather than inferring the effort from it.

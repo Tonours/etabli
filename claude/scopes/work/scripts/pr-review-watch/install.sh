@@ -4,7 +4,7 @@ set -euo pipefail
 LABEL="com.aguimard.pr-review-watch"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 SCRIPT="$HOME/.claude/scripts/pr-review-watch/watch.sh"
-INTERVAL="${1:-300}"
+INTERVAL="${1:-60}"
 
 [ -x "$SCRIPT" ] || { echo "missing $SCRIPT, run etabli scripts/install.sh first" >&2; exit 1; }
 case "$INTERVAL" in ''|*[!0-9]*) echo "interval must be seconds" >&2; exit 2 ;; esac
