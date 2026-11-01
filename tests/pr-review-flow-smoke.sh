@@ -520,7 +520,41 @@ unwatch_as() {
   watch_fn "pr_snapshot() { printf '$1\tfalse\t$HEAD1\turl\t$2\t$3\n'; }; herdr_available() { return 1; }; remove_finished_clones() { :; }; process_watched me" >/dev/null
 }
 
+settle_decision() {
+  local age="$1" seen_sha="$2" override="${3:-}"
+  reset_state
+  mkdir -p "$STATE/runs"
+  set_head "$HEAD2"
+  printf '%s %s\n' "$seen_sha" "$((1000 - age))" >"$KEY.seen"
+  (cd "$CLONE" && PR_REVIEW_WATCH_STATE_DIR="$STATE" PR_REVIEW_WATCH_SETTLE="$override" /bin/bash -c '
+    . "$1"
+    date() { if [ "$1" = +%s ]; then echo 1000; else command date "$@"; fi; }
+    launch() { echo "launch $5"; }
+    consider me o/r 7 "$2" url
+  ' _ "$SCRIPTS/pr-review-watch/watch.sh" "$HEAD2" 2>&1)
+}
 
+case_settle_boundaries() {
+  local out
+  out="$(settle_decision 119 "$HEAD2")"
+  check "settle: before default boundary waits" eval '! grep -q "^launch" <<<"$out"'
+  out="$(settle_decision 120 "$HEAD2")"
+  check "settle: default boundary launches" grep -q '^launch council$' <<<"$out"
+  out="$(settle_decision 121 "$HEAD2")"
+  check "settle: after default boundary launches" grep -q '^launch council$' <<<"$out"
+  out="$(settle_decision 900 "$HEAD1")"
+  check "settle: changed sha restarts wait" eval 'grep -q "first seen 0s ago" <<<"$out" && ! grep -q "^launch" <<<"$out"'
+  out="$(settle_decision 120 "$HEAD2" 121)"
+  check "settle: explicit longer override waits" eval '! grep -q "^launch" <<<"$out"'
+  out="$(settle_decision 120 "$HEAD2" 120)"
+  check "settle: explicit boundary launches" grep -q '^launch council$' <<<"$out"
+  out="$(settle_decision 0 "$HEAD1" 0)"
+  check "settle: zero override launches immediately" grep -q '^launch council$' <<<"$out"
+  reset_state
+  mkdir -p "$STATE/runs"
+  out="$(watch_fn "clock=1000; date() { echo \"\$clock\"; }; seen_age '$KEY' '$HEAD1'; clock=1100; seen_age '$KEY' '$HEAD2'; clock=1300; seen_age '$KEY' '$HEAD1'; clock=1307; seen_age '$KEY' '$HEAD1'")"
+  check "settle: reverting to an earlier sha restarts wait" [ "$out" = $'0\n0\n0\n7' ]
+}
 
 case_timing_returns() {
   local sample log rc expected process_rc envelope missing mode expected_text
@@ -577,6 +611,20 @@ case_codex_timing_returns() {
   done
 }
 
+case_global_launch_cap() {
+  local count out
+  reset_state
+  mkdir -p "$STATE/runs"
+  set_head "$HEAD2"
+  for count in 2 3; do
+    out="$(watch_fn "MAX_RUNS_PER_DAY=3; for ((i=0; i<$count; i++)); do echo 'o/r#7@sha'; done >\"\$(launches_file)\"; consider me o/r 8 '$HEAD2' url")"
+    if [ "$count" = 2 ]; then
+      check "global cap: other PR launches below cap" grep -q '^launch council$' <<<"$out"
+    else
+      check "global cap: shared exhaustion queues other PR" eval 'grep -q "daily cap 3 reached" <<<"$out" && ! grep -q "^launch" <<<"$out"'
+    fi
+  done
+}
 
 case_unresolved_council_lifecycle() {
   local state count unresolved reviews after
@@ -1380,6 +1428,9 @@ case_launchd_plist() {
   if command -v plutil >/dev/null; then
     check "launchd: plist lints" plutil -lint -s "$plist"
   fi
+  check "launchd: default interval is 60 seconds" eval "grep -A1 '<key>StartInterval</key>' '$plist' | grep -q '<integer>60</integer>'"
+  PR_REVIEW_WATCH_NO_LOAD=1 /bin/bash "$SCRIPTS/pr-review-watch/install.sh" 300 >/dev/null
+  check "launchd: explicit interval preserved" eval "grep -A1 '<key>StartInterval</key>' '$plist' | grep -q '<integer>300</integer>'"
   check "launchd: abandons the process group" eval "grep -A1 '<key>AbandonProcessGroup</key>' '$plist' | grep -q '<true/>'"
   check "launchd: PATH starts with ~/.local/bin" grep -q "<string>$HOME/.local/bin:/opt/homebrew/bin:" "$plist"
 }
@@ -1393,8 +1444,10 @@ case_incomplete_reviews
 case_unverified_envelopes
 case_ticketed_then_clean_delta_waits
 case_watch_mode
+case_settle_boundaries
 case_timing_returns
 case_codex_timing_returns
+case_global_launch_cap
 case_unresolved_council_lifecycle
 case_legacy_council_state
 case_ambiguous_marker_attacks
