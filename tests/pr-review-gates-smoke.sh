@@ -60,27 +60,34 @@ expect "objective: kill switch blocks" "kill switch is on" "$(run_gates objectiv
 rm -f "$TMP_DIR/state/off"
 
 verdict() { printf 'report\nVERIFY_VERDICT reviewed=%s reopened=%s regressions=%s complete=%s confident=%s\n' "$@" >"$TMP_DIR/verify.log"; }
+printf 'DELTA_CONFIDENT value=true\n' >"$TMP_DIR/verify-delta.log"
 verdict 2 0 0 true true
-expect "verify: settled and confident approves" "" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0")"
-expect "verify: delta findings block" "delta review posted 1 findings" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 1")"
-expect "verify: unknown delta count blocks" "delta review posted unknown findings" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' ''")"
+expect "verify: settled and confident approves" "" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0 '$TMP_DIR/verify-delta.log'")"
+expect "verify: delta findings block" "delta review posted 1 findings" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 1 '$TMP_DIR/verify-delta.log'")"
+expect "verify: unknown delta count blocks" "delta review posted unknown findings" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' '' '$TMP_DIR/verify-delta.log'")"
+printf 'DELTA_CONFIDENT value=false\n' >"$TMP_DIR/verify-delta.log"
+expect "verify: delta uncertainty blocks a confident verifier" "delta reviewer not confident" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0 '$TMP_DIR/verify-delta.log'")"
+printf 'no delta verdict\n' >"$TMP_DIR/verify-delta.log"
+expect "verify: missing delta confidence blocks" "delta reviewer not confident" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0 '$TMP_DIR/verify-delta.log'")"
+expect "verify: absent delta log blocks" "delta reviewer not confident" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0 '$TMP_DIR/absent'")"
+printf 'DELTA_CONFIDENT value=true\n' >"$TMP_DIR/verify-delta.log"
 verdict 0 0 0 true true
-expect "verify: empty finding set without a clean review blocks" "no finding was verified" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0")"
+expect "verify: empty finding set without a clean review blocks" "no finding was verified" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0 '$TMP_DIR/verify-delta.log'")"
 mkdir -p "$TMP_DIR/state" && touch "$TMP_DIR/state/key.council-clean"
-expect "verify: empty finding set after a clean review approves" "" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0")"
+expect "verify: empty finding set after a clean review approves" "" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0 '$TMP_DIR/verify-delta.log'")"
 rm -f "$TMP_DIR/state/key.council-clean"
 verdict 2 1 0 true true
-expect "verify: reopened blocks" "findings reopened" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0")"
+expect "verify: reopened blocks" "findings reopened" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0 '$TMP_DIR/verify-delta.log'")"
 verdict 2 0 1 true true
-expect "verify: regressions block" "regressions raised" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0")"
+expect "verify: regressions block" "regressions raised" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0 '$TMP_DIR/verify-delta.log'")"
 verdict 2 0 0 false true
-expect "verify: incomplete set blocks" "finding set incomplete" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0")"
+expect "verify: incomplete set blocks" "finding set incomplete" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0 '$TMP_DIR/verify-delta.log'")"
 verdict 2 0 0 true false
-expect "verify: not confident blocks" "reviewer not confident" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0")"
+expect "verify: not confident blocks" "reviewer not confident" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0 '$TMP_DIR/verify-delta.log'")"
 verdict x 0 0 true true
-expect "verify: unreadable count blocks" "unreadable finding count" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0")"
+expect "verify: unreadable count blocks" "unreadable finding count" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0 '$TMP_DIR/verify-delta.log'")"
 printf 'no verdict\n' >"$TMP_DIR/verify.log"
-expect "verify: missing verdict blocks" "no VERIFY_VERDICT line" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0")"
+expect "verify: missing verdict blocks" "no VERIFY_VERDICT line" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0 '$TMP_DIR/verify-delta.log'")"
 
 printf 'DELTA_FINDINGS 0\nDELTA_CONFIDENT value=true\n' >"$TMP_DIR/delta.log"
 expect "clean: confident delta approves" "" "$(run_gates "clean_blocker '$TMP_DIR/delta.log' 0")"

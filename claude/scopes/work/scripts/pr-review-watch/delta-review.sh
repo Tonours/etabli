@@ -1,10 +1,11 @@
 #!/bin/bash
 set -uo pipefail
 
-REPO="${1:?usage: delta-review.sh <owner/repo> <number> <since-sha>}"
+REPO="${1:?usage: delta-review.sh <owner/repo> <number> <since-sha> [linked-file] [expected-sha]}"
 NUMBER="${2:?}"
 SINCE="${3:?}"
 LINKED_FILE="${4:-}"
+EXPECTED_SHA="${5:-}"
 MODEL="${PR_REVIEW_WATCH_DELTA_MODEL:-sonnet}"
 LEVEL="${PR_REVIEW_WATCH_DELTA_LEVEL:-medium}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -12,11 +13,15 @@ PROMPT_FILE="$HERE/delta-prompt.md"
 . "$HERE/../pr-council-review/lib.sh"
 
 USAGE_TARGET="$REPO#$NUMBER"
-FINDINGS_SCHEMA='{"type":"object","additionalProperties":false,"required":["findings","confident"],"properties":{"findings":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["path","line","body"],"properties":{"path":{"type":"string"},"line":{"type":"integer"},"body":{"type":"string"}}}},"confident":{"type":"boolean"}}}'
+FINDINGS_SCHEMA='{"type":"object","additionalProperties":false,"required":["findings","confident"],"properties":{"findings":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["path","line","body","severity","verification"],"properties":{"path":{"type":"string","minLength":1},"line":{"type":"integer","minimum":1},"body":{"type":"string","minLength":1},"severity":{"type":"string","enum":["high","medium","low"]},"verification":{"type":"string","enum":["confirmed","unverified"]}}}},"confident":{"type":"boolean"}}}'
 
 META="$(gh pr view "$NUMBER" --repo "$REPO" --json headRefOid,baseRefName,url \
   --jq '[.headRefOid, .baseRefName, .url] | @tsv')" || { echo "cannot read $REPO#$NUMBER" >&2; exit 1; }
 IFS=$'\t' read -r HEAD_SHA BASE_REF PR_URL <<<"$META"
+if [ -n "$EXPECTED_SHA" ] && [ "$HEAD_SHA" != "$EXPECTED_SHA" ]; then
+  echo "=== delta: head moved from ${EXPECTED_SHA:0:8} to ${HEAD_SHA:0:8}; no verdict for the requested commit" >&2
+  exit "$REVIEW_INCOMPLETE_RC"
+fi
 
 # path:line for every line the PR adds or changes on the head; GitHub rejects a
 # review whose comments sit elsewhere.
@@ -32,13 +37,14 @@ git fetch -q origin "+refs/pull/$NUMBER/head:refs/remotes/origin/pr/$NUMBER" \
 MERGE_BASE="$(git merge-base "refs/remotes/origin/$BASE_REF" "$HEAD_SHA")" || { echo "no merge base" >&2; exit 1; }
 if git cat-file -e "$SINCE^{commit}" 2>/dev/null && same_patch "refs/remotes/origin/$BASE_REF" "$SINCE" "$HEAD_SHA"; then
   echo "=== nothing new since ${SINCE:0:8}: the head carries the same changes on a new base"
+  printf 'DELTA_HEAD %s\nDELTA_FINDINGS 0\nDELTA_CONFIDENT value=true\n' "$HEAD_SHA"
   exit 0
 fi
 if ! git cat-file -e "$SINCE^{commit}" 2>/dev/null || ! git merge-base --is-ancestor "$SINCE" "$HEAD_SHA"; then
   echo "=== ${SINCE:0:8} is not an ancestor of the head (rebase, force-push or no prior review): reviewing the whole PR diff"
   SINCE="$MERGE_BASE"
 fi
-[ "$SINCE" != "$HEAD_SHA" ] || { echo "=== nothing new since ${SINCE:0:8}"; exit 0; }
+[ "$SINCE" != "$HEAD_SHA" ] || { echo "=== nothing new since ${SINCE:0:8}"; printf 'DELTA_HEAD %s\nDELTA_FINDINGS 0\nDELTA_CONFIDENT value=true\n' "$HEAD_SHA"; exit 0; }
 
 purge_old_dirs "${TMPDIR:-/tmp}" "pr-delta-*" 7
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/pr-delta-$NUMBER.XXXXXX")"
@@ -54,10 +60,23 @@ PROMPT="$(render_template "$PROMPT_FILE" REPO="$REPO" PR_NUMBER="$NUMBER" PR_URL
 
 (cd "$WORKTREE" && claude_pass delta "$WORK_DIR/delta.json" read-only "$PROMPT" --model "$MODEL" --effort low \
   --json-schema "$FINDINGS_SCHEMA" "${ISOLATED_SETTINGS[@]}" >/dev/null) || exit
-REVIEW="$(jq -ce '.structured_output | select(type == "object" and (.findings | type) == "array" and (.confident | type) == "boolean")' \
-  "$WORK_DIR/delta.json")" || { echo "=== delta: the session returned no structured findings" >&2; exit "$REVIEW_INCOMPLETE_RC"; }
+REVIEW="$(jq -ce '.structured_output | select(type == "object" and (.findings | type) == "array" and (.confident | type) == "boolean")
+  | select(all(.findings[];
+      (.path | type) == "string" and (.path | test("\\S")) and
+      (.body | type) == "string" and (.body | test("\\S")) and
+      (.line | type) == "number" and .line >= 1 and (.line | floor) == .line and
+      (.severity | IN("high", "medium", "low")) and
+      (.verification | IN("confirmed", "unverified"))))' "$WORK_DIR/delta.json")" \
+  || { echo "=== delta: missing or invalid structured findings; verification and severity are required" >&2; exit "$REVIEW_INCOMPLETE_RC"; }
+UNVERIFIED="$(jq '[.findings[] | select(.verification == "unverified")] | length' <<<"$REVIEW")"
+if [ "$UNVERIFIED" -gt 0 ]; then
+  echo "=== open questions: $UNVERIFIED unverified delta candidates (not posted)"
+  jq -r '.findings[] | select(.verification == "unverified") | "[\(.severity), unverified] \(.path | @json):\(.line) — \(.body | @json)"' <<<"$REVIEW"
+  REVIEW="$(jq '.confident = false' <<<"$REVIEW")"
+fi
+REVIEW="$(jq '.findings |= map(select(.verification == "confirmed"))' <<<"$REVIEW")"
 COUNT="$(jq '.findings | length' <<<"$REVIEW")"
-jq -r '.findings[] | "\(.path):\(.line) — \(.body | split("\n")[0])"' <<<"$REVIEW"
+jq -r '.findings[] | "[\(.severity), confirmed] \(.path | @json):\(.line) — \(.body | split("\n")[0] | @json)"' <<<"$REVIEW"
 if [ "$COUNT" -gt 0 ]; then
   jq --arg sha "$HEAD_SHA" --arg body "Incremental review of ${SINCE:0:8}..${HEAD_SHA:0:8}: $COUNT findings." \
     --rawfile changed <(changed_lines "$MERGE_BASE" "$HEAD_SHA") '
@@ -73,5 +92,6 @@ if [ "$COUNT" -gt 0 ]; then
 else
   echo "no findings, nothing posted"
 fi
+echo "DELTA_HEAD $HEAD_SHA"
 echo "DELTA_FINDINGS $COUNT"
 echo "DELTA_CONFIDENT value=$(jq .confident <<<"$REVIEW")"

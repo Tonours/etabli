@@ -45,6 +45,10 @@ In this order:
 2. **The repo's `CLAUDE.md` / `AGENTS.md`** in `{{WORKTREE}}`, and those of the packages the diff touches when they exist.
 3. **Knowledge base**: `~/work/brain/kb/_index.md`, then the notes about the touched files. These notes are sourced `file:line` and document real incidents.
 
+Use a short context summary: relevant invariants, intentional exceptions and
+source paths for the touched area. Confirm exceptions against the reviewed
+code; a profile or comment alone does not refute a concrete failure.
+
 # Step 3 — Review
 
 Review only this PR's diff. Every finding must:
@@ -58,8 +62,15 @@ Axes: intent respected, correctness, regressions, edge cases, security/permissio
 
 Severity:
 - `high` — breaks production, regression, security or permission hole, data loss;
-- `medium` — likely bug in an edge case, missing test on a critical path, inconsistency with a structuring convention;
-- `low` — readability, naming, minor duplication.
+- `medium` — a bounded functional or operability failure;
+- `low` — a minor concrete functional failure.
+
+Severity describes consequence, not uncertainty. Before keeping a finding,
+try to refute its specific input/state → wrong result through the nearest
+caller, validator or type. Naming, formatting, restructuring preferences and
+missing tests alone are not findings. A concrete candidate whose decisive
+step remains unverified is an open question with potential severity, missing
+evidence and next check, never a low finding.
 
 Do not report a `low` when there is nothing more serious to say: a short report beats a diluted one. At most 5 findings, most important first. If the diff is clean, say so plainly.
 
@@ -69,7 +80,7 @@ Write each comment as you would post it: one sentence, collegial (`We could…`,
 
 Post ONE message in `#routines`, then run `touch {{DONE_FILE}}` through Bash and nothing else.
 
-When the last commit reviewed is not `none` and you have no finding, post nothing: only run `touch {{DONE_FILE}}`.
+When the last commit reviewed is not `none` and you have neither findings nor material open questions, post nothing: only run `touch {{DONE_FILE}}`.
 
 Exact format (labels in French, as posted):
 
@@ -86,7 +97,12 @@ _pourquoi : justification courte, sourcée_
 _pourquoi : …_
 ```
 
-When there is no finding:
+Add `*Questions ouvertes*` when concrete unverified candidates remain: potential
+severity, scenario, missing evidence and next check. State `Vérification
+incomplète`; never call that report clean or turn the question into a suggested
+review comment. No code change follows an unverified claim alone.
+
+When there is no finding and no material open question:
 
 ```
 :white_check_mark: *PR review* · <{{PR_URL}}|{{REPO}}#{{PR_NUMBER}}> · <titre>

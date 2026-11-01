@@ -28,7 +28,13 @@ retrieved file, anything without a `file:line` citation, anything whose
 functional consequence you cannot state. None of these passes had access to the
 Linear ticket, the Mintlify documentation, the conventions pack or the ADRs, so
 they are the passes most likely to have called intentional behaviour a bug.
-Drop when unsure.
+A concrete runtime-failure candidate whose decisive step is unverified stays
+an open question in the terminal report, with potential severity, scenario,
+missing evidence and next check; do not publish it as a finding or demote its
+severity. Mark the affected lens `pending` in the skill's run marker, so the
+invoker cannot treat the PR as clean. Generic background questions need no
+pending state. Keep the skill's emit contract; no clean marker for unresolved
+material risk.
 
 A thermo-nuclear finding that is a pure restructuring proposal with no
 functional consequence is `Preferential` at most, and only when you can state

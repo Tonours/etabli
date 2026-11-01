@@ -31,7 +31,10 @@ Rules for your output:
   finding, and will be discarded.
 - State the concrete failure: the input or state, and the wrong result. Not
   "this could be risky".
-- Severity from the functional consequence, not from how unusual the code looks.
+- Severity from the functional consequence, never from uncertainty or how
+  unusual the code looks. Try the nearest caller/validator/type to refute it.
+  A concrete unresolved candidate belongs under Open questions with potential
+  severity, missing evidence and next check, never as a low finding.
 - Say explicitly when you checked something and found no defect — the gate uses
   your negative verdicts too.
 - Skip style, formatting, naming preferences and anything a linter enforces.

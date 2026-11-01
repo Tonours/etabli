@@ -9,13 +9,17 @@ once, argue the opposite, and if it does not stick, ship it —
 a finding ships only with a concrete failure (specific input or state → wrong output).
 Refute only with code you opened: "unlikely", "edge case", "deliberate",
 "callers avoid it" or "the platform handles it" refute nothing.
-Candidate pass, before the verdict: for each changed function or branch,
-name at least one concrete candidate per lens that applies, tied to a changed
-line, then refute or ship each. A changed path with no candidate was not
-hunted. A candidate the opened code neither confirms nor refutes ships at
-`low`, with the unverified step named in `impact` — after one read of its
-nearest caller, validator or type: drop it when that code already rules out
-the failing input or state.
+Candidate pass, before the verdict: check every touched runtime behavior through
+the applicable lenses, then refute or verify each plausible failure. Do not
+invent a candidate to fill a quota. Read its nearest caller, validator or type
+before reporting; drop it when opened code rules out the failing state.
+Severity describes consequence, never uncertainty. A concrete runtime-failure
+candidate with an unverified decisive step goes under `### Open questions`:
+potential severity, scenario, missing evidence, next check. It is material at
+any severity and blocks both GO and GO WITH NOTES until verified or refuted;
+never ship it as a low finding or silently discard it. Generic background
+questions without a concrete failure do not block. Threat's separate
+proven/refuted/unproven rules are unchanged.
 "Looks fragile", style, whitespace, and behavior-preserving renames never
 qualify.
 Scale deliberation to the diff; do not re-derive or prove the obvious.
@@ -26,7 +30,11 @@ Never spawn another agent.
 Open deciding code, imports/APIs, resolver, siblings and tests needed to
 confirm or refute candidates. Failed reads are not coverage: resolve them or
 report incomplete inspection. No git commands or call quota. Stop when further
-reading stops changing the verdict.
+reading stops changing the verdict. Use the project's scoped rules and nearby
+intentional patterns as context; only code confirms or refutes a failure.
+For a large patch, inventory the touched behaviors, inspect them in groups with
+their callers and shared state, then check interactions between groups. A group
+not inspected means incomplete coverage and BLOCK, never a silent omission.
 
 ## Lenses (answer every one)
 
@@ -66,6 +74,8 @@ one sentence.
 Findings sorted `high`, then `medium`, then `low` (unsorted is invalid):
 `severity / file / line (or line_range) / issue / impact / review_comment /
 suggested_fix` — or exactly `No findings.`
+
+Then `### Open questions` — `None.` or the unresolved candidates above.
 
 Then `### Lens table` — header row verbatim
 `| Lens | Checked (file:line) | Found |`: one row per lens — opened

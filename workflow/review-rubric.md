@@ -90,6 +90,16 @@ path it takes, the wrong output. "Looks fragile" or "consider hardening" are
 open questions, not findings. Lead filters after the hunt; it does not
 re-hunt the diff.
 
+### 6b. Uncertainty and severity
+
+Severity describes the consequence, never the strength of evidence. Logic puts
+any concrete runtime-failure candidate whose decisive step is unverified under
+`### Open questions`, with potential severity, scenario, missing evidence and
+next check. It is material at any severity and blocks both GO and GO WITH NOTES
+until verified or refuted; it is neither a confirmed finding nor a low-severity
+substitute. Generic background questions without a concrete failure do not
+block. Threat keeps its separate proven/refuted/unproven dispositions.
+
 ### 7. Human checkpoint
 
 - explicitly say when a human should arbitrate: accepted risk, ambiguous
@@ -189,6 +199,7 @@ End with a final line in this exact shape:
 - `Verdict: BLOCK`
 
 **GO** and **GO WITH NOTES** require: every runtime deciding-code row filled with a real `file:line` (or a whole-diff `n/a` whose listed paths are all documents or pure renames), no lens row left `not run` or unsanctioned, and a complete Threat report (all six tables, none `partial:`) whenever the Threat trigger fired. A `proven` Threat finding, or an `unproven` high one, is `BLOCK`.
+Unresolved material Logic candidates under Open questions also require `BLOCK`.
 Notes on `GO WITH NOTES` state remaining risk or test gaps only — never a style, naming, or formatting change request.
 
 ## Rules
