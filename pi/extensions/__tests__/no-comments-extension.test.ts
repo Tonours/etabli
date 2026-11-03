@@ -294,6 +294,7 @@ describe("unified Claude verdicts", () => {
 			expect(viaLink("linked/deep/new.ts")).not.toBeNull();
 			expect(viaLink("file.ts")).not.toBeNull();
 			expect(viaLink("linked/../escape.ts")).not.toBeNull();
+			expect(noCommentsGuardDecision({ cwd: outside, tool_name: "Write", tool_input: { file_path: join(fixtureCwd, "..", "beside.ts"), content: added } })).toBeNull();
 			const worktree = join(outside, "wt");
 			mkdirSync(worktree);
 			writeFileSync(join(worktree, ".git"), "gitdir: /elsewhere\n");

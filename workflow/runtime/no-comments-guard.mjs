@@ -419,20 +419,29 @@ function hasGitAncestor(path) {
 }
 
 function physicalPath(path) {
-	let existing = path;
-	while (!existsSync(existing) && dirname(existing) !== existing) existing = dirname(existing);
-	try {
-		return realpathSync(existing);
-	} catch {
-		return existing;
+	let current = "/";
+	for (const part of path.split("/")) {
+		if (!part || part === ".") continue;
+		if (part === "..") {
+			current = dirname(current);
+			continue;
+		}
+		const next = current === "/" ? `/${part}` : `${current}/${part}`;
+		if (!existsSync(next)) return current;
+		try {
+			current = realpathSync(next);
+		} catch {
+			return current;
+		}
 	}
+	return current;
 }
 
 function insideGitWorkTree(cwd, filePath) {
 	const base = cwd || process.cwd();
 	const abs = resolve(base, filePath);
 	const unreduced = isAbsolute(filePath) ? filePath : `${base}/${filePath}`;
-	return hasGitAncestor(dirname(abs)) || hasGitAncestor(physicalPath(abs)) || hasGitAncestor(dirname(unreduced));
+	return hasGitAncestor(dirname(abs)) || hasGitAncestor(physicalPath(unreduced));
 }
 
 function previousFileText(cwd, filePath) {
