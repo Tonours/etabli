@@ -26,3 +26,26 @@ Rules:
   exposed, else the narrowest domain skill or 1-3 local siblings) and record
   `quality: pass`, or `quality: unavailable` and stop before completion if no
   pass exists.
+
+## Delivery
+
+After validation, archive and push (implementation-loop steps 14-18), deliver
+by the branch and ticket:
+
+- Default branch with direct commits (like etabli): no PR step; report the
+  pushed SHAs.
+- Linear ticket linked (in the branch name or the brief):
+  1. Open the PR with the `pr` skill.
+  2. Run the council at its default high effort, posting:
+     `~/.claude/scripts/pr-council-review/run.sh <N> --post` (the
+     `pr-council-review` skill on Claude; the same script through Bash on
+     Pi). Script missing → `council: unavailable`, stop `blocked`.
+  3. Fix every blocking finding, push, rerun the council. At most 3 rounds;
+     still not GO after round 3 → stop `blocked` with the open findings.
+  4. Only after GO, move the Linear ticket to In Review.
+  5. End with the PR link.
+  A blocked stop leaves the Linear ticket untouched.
+- No Linear ticket: open the PR with the `pr` skill, end with its link.
+- Under fleet (`FLEET_SESSION_ID` set): PR and council run directly; ask for
+  the Linear status change through a `fleet question` to the host instead of
+  writing it.
