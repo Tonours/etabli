@@ -21,7 +21,8 @@ below by a path relative to this file (Pi reads the same file as
 ## Compact instructions
 When compacting, keep the root `PLAN.md` subject and status, files modified,
 frozen check commands and last results, open findings, and the exact next
-action. Drop stale exploration output.
+action. Keep the chat language (French with the owner). Drop stale
+exploration output.
 
 ## Safety
 - Runtime: Node.js/TypeScript, local tests.
