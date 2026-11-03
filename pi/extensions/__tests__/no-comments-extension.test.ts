@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -17,6 +17,7 @@ let fixtureCwd = "";
 
 beforeEach(() => {
 	fixtureCwd = mkdtempSync(join(tmpdir(), "etabli-no-comments-fixture-"));
+	mkdirSync(join(fixtureCwd, ".git"));
 });
 
 afterEach(() => {
@@ -236,18 +237,68 @@ describe("unified Claude verdicts", () => {
 		expect(decide(write("c.ts", "// eslint-disable-next-line no-console\nconsole.log(1);\n"))).toBe("allow");
 	});
 
-	test("denies astro comments, JSDoc continuations and duplicated comments", () => {
-		writeFileSync(join(fixtureCwd, "doc.ts"), "/**\n * Existing doc.\n */\nexport const a = 1;\n");
+	test("denies astro comments and duplicated comments", () => {
+		writeFileSync(join(fixtureCwd, "dup.ts"), "/* Existing note. */\nexport const a = 1;\n");
 		expect(decide(write("e.astro", "---\n// note\n---\n"))).toBe("deny");
+		expect(decide(write("dup.ts", "/* Existing note. */\n/* Existing note. */\nexport const a = 1;\n"))).toBe("deny");
+		expect(
+			decide({ tool_name: "edit", tool_input: { path: "dup.ts", oldText: "export const a = 1;", newText: "export const a = 1;\n/* Existing note. */" } }),
+		).toBe("deny");
+		expect(
+			decide({
+				tool_name: "multiedit",
+				tool_input: {
+					path: "dup.ts",
+					edits: [
+						{ oldText: "export const a = 1;", newText: "export const a = 1;\n// Existing note." },
+						{ oldText: "// Existing note.", newText: "/* Existing note. */" },
+					],
+				},
+			}),
+		).toBe("deny");
+		expect(
+			decide({ tool_name: "edit", tool_input: { path: "dup.ts", oldText: "export const a = 1;", newText: "export const a = 2;" } }),
+		).toBe("allow");
+	});
+
+	test("allows doc comments and a shell header, denies other comments", () => {
+		writeFileSync(join(fixtureCwd, "doc.ts"), "/**\n * Existing doc.\n */\nexport const a = 1;\n");
 		expect(
 			decide({ tool_name: "edit", tool_input: { path: "doc.ts", oldText: " * Existing doc.\n", newText: " * Existing doc.\n * new line\n" } }),
-		).toBe("deny");
-		expect(
-			decide({ tool_name: "edit", tool_input: { path: "doc.ts", oldText: "export const a = 1;", newText: "export const a = 1;\n/**\n * Existing doc.\n */" } }),
-		).toBe("deny");
-		expect(
-			decide({ tool_name: "edit", tool_input: { path: "doc.ts", oldText: "export const a = 1;", newText: "export const a = 2;" } }),
 		).toBe("allow");
+		expect(decide(write("lib.rs", "//! Crate docs.\n/// Adds one.\npub fn inc(x: u8) -> u8 { x + 1 }\n"))).toBe("allow");
+		expect(decide(write("lib2.rs", "//// banner\npub fn inc() {}\n"))).toBe("deny");
+		expect(decide(write("api.ts", "/** Adds one. */\nexport const inc = (x: number) => x + 1;\n"))).toBe("allow");
+		expect(decide(write("note.ts", "/* note */\nexport {};\n"))).toBe("deny");
+		expect(decide(write("line.ts", "// note\nexport {};\n"))).toBe("deny");
+		expect(decide(write("head.sh", "#!/usr/bin/env bash\n# Deploys the thing.\n#\n# Usage: head.sh\nset -eu\n"))).toBe("allow");
+		expect(decide(write("late.sh", "set -eu\n# restates set\n"))).toBe("deny");
+		expect(decide(write("sub.sh", "\"$(\n# note\n)\"\n"))).toBe("deny");
+		expect(decide(write("head.py", "# note\nx = 1\n"))).toBe("deny");
+	});
+
+	test("guards only files inside a git work tree, lexical or physical", () => {
+		const outside = mkdtempSync(join(tmpdir(), "etabli-no-comments-outside-"));
+		try {
+			const added = "// note\nexport {};\n";
+			expect(noCommentsGuardDecision({ cwd: outside, tool_name: "Write", tool_input: { file_path: "a.ts", content: added } })).toBeNull();
+			expect(noCommentsGuardDecision({ cwd: outside, tool_name: "Write", tool_input: { file_path: join(fixtureCwd, "a.ts"), content: added } })).not.toBeNull();
+			mkdirSync(join(fixtureCwd, "src"));
+			writeFileSync(join(fixtureCwd, "src", "real.ts"), "export {};\n");
+			symlinkSync(join(fixtureCwd, "src"), join(outside, "linked"));
+			symlinkSync(join(fixtureCwd, "src", "real.ts"), join(outside, "file.ts"));
+			const viaLink = (file_path: string) =>
+				noCommentsGuardDecision({ cwd: outside, tool_name: "Write", tool_input: { file_path, content: added } });
+			expect(viaLink("linked/real.ts")).not.toBeNull();
+			expect(viaLink("linked/deep/new.ts")).not.toBeNull();
+			expect(viaLink("file.ts")).not.toBeNull();
+			const worktree = join(outside, "wt");
+			mkdirSync(worktree);
+			writeFileSync(join(worktree, ".git"), "gitdir: /elsewhere\n");
+			expect(viaLink("wt/a.ts")).not.toBeNull();
+		} finally {
+			rmSync(outside, { recursive: true, force: true });
+		}
 	});
 
 	test("lexes strings, comments and regexes per language", () => {

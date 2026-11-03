@@ -240,8 +240,9 @@ if (failed) process.exit(1);
 NODE
 
 parity_dir="$TMP_DIR/no-comments-parity"
-mkdir -p "$parity_dir"
+mkdir -p "$parity_dir/.git"
 printf '/**\n * Existing doc.\n */\nexport const a = 1;\n' >"$parity_dir/doc.ts"
+printf '/* Existing note. */\nexport const a = 1;\n' >"$parity_dir/dup.ts"
 printf "const x = 1; // don't\nconst y = 2;\n" >"$parity_dir/apos.ts"
 ROOT_DIR="$ROOT_DIR" PARITY_DIR="$parity_dir" node --input-type=module <<'NODE'
 import { spawnSync } from "node:child_process";
@@ -250,7 +251,8 @@ const cwd = process.env.PARITY_DIR;
 const { noCommentsGuardDecision } = await import(`${root}/workflow/runtime/no-comments-guard.mjs`);
 const write = (name, content) => ({ tool_name: "Write", tool_input: { file_path: `${cwd}/${name}`, content } });
 const edit = (old_string, new_string) => ({ tool_name: "Edit", tool_input: { file_path: `${cwd}/doc.ts`, old_string, new_string } });
-const multiEdit = (edits) => ({ tool_name: "MultiEdit", tool_input: { file_path: `${cwd}/doc.ts`, edits } });
+const multiEdit = (edits) => ({ tool_name: "MultiEdit", tool_input: { file_path: `${cwd}/dup.ts`, edits } });
+const editDup = (old_string, new_string) => ({ tool_name: "Edit", tool_input: { file_path: `${cwd}/dup.ts`, old_string, new_string } });
 const cases = [
   ["kept comment", edit(" * Existing doc.\n */\nexport const a = 1;", " * Existing doc.\n */\nexport const a = 2;"), "allow"],
   ["added comment", edit("export const a = 1;", "// added\nexport const a = 1;"), "deny"],
@@ -261,10 +263,15 @@ const cases = [
   ["eslint directive", write("c.ts", "// eslint-disable-next-line no-console\nconsole.log(1);\n"), "allow"],
   ["copyright header", write("d.ts", "// Copyright 2026 Example\nexport {};\n"), "allow"],
   ["astro comment", write("e.astro", "---\n// note\n---\n"), "deny"],
-  ["JSDoc continuation", edit(" * Existing doc.\n", " * Existing doc.\n * new line\n"), "deny"],
-  ["duplicated comment write", write("doc.ts", "/**\n * Existing doc.\n */\n/**\n * Existing doc.\n */\nexport const a = 1;\n"), "deny"],
-  ["duplicated comment edit", edit("export const a = 1;", "export const a = 1;\n/**\n * Existing doc.\n */"), "deny"],
-  ["duplicated comment multiedit", multiEdit([{ old_string: "export const a = 1;", new_string: "export const a = 1;\n/** Existing doc. */" }, { old_string: "/** Existing doc. */", new_string: "/**\n * Existing doc.\n */" }]), "deny"],
+  ["JSDoc continuation", edit(" * Existing doc.\n", " * Existing doc.\n * new line\n"), "allow"],
+  ["JSDoc block", write("da.ts", "/** Adds one. */\nexport const inc = (x: number) => x + 1;\n"), "allow"],
+  ["rustdoc lines", write("db.rs", "//! Crate docs.\n/// Adds one.\npub fn inc(x: u8) -> u8 { x + 1 }\n"), "allow"],
+  ["four-slash banner", write("dc.rs", "//// banner\npub fn inc() {}\n"), "deny"],
+  ["shell header block", write("dd.sh", "#!/usr/bin/env bash\n# Deploys the thing.\n#\n# Usage: dd.sh\nset -eu\n"), "allow"],
+  ["shell comment after code", write("de.sh", "set -eu\n# restates set\n"), "deny"],
+  ["duplicated comment write", write("dup.ts", "/* Existing note. */\n/* Existing note. */\nexport const a = 1;\n"), "deny"],
+  ["duplicated comment edit", editDup("export const a = 1;", "export const a = 1;\n/* Existing note. */"), "deny"],
+  ["duplicated comment multiedit", multiEdit([{ old_string: "export const a = 1;", new_string: "export const a = 1;\n// Existing note." }, { old_string: "// Existing note.", new_string: "/* Existing note. */" }]), "deny"],
   ["line comment in ts", write("f.ts", "// note\nexport {};\n"), "deny"],
   ["hash comment in py", write("g.py", "# note\nx = 1\n"), "deny"],
   ["block comment in css", write("h.css", "/* x */\n.a { color: red; }\n"), "deny"],
@@ -383,12 +390,17 @@ jq -e '[.hooks.PreToolUse[] | select(.matcher == "Write|Edit|MultiEdit") | .hook
 	exit 1
 }
 no_comments="$ROOT_DIR/claude/hooks/no-comments-guard.mjs"
-denied=$(jq -nc --arg cwd "$TMP_DIR" '{cwd:$cwd,tool_name:"Write",tool_input:{file_path:"src/a.ts",content:("/" + "/ note\nconst a = 1\n")}}' | node "$no_comments")
+outside_repo=$(jq -nc --arg cwd "$TMP_DIR" '{cwd:$cwd,tool_name:"Write",tool_input:{file_path:"src/a.ts",content:("/" + "/ note\nconst a = 1\n")}}' | node "$no_comments")
+[ -z "$outside_repo" ] || {
+	printf 'no-comments-guard must pass a write outside a git work tree, got %s\n' "$outside_repo" >&2
+	exit 1
+}
+denied=$(jq -nc --arg cwd "$parity_dir" '{cwd:$cwd,tool_name:"Write",tool_input:{file_path:"src/a.ts",content:("/" + "/ note\nconst a = 1\n")}}' | node "$no_comments")
 [ "$(printf '%s' "$denied" | jq -r '.hookSpecificOutput.permissionDecision')" = deny ] || {
 	printf 'no-comments-guard must deny a write that adds a comment, got %s\n' "$denied" >&2
 	exit 1
 }
-clean=$(jq -nc --arg cwd "$TMP_DIR" '{cwd:$cwd,tool_name:"Write",tool_input:{file_path:"src/a.ts",content:("const url = \"http:" + "/" + "/x\"\n")}}' | node "$no_comments")
+clean=$(jq -nc --arg cwd "$parity_dir" '{cwd:$cwd,tool_name:"Write",tool_input:{file_path:"src/a.ts",content:("const url = \"http:" + "/" + "/x\"\n")}}' | node "$no_comments")
 [ -z "$clean" ] || {
 	printf 'no-comments-guard must pass comment markers inside strings, got %s\n' "$clean" >&2
 	exit 1
