@@ -159,15 +159,15 @@ const keepers = Object.entries(JSON.parse(fs.readFileSync(mapFile, "utf8")).skil
   .filter(([, state]) => state === "on").map(([name]) => name);
 const fixtureChars = keepers.reduce((sum, name) => sum + name.length + `stub ${name}`.length + 20, 0);
 const text = fs.readFileSync(file, "utf8");
-fs.writeFileSync(file, text.replace("description: stub", `description: ${"x".repeat(4912 - fixtureChars)}stub`));
+fs.writeFileSync(file, text.replace("description: stub", `description: ${"x".repeat(5280 - fixtureChars)}stub`));
 NODE
-expect_ok "exact 4912-character boundary" "$FIX/home" "$FIX/repo"
+expect_ok "exact 5280-character boundary" "$FIX/home" "$FIX/repo"
 node - "$FIX/home/.claude/skills/$KEEPER/SKILL.md" <<'NODE'
 const fs = require("node:fs");
 const [file] = process.argv.slice(2);
 fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("description: ", "description: x"));
 NODE
-expect_fail "4913 characters exceeds strengthened gate" "$FIX/home" "$FIX/repo" "exceeds gate 4912"
+expect_fail "5281 characters exceeds strengthened gate" "$FIX/home" "$FIX/repo" "exceeds gate 5280"
 
 build_fixture "$FIX/home" "$FIX/repo"
 node - "$FIX/repo/claude/settings.skill-overrides.json" "$FIX/home" "$FIX/repo" <<'NODE'
