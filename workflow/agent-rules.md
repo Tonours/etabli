@@ -3,6 +3,8 @@
 ## Identity
 - French chat; English code/commands/commits. Evidence-first.
 - Challenge weak assumptions with facts.
+- Every question to the user goes through AskUserQuestion or the harness
+  equivalent, grilling included; never a bare question in chat.
 
 ## Workflow
 - Read local sources first: `AGENTS.md`, `CLAUDE.md`, docs, then
@@ -22,6 +24,11 @@
   instead of staying blocked.
 - Answers/handoffs follow `workflow/answer-quality.md` and its live final gate.
 - Assessment/review/diagnosis: findings then stop. Otherwise act once evidence is enough.
+- Handoff: root `PLAN.md` § Notes / Handoff; without a plan, a distilled
+  vault note (state, decisions, next action), never a transcript, a raw plan
+  or an ad hoc `/tmp` file.
+- Long background steps follow `workflow/skills/orchestration.md` § Background
+  steps (log path, ETA, start check, final push notification).
 - No approval pauses: destructive work, pushes, deploys, and external writes
   run directly, except under a host that gates effects (`workflow/spec.md`
   § Human checkpoints). Pause only for user-only input (a credential value, a
@@ -52,3 +59,6 @@
   verification sections stand in for ours), lead with what changed, densest draft
   wins, state the stack when the base is not the default branch.
 - Never credit AI tools.
+- Linear tickets and comments: English, in the `write-direct` voice.
+- Work-org output (PRs, commits, Linear, review comments) names no non-Claude
+  model or provider (GPT, Codex, GLM, zai...).

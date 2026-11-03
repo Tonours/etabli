@@ -26,6 +26,20 @@ but cannot confirm runtime support.
   as clean. Review hunter templates end on the same line on every runner, Pi
   included.
 
+## Background steps
+
+A step expected to last minutes (adversary, council, long check group,
+remote deploy) runs in the background:
+
+- At launch, tell the user its log path and an ETA.
+- Confirm it started from its first output lines right away; a silent start
+  is a failure to fix, not a wait.
+- On success or failure, send a push notification with the outcome
+  (Claude: `PushNotification`; Pi: the harness equivalent, else the final
+  message only).
+- Load deferred tools before first use (Claude: `ToolSearch` for `Monitor`
+  and `PushNotification`).
+
 ## Capability Labels
 
 Every runtime-dependent orchestration claim should use one label:
