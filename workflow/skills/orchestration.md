@@ -114,13 +114,8 @@ contract's completion evidence is present.
 
 Pi:
 
-- `TaskExecute` requires explicit subagent tracking capability; package presence
-  alone is not enough.
-- Treat full `TaskExecute` tracking as unconfirmed until `subagents:rpc:ping`,
-  `subagents:rpc:spawn`, and `subagents:rpc:stop` are all confirmed in the
-  active Pi runtime. A direct `Agent` tool can still be confirmed separately; it
-  does not prove that `pi-tasks` can track status, cascade dependencies, or serve
-  `TaskOutput`.
+- Pi has no Task* tracking tools: `pi-tasks` is not installed. Keep task state
+  in `PLAN.md`.
 
 Claude:
 

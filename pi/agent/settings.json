@@ -36,15 +36,7 @@
       "skills": []
     },
     {
-      "source": "npm:pi-lens@4.4.3",
-      "skills": []
-    },
-    {
       "source": "npm:pi-simplify@0.2.3",
-      "skills": []
-    },
-    {
-      "source": "npm:@tintinweb/pi-tasks@0.7.1",
       "skills": []
     },
     {

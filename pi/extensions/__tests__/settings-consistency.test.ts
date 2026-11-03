@@ -136,15 +136,10 @@ describe("Pi settings consistency", () => {
       prompts: [],
       themes: [],
     });
-    expect(sources).toContain("npm:@tintinweb/pi-tasks@0.7.1");
-    expect(packageBySource("npm:@tintinweb/pi-tasks@0.7.1")?.skills).toEqual(
-      [],
-    );
     for (const silenced of [
       "npm:pi-autoresearch",
       "npm:pi-cursor-sdk",
       "npm:@narumitw/pi-goal",
-      "npm:pi-lens",
       "npm:pi-simplify",
     ]) {
       expect(packageBySource(silenced)?.skills).toEqual([]);
@@ -158,6 +153,8 @@ describe("Pi settings consistency", () => {
     // Removed from quasi-vanilla profile
     expect(packageBySource("npm:pi-hooks")).toBeUndefined();
     expect(packageBySource("npm:glimpseui")).toBeUndefined();
+    expect(packageBySource("npm:@tintinweb/pi-tasks")).toBeUndefined();
+    expect(packageBySource("npm:pi-lens")).toBeUndefined();
     expect(packageBySource("npm:pi-interview")).toBeUndefined();
     expect(
       packageBySource("npm:@tintinweb/pi-subagents@0.13.0"),

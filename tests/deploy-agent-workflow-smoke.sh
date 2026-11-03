@@ -344,10 +344,6 @@ function packageBySource(source) {
   return packages.find((entry) => entry && typeof entry === "object" && entry.source === source);
 }
 
-if (!hasObjectSource("npm:@tintinweb/pi-tasks@0.7.1")) {
-  throw new Error("missing scoped Pi tasks package");
-}
-
 if (packages.some((entry) => typeof entry === "string" && entry === "npm:pi-subagents") ||
     packages.some((entry) => {
       const source = sourceOf(entry);
@@ -373,8 +369,8 @@ if (!Array.isArray(settings.skills) || !settings.skills.every((pattern) => patte
   throw new Error("top-level skills deny-list missing or not deny-only");
 }
 
-if (packages.some((entry) => sourceOf(entry) === "npm:@tintinweb/pi-tasks")) {
-  throw new Error("unpinned Pi tasks package was kept");
+if (packages.some((entry) => /^npm:(@tintinweb\/pi-tasks|pi-lens)(@|$)/.test(sourceOf(entry) ?? ""))) {
+  throw new Error("retired pi-tasks or pi-lens package was kept");
 }
 
 if (packages.some((entry) => {
