@@ -39,7 +39,8 @@ by the branch and ticket:
   2. Run the council at its default high effort, posting:
      `~/.claude/scripts/pr-council-review/run.sh <N> --post` (the
      `pr-council-review` skill on Claude; the same script through Bash on
-     Pi). Script missing → `council: unavailable`, stop `blocked`.
+     Pi). Script missing, or a run that fails or times out without a
+     verdict → `council: unavailable`, stop `blocked`.
   3. Fix every blocking finding, push, rerun the council. At most 3 rounds;
      still not GO after round 3 → stop `blocked` with the open findings.
   4. Only after GO, move the Linear ticket to In Review.
