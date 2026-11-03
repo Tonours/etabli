@@ -104,8 +104,11 @@ break, so their skills stay ungoverned and outside the index gate.
   `gh pr edit` body that misses `## What`, `## Why`, `## How to test` (unless
   the repo template has its own what-changed and verification headings) or the
   repo template's headings, carries AI attribution, or has non-ASCII prose
-  outside code, tables and quotes. It reads `--body-file` relative to the tool
-  cwd and the rest from the command text. It does not see `gh api` calls.
+  outside code, tables and quotes. It masks quoted strings, heredocs and
+  comments, checks every `gh pr` invocation of the line with its own body
+  value (inline, heredoc or a regular `--body-file`, resolved after a `cd`),
+  and refuses a body built at run time. It does not see `gh api` calls or a
+  `gh pr create` nested inside a double-quoted `"$(...)"`.
 - `no-comments-guard.mjs`, `pr-body-guard.mjs` and `rtk-guard.mjs` fail open: a crash lets the write
   or the raw command through, since none guards a read-only boundary.
 

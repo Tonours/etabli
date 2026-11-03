@@ -48,6 +48,7 @@
   subject only, conventional, lowercase imperative, no body, no trailers.
 - PR bodies: open or rewrite one with the `pr` skill
   (`workflow/pr-body-contract.md`): `## What`, `## Why`, `## How to test`,
-  English always, repo template intact, lead with what changed, densest draft
+  English always, repo template intact (its own what-changed and
+  verification sections stand in for ours), lead with what changed, densest draft
   wins, state the stack when the base is not the default branch.
 - Never credit AI tools.
