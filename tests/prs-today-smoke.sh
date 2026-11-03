@@ -52,6 +52,9 @@ view("acme/app", 70, { state: "MERGED" });
 view("acme/app", 80, null);
 view("acme/cyc", 1, { baseRefName: "b2", headRefName: "b1" });
 view("acme/cyc", 2, { baseRefName: "b1", headRefName: "b2" });
+view("acme/tie", 1, { headRefName: "t1", statusCheckRollup: [{ __typename: "CheckRun", status: "COMPLETED", conclusion: "STALE" }] });
+view("acme/tie", 2, { headRefName: "t2" });
+view("acme/tie", 10, { baseRefName: "t1", headRefName: "t10" });
 view("acme/amb", 5, { baseRefName: "x", headRefName: "b5" });
 view("acme/amb", 6, { headRefName: "x" });
 view("acme/amb", 7, { headRefName: "x" });
@@ -75,6 +78,9 @@ line 40 | grep -q "ci=none" || fail "row 40: $(line 40)"
 ! line 60 | grep -q "after" || fail "a missing parent leaves no order: $(line 60)"
 line 70 | grep -q "merged since the search" || fail "row 70: $(line 70)"
 line 80 | grep -q "view failed: GraphQL" || fail "row 80: $(line 80)"
+tie=$(printf '%s\n' "$out" | sed -n '/^acme\/tie$/,/^acme\/[a-z]*$/p' | grep '^  #' | sed -E 's/^  #([0-9]+).*/\1/' | tr '\n' ' ')
+[ "$tie" = "1 2 10 " ] || fail "acme/tie order should be 1 2 10, got '$tie'"
+line 1 | grep -q "ci=fail" || fail "a STALE check is not a pass: $(line 1)"
 for repo in cyc amb; do
 	printf '%s\n' "$out" | sed -n "/^acme\/$repo$/,/^acme/p" | grep -q "stack: ambiguous" || fail "acme/$repo must print stack: ambiguous: $out"
 done
