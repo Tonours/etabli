@@ -26,8 +26,8 @@ PATH=/opt/homebrew/bin:/usr/local/bin:$PATH
 refuse() { printf 'refused: %s\n' "$1"; exit 3; }
 cd "$dir" 2>/dev/null || refuse "no checkout at $1"
 url=$(git config --get remote.origin.url) || refuse "no origin remote"
-printf '%s' "$url" | grep -Eiq '^((ssh|https?|git)://)?([^@/]+@)?github\.com(:[0-9]+/|[:/])[A-Za-z0-9-]+/[A-Za-z0-9_.-]+/?$' || refuse "origin $url is not a github.com URL"
-got=$(printf '%s' "$url" | sed -E 's#^((ssh|https?|git)://)?([^@/]+@)?github\.com(:[0-9]+/|[:/])##; s#/$##; s#\.git$##' | tr 'A-Z' 'a-z')
+printf '%s' "$url" | grep -Eiq '^(((ssh|https?|git)://([^@/]+@)?github\.com(:[0-9]+)?/)|([^@/:]+@)?github\.com:)[A-Za-z0-9-]+/[A-Za-z0-9_.-]+/?$' || refuse "origin $url is not a github.com URL"
+got=$(printf '%s' "$url" | sed -E 's#^(((ssh|https?|git)://([^@/]+@)?github\.com(:[0-9]+)?/)|([^@/:]+@)?github\.com:)##; s#/$##; s#\.git$##' | tr 'A-Z' 'a-z')
 [ "$got" = "$want" ] || refuse "origin $url is not github.com/$want"
 branch=$(git rev-parse --abbrev-ref HEAD)
 [ "$branch" = main ] || refuse "checkout is on $branch, not main"
@@ -53,7 +53,7 @@ function git(...args) {
 }
 
 function githubRepo(url) {
-  const match = /^(?:(?:ssh|https?|git):\/\/)?(?:[^@/\s]+@)?github\.com(?::\d+\/|[:/])([A-Za-z0-9-]+\/[A-Za-z0-9_.-]+?)(?:\.git)?\/?$/i.exec(url.trim());
+  const match = /^(?:(?:ssh|https?|git):\/\/(?:[^@/\s]+@)?github\.com(?::\d+)?\/|(?:[^@/:\s]+@)?github\.com:)([A-Za-z0-9-]+\/[A-Za-z0-9_.-]+?)(?:\.git)?\/?$/i.exec(url.trim());
   return match ? match[1].toLowerCase() : null;
 }
 

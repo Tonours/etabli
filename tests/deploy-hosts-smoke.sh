@@ -33,11 +33,12 @@ git -C "$TMP_DIR/local" add -A
 git -C "$TMP_DIR/local" commit -q -m "chore: seed"
 git -C "$TMP_DIR/local" push -q origin main
 
-for host in ok wrong dirty ahead branch checkfail relative port; do
+for host in ok wrong dirty ahead branch checkfail relative port pathlike; do
 	git clone -q "$URL" "$TMP_DIR/$host" 2>/dev/null
 done
 git -C "$TMP_DIR/relative" remote set-url origin acme/etabli
 git -C "$TMP_DIR/port" remote set-url origin ssh://git@github.com:22/acme/etabli.git
+git -C "$TMP_DIR/pathlike" remote set-url origin github.com/acme/etabli
 git -C "$TMP_DIR/wrong" remote set-url origin git@github.com:other/etabli.git
 printf 'x\n' >"$TMP_DIR/dirty/stray.txt"
 git -C "$TMP_DIR/ahead" commit -q --allow-empty -m "chore: local only"
@@ -78,7 +79,7 @@ export PATH="$TMP_DIR/bin:$PATH" SSH_LOG="$TMP_DIR/ssh.log"
 hosts="$TMP_DIR/hosts"
 {
 	printf '# fixture hosts\n\n'
-	for host in ok wrong dirty ahead branch checkfail relative port; do printf '%s %s\n' "$host" "$TMP_DIR/$host"; done
+	for host in ok wrong dirty ahead branch checkfail relative port pathlike; do printf '%s %s\n' "$host" "$TMP_DIR/$host"; done
 	printf 'down %s\n' "$TMP_DIR/nowhere"
 } >"$hosts"
 
@@ -97,9 +98,10 @@ expect checkfail "failed: deploy-agent-workflow --check"
 expect down "unreachable: ssh: connect to host down"
 expect relative "refused: origin acme/etabli is not a github.com URL"
 expect port "ok ${SHA:0:12}"
+expect pathlike "refused: origin github.com/acme/etabli is not a github.com URL"
 [ "$(git -C "$TMP_DIR/ok" rev-parse HEAD)" = "$SHA" ] || fail "ok host must sit on the approved SHA"
 [ "$(cat "$TMP_DIR/ok/.deploy-calls")" = "$(printf -- '--apply\n--check')" ] || fail "ok host must run --apply then --check"
-for host in wrong dirty ahead branch relative; do
+for host in wrong dirty ahead branch relative pathlike; do
 	[ ! -e "$TMP_DIR/$host/.deploy-calls" ] || fail "refused host $host must not run deploy-agent-workflow"
 done
 
