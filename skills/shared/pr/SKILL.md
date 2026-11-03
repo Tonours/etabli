@@ -8,8 +8,9 @@ description: Writes and opens a pull request in the What, Why, How to test shape
 The contract is `workflow/pr-body-contract.md` (repo copy, else
 `~/.claude/workflow/` or `~/.pi/agent/workflow/`). It wins on conflict; this
 skill is the procedure. The `pr-body` guard refuses a `gh pr create` or
-`gh pr edit` body that misses the headings, carries AI attribution, or has
-non-ASCII prose.
+`gh pr edit` body that misses the headings, carries AI attribution, has
+non-ASCII prose, or names a non-Claude model in a work-org repo; it refuses a
+`git commit` message on the same attribution and model-name rules.
 
 ## 1. Read the change
 
