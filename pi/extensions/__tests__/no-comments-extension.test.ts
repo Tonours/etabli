@@ -270,6 +270,7 @@ describe("unified Claude verdicts", () => {
 		expect(decide(write("lib2.rs", "//// banner\npub fn inc() {}\n"))).toBe("deny");
 		expect(decide(write("api.ts", "/** Adds one. */\nexport const inc = (x: number) => x + 1;\n"))).toBe("allow");
 		expect(decide(write("note.ts", "/* note */\nexport {};\n"))).toBe("deny");
+		expect(decide(write("stars.rs", "/*** ordinary */\npub fn f() {}\n"))).toBe("deny");
 		expect(decide(write("line.ts", "// note\nexport {};\n"))).toBe("deny");
 		expect(decide(write("head.sh", "#!/usr/bin/env bash\n# Deploys the thing.\n#\n# Usage: head.sh\nset -eu\n"))).toBe("allow");
 		expect(decide(write("late.sh", "set -eu\n# restates set\n"))).toBe("deny");
@@ -292,6 +293,7 @@ describe("unified Claude verdicts", () => {
 			expect(viaLink("linked/real.ts")).not.toBeNull();
 			expect(viaLink("linked/deep/new.ts")).not.toBeNull();
 			expect(viaLink("file.ts")).not.toBeNull();
+			expect(viaLink("linked/../escape.ts")).not.toBeNull();
 			const worktree = join(outside, "wt");
 			mkdirSync(worktree);
 			writeFileSync(join(worktree, ".git"), "gitdir: /elsewhere\n");
