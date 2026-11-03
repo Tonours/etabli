@@ -46,7 +46,8 @@
 - Branches and commits: `workflow/git-contract.md`. Branch
   `<type>/<ticket-id>-<short-slug>`, slug 3 words max, under 50 chars. Commit
   subject only, conventional, lowercase imperative, no body, no trailers.
-- PR bodies: `workflow/pr-body-contract.md`. English always, repo template
-  intact, lead with what changed, densest draft wins, state the stack when the
-  base is not the default branch.
+- PR bodies: open or rewrite one with the `pr` skill
+  (`workflow/pr-body-contract.md`): `## What`, `## Why`, `## How to test`,
+  English always, repo template intact, lead with what changed, densest draft
+  wins, state the stack when the base is not the default branch.
 - Never credit AI tools.

@@ -18,6 +18,11 @@
             "type": "command",
             "command": "node \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/rtk-guard.mjs\"",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/pr-body-guard.mjs\"",
+            "timeout": 5
           }
         ]
       }

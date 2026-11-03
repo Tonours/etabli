@@ -42,3 +42,4 @@ Decisions live in this directory. Run `/adr` to record one.
 - [0038](0038-reconcile-agent-surfaces-from-one-node-manifest.md) — Reconcile agent surfaces from one Node manifest [accepted]
 - [0039](0039-run-the-cloudflare-security-audit-on-glm.md) — Run the Cloudflare security audit on GLM [accepted]
 - [0040](0040-judge-test-strength-with-a-sandboxed-mutation-probe.md) — Judge test strength with a sandboxed mutation probe [accepted]
+- [0041](0041-open-every-pr-through-the-pr-skill-and-a-body-guard.md) — Open every PR through the `pr` skill and a body guard [accepted]

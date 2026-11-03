@@ -10,6 +10,7 @@ const piLauncher = piLookup.status === 0 ? piLookup.stdout.trim() : "";
 const pinnedPackageRoot = join(root, "pi/node_modules/@earendil-works/pi-coding-agent");
 const repositoryExtensions = [
 	"no-comments.ts",
+	"pr-body.ts",
 	"prefer-ipv4-dns.ts",
 	"rtk.ts",
 	"workflow-tools.ts",

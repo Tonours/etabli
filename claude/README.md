@@ -98,8 +98,16 @@ break, so their skills stay ungoverned and outside the index gate.
 - `rtk-guard.mjs` (`PreToolUse` on `Bash`) forwards a command to
   `rtk hook claude` only when `workflow/runtime/rtk-data-flow.mjs` allows
   compaction, and runs the rest raw.
-- `no-comments-guard.mjs` and `rtk-guard.mjs` fail open: a crash lets the write
-  or the raw command through, since neither guards a read-only boundary.
+- `pr-body-guard.mjs` (`PreToolUse` on `Bash`) is a thin adapter over
+  `workflow/runtime/pr-body-guard.mjs`, shared with the Pi `pr-body.ts`
+  extension. It denies a `gh pr create` without a body, or a `gh pr create` /
+  `gh pr edit` body that misses `## What`, `## Why`, `## How to test` (unless
+  the repo template has its own what-changed and verification headings) or the
+  repo template's headings, carries AI attribution, or has non-ASCII prose
+  outside code, tables and quotes. It reads `--body-file` relative to the tool
+  cwd and the rest from the command text. It does not see `gh api` calls.
+- `no-comments-guard.mjs`, `pr-body-guard.mjs` and `rtk-guard.mjs` fail open: a crash lets the write
+  or the raw command through, since none guards a read-only boundary.
 
 `settings.workflow-hooks.json` is a merge fragment, linked but not merged by
 the installer because the live settings file can hold secrets. Run
