@@ -320,8 +320,15 @@ describe("commit message guard", () => {
 			`git commit -m "fix: $topic" -m '${trailer}'`,
 			'git commit -m "fix: x" -m "Claude-Session: session_x"',
 			`git commit -m'Co-Authored-By: someone'`,
-			`git commit --message='Generated with a tool'`,
+			'git commit -m "fix: x" --trailer "Co-authored-by: Claude <a@b>"',
+			"git commit -m 'fix: x' --trailer=Claude-Session:x",
+			"git commit -m 'fix: x' -m 'Generated with [Claude Code](https://example.test)'",
 			`git commit -am "Co-Authored-By: someone"`,
+			"git commit --message='Claude-Session: x'",
+			"git --no-optional-locks commit -m 'Claude-Session: x'",
+			'git commit "-m" "Claude-Session: x"',
+			`git commit -m 'Co-'"Authored-By: $name"`,
+			"git commit -F - <<'A' <<'B'\nfix: x\nA\nClaude-Session: x\nB",
 			`git -C ${repo} commit -m "${trailer}"`,
 			`git commit -m "fix: x $v ${trailer}"`,
 			`git commit -F - <<'EOF'\nfix: x\n\n${trailer}\nEOF`,
@@ -337,6 +344,9 @@ describe("commit message guard", () => {
 	test("passes clean, dynamic and non-commit commands", () => {
 		for (const command of [
 			'git commit -m "fix: cap retries"',
+			'git commit -m "chore: refresh snapshots generated with codegen"',
+			'git commit -m "docs: explain the co-authored-by: trailer ban"',
+			'git commit -m "$Claude-Session: x"',
 			'git commit -m "$msg"',
 			"git commit --amend --no-edit",
 			"git log --grep Claude-Session",
@@ -378,12 +388,19 @@ describe("non-Claude model names in work-org repos", () => {
 			expect(decide('git commit -m "fix: reviewed by codex"', https)).not.toBeNull();
 			expect(decide(`git -C ${work} commit -m "fix: z.ai fallback"`)).not.toBeNull();
 			expect(decide('git commit -m "fix: call `openai` client"', work)).toBeNull();
+			expect(decide("git commit -m 'fix: x\n\n~~~\ngpt\n~~~'", work)).toBeNull();
+			expect(decide(`cd ${work} && git commit -m "fix: tune the GPT prompt"`)).not.toBeNull();
 			const file = join(work, "body.md");
 			writeFileSync(file, GOOD.replace("- loops", "- loops seen by GLM"));
 			expect(decide(`gh pr create --body-file ${file}`, work)?.hookSpecificOutput.permissionDecisionReason).toContain("GLM");
 			expect(decide(`gh pr create -R acme/app --body-file ${file}`)).not.toBeNull();
 			expect(decide(`gh -R Acme/app pr create --body-file ${file}`)).not.toBeNull();
 			expect(decide(`gh pr create --repo other/app --body-file ${file}`, work)).toBeNull();
+			writeFileSync(file, GOOD.replace("- loops", "| Reviewer | Codex |\n|---|---|\n\n> Reviewed by GPT"));
+			expect(decide(`gh pr create --body-file ${file}`, work)?.hookSpecificOutput.permissionDecisionReason).toContain("Codex, GPT");
+			const port = clone("ssh://git@github.com:22/acme/app.git");
+			expect(decide('git commit -m "fix: reviewed by codex"', port)).not.toBeNull();
+			rmSync(port, { recursive: true, force: true });
 		} finally {
 			rmSync(work, { recursive: true, force: true });
 			rmSync(https, { recursive: true, force: true });
@@ -393,10 +410,16 @@ describe("non-Claude model names in work-org repos", () => {
 	test("lets model names through outside work orgs", () => {
 		const personal = clone("git@github.com:someone/app.git");
 		const gitlab = clone("git@gitlab.com:acme/app.git");
+		const relative = clone("acme/app");
 		try {
 			expect(decide('git commit -m "fix: tune the GPT prompt"', personal)).toBeNull();
 			expect(decide('git commit -m "fix: tune the GPT prompt"', gitlab)).toBeNull();
+			expect(decide('git commit -m "fix: tune the GPT prompt"', relative)).toBeNull();
 			expect(decide('git commit -m "fix: tune the GPT prompt"')).toBeNull();
+			const bare = mkdtempSync(join(tmpdir(), "etabli-bare-"));
+			spawnSync("git", ["init", "-q", bare]);
+			expect(decide('git commit -m "fix: tune the GPT prompt"', bare)).toBeNull();
+			rmSync(bare, { recursive: true, force: true });
 			process.env.ETABLI_WORK_ORGS_FILE = join(repo, "missing");
 			const work = clone("git@github.com:acme/app.git");
 			expect(decide('git commit -m "fix: tune the GPT prompt"', work)).toBeNull();
@@ -407,6 +430,7 @@ describe("non-Claude model names in work-org repos", () => {
 		} finally {
 			rmSync(personal, { recursive: true, force: true });
 			rmSync(gitlab, { recursive: true, force: true });
+			rmSync(relative, { recursive: true, force: true });
 		}
 	});
 });
