@@ -16,6 +16,7 @@ A guard makes the checkable rules hold without relying on the model reading the 
 ## Consequences
 
 - `gh api` POSTs to `/pulls` and PRs opened by scripts outside a tool call are not seen.
-- A body passed as `--body "$(cat file)"` is invisible to the guard and refused; `--body-file` is the supported path.
+- The guard masks quoted strings, heredocs and comments to find each `gh pr` invocation, and reads only its body value: inline (static or a `$(cat <<EOF)` heredoc), a heredoc on stdin, or a regular file. A body built at run time (`"$BODY"`, `$(cat file)`, a pipe) is refused; `--body-file` is the supported path. A `gh pr create` nested inside a double-quoted `"$(...)"` is not seen.
+- A mechanical `gh pr edit --body` on a body that predates the contract (ticking a checkbox) is refused until the body is rewritten to the contract.
 - The guard fails open on a crash: it protects a convention, not a boundary.
 - Review date: 2027-02-03. Recount the owner's PRs opened after this ADR, with the query of the 44-of-60 count: the guard stays if every one carries the three headings or a covering repo template, and is fixed or deleted otherwise.

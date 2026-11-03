@@ -20,7 +20,10 @@ thirty seconds whether they can review this now.
   commits, code, and identifiers.
 - **The repo's template is law.** Use `.github/PULL_REQUEST_TEMPLATE.md` (or
   the equivalent). Keep every section and checklist intact, fill only the
-  placeholders, leave author/reviewer checklists unchecked.
+  placeholders, leave author/reviewer checklists unchecked. Our `## What`,
+  `## Why`, `## How to test` go inside its free-form section; when the
+  template already has sections for what changed and how it was verified,
+  those stand in for ours.
 - **No AI attribution.** No "Generated with", no robot emoji, no co-author
   trailer, nowhere in the body.
 - **Link the ticket** when there is one: `fixes PRD-123` on its own line, so
