@@ -17,6 +17,7 @@ shared/review	etabli	1	1
 shared/implement	etabli	1	1
 shared/verify-workflow	etabli	1	1
 shared/write-direct	etabli	1	1
+shared/pr	etabli	1	1
 shared/code-quality	etabli	1	0
 shared/thermo-nuclear-code-quality-review	etabli	1	1
 shared/adr	etabli	0	1

@@ -106,13 +106,14 @@ describe("Pi settings consistency", () => {
       "linear-ticket-create",
       "linear-work",
       "write-direct",
+      "pr",
       "thermo-nuclear-code-quality-review",
     ];
     expect(installCoreSkills().sort()).toEqual([...keepList].sort());
     expect(
       skillCatalog.find((skill) => skill.name === "shared/code-quality"),
     ).toMatchObject({ piCore: true });
-    expect(keepList).toHaveLength(12);
+    expect(keepList).toHaveLength(13);
     for (const banned of ["ponytail", "deslop", "code-simplifier"]) {
       expect(installCoreSkills()).not.toContain(banned);
     }

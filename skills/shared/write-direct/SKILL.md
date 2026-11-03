@@ -7,11 +7,11 @@ description: Writes or rewrites internal docs and messages in Anthony's direct, 
 
 Write or rewrite text the team reads, in my voice: direct, concrete, no
 ceremony, but clean and structured. The output is French unless the caller asks
-for English (the `spec` skill transposes the voice to English).
+for English (the `spec` and `pr` skills transpose the voice to English).
 
 Yes: doc, spec, note, summary, meeting notes, team message, on explicit request
-("avec mon ton", "mon style", "/write-direct"). No: commits, PRs (repo
-template), code/comments/identifiers (English), external communication
+("avec mon ton", "mon style", "/write-direct"). No: commits, PRs (the `pr`
+skill), code/comments/identifiers (English), external communication
 (customer, formal email).
 
 ## Voice rules

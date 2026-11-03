@@ -21,6 +21,7 @@ const PINNED_ON = new Set([
   "implement",
   "plan-implement",
   "plan-loop",
+  "pr",
   "research",
   "spec",
   "verify-workflow",

@@ -60,6 +60,7 @@ pi_import_smoke() {
     "./extensions/prefer-ipv4-dns.ts",
     "./extensions/rtk.ts",
     "./extensions/no-comments.ts",
+    "./extensions/pr-body.ts",
     "./extensions/lib/pi-runtime.ts",
     "./extensions/lib/rtk-runtime.ts",
     "./extensions/workflow-tools.ts",

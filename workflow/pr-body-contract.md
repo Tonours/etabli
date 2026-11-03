@@ -6,6 +6,11 @@ request to redo a description. It does not govern mechanical edits to an
 existing body, such as ticking its checkboxes. Its freshness check
 (§ Honest status) also applies before each push to a branch with an open PR.
 
+The `pr` skill is the procedure. The `pr-body` guard refuses a
+`gh pr create` or `gh pr edit` body without `## What`, `## Why`,
+`## How to test` and the repo template's headings, with AI attribution, or
+with non-ASCII prose.
+
 The reader is a busy human reviewer, not a changelog. They decide in about
 thirty seconds whether they can review this now.
 
@@ -28,10 +33,15 @@ That is the whole body. One opening line states the change, then `## What`,
 `## Why`, `## How to test`. Lead with the change, never with a story about the
 problem; the reviewer reads the diff for the rest.
 
-- **What** — the change. A table of touched files plus the rules that changed.
+- **What** — the change, in the smallest view that shows it: a table of
+  touched files plus the rules that changed, or a sketch (diff, call tree,
+  file tree, pseudocode, Mermaid) when the shape is the point.
 - **Why** — the need, and only the choices a reviewer would otherwise
-  question. Skip the obvious ones.
-- **How to test** — the commands you actually ran, with their result.
+  question. Skip the obvious ones. When the merge cannot be walked back
+  (migration, data deletion, published API, history rewrite), one bullet says
+  what is irreversible and how far it reaches.
+- **How to test** — the commands you actually ran, with their result. A fix
+  shows before and after: the test or output that failed, then passes.
 
 Anything else has to earn its heading against those three, and almost nothing
 does. A ceiling you accepted on purpose belongs in one `## Why` bullet, not in

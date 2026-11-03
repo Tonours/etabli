@@ -24,6 +24,7 @@
     "no-ai-slop": "user-invocable-only",
     "plan-implement": "on",
     "plan-loop": "on",
+    "pr": "on",
     "pr-council-review": "user-invocable-only",
     "prototype": "user-invocable-only",
     "research": "on",

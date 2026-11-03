@@ -100,4 +100,4 @@ Pi and Claude load the same thin skill adapters over the shared contract.
 - Review rubric: `workflow/review-rubric.md`
 - Ticket template: `workflow/ticket-template.md`
 - Linear ticket template: `workflow/linear-ticket-template.md`
-- PR body contract: `workflow/pr-body-contract.md`
+- PR body contract: `workflow/pr-body-contract.md`; procedure: the `pr` skill
