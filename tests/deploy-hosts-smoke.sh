@@ -13,6 +13,7 @@ fail() {
 URL="git@github.com:acme/etabli.git"
 export GIT_CONFIG_GLOBAL="$TMP_DIR/gitconfig"
 git config --global url."$TMP_DIR/origin.git".insteadOf "$URL"
+git config --global --add url."$TMP_DIR/origin.git".insteadOf ssh://git@github.com:22/acme/etabli.git
 git config --global user.name smoke
 git config --global user.email smoke@example.test
 git config --global init.defaultBranch main
@@ -32,9 +33,11 @@ git -C "$TMP_DIR/local" add -A
 git -C "$TMP_DIR/local" commit -q -m "chore: seed"
 git -C "$TMP_DIR/local" push -q origin main
 
-for host in ok wrong dirty ahead branch checkfail; do
+for host in ok wrong dirty ahead branch checkfail relative port; do
 	git clone -q "$URL" "$TMP_DIR/$host" 2>/dev/null
 done
+git -C "$TMP_DIR/relative" remote set-url origin acme/etabli
+git -C "$TMP_DIR/port" remote set-url origin ssh://git@github.com:22/acme/etabli.git
 git -C "$TMP_DIR/wrong" remote set-url origin git@github.com:other/etabli.git
 printf 'x\n' >"$TMP_DIR/dirty/stray.txt"
 git -C "$TMP_DIR/ahead" commit -q --allow-empty -m "chore: local only"
@@ -59,6 +62,10 @@ done
 host=$1
 shift
 printf '%s\n' "$host" >>"$SSH_LOG"
+if [ "$host" = forged ]; then
+	printf 'ok forged\n'
+	exit 1
+fi
 if [ "$host" = down ]; then
 	printf 'ssh: connect to host down port 22: Connection refused\n' >&2
 	exit 255
@@ -71,7 +78,7 @@ export PATH="$TMP_DIR/bin:$PATH" SSH_LOG="$TMP_DIR/ssh.log"
 hosts="$TMP_DIR/hosts"
 {
 	printf '# fixture hosts\n\n'
-	for host in ok wrong dirty ahead branch checkfail; do printf '%s %s\n' "$host" "$TMP_DIR/$host"; done
+	for host in ok wrong dirty ahead branch checkfail relative port; do printf '%s %s\n' "$host" "$TMP_DIR/$host"; done
 	printf 'down %s\n' "$TMP_DIR/nowhere"
 } >"$hosts"
 
@@ -88,14 +95,20 @@ expect ahead "refused: checkout HEAD is ahead of or diverged"
 expect branch "refused: checkout is on feature"
 expect checkfail "failed: deploy-agent-workflow --check"
 expect down "unreachable: ssh: connect to host down"
+expect relative "refused: origin acme/etabli is not a github.com URL"
+expect port "ok ${SHA:0:12}"
 [ "$(git -C "$TMP_DIR/ok" rev-parse HEAD)" = "$SHA" ] || fail "ok host must sit on the approved SHA"
 [ "$(cat "$TMP_DIR/ok/.deploy-calls")" = "$(printf -- '--apply\n--check')" ] || fail "ok host must run --apply then --check"
-for host in wrong dirty ahead branch; do
+for host in wrong dirty ahead branch relative; do
 	[ ! -e "$TMP_DIR/$host/.deploy-calls" ] || fail "refused host $host must not run deploy-agent-workflow"
 done
 
 printf 'ok %s\n' "$TMP_DIR/ok" >"$TMP_DIR/one-host"
 out=$("$TMP_DIR/local/scripts/deploy-hosts" --hosts "$TMP_DIR/one-host") || fail "an all-ok run must exit 0: $out"
+printf 'forged %s\n' "$TMP_DIR/ok" >"$TMP_DIR/forged-host"
+status=0
+out=$("$TMP_DIR/local/scripts/deploy-hosts" --hosts "$TMP_DIR/forged-host") || status=$?
+[ "$status" -eq 1 ] || fail "a nonzero ssh exit must fail the run even when stdout says ok: $out"
 
 : >"$SSH_LOG"
 git -C "$TMP_DIR/local" commit -q --allow-empty -m "feat: unpushed"
