@@ -233,9 +233,7 @@ for (const name of expected) {
 }
 for (const entry of rendered) {
   const isPackage = entry.location.includes("/npm/node_modules/");
-  const isLens = entry.location.includes("/pi-lens/");
   if (isPackage) {
-    if (isLens) continue;
     const pkg = entry.location.split("/npm/node_modules/")[1].split("/skills/")[0];
     const pkgEntry = (settings.packages ?? []).find(
       (candidate) =>

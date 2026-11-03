@@ -60,9 +60,13 @@ function packageIdentity(source) {
   return `git:${host}/${path.split("@")[0].replace(/\.git$/, "")}`;
 }
 
+// Retired in every version, pinned or not.
+const retiredIdentities = new Set(["npm:@tintinweb/pi-tasks", "npm:pi-lens"]);
+
 function isLegacySource(source) {
   return (
     legacySources.has(source) ||
+    retiredIdentities.has(packageIdentity(source)) ||
     source.startsWith("npm:@tintinweb/pi-subagents@") ||
     source === "npm:@agwab/pi-workflow" ||
     source.startsWith("npm:@agwab/pi-workflow@")
