@@ -9,7 +9,7 @@ const COMMIT =
 const CD = /(?:^|[;&|(){}\n])[ \t]*cd[ \t]+([^\s;&|()]+)/g;
 const OUR_HEADINGS = ["## What", "## Why", "## How to test"];
 const ATTRIBUTION = /claude-session:|generated with|co-authored-by:|claude\.ai\/code/i;
-const COMMIT_ATTRIBUTION = /^\s*(?:claude-session|co-authored-by):|generated (?:with|by)\b.*\b(?:claude|chatgpt|gpt|codex|copilot|openai|gemini|glm|ai)\b|claude\.ai\/code/im;
+const COMMIT_ATTRIBUTION = /^\s*(?:claude-session|co-authored-by):|generated (?:with|by)\s+\[?(?:claude|chatgpt|gpt|codex|copilot|openai|gemini|glm|mistral|deepseek|llama|grok|kimi|qwen|an? ai\b)|claude\.ai\/code/im;
 const MODEL_NAME = /\b(?:chatgpt|gpt|openai|codex|glm|zai|z\.ai|zhipu)\b/gi;
 const MAX_BODY_BYTES = 1024 * 1024;
 const REMEDIATION =
@@ -428,9 +428,16 @@ function literalText(raw) {
 			if (ch === "'") quote = null;
 			else out += ch;
 			i += 1;
-		} else if (ch === "'" || ch === '"') {
-			quote = ch === "'" ? "'" : quote === '"' ? null : '"';
+		} else if (ch === '"') {
+			quote = quote === '"' ? null : '"';
 			i += 1;
+		} else if (ch === "'" && quote === null) {
+			quote = "'";
+			i += 1;
+		} else if (ch === "$" && raw[i + 1] === "'" && quote === null) {
+			const decoded = ansiC(raw, i + 2);
+			out += decoded ? decoded.text : "";
+			i = decoded ? decoded.end + 1 : raw.length;
 		} else if (ch === "\\") {
 			out += raw[i + 1] ?? "";
 			i += 2;
@@ -447,7 +454,11 @@ function messageText(raw, scan, at) {
 	const text = staticWord(raw);
 	if (text !== null) return text;
 	const heredoc = scan.heredocs.find((doc) => doc.at >= at.start && doc.at < at.end);
-	if (/^"?\$\(\s*cat\s+<</.test(raw) && heredoc) return `${heredoc.body}\n${literalText(raw)}`;
+	if (/^"?\$\(\s*cat\s+<</.test(raw) && heredoc) {
+		const after = raw.indexOf(heredoc.body) + heredoc.body.length;
+		const suffix = raw.slice(after).replace(/^[^\n]*\n\s*\)/, "");
+		return `${heredoc.body.replace(/\n+$/, "")}${literalText(`${raw.startsWith('"') ? '"' : ""}${suffix}`)}`;
+	}
 	return literalText(raw);
 }
 
@@ -479,8 +490,7 @@ function commitMessages(command, scan, args, segment, cwd) {
 			continue;
 		}
 		if (name === "-") {
-			const heredoc = scan.heredocs.findLast((doc) => doc.at >= segment.start && doc.at < segment.end && !/[1-9]/.test(command[doc.at - 1] ?? ""));
-			if (heredoc) messages.push(heredoc.body);
+			for (const doc of scan.heredocs) if (doc.at >= segment.start && doc.at < segment.end) messages.push(doc.body);
 			continue;
 		}
 		if (!name || cwd === null) continue;
