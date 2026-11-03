@@ -5,16 +5,17 @@ import { dirname, join, resolve } from "node:path";
 const INVOCATION =
 	/(?:^|[;&|(){}\n]|\b(?:then|do|else)[ \t])[ \t]*(?:(?:[A-Za-z_][A-Za-z0-9_]*=\S*|command|env|exec|time|nohup|rtk|proxy)[ \t]+)*gh(?:[ \t]+(?:-R\S+|-R[ \t]+\S+|--repo=\S+|--repo[ \t]+\S+))?[ \t]+pr[ \t]+(create|new|edit)(?=[ \t;&|)\n]|$)/g;
 const COMMIT =
-	/(?:^|[;&|(){}\n]|\b(?:then|do|else)[ \t])[ \t]*(?:(?:[A-Za-z_][A-Za-z0-9_]*=\S*|command|env|exec|time|nohup|rtk|proxy)[ \t]+)*git((?:[ \t]+(?:-C[ \t]+\S+|-C\S+|-c[ \t]+\S+|-c\S+|--no-pager|--[a-z-]+=\S+))*)[ \t]+commit(?=[ \t;&|)\n]|$)/g;
+	/(?:^|[;&|(){}\n]|\b(?:then|do|else)[ \t])[ \t]*(?:(?:[A-Za-z_][A-Za-z0-9_]*=\S*|command|env|exec|time|nohup|rtk|proxy)[ \t]+)*git((?:[ \t]+(?:-C[ \t]+\S+|-C\S+|-c[ \t]+\S+|-c\S+|--[a-z-]+(?:=\S+)?))*)[ \t]+commit(?=[ \t;&|)\n]|$)/g;
 const CD = /(?:^|[;&|(){}\n])[ \t]*cd[ \t]+([^\s;&|()]+)/g;
 const OUR_HEADINGS = ["## What", "## Why", "## How to test"];
 const ATTRIBUTION = /claude-session:|generated with|co-authored-by:|claude\.ai\/code/i;
+const COMMIT_ATTRIBUTION = /^\s*(?:claude-session|co-authored-by):|generated with\b.*\bclaude|claude\.ai\/code/im;
 const MODEL_NAME = /\b(?:chatgpt|gpt|openai|codex|glm|zai|z\.ai|zhipu)\b/gi;
 const MAX_BODY_BYTES = 1024 * 1024;
 const REMEDIATION =
 	"Write the body with the `pr` skill (workflow/pr-body-contract.md): one opening line, then ## What, ## Why, ## How to test, in English, and pass it with --body-file <file>.";
 const COMMIT_REMEDIATION =
-	"Write the subject line only (workflow/git-contract.md): no trailers, no AI attribution, and no non-Claude model or provider name in a work-org repo.";
+	"Write the subject line only (workflow/git-contract.md): no trailers, no AI attribution, and no non-Claude model or provider name in a work-org repo (an identifier in a backtick code span inside a single-quoted -m passes).";
 
 function deny(prProblems, commitProblems) {
 	const reasons = [];
@@ -271,12 +272,14 @@ function workOrgs() {
 	}
 }
 
+function githubUrlOwner(url) {
+	const match = /^(?:(?:ssh|https?|git):\/\/)?(?:[^@/\s]+@)?github\.com(?::\d+\/|[:/])([A-Za-z0-9-]+)\/[A-Za-z0-9_.-]+?(?:\.git)?\/?$/i.exec(url.trim());
+	return match ? match[1].toLowerCase() : null;
+}
+
 function githubOwner(target) {
-	const text = target.trim();
-	const short = /^(?:github\.com\/)?([A-Za-z0-9-]+)\/[A-Za-z0-9_.-]+$/i.exec(text);
-	if (short) return short[1].toLowerCase();
-	const url = /^(?:(?:ssh|https?|git):\/\/)?(?:[^@/\s]+@)?github\.com[:/]([A-Za-z0-9-]+)\/[A-Za-z0-9_.-]+?(?:\.git)?\/?$/i.exec(text);
-	return url ? url[1].toLowerCase() : null;
+	const short = /^(?:github\.com\/)?([A-Za-z0-9-]+)\/[A-Za-z0-9_.-]+$/i.exec(target.trim());
+	return short ? short[1].toLowerCase() : githubUrlOwner(target);
 }
 
 function originOwner(dir) {
@@ -287,7 +290,7 @@ function originOwner(dir) {
 			timeout: 2000,
 			stdio: ["ignore", "pipe", "ignore"],
 		});
-		return githubOwner(url);
+		return githubUrlOwner(url);
 	} catch {
 		return null;
 	}
@@ -413,31 +416,57 @@ function bodyOf(command, scan, args, segment, cwd) {
 	return { text: readFileSync(path, "utf8") };
 }
 
+function literalText(raw) {
+	return raw
+		.replace(/\$\([^)]*\)|`[^`]*`|\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*|\$[0-9@*#?$!-]/g, "")
+		.replace(/\\(.)/g, "$1")
+		.replace(/['"]/g, "");
+}
+
+function messageText(raw, scan, at) {
+	const text = staticWord(raw);
+	if (text !== null) return text;
+	const heredoc = scan.heredocs.find((doc) => doc.at >= at.start && doc.at < at.end);
+	if (/^"?\$\(\s*cat\s+<</.test(raw) && heredoc) return heredoc.body;
+	return literalText(raw);
+}
+
 function commitMessages(command, scan, args, segment, cwd) {
 	const messages = [];
 	for (let k = 0; k < args.length; k += 1) {
-		if (args[k].text === "--") break;
-		const flag = /^--(message|file)(=|$)/.exec(args[k].text) ?? /^-(?!-)[A-Za-z]*?([mF])/.exec(args[k].text);
+		const raw = command.slice(args[k].start, args[k].end);
+		const decoded = staticWord(raw);
+		const word = decoded ?? raw;
+		if (word === "--") break;
+		const flag = /^--(message|file|trailer)(=|$)/.exec(word) ?? /^-(?!-)[A-Za-z]*?([mF])/.exec(word);
 		if (!flag) continue;
 		const kind = flag[1] === "file" || flag[1] === "F" ? "file" : "message";
-		const attached = flag[2] === "=" || (flag[2] === undefined && args[k].text.length > flag[0].length);
-		const value = attached ? { start: args[k].start + flag[0].length, end: args[k].end } : args[k + 1];
-		if (!attached) k += 1;
-		if (!value) continue;
-		const raw = command.slice(value.start, value.end);
+		const attached = flag[2] === "=" || (flag[2] === undefined && word.length > flag[0].length);
+		let text;
+		let name;
+		if (attached) {
+			text = decoded === null ? literalText(raw.slice(flag[0].length)) : decoded.slice(flag[0].length);
+			name = decoded === null ? null : text;
+		} else {
+			k += 1;
+			if (!args[k]) continue;
+			const valueRaw = command.slice(args[k].start, args[k].end);
+			text = messageText(valueRaw, scan, args[k]);
+			name = staticWord(valueRaw);
+		}
 		if (kind === "message") {
-			messages.push(staticWord(raw) ?? raw);
+			messages.push(text);
 			continue;
 		}
-		const name = staticWord(raw);
 		if (name === "-") {
-			const heredoc = scan.heredocs.find((doc) => doc.at >= segment.start && doc.at < segment.end);
+			const heredoc = scan.heredocs.findLast((doc) => doc.at >= segment.start && doc.at < segment.end);
 			if (heredoc) messages.push(heredoc.body);
 			continue;
 		}
 		if (!name || cwd === null) continue;
 		const path = resolve(cwd, expandHome(name));
-		if (existsSync(path) && statSync(path).isFile() && statSync(path).size <= MAX_BODY_BYTES) messages.push(readFileSync(path, "utf8"));
+		const stat = existsSync(path) ? statSync(path) : null;
+		if (stat?.isFile() && stat.size <= MAX_BODY_BYTES) messages.push(readFileSync(path, "utf8"));
 	}
 	return messages;
 }
@@ -468,7 +497,7 @@ function checkBody(body, cwd, isWork) {
 		.join("\n");
 	const nonAscii = prose.match(/[^\x09\x0a\x0d\x20-\x7e]/gu);
 	if (nonAscii) problems.push(`non-ASCII outside code, tables and quotes: ${[...new Set(nonAscii)].join(" ")}`);
-	problems.push(...modelNameProblems(prose, isWork));
+	problems.push(...modelNameProblems(lines.join("\n"), isWork));
 	return problems;
 }
 
@@ -517,8 +546,8 @@ export function prBodyGuardDecision({ cwd, tool_name, tool_input }) {
 		const dir = gitDir(command, match[1], globalsStart, effectiveCwd(command, scan.visible, match.index, cwd || process.cwd()));
 		const isWork = () => inWorkOrg(originOwner(dir));
 		for (const message of commitMessages(command, scan, words(scan.visible, start, segment.end), segment, dir)) {
-			if (ATTRIBUTION.test(message)) commitProblems.push("git commit: trailer or AI attribution in the message");
-			commitProblems.push(...modelNameProblems(message, isWork).map((problem) => `git commit: ${problem}`));
+			if (COMMIT_ATTRIBUTION.test(message)) commitProblems.push("git commit: trailer or AI attribution in the message");
+			commitProblems.push(...modelNameProblems(markdownLines(message).join("\n"), isWork).map((problem) => `git commit: ${problem}`));
 		}
 	}
 	return problems.length || commitProblems.length ? deny(problems, [...new Set(commitProblems)]) : null;
