@@ -329,6 +329,10 @@ describe("commit message guard", () => {
 			'git commit "-m" "Claude-Session: x"',
 			`git commit -m 'Co-'"Authored-By: $name"`,
 			"git commit -F - <<'A' <<'B'\nfix: x\nA\nClaude-Session: x\nB",
+			"git commit -F - <<'A' 3<<'B'\nClaude-Session: x\nA\nfix: x\nB",
+			'git commit "-mClaude-Session: $x"',
+			`git commit -m "$(cat <<'A'\nfix: x\nA\n)\nCo-Authored-By: someone"`,
+			"git commit -m 'chore: x' -m 'Generated with ChatGPT'",
 			`git -C ${repo} commit -m "${trailer}"`,
 			`git commit -m "fix: x $v ${trailer}"`,
 			`git commit -F - <<'EOF'\nfix: x\n\n${trailer}\nEOF`,
@@ -400,6 +404,7 @@ describe("non-Claude model names in work-org repos", () => {
 			expect(decide(`gh pr create --body-file ${file}`, work)?.hookSpecificOutput.permissionDecisionReason).toContain("Codex, GPT");
 			const port = clone("ssh://git@github.com:22/acme/app.git");
 			expect(decide('git commit -m "fix: reviewed by codex"', port)).not.toBeNull();
+			expect(decide(`git commit -m 'fix: $Codex'"$suffix"`, work)).not.toBeNull();
 			rmSync(port, { recursive: true, force: true });
 		} finally {
 			rmSync(work, { recursive: true, force: true });

@@ -9,7 +9,7 @@ const COMMIT =
 const CD = /(?:^|[;&|(){}\n])[ \t]*cd[ \t]+([^\s;&|()]+)/g;
 const OUR_HEADINGS = ["## What", "## Why", "## How to test"];
 const ATTRIBUTION = /claude-session:|generated with|co-authored-by:|claude\.ai\/code/i;
-const COMMIT_ATTRIBUTION = /^\s*(?:claude-session|co-authored-by):|generated with\b.*\bclaude|claude\.ai\/code/im;
+const COMMIT_ATTRIBUTION = /^\s*(?:claude-session|co-authored-by):|generated (?:with|by)\b.*\b(?:claude|chatgpt|gpt|codex|copilot|openai|gemini|glm|ai)\b|claude\.ai\/code/im;
 const MODEL_NAME = /\b(?:chatgpt|gpt|openai|codex|glm|zai|z\.ai|zhipu)\b/gi;
 const MAX_BODY_BYTES = 1024 * 1024;
 const REMEDIATION =
@@ -416,18 +416,38 @@ function bodyOf(command, scan, args, segment, cwd) {
 	return { text: readFileSync(path, "utf8") };
 }
 
+const EXPANSION = /^(?:\$\([^)]*\)|`[^`]*`|\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*|\$[0-9@*#?$!-])/;
+
 function literalText(raw) {
-	return raw
-		.replace(/\$\([^)]*\)|`[^`]*`|\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*|\$[0-9@*#?$!-]/g, "")
-		.replace(/\\(.)/g, "$1")
-		.replace(/['"]/g, "");
+	let out = "";
+	let quote = null;
+	let i = 0;
+	while (i < raw.length) {
+		const ch = raw[i];
+		if (quote === "'") {
+			if (ch === "'") quote = null;
+			else out += ch;
+			i += 1;
+		} else if (ch === "'" || ch === '"') {
+			quote = ch === "'" ? "'" : quote === '"' ? null : '"';
+			i += 1;
+		} else if (ch === "\\") {
+			out += raw[i + 1] ?? "";
+			i += 2;
+		} else {
+			const expansion = EXPANSION.exec(raw.slice(i));
+			if (!expansion) out += ch;
+			i += expansion ? expansion[0].length : 1;
+		}
+	}
+	return out;
 }
 
 function messageText(raw, scan, at) {
 	const text = staticWord(raw);
 	if (text !== null) return text;
 	const heredoc = scan.heredocs.find((doc) => doc.at >= at.start && doc.at < at.end);
-	if (/^"?\$\(\s*cat\s+<</.test(raw) && heredoc) return heredoc.body;
+	if (/^"?\$\(\s*cat\s+<</.test(raw) && heredoc) return `${heredoc.body}\n${literalText(raw)}`;
 	return literalText(raw);
 }
 
@@ -436,7 +456,7 @@ function commitMessages(command, scan, args, segment, cwd) {
 	for (let k = 0; k < args.length; k += 1) {
 		const raw = command.slice(args[k].start, args[k].end);
 		const decoded = staticWord(raw);
-		const word = decoded ?? raw;
+		const word = decoded ?? literalText(raw);
 		if (word === "--") break;
 		const flag = /^--(message|file|trailer)(=|$)/.exec(word) ?? /^-(?!-)[A-Za-z]*?([mF])/.exec(word);
 		if (!flag) continue;
@@ -445,7 +465,7 @@ function commitMessages(command, scan, args, segment, cwd) {
 		let text;
 		let name;
 		if (attached) {
-			text = decoded === null ? literalText(raw.slice(flag[0].length)) : decoded.slice(flag[0].length);
+			text = word.slice(flag[0].length);
 			name = decoded === null ? null : text;
 		} else {
 			k += 1;
@@ -459,7 +479,7 @@ function commitMessages(command, scan, args, segment, cwd) {
 			continue;
 		}
 		if (name === "-") {
-			const heredoc = scan.heredocs.findLast((doc) => doc.at >= segment.start && doc.at < segment.end);
+			const heredoc = scan.heredocs.findLast((doc) => doc.at >= segment.start && doc.at < segment.end && !/[1-9]/.test(command[doc.at - 1] ?? ""));
 			if (heredoc) messages.push(heredoc.body);
 			continue;
 		}
