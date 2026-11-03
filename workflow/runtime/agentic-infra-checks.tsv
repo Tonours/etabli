@@ -1,6 +1,8 @@
 # profile	group	label	target
 core	pi	pi-tests	builtin:pi-tests
 core	shell-docs	deploy-agent-workflow-smoke	tests/deploy-agent-workflow-smoke.sh
+core	shell-docs	deploy-hosts-smoke	tests/deploy-hosts-smoke.sh
+core	shell-docs	prs-today-smoke	tests/prs-today-smoke.sh
 core	shell-docs	surfaces-test	tests/surfaces.test.mjs
 core	shell-docs	workflow-contract-coverage-smoke	tests/workflow-contract-coverage-smoke.sh
 core	shell-docs	plan-cleanup-smoke	tests/plan-cleanup-smoke.sh

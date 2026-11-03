@@ -1,0 +1,129 @@
+#!/usr/bin/env node
+import { spawnSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const repoDir = dirname(dirname(fileURLToPath(import.meta.url)));
+const USAGE = `Usage: deploy-hosts [--hosts FILE] [HOST...]
+
+Fast-forward each host's etabli checkout to the pushed local main, then run
+scripts/deploy-agent-workflow --apply and --check there.
+
+Hosts come from FILE, else ~/.config/etabli/hosts (lines "<host> <repo-path>",
+# and blank lines ignored), else "macbook-work ~/work/etabli". HOST arguments
+keep only those hosts.
+
+Refuses before any write unless local main is pushed (HEAD == origin/main),
+and per host unless its checkout has the same GitHub origin, is on main, is
+clean, and its HEAD is an ancestor of the approved SHA after a fetch.
+`;
+
+const REMOTE = String.raw`set -u
+dir=${"$"}{1/#\~/$HOME}; sha=$2; want=$3
+PATH=/opt/homebrew/bin:/usr/local/bin:$PATH
+refuse() { printf 'refused: %s\n' "$1"; exit 3; }
+cd "$dir" 2>/dev/null || refuse "no checkout at $1"
+url=$(git config --get remote.origin.url) || refuse "no origin remote"
+got=$(printf '%s' "$url" | sed -E 's#^((ssh|https?|git)://)?([^@/]+@)?github\.com[:/]##; s#\.git/?$##; s#/$##' | tr 'A-Z' 'a-z')
+[ "$got" = "$want" ] || refuse "origin $url is not github.com/$want"
+branch=$(git rev-parse --abbrev-ref HEAD)
+[ "$branch" = main ] || refuse "checkout is on $branch, not main"
+[ -z "$(git status --porcelain)" ] || refuse "checkout has uncommitted changes"
+git fetch -q origin || refuse "git fetch origin failed"
+git cat-file -e "$sha^{commit}" 2>/dev/null || refuse "approved $sha not found after fetch"
+git merge-base --is-ancestor HEAD "$sha" || refuse "checkout HEAD is ahead of or diverged from $sha"
+git merge -q --ff-only "$sha" || refuse "fast-forward to $sha refused"
+[ "$(git rev-parse HEAD)" = "$sha" ] || refuse "HEAD is not $sha after the merge"
+scripts/deploy-agent-workflow --apply >/dev/null || { printf 'failed: deploy-agent-workflow --apply\n'; exit 4; }
+scripts/deploy-agent-workflow --check >/dev/null || { printf 'failed: deploy-agent-workflow --check\n'; exit 4; }
+printf 'ok\n'
+`;
+
+function fail(message, code = 1) {
+	process.stderr.write(`deploy-hosts: ${message}\n`);
+	process.exit(code);
+}
+
+function git(...args) {
+	const run = spawnSync("git", ["-C", repoDir, ...args], { encoding: "utf8" });
+	return run.status === 0 ? run.stdout.trim() : null;
+}
+
+function githubRepo(url) {
+	const match = /^(?:(?:ssh|https?|git):\/\/)?(?:[^@/\s]+@)?github\.com[:/]([A-Za-z0-9-]+\/[A-Za-z0-9_.-]+?)(?:\.git)?\/?$/i.exec(url.trim());
+	return match ? match[1].toLowerCase() : null;
+}
+
+function parseArgs(argv) {
+	const options = { hostsFile: join(homedir(), ".config/etabli/hosts"), only: [] };
+	for (let index = 0; index < argv.length; index += 1) {
+		const arg = argv[index];
+		if (arg === "-h" || arg === "--help") {
+			process.stdout.write(USAGE);
+			process.exit(0);
+		}
+		if (arg === "--hosts") {
+			if (index + 1 >= argv.length) fail("missing value for --hosts", 2);
+			index += 1;
+			options.hostsFile = argv[index];
+		} else if (arg.startsWith("-")) {
+			fail(`unknown option: ${arg}\n${USAGE}`, 2);
+		} else {
+			options.only.push(arg);
+		}
+	}
+	return options;
+}
+
+function readHosts(file) {
+	if (!existsSync(file)) return [{ host: "macbook-work", path: "~/work/etabli" }];
+	const hosts = [];
+	for (const raw of readFileSync(file, "utf8").split(/\r?\n/)) {
+		const line = raw.trim();
+		if (!line || line.startsWith("#")) continue;
+		const [host, path, extra] = line.split(/\s+/);
+		if (!path || extra) fail(`bad hosts line in ${file}: ${line}`, 2);
+		hosts.push({ host, path });
+	}
+	return hosts;
+}
+
+function quote(word) {
+	return `'${word.replace(/'/g, "'\\''")}'`;
+}
+
+const options = parseArgs(process.argv.slice(2));
+let hosts = readHosts(options.hostsFile);
+if (options.only.length) {
+	const unknown = options.only.filter((name) => !hosts.some((entry) => entry.host === name));
+	if (unknown.length) fail(`not in ${options.hostsFile}: ${unknown.join(", ")}`, 2);
+	hosts = hosts.filter((entry) => options.only.includes(entry.host));
+}
+if (!hosts.length) fail(`no hosts in ${options.hostsFile}`, 2);
+
+const repo = githubRepo(git("config", "--get", "remote.origin.url") ?? "");
+if (!repo) fail("local origin is not a github.com repository");
+if (git("rev-parse", "--abbrev-ref", "HEAD") !== "main") fail("local checkout is not on main");
+if (git("fetch", "-q", "origin") === null) fail("git fetch origin failed locally");
+const sha = git("rev-parse", "HEAD");
+const pushed = git("rev-parse", "origin/main");
+if (!sha || sha !== pushed) fail(`local main ${sha?.slice(0, 12)} is not pushed (origin/main ${pushed?.slice(0, 12)}); push first`);
+
+let failures = 0;
+for (const { host, path } of hosts) {
+	const run = spawnSync(
+		"ssh",
+		["-o", "BatchMode=yes", "-o", "ConnectTimeout=10", host, `bash -s -- ${quote(path)} ${quote(sha)} ${quote(repo)}`],
+		{ input: REMOTE, encoding: "utf8", timeout: 600_000 },
+	);
+	const last = run.stdout?.trim().split("\n").pop() ?? "";
+	let result;
+	if (run.status === 255 || run.error) result = `unreachable: ${(run.stderr || run.error?.message || "").trim().split("\n").pop()}`;
+	else if (run.status === 0 && last === "ok") result = `ok ${sha.slice(0, 12)}`;
+	else result = last || `failed: exit ${run.status}`;
+	if (!result.startsWith("ok ")) failures += 1;
+	process.stdout.write(`${host.padEnd(16)} ${result}\n`);
+}
+process.exit(failures ? 1 : 0);
