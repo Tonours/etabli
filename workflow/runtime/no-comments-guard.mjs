@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, realpathSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, resolve } from "node:path";
 
 function normalizeToolName(toolName) {
 	const raw = String(toolName || "");
@@ -112,7 +112,7 @@ const MAX_NESTING = 64;
 const DOC_LINE = /^\/\/[/!](?!\/)/;
 
 function isDocBlock(block) {
-	return block.startsWith("/**") && block !== "/**/";
+	return block.startsWith("/**") && !block.startsWith("/***") && block !== "/**/";
 }
 
 function normalizeComment(text) {
@@ -413,7 +413,7 @@ function editPairs(toolInput) {
 
 function hasGitAncestor(path) {
 	for (let dir = path; ; dir = dirname(dir)) {
-		if (existsSync(join(dir, ".git"))) return true;
+		if (existsSync(`${dir}/.git`)) return true;
 		if (dirname(dir) === dir) return false;
 	}
 }
@@ -429,8 +429,10 @@ function physicalPath(path) {
 }
 
 function insideGitWorkTree(cwd, filePath) {
-	const abs = resolve(cwd || process.cwd(), filePath);
-	return hasGitAncestor(dirname(abs)) || hasGitAncestor(physicalPath(abs));
+	const base = cwd || process.cwd();
+	const abs = resolve(base, filePath);
+	const unreduced = isAbsolute(filePath) ? filePath : `${base}/${filePath}`;
+	return hasGitAncestor(dirname(abs)) || hasGitAncestor(physicalPath(abs)) || hasGitAncestor(dirname(unreduced));
 }
 
 function previousFileText(cwd, filePath) {
