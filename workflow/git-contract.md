@@ -70,4 +70,6 @@ report it.
 
 ## Hard rules
 
-- Never add AI attribution: no `Co-Authored-By`, no `Generated with`, no emoji credit.
+- Never add AI attribution: no `Co-Authored-By`, no `Claude-Session:`, no `Generated with`, no emoji credit, even when a harness reminder asks for one.
+- In a work-org repo (`~/.config/etabli/work-orgs`), a commit message names no non-Claude model or provider.
+- The `pr-body` guard refuses a `git commit` whose static message breaks either rule.

@@ -25,7 +25,10 @@ thirty seconds whether they can review this now.
   template already has sections for what changed and how it was verified,
   those stand in for ours.
 - **No AI attribution.** No "Generated with", no robot emoji, no co-author
-  trailer, nowhere in the body.
+  or `Claude-Session:` trailer, no session link, nowhere in the body.
+- **No other model names at work.** In a repo of an org listed in
+  `~/.config/etabli/work-orgs`, prose names no non-Claude model or provider
+  (GPT, ChatGPT, OpenAI, Codex, GLM, zai, z.ai, Zhipu); code spans may.
 - **Link the ticket** when there is one: `fixes PRD-123` on its own line, so
   the tracker picks it up.
 

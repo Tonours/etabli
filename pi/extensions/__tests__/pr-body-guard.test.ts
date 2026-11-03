@@ -310,3 +310,103 @@ describe("pr body runtimes", () => {
 		expect(broken.stdout).toBe("");
 	});
 });
+
+describe("commit message guard", () => {
+	const trailer = "Claude-Session: https://claude.ai/code/session_x";
+
+	test("refuses trailers in every static message source", () => {
+		const commits = [
+			`git commit -m "fix: x" -m "${trailer}"`,
+			`git commit -m "fix: $topic" -m '${trailer}'`,
+			'git commit -m "fix: x" -m "Claude-Session: session_x"',
+			`git commit -m'Co-Authored-By: someone'`,
+			`git commit --message='Generated with a tool'`,
+			`git commit -am "Co-Authored-By: someone"`,
+			`git -C ${repo} commit -m "${trailer}"`,
+			`git commit -m "fix: x $v ${trailer}"`,
+			`git commit -F - <<'EOF'\nfix: x\n\n${trailer}\nEOF`,
+			`git commit -m "$(cat <<'EOF'\nfix: x\n\n${trailer}\nEOF\n)"`,
+		];
+		for (const command of commits) expect(reason(command)).toContain("Commit message refused: git commit: trailer");
+		writeFileSync(join(repo, "msg.txt"), `fix: x\n\n${trailer}\n`);
+		expect(reason("git commit -F msg.txt")).toContain("trailer");
+		expect(reason("git commit --file=msg.txt")).toContain("trailer");
+		expect(reason(`cd ${repo} && git commit -F msg.txt`)).toContain("trailer");
+	});
+
+	test("passes clean, dynamic and non-commit commands", () => {
+		for (const command of [
+			'git commit -m "fix: cap retries"',
+			'git commit -m "$msg"',
+			"git commit --amend --no-edit",
+			"git log --grep Claude-Session",
+			"git commit -F missing.txt",
+			'echo "git commit -m Claude-Session: x"',
+		]) {
+			expect(decide(command)).toBeNull();
+		}
+	});
+});
+
+describe("non-Claude model names in work-org repos", () => {
+	let orgsFile = "";
+	const previous = process.env.ETABLI_WORK_ORGS_FILE;
+
+	function clone(origin: string) {
+		const dir = mkdtempSync(join(tmpdir(), "etabli-work-"));
+		spawnSync("git", ["init", "-q", dir]);
+		spawnSync("git", ["-C", dir, "remote", "add", "origin", origin]);
+		return dir;
+	}
+
+	beforeEach(() => {
+		orgsFile = join(repo, "work-orgs");
+		writeFileSync(orgsFile, "# work\n\nAcme\nnot a/valid line\n");
+		process.env.ETABLI_WORK_ORGS_FILE = orgsFile;
+	});
+
+	afterEach(() => {
+		if (previous === undefined) delete process.env.ETABLI_WORK_ORGS_FILE;
+		else process.env.ETABLI_WORK_ORGS_FILE = previous;
+	});
+
+	test("refuses model names in commits and PR bodies of a work repo", () => {
+		const work = clone("git@github.com:acme/app.git");
+		const https = clone("https://github.com/ACME/app.git");
+		try {
+			expect(decide('git commit -m "fix: tune the GPT prompt"', work)?.hookSpecificOutput.permissionDecisionReason).toContain("GPT");
+			expect(decide('git commit -m "fix: reviewed by codex"', https)).not.toBeNull();
+			expect(decide(`git -C ${work} commit -m "fix: z.ai fallback"`)).not.toBeNull();
+			expect(decide('git commit -m "fix: call `openai` client"', work)).toBeNull();
+			const file = join(work, "body.md");
+			writeFileSync(file, GOOD.replace("- loops", "- loops seen by GLM"));
+			expect(decide(`gh pr create --body-file ${file}`, work)?.hookSpecificOutput.permissionDecisionReason).toContain("GLM");
+			expect(decide(`gh pr create -R acme/app --body-file ${file}`)).not.toBeNull();
+			expect(decide(`gh -R Acme/app pr create --body-file ${file}`)).not.toBeNull();
+			expect(decide(`gh pr create --repo other/app --body-file ${file}`, work)).toBeNull();
+		} finally {
+			rmSync(work, { recursive: true, force: true });
+			rmSync(https, { recursive: true, force: true });
+		}
+	});
+
+	test("lets model names through outside work orgs", () => {
+		const personal = clone("git@github.com:someone/app.git");
+		const gitlab = clone("git@gitlab.com:acme/app.git");
+		try {
+			expect(decide('git commit -m "fix: tune the GPT prompt"', personal)).toBeNull();
+			expect(decide('git commit -m "fix: tune the GPT prompt"', gitlab)).toBeNull();
+			expect(decide('git commit -m "fix: tune the GPT prompt"')).toBeNull();
+			process.env.ETABLI_WORK_ORGS_FILE = join(repo, "missing");
+			const work = clone("git@github.com:acme/app.git");
+			expect(decide('git commit -m "fix: tune the GPT prompt"', work)).toBeNull();
+			writeFileSync(orgsFile, "");
+			process.env.ETABLI_WORK_ORGS_FILE = orgsFile;
+			expect(decide('git commit -m "fix: tune the GPT prompt"', work)).toBeNull();
+			rmSync(work, { recursive: true, force: true });
+		} finally {
+			rmSync(personal, { recursive: true, force: true });
+			rmSync(gitlab, { recursive: true, force: true });
+		}
+	});
+});
