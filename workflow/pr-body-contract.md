@@ -28,7 +28,8 @@ thirty seconds whether they can review this now.
   or `Claude-Session:` trailer, no session link, nowhere in the body.
 - **No other model names at work.** In a repo of an org listed in
   `~/.config/etabli/work-orgs`, prose names no non-Claude model or provider
-  (GPT, ChatGPT, OpenAI, Codex, GLM, zai, z.ai, Zhipu); code spans may.
+  (GPT, ChatGPT, OpenAI, Codex, GLM, zai, z.ai, Zhipu, Gemini, DeepSeek,
+  Mistral, Grok, Qwen, Llama, Kimi), HTML comments included; code spans may.
 - **Link the ticket** when there is one: `fixes PRD-123` on its own line, so
   the tracker picks it up.
 
