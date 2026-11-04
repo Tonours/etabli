@@ -52,6 +52,10 @@ _Avoid_: light review, quick review
 The structured record of plan, decisions and run evidence given to Spec, adversary and lead reviewers, shaped by `workflow/evidence-pack.schema.json`.
 _Avoid_: bundle
 
+**Entry chain**:
+The files an agent reads before routing (`AGENTS.md`, `workflow/spec.md`, `workflow/agent-rules.md`, `workflow/contract-details.md`), capped by ADR-0042; `workflow/skills/` loads per route and stays outside it.
+_Avoid_: hot context, hot chain
+
 **PR council**:
 The three-pass review of one GitHub PR run by the explicit command `/pr-council-review`; the multi-model routing council is gone (ADR-0013).
 _Avoid_: council (alone), review council

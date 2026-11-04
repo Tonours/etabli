@@ -97,6 +97,11 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   autonomous `plan-implement` run comes from a fresh
   context (subagent reviewer or cross-model). Handoffs are recorded in
   `PLAN.md` § Notes / Handoff.
+- When no plan-route row matches, editorial edits under `workflow/`
+  (wording, links, examples) that change no route, gate, or obligation are
+  small tier: `answer` route, self-review, core checks, no plan. Any change
+  to a route, gate, or obligation stays contractual and keeps its tier
+  (`workflow/skills/implementation-loop.md`).
 - Golden principles: every mechanical check fails with a message that names its remediation.
   Instruction files stay maps, not manuals.
   Recurring findings become reviewed recommendations, never auto-applied; no parallel harness trees.
