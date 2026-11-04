@@ -45,6 +45,10 @@ describe("pr body guard", () => {
 	test("passes an inline heredoc body and a literal newline body", () => {
 		expect(decide(`gh pr create --title "fix: x" --body "$(cat <<'EOF'\n${GOOD}EOF\n)"`)).toBeNull();
 		expect(decide(`gh pr create --body-file - <<'EOF'\n${GOOD}EOF`)).toBeNull();
+		expect(reason(`gh pr create --body-file - 2>&1 <<'A' <<'B'\n${GOOD}A\nGenerated with Claude Code\nB`)).toContain("AI attribution");
+		expect(decide(`gh pr create --body-file - 3<<'A' <<'B'\nGenerated with Claude Code\nA\n${GOOD}B`)).toBeNull();
+		expect(decide(`gh pr create --body-file - < ${bodyFile(GOOD)}`)).toBeNull();
+		expect(reason("gh pr create --body-file - <<< 'x'")).toContain("pipe");
 		expect(decide(`gh pr create -t x -b $'Line\\n\\n## What\\nx\\n## Why\\ny\\n## How to test\\nz'`)).toBeNull();
 	});
 
