@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
 const PREFIX =
-	"(?:^|[;&|(){}\\n]|\\b(?:then|do|else)[ \\t])[ \\t]*(?:(?:[A-Za-z_][A-Za-z0-9_]*=\\S*|command|env|exec|time|nohup|rtk|proxy|sudo|if|elif|while|until|!|timeout[ \\t]+\\d\\S*)[ \\t]+)*";
+	"(?:^|[;&|(){}\\n]|\\b(?:then|do|else)[ \\t])[ \\t]*(?:(?:[A-Za-z_][A-Za-z0-9_]*=\\S*|command|env|exec|time|nohup|rtk|proxy|sudo(?:[ \\t]+(?:-[ugCDhpRrTU][ \\t]+\\S+|-\\S+))*|if|elif|while|until|!|timeout(?:[ \\t]+(?:-[ks][ \\t]+\\S+|-\\S+))*[ \\t]+\\d\\S*)[ \\t]+)*";
 const INVOCATION = new RegExp(
 	`${PREFIX}gh(?:[ \\t]+(?:-R\\S+|-R[ \\t]+\\S+|--repo=\\S+|--repo[ \\t]+\\S+))?[ \\t]+pr[ \\t]+(create|new|edit)(?=[ \\t;&|)\\n]|$)`,
 	"g",
@@ -124,6 +124,7 @@ export function scanShell(command) {
 				: null;
 		if (here && command[i + 2] !== "<") {
 			pending.push({ at: i, word: here[3] ?? here[5], strip: here[1] === "-", quoted: Boolean(here[2] || here[4]) });
+			if (stack.includes('"')) hide(i, i + here[0].length);
 			i += here[0].length;
 			continue;
 		}
@@ -321,8 +322,7 @@ function repoFlag(command, args) {
 }
 
 function modelNameProblems(body, isWork) {
-	const comments = [...body.matchAll(/<!--([\s\S]*?)(?:-->|$)/g)].map((match) => match[1]);
-	const names = [...markdownLines(body), ...comments].join("\n").replace(/`[^`]*`/g, "").match(MODEL_NAME);
+	const names = markdownLines(body, { keepComments: true }).join("\n").replace(/`[^`]*`/g, "").match(MODEL_NAME);
 	if (!names || !isWork()) return [];
 	return [`non-Claude model or provider name in a work-org repo: ${[...new Set(names)].join(", ")}`];
 }
@@ -340,7 +340,7 @@ function templateHeadings(cwd) {
 	return [];
 }
 
-function markdownLines(body, { dropQuotesAndTables = false } = {}) {
+function markdownLines(body, { dropQuotesAndTables = false, keepComments = false } = {}) {
 	const lines = [];
 	let fence = null;
 	let comment = false;
@@ -350,6 +350,7 @@ function markdownLines(body, { dropQuotesAndTables = false } = {}) {
 		let raw = source;
 		if (comment) {
 			const close = raw.indexOf("-->");
+			if (keepComments) lines.push((close === -1 ? raw : raw.slice(0, close)).trim());
 			if (close === -1) continue;
 			raw = raw.slice(close + 3);
 			comment = false;
@@ -367,14 +368,16 @@ function markdownLines(body, { dropQuotesAndTables = false } = {}) {
 		indentedCode = !blank && /^(?: {4}|\t)/.test(raw) && (indentedCode || previous === "");
 		previous = blank ? "" : raw;
 		if (indentedCode) continue;
-		raw = raw.replace(/<!--[\s\S]*?-->/g, "");
+		raw = raw.replace(/<!--([\s\S]*?)-->/g, keepComments ? " $1 " : "");
 		const open = raw.indexOf("<!--");
+		const tail = open === -1 ? "" : raw.slice(open + 4);
 		if (open !== -1) {
 			raw = raw.slice(0, open);
 			comment = true;
 		}
 		if (dropQuotesAndTables && /^\s*[|>]/.test(raw)) continue;
 		lines.push(raw.trim());
+		if (keepComments && tail) lines.push(tail.trim());
 	}
 	return lines;
 }
@@ -478,7 +481,7 @@ function messageText(raw, scan, at) {
 
 function commandEnd(visible, from) {
 	for (let k = from; k < visible.length; k += 1) {
-		if (";|)\n".includes(visible[k]) || (visible[k] === "&" && !"<>".includes(visible[k - 1]))) return k;
+		if (";|)\n".includes(visible[k]) || (visible[k] === "&" && !"<>".includes(visible[k - 1]) && visible[k + 1] !== ">")) return k;
 	}
 	return visible.length;
 }
@@ -499,7 +502,11 @@ function stdinSource(command, scan, segment) {
 		const word = words(scan.visible, after, end)[0];
 		const operator = word ? word.text.search(/[<>]/) : -1;
 		const raw = word ? command.slice(word.start, operator === -1 ? word.end : word.start + operator) : "";
-		if (match[2] === "<&") fds.set(fd, fds.get(raw) ?? null);
+		if (match[2] === "<&") {
+			const source = raw.replace(/-$/, "");
+			fds.set(fd, fds.get(source) ?? null);
+			if (raw.endsWith("-") && source !== fd) fds.delete(source);
+		}
 		else if (match[2] === "<<<") fds.set(fd, { text: `${staticWord(raw) ?? literalText(raw)}\n` });
 		else fds.set(fd, { file: staticWord(raw) });
 	}
@@ -620,7 +627,13 @@ export function prBodyGuardDecision({ cwd, tool_name, tool_input }) {
 		const shellDir = effectiveCwd(command, scan.visible, match.index, cwd || process.cwd());
 		const dir = gitDir(command, match[1], globalsStart, shellDir);
 		const isWork = () => inWorkOrg(originOwner(dir));
-		for (const message of commitMessages(command, scan, words(scan.visible, start, segment.end), segment, { git: dir, shell: shellDir })) {
+		const args = words(scan.visible, start, segment.end)
+			.map((arg) => {
+				const cut = arg.text.search(/[<>]/);
+				return cut === -1 ? arg : { text: arg.text.slice(0, cut), start: arg.start, end: arg.start + cut };
+			})
+			.filter((arg) => arg.text);
+		for (const message of commitMessages(command, scan, args, segment, { git: dir, shell: shellDir })) {
 			if (COMMIT_ATTRIBUTION.test(message) || PROPER_CREDIT.test(message)) commitProblems.push("git commit: trailer or AI attribution in the message");
 			commitProblems.push(...modelNameProblems(message, isWork).map((problem) => `git commit: ${problem}`));
 		}
