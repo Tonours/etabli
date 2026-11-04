@@ -263,7 +263,7 @@ fi
   assert_link "$WORK_HOME_DIR/.claude/skills/linear-work" "$ROOT_DIR/skills/work/linear-work"
   assert_link "$WORK_HOME_DIR/.pi/agent/skills/linear-work" "$ROOT_DIR/skills/work/linear-work"
   assert_link "$WORK_HOME_DIR/.claude/skills/pr-council-review" "$ROOT_DIR/skills/work/pr-council-review"
-  assert_absent "$WORK_HOME_DIR/.pi/agent/skills/pr-council-review"
+  assert_link "$WORK_HOME_DIR/.pi/agent/skills/pr-council-review" "$ROOT_DIR/skills/work/pr-council-review"
   assert_absent "$WORK_HOME_DIR/.claude/skills/adr"
   assert_absent "$WORK_HOME_DIR/.pi/agent/skills/adonisjs-suite"
   assert_absent "$WORK_HOME_DIR/.claude/skills/adonisjs-suite"
