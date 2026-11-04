@@ -1,30 +1,56 @@
 # Symlink layout
 
-`scripts/deploy-agent-workflow --apply` (also run by `scripts/install.sh`) puts
-these surfaces in your home. `--check` reports drift, `--check --fix` repairs
-links, and `scripts/check-fix-symlinks.sh` is a shortcut for `--check`. Every
-surface below comes from one manifest, `scripts/lib/surfaces.mjs` (ADR-0038).
+`scripts/deploy-agent-workflow --apply` puts these surfaces in your home, and
+`scripts/install.sh` runs it for you. Every surface below comes from one
+manifest, `scripts/lib/surfaces.mjs` (ADR-0038).
+
+## Basic usage
+
+```bash
+scripts/deploy-agent-workflow              # dry run, the default: prints the drift
+scripts/deploy-agent-workflow --apply      # links, prunes, then syncs settings
+scripts/deploy-agent-workflow --check      # reports drift, skips the settings sync
+scripts/deploy-agent-workflow --check --fix
+scripts/check-fix-symlinks.sh              # shortcut for --check, takes --fix
+```
+
+After an `--apply` on your live home, the deploy runs
+`scripts/claude-skill-load-check` and fails when it does. Under
+`scripts/install.sh` a failed check only warns. `ETABLI_SKIP_LIVE_CHECKS=1`
+treats the home as non-live and skips it.
+
+A foreign file sitting on a managed name is moved aside to
+`<name>.bak.<stamp>` (under `skills.bak/` for a skill), never deleted. A
+foreign symlink is moved aside the same way, except under `scripts/install.sh`,
+which replaces it. Settings
+files get a timestamped copy before each write, and the newest 5 of those are
+kept.
 
 ## Claude links
 
-Under `~/.claude/`, and the same set under `$CLAUDE_CONFIG_DIR` when it is set
-and differs (the hook and skill checks read that one by default):
+Under `~/.claude/`. When `$CLAUDE_CONFIG_DIR` points somewhere other than
+`~/.claude`, either under your home or anywhere when `HOME` is your login home,
+and the deploy targets the live home, the Claude links and the Claude settings
+sync go there too. The hook and skill checks read it by default.
 
 - `CLAUDE.md` -> `claude/claude-global.md`. The different name keeps a session
   that reads files under `claude/` from loading it again as nested memory.
 - `workflow/` -> `workflow/`, and `review-rubric.md` -> `workflow/review-rubric.md`
 - `PLAN_TEMPLATE.md`, `PLAN_TEMPLATE_FULL.md` -> repo root templates
 - `skills/<name>/` -> `skills/<scope>/<name>/` or a vendored skill, for every
-  active-scope row of `workflow/runtime/skill-surface.tsv`
-- `agents/<name>.md` -> `claude/scopes/<scope>/agents/`
+  active-scope row of `workflow/runtime/skill-surface.tsv`. Under the `work`
+  scope, `adr` is withheld (`SHADOWS` in `scripts/lib/surfaces.mjs`).
+- `agents/<name>.md` -> `claude/scopes/<scope>/agents/*.md`
 - `scripts/<name>` -> `claude/scopes/<scope>/scripts/`
-- `hooks/<name>` -> `claude/hooks/`
+- `hooks/<name>` -> `claude/hooks/*.mjs` and `*.sh`
 - `statusline-command.sh` -> `claude/statusline-command.sh`
 - `settings.workflow-hooks.json` -> `claude/settings.workflow-hooks.json`, a
-  fragment `scripts/claude-hooks-merge` merges by hand (`claude/README.md` § Hooks)
+  fragment you merge with `scripts/claude-hooks-merge`
+  ([`claude/README.md`](../claude/README.md) § Hooks)
 
-Repo links under `commands/` are pruned: Claude commands are retired
-(ADR-0037).
+Repo links under `commands/` are pruned, since Claude commands are retired
+(ADR-0037). So are links to hooks, agents, scripts and skills the repo no
+longer ships.
 
 ## Pi links
 
@@ -33,41 +59,49 @@ Repo links under `commands/` are pruned: Claude commands are retired
 - `~/.pi/agent/PLAN_TEMPLATE.md`, `PLAN_TEMPLATE_FULL.md` -> repo root templates
 - `~/.pi/agent/models.json` -> `pi/models.json`
 - `~/.pi/agent/extensions/` -> `pi/extensions/`
-- `~/.pi/agent/agents/<name>.md` -> `pi/agents/`
+- `~/.pi/agent/agents/<name>.md` -> `pi/agents/*.md`
 - `~/.pi/agent/skills/<name>/` -> only the `pi_core=1` rows of
   `skill-surface.tsv`
 - `~/.pi/agent/themes/<name>.json` and `~/.pi/themes/` -> `pi/themes/`
 - `~/.pi/scripts/` -> `scripts/` (modules the Pi extensions import)
 - `~/.pi/settings.json` -> `pi/settings.json`
 - `pi/extensions/node_modules` (in the repo) -> `~/.pi/agent/npm/node_modules`,
-  so the extensions resolve the packages Pi installs
+  so the extensions resolve the packages Pi installs. A non-live home skips it.
+
+The deploy removes the retired `~/.pi/agent/subagents.json` link and requires
+`~/.pi/extensions` to be absent: that path makes Pi load every extension twice.
 
 ## Shared links
 
 `~/.local/bin/fix-links`, `deploy-workflow` and `security-audit-glm` ->
 `scripts/`.
 
-`agent` on your PATH stays Cursor's (`~/.local/bin/agent`): the installer
-removes the `~/.grok/bin/agent` collision and Grok keeps `grok`
+`agent` on your PATH stays Cursor's (`~/.local/bin/agent`). The installer
+removes the `~/.grok/bin/agent` collision, and Grok keeps `grok`
 (`scripts/lib/prefer-cursor-agent.sh`).
 
 ## Copies and merges
 
-These files hold local state, so deploy writes into them instead of linking:
+These files hold local state, so the deploy writes into them instead of
+linking them. `--apply` runs both syncs; `--check` skips them.
 
 - `~/.pi/agent/settings.json`: copied from `pi/agent/settings.json` when
-  missing, then `scripts/lib/pi-agent-settings-sync.mjs` merges the tracked
-  `packages` and `enabledModels` and replaces the `skills` key.
-- `~/.claude/settings.json`: `scripts/lib/claude-settings-sync.mjs` copies only
-  whitelisted keys from `claude/settings.skill-overrides.json` (`skillOverrides`,
-  `permissions.defaultMode`, `attribution`, `autoMemoryEnabled`, the two skip
-  prompts). Nothing is read back into the repo.
+  missing. Then `scripts/lib/pi-agent-settings-sync.mjs` merges the tracked
+  `packages` and `enabledModels`, drops legacy packages and retired models,
+  and replaces the `skills` key.
+- `~/.claude/settings.json`: `scripts/lib/claude-settings-sync.mjs` merges
+  `skillOverrides` from `claude/settings.skill-overrides.json`, where the
+  tracked entries win, and copies the other keys the fragment carries,
+  `attribution` and `autoMemoryEnabled` today. The
+  whitelist also admits `permissions.defaultMode` and the two skip prompts, and
+  refuses any other key. Nothing is read back into the repo.
 
 ## Scopes
 
 `~/.etabli-scope` holds `work` or `personal`, and `ETABLI_SCOPE` overrides it
-for one run. You always get `shared` plus that scope; no file and no override
-means `shared` alone. `claude/README.md` § Scopes has the rules.
+for one run. You always get `shared` plus that scope, and no file and no
+override means `shared` alone. [`claude/README.md`](../claude/README.md) §
+Scopes has the rules.
 
 ## Not managed
 
@@ -77,3 +111,8 @@ means `shared` alone. `claude/README.md` § Scopes has the rules.
 - Editor, terminal and herdr config, herdr skill included: the
   [dotfiles](https://github.com/Tonours/dotfiles) repo owns them
   (`scripts/fix-links` there).
+
+## What's next
+
+[`claude/README.md`](../claude/README.md) covers what the Claude links carry:
+hooks, agents and skill governance.
