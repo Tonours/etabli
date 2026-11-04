@@ -147,7 +147,7 @@ assert_link "$TMP_HOME/.claude/scripts/pr-review-watch" "$REPO/claude/scopes/wor
 assert_link "$TMP_HOME/.claude/skills/linear-work" "$REPO/skills/work/linear-work"
 assert_link "$TMP_HOME/.pi/agent/skills/linear-work" "$REPO/skills/work/linear-work"
 assert_link "$TMP_HOME/.claude/skills/pr-council-review" "$REPO/skills/work/pr-council-review"
-assert_not_exists "$TMP_HOME/.pi/agent/skills/pr-council-review"
+assert_link "$TMP_HOME/.pi/agent/skills/pr-council-review" "$REPO/skills/work/pr-council-review"
 assert_not_exists "$TMP_HOME/.pi/agent/skills/employer-backend-suite"
 assert_link "$TMP_HOME/.claude/skills/employer-backend-suite" "$REPO/skills/work/employer-backend-suite"
 assert_not_exists "$TMP_HOME/.pi/agent/skills/adonisjs-suite"
