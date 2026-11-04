@@ -49,6 +49,9 @@ describe("pr body guard", () => {
 		expect(decide(`gh pr create --body-file - 3<<'A' <<'B'\nGenerated with Claude Code\nA\n${GOOD}B`)).toBeNull();
 		expect(decide(`gh pr create --body-file - < ${bodyFile(GOOD)}`)).toBeNull();
 		expect(reason("gh pr create --body-file - <<< 'x'")).toContain("pipe");
+		expect(reason(`gh pr create --body-file - 2>&1 <<'A' 3<<'B' 0>&3\n${GOOD}A\nGenerated with Claude Code\nB`)).toContain("AI attribution");
+		expect(reason(`gh pr create --body-file - <<'A' 0<>notes.md\n${GOOD}A`)).toContain("pipe");
+		expect(decide(`gh pr create --body-file - <<'A' >/dev/null 2>&1\n${GOOD}A`)).toBeNull();
 		expect(decide(`gh pr create -t x -b $'Line\\n\\n## What\\nx\\n## Why\\ny\\n## How to test\\nz'`)).toBeNull();
 	});
 
@@ -368,6 +371,7 @@ describe("commit message guard", () => {
 			"timeout 30 git commit -m 'Claude-Session: x'",
 			"git commit -F - 3<<<'Claude-Session: x' 0<&3>/dev/null",
 			"git commit -F - 3<<'A' 0<&3-\nClaude-Session: x\nA",
+			"git commit -F - <<'A' 3<<'B' 0>&3\nfix: x\nA\nClaude-Session: x\nB",
 			"sudo -n git commit -m 'Claude-Session: x'",
 			"sudo -u root git commit -m 'Claude-Session: x'",
 			"timeout -k 5 30 git commit -m 'Claude-Session: x'",
