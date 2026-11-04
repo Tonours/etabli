@@ -60,9 +60,11 @@ It runs `scripts/sync-vendor-skills`, refreshes `skills-lock.json`, runs
 exits early when nothing moved. Deploy afterwards
 (`scripts/deploy-agent-workflow --apply`) so the live surfaces pick it up.
 
-`scripts/sync-vendor-skills` refuses to run while `vendor/` has uncommitted
-changes, staged or not, so a forgotten local edit surfaces instead of being
-overwritten.
+`scripts/sync-vendor-skills` refuses to run while a tracked file under
+`vendor/` has uncommitted changes, staged or not, so a forgotten local edit
+surfaces instead of being overwritten. Untracked files are not checked: the
+sync deletes and recreates each vendored tree, so an untracked file inside one
+is lost.
 `bun run verify:skills` is the read-only check `scripts/verify-agentic-infra`
 runs.
 

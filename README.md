@@ -26,7 +26,9 @@ The installer sets up the tooling and the managed links:
 - your shell PATH, with `agent` kept as Cursor's.
 
 It uses your existing Node.js, through `asdf` when available, and never
-installs Node.
+installs Node or Bun. `scripts/verify-agentic-infra` needs Bun and the `pi/`
+dependencies, so run `cd pi && bun install --frozen-lockfile` once before the
+first check.
 
 `scripts/claude-hooks-merge` merges the Claude hooks into your live
 `settings.json` instead of linking it, because that file can hold secrets. The
@@ -43,14 +45,15 @@ Editor and terminal config live in
   skill tree (`skills/<scope>/`).
 - **Guards in code, not in prose.** The first three run on Claude as hooks and
   on Pi as extensions, over one shared module each in `workflow/runtime/`:
-  - an edit-tool write that adds a code comment is refused, except doc
-    comments and files outside a git work tree (a shell write is not checked);
+  - an edit-tool write that adds a code comment to a file of a known language
+    is refused, except doc comments and files outside a git work tree (a shell
+    write, or a file without a known extension, is not checked);
   - shell output goes through rtk when compacting it is safe;
   - a `gh pr create` or `gh pr edit` body must follow the PR body contract, and
-    a `git commit` message carries no `Claude-Session:` or `Co-Authored-By:`
-    trailer and no AI credit;
+    the literal text of a `git commit` message carries no `Claude-Session:` or
+    `Co-Authored-By:` trailer and no AI credit;
   - the Claude `scout`, `reviewer` and `adversary` agents get a read-only
-    shell.
+    shell, apart from a plain `git fetch`.
 
   Nothing else stops for approval (ADR-0032).
 - **Locked skills.** Vendored packs carry an `UPSTREAM_SHA` pin and an
