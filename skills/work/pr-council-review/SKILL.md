@@ -5,8 +5,9 @@ argument-hint: "<PR number or URL> [owner/repo] [--post] [--phase-a-model <alias
 allowed-tools: [Bash, Read, Glob, Grep]
 ---
 
-Run `~/.claude/scripts/pr-council-review/run.sh $ARGUMENTS` from the repository
-the PR belongs to, and stream its output.
+Run `~/.claude/scripts/pr-council-review/run.sh` with the arguments of the
+request, in their order (the PR, then its flags), from the repository the PR
+belongs to, and stream its output.
 
 The script does the orchestration; you do not re-run any of the passes yourself.
 To run a round again (interrupted, or a new head), run the same command again.
