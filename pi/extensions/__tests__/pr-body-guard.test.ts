@@ -360,6 +360,11 @@ describe("commit message guard", () => {
 			"! git commit -m 'Claude-Session: x'",
 			"timeout 30 git commit -m 'Claude-Session: x'",
 			"git commit -F - 3<<<'Claude-Session: x' 0<&3>/dev/null",
+			"git commit -F - 3<<'A' 0<&3-\nClaude-Session: x\nA",
+			"sudo -n git commit -m 'Claude-Session: x'",
+			"sudo -u root git commit -m 'Claude-Session: x'",
+			"timeout -k 5 30 git commit -m 'Claude-Session: x'",
+			"git commit -m 'fix: x' &>/dev/null --trailer 'Co-Authored-By=Claude'",
 		];
 		for (const command of commits) expect(reason(command)).toContain("Commit message refused: git commit: trailer");
 		writeFileSync(join(repo, "msg.txt"), `fix: x\n\n${trailer}\n`);
@@ -369,6 +374,8 @@ describe("commit message guard", () => {
 		expect(reason("git commit -F - < msg.txt")).toContain("trailer");
 		mkdirSync(join(repo, "sub"));
 		expect(reason("git -C sub commit -F - < msg.txt")).toContain("trailer");
+		expect(reason("git commit -F msg.txt>/dev/null")).toContain("trailer");
+		expect(reason("git commit -F -<msg.txt")).toContain("trailer");
 	});
 
 	test("passes clean, dynamic and non-commit commands", () => {
@@ -438,6 +445,10 @@ describe("non-Claude model names in work-org repos", () => {
 			expect(decide("git commit -m 'fix: x\n\n<!--\n\n    Reviewed by Codex\n-->'", work)).not.toBeNull();
 			expect(decide("git commit -m 'fix: move to gpt-5'", work)).not.toBeNull();
 			expect(decide("git commit -m 'fix: correct gptimer rollover'", work)).toBeNull();
+			expect(decide("git commit -m 'fix: keep the `<!-- Codex -->` literal'", work)).toBeNull();
+			const literal = join(work, "literal.md");
+			writeFileSync(literal, GOOD.replace("- loops", "- keep `<!-- Codex -->`\n\n```html\n<!-- GPT -->\n```"));
+			expect(decide(`gh pr create --body-file ${literal}`, work)).toBeNull();
 			expect(decide(`cd ${work} && git commit -m "fix: tune the GPT prompt"`)).not.toBeNull();
 			const file = join(work, "body.md");
 			writeFileSync(file, GOOD.replace("- loops", "- loops seen by GLM"));
