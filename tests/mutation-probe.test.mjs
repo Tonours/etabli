@@ -206,7 +206,7 @@ function fixture(t, base, changes, parent = temp) {
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const repo = join(dir, "repo");
   mkdirSync(repo);
-  sh(repo, "git init -q && git config user.email t@example.com && git config user.name t && git config commit.gpgSign false");
+  sh(repo, "git init -q && git config user.email t@example.com && git config user.name t && git config commit.gpgSign false && git config gc.auto 0 && git config maintenance.auto false");
   put(repo, base);
   sh(repo, "git add -A && git commit -qm base");
   put(repo, changes);
@@ -223,16 +223,23 @@ const workOf = (out) => /^work directory: (.*)$/m.exec(out)?.[1];
 
 function snapshot(path) {
   const entries = {};
-  const visit = (entry) => {
-    const stat = lstatSync(entry);
+  const visit = (entry, retry = true) => {
     const key = relative(path, entry);
-    if (stat.isDirectory()) {
-      entries[key] = ["d", stat.mode];
-      for (const name of readdirSync(entry)) visit(join(entry, name));
-    } else if (stat.isSymbolicLink()) {
-      entries[key] = ["l", readlinkSync(entry)];
-    } else {
-      entries[key] = ["f", stat.mode, stat.mtimeMs, createHash("sha256").update(readFileSync(entry)).digest("hex")];
+    try {
+      const stat = lstatSync(entry);
+      if (stat.isDirectory()) {
+        const names = readdirSync(entry);
+        entries[key] = ["d", stat.mode];
+        for (const name of names) visit(join(entry, name));
+      } else if (stat.isSymbolicLink()) {
+        entries[key] = ["l", readlinkSync(entry)];
+      } else {
+        entries[key] = ["f", stat.mode, stat.mtimeMs, createHash("sha256").update(readFileSync(entry)).digest("hex")];
+      }
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+      delete entries[key];
+      if (retry) visit(entry, false);
     }
   };
   visit(path);
@@ -388,7 +395,7 @@ describe("integration", { skip: !stops && "needs the macOS write sandbox with de
   test("an external git dir and a linked worktree are protected", (t) => {
     const { dir, repo } = basic(t);
     const external = join(dir, "external");
-    sh(dir, `git init -q --separate-git-dir '${join(dir, "gitdir")}' external && cd external && git config user.email t@example.com && git config user.name t && git config commit.gpgSign false && printf ':\\n' > lib.sh && printf 'one 1\\n' > t.sh && git add -A && git commit -qm base`);
+    sh(dir, `git init -q --separate-git-dir '${join(dir, "gitdir")}' external && cd external && git config user.email t@example.com && git config user.name t && git config commit.gpgSign false && git config gc.auto 0 && git config maintenance.auto false && printf ':\\n' > lib.sh && printf 'one 1\\n' > t.sh && git add -A && git commit -qm base`);
     put(external, { "lib.sh": LIB });
     for (const command of [`echo x >> '${join(dir, "gitdir")}/config'`, `echo x >> '${external}/lib.sh'`]) assertDenied(t, external, command);
     const worktree = join(dir, "wt");
