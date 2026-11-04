@@ -419,8 +419,13 @@ function bodyOf(command, scan, args, segment, cwd) {
 		if (/^"?\$\(\s*cat\s+<</.test(source.raw) && heredoc) return heredocText(heredoc);
 		return { problem: "body value is built at run time and cannot be checked" };
 	}
-	const name = staticWord(source.raw);
-	if (name === "-") return heredoc ? heredocText(heredoc) : { problem: "body read from a pipe cannot be checked" };
+	let name = staticWord(source.raw);
+	if (name === "-") {
+		const stdin = stdinSource(command, scan, segment);
+		if (stdin?.doc) return heredocText(stdin.doc);
+		if (!stdin?.file) return { problem: "body read from a pipe cannot be checked" };
+		name = stdin.file;
+	}
 	if (!name) return { problem: "body file name is built at run time and cannot be checked" };
 	if (cwd === null) return { problem: `body file ${name} sits behind a cd that cannot be resolved` };
 	const path = resolve(cwd, expandHome(name));
@@ -505,7 +510,7 @@ function stdinSource(command, scan, segment) {
 		const after = segment.start + match.index + match[0].length;
 		if (match[2].startsWith("<<") && match[2] !== "<<<") {
 			const doc = scan.heredocs.find((entry) => entry.at === after - match[2].length);
-			fds.set(fd, doc ? { text: doc.body } : null);
+			fds.set(fd, doc ? { text: doc.body, doc } : null);
 			continue;
 		}
 		const word = words(scan.visible, after, end)[0];
