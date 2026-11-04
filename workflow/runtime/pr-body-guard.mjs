@@ -9,7 +9,7 @@ const COMMIT =
 const CD = /(?:^|[;&|(){}\n])[ \t]*cd[ \t]+([^\s;&|()]+)/g;
 const OUR_HEADINGS = ["## What", "## Why", "## How to test"];
 const ATTRIBUTION = /claude-session:|generated with|co-authored-by:|claude\.ai\/code/i;
-const COMMIT_ATTRIBUTION = /^\s*(?:claude-session|co-authored-by):|generated (?:with|by)\s+\[?(?:claude|chatgpt|gpt|codex|copilot|openai|gemini|glm|mistral|deepseek|llama|grok|kimi|qwen|an? ai\b)|claude\.ai\/code/im;
+const COMMIT_ATTRIBUTION = /^\s*(?:claude-session|co-authored-by):|generated (?:with|by)\b[^\n]*\b(?:claude|chatgpt|gpt|codex|copilot|openai|gemini|glm|mistral|deepseek|llama|grok|kimi|qwen|ai)\b|claude\.ai\/code/im;
 const MODEL_NAME = /\b(?:chatgpt|gpt|openai|codex|glm|zai|z\.ai|zhipu)\b/gi;
 const MAX_BODY_BYTES = 1024 * 1024;
 const REMEDIATION =
@@ -455,11 +455,24 @@ function messageText(raw, scan, at) {
 	if (text !== null) return text;
 	const heredoc = scan.heredocs.find((doc) => doc.at >= at.start && doc.at < at.end);
 	if (/^"?\$\(\s*cat\s+<</.test(raw) && heredoc) {
-		const after = raw.indexOf(heredoc.body) + heredoc.body.length;
-		const suffix = raw.slice(after).replace(/^[^\n]*\n\s*\)/, "");
-		return `${heredoc.body.replace(/\n+$/, "")}${literalText(`${raw.startsWith('"') ? '"' : ""}${suffix}`)}`;
+		const rest = raw.slice(raw.indexOf(heredoc.body) + heredoc.body.length).replace(/^[^\n]*\n?/, "");
+		const close = /^(?:[ \t]*(?:#[^\n]*)?\n)*[ \t]*\)/.exec(rest);
+		const body = heredoc.body.replace(/\n+$/, "");
+		if (!close) return `${body}\n${literalText(rest)}`;
+		return `${body}${literalText(`${raw.startsWith('"') ? '"' : ""}${rest.slice(close[0].length)}`)}`;
 	}
 	return literalText(raw);
+}
+
+function stdinHeredoc(command, scan, segment) {
+	const before = (doc) => command.slice(segment.start, doc.at);
+	const docs = scan.heredocs
+		.filter((doc) => doc.at >= segment.start && doc.at < segment.end)
+		.map((doc) => ({ doc, fd: /(?:^|[\s;&|(])(\d+)$/.exec(before(doc))?.[1] ?? "0" }));
+	const lineEnd = scan.visible.indexOf("\n", segment.start);
+	const duplications = [...scan.visible.slice(segment.start, lineEnd === -1 ? undefined : lineEnd).matchAll(/(?:^|\s)0?<&(\d+)/g)];
+	const stdin = duplications.length ? duplications[duplications.length - 1][1] : "0";
+	return docs.findLast((entry) => entry.fd === stdin)?.doc ?? null;
 }
 
 function commitMessages(command, scan, args, segment, cwd) {
@@ -490,7 +503,8 @@ function commitMessages(command, scan, args, segment, cwd) {
 			continue;
 		}
 		if (name === "-") {
-			for (const doc of scan.heredocs) if (doc.at >= segment.start && doc.at < segment.end) messages.push(doc.body);
+			const heredoc = stdinHeredoc(command, scan, segment);
+			if (heredoc) messages.push(heredoc.body);
 			continue;
 		}
 		if (!name || cwd === null) continue;
