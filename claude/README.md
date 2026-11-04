@@ -31,7 +31,8 @@ holds skills that are never deployed. Claude links every active-scope row of
 
 A `shared` surface is withheld from a scope when something else on that machine
 owns its name. `SHADOWS` in `scripts/lib/surfaces.mjs` holds those pairs,
-`work:adr` today. On a `work` machine `/adr` comes from the employer plugin,
+`work:adr` today. On a `work` machine the deploy only withholds the shared
+`adr`: `/adr` comes from the employer plugin, which you install separately and
 which writes `docs/adr/YYYY-MM-DD-slug.md`, while `scripts/validate-adrs`
 expects `docs/adr/NNNN-slug.md`. Record etabli ADRs from a `personal` machine
 or by hand.
@@ -91,7 +92,9 @@ ungoverned and outside the index gate.
 
 - `read-only-agent-guard.mjs` is wired by the `scout`, `reviewer` and
   `adversary` frontmatter. It allows only Bash it can prove read-only,
-  including an allowlisted set of read-only `gh` commands. It fails closed: on
+  including an allowlisted set of read-only `gh` commands. One exception
+  writes: a plain `git fetch` is allowed, and it updates `.git/` and the
+  remote-tracking refs. It fails closed: on
   shell tricks it cannot prove harmless, on executables outside system bin
   directories, on every call if its modules fail to load, and on unreadable
   hook input (exit 2). The frontmatter command ends with `|| exit 2`, so a
@@ -99,8 +102,9 @@ ungoverned and outside the index gate.
   `tests/claude-hooks-smoke.sh` holds the accepted and refused cases.
 - `no-comments-guard.mjs` (`PreToolUse` on `Edit|Write|MultiEdit`) is a thin
   adapter over `workflow/runtime/no-comments-guard.mjs`, the detector Pi uses
-  too. It denies a write that adds a code comment. It lets through tool
-  directives, shebangs, comments already on disk, doc comments (`///`, `//!`,
+  too. It denies a write that adds a code comment to a file whose extension it
+  knows; any other file, extensionless scripts included, passes. It lets
+  through tool directives, shebangs, comments already on disk, doc comments (`///`, `//!`,
   `/** */`, a shell file's leading `#` block) and any write outside a git work
   tree. It cannot see files written through `Bash`. It is a per-language
   lexer, not a parser: shell grammar beyond strings, heredocs and substitutions
@@ -118,8 +122,9 @@ ungoverned and outside the index gate.
     verification headings) or the repo template's headings, carries AI
     attribution, or has non-ASCII prose outside code, tables and quotes. It
     checks every `gh pr` invocation of the line with its own body: inline, a
-    heredoc, a `--body-file` resolved after a `cd`, or `--body-file -` read
-    from stdin.
+    heredoc, a `--body-file` resolved after a `cd`, or `--body-file -` fed
+    by a heredoc, a here-string or `< file`. A body piped into
+    `--body-file -` is refused, since the guard cannot read it.
   - **Commit messages.** In every repo, it denies a `git commit` whose literal
     `-m`, `-F` or `--trailer` text carries a `Claude-Session:` or
     `Co-Authored-By:` trailer, or an AI credit such as "Generated with Claude".
@@ -174,7 +179,7 @@ the repo's `CLAUDE.md` and `~/work/brain`.
   `~/.claude/state/pr-autoreview/repos.tsv` (`<owner/repo><TAB><profile>`). No
   file means no review.
 - Findings go to Slack `#routines` only (`prompt.md`).
-- Guards: a PR at most 30 days old, one pass per `repo#pr@headSha`, one run per
+- Guards: a PR under 31 days old (counted in whole days), one pass per `repo#pr@headSha`, one run per
   PR, and the kill switch `~/.claude/state/pr-autoreview.off`.
 - A later push is reviewed on the commits since the last reviewed head (the
   full diff after a rebase or a new base), and posts nothing when it finds
@@ -232,7 +237,9 @@ to the checkout, so an edit there applies on the next run.
 
 Each pass writes a timing line to stderr and `pr-review-usage.log`:
 `timing <pass>: elapsed_s=<integer> process_exit=<code>`. Codex passes share
-one `codex` label, so correlate them with the target and run report.
+one `codex` label, so correlate them with the target and run report. Phase A
+runs its passes in parallel, so the sum of pass times is not the council
+latency.
 `process_exit=0` means only that the CLI exited cleanly. Completion,
 permission checks and approval gates still decide the result. A signal that
 kills the shell can leave no timing line, so drop incomplete samples instead

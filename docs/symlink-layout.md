@@ -28,9 +28,9 @@ kept.
 
 ## Claude links
 
-Under `~/.claude/`. When `$CLAUDE_CONFIG_DIR` points somewhere other than
-`~/.claude`, either under your home or anywhere when `HOME` is your login home,
-and the deploy targets the live home, the Claude links and the Claude settings
+Under `~/.claude/`. When `$CLAUDE_CONFIG_DIR` names an existing directory other
+than `~/.claude`, either under your home or anywhere when `HOME` is your login
+home, and the deploy targets the live home, the Claude links and the Claude settings
 sync go there too. The hook and skill checks read it by default.
 
 - `CLAUDE.md` -> `claude/claude-global.md`. The different name keeps a session
