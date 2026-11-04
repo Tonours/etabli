@@ -124,6 +124,9 @@ describe("pr body guard, shell and markdown edges", () => {
 
 	test("checks every invocation on the line", () => {
 		expect(reason("gh pr edit 12 --add-label bug; gh pr create --fill")).toContain("gh pr create: no body given");
+		expect(reason("gh pr edit 12 2>&1 --body 'Generated with Claude Code'")).toContain("AI attribution");
+		expect(decide(`gh pr create 2>&1 --body-file ${bodyFile(GOOD)}`)).toBeNull();
+		expect(decide(`gh pr create --body-file ${bodyFile(GOOD)}>/dev/null`)).toBeNull();
 	});
 
 	test("reads only the body value, not the rest of the command", () => {
@@ -365,6 +368,7 @@ describe("commit message guard", () => {
 			"sudo -u root git commit -m 'Claude-Session: x'",
 			"timeout -k 5 30 git commit -m 'Claude-Session: x'",
 			"git commit -m 'fix: x' &>/dev/null --trailer 'Co-Authored-By=Claude'",
+			`git commit --message="$(cat <<'EOF'\nfix: x\n\nCo-Authored-By: Claude <a@b>\nEOF\n)"`,
 		];
 		for (const command of commits) expect(reason(command)).toContain("Commit message refused: git commit: trailer");
 		writeFileSync(join(repo, "msg.txt"), `fix: x\n\n${trailer}\n`);

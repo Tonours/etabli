@@ -479,6 +479,15 @@ function messageText(raw, scan, at) {
 	return literalText(raw);
 }
 
+function commandWords(visible, from, to) {
+	return words(visible, from, to)
+		.map((arg) => {
+			const cut = arg.text.search(/[<>]/);
+			return cut === -1 ? arg : { text: arg.text.slice(0, cut), start: arg.start, end: arg.start + cut };
+		})
+		.filter((arg) => arg.text);
+}
+
 function commandEnd(visible, from) {
 	for (let k = from; k < visible.length; k += 1) {
 		if (";|)\n".includes(visible[k]) || (visible[k] === "&" && !"<>".includes(visible[k - 1]) && visible[k + 1] !== ">")) return k;
@@ -527,7 +536,11 @@ function commitMessages(command, scan, args, segment, dirs) {
 			flag[2] === "=" || (flag[2] === undefined && (word.length > flag[0].length || (raw.startsWith(flag[0]) && raw.length > flag[0].length)));
 		let text;
 		let name;
-		if (attached) {
+		if (attached && raw.startsWith(flag[0])) {
+			const valueRaw = raw.slice(flag[0].length);
+			text = messageText(valueRaw, scan, { start: args[k].start + flag[0].length, end: args[k].end });
+			name = staticWord(valueRaw);
+		} else if (attached) {
 			text = word.slice(flag[0].length);
 			name = decoded === null ? null : text;
 		} else {
@@ -600,9 +613,8 @@ export function prBodyGuardDecision({ cwd, tool_name, tool_input }) {
 	INVOCATION.lastIndex = 0;
 	for (let match = INVOCATION.exec(scan.visible); match; match = INVOCATION.exec(scan.visible)) {
 		const start = match.index + match[0].length;
-		const stop = /[;&|)\n]/.exec(scan.visible.slice(start));
-		const segment = { start: match.index, end: stop ? start + stop.index : command.length };
-		const args = words(scan.visible, start, segment.end);
+		const segment = { start: match.index, end: commandEnd(scan.visible, start) };
+		const args = commandWords(scan.visible, start, segment.end);
 		if (args.some((arg) => arg.text === "--help" || arg.text === "-h")) continue;
 		const label = `gh pr ${match[1]}`;
 		const dir = effectiveCwd(command, scan.visible, match.index, cwd || process.cwd());
@@ -627,12 +639,7 @@ export function prBodyGuardDecision({ cwd, tool_name, tool_input }) {
 		const shellDir = effectiveCwd(command, scan.visible, match.index, cwd || process.cwd());
 		const dir = gitDir(command, match[1], globalsStart, shellDir);
 		const isWork = () => inWorkOrg(originOwner(dir));
-		const args = words(scan.visible, start, segment.end)
-			.map((arg) => {
-				const cut = arg.text.search(/[<>]/);
-				return cut === -1 ? arg : { text: arg.text.slice(0, cut), start: arg.start, end: arg.start + cut };
-			})
-			.filter((arg) => arg.text);
+		const args = commandWords(scan.visible, start, segment.end);
 		for (const message of commitMessages(command, scan, args, segment, { git: dir, shell: shellDir })) {
 			if (COMMIT_ATTRIBUTION.test(message) || PROPER_CREDIT.test(message)) commitProblems.push("git commit: trailer or AI attribution in the message");
 			commitProblems.push(...modelNameProblems(message, isWork).map((problem) => `git commit: ${problem}`));
