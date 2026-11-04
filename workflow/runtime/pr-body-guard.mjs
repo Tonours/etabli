@@ -503,10 +503,11 @@ function commandEnd(visible, from) {
 function stdinSource(command, scan, segment) {
 	const end = segment.end;
 	const fds = new Map();
-	const redirect = /(\d*)(<<<|<<-?|<&|<)/g;
+	const redirect = /(\d*)(<<<|<<-?|<&|<>|<|>&|>>|>\|?)/g;
 	const line = scan.visible.slice(segment.start, end);
 	for (let match = redirect.exec(line); match; match = redirect.exec(line)) {
-		const fd = match[1] && /^$|[\s;&|(]$/.test(line.slice(0, match.index).slice(-1)) ? match[1] : "0";
+		const explicit = match[1] && /^$|[\s;&|(]$/.test(line.slice(0, match.index).slice(-1));
+		const fd = explicit ? match[1] : match[2].startsWith(">") ? "1" : "0";
 		const after = segment.start + match.index + match[0].length;
 		if (match[2].startsWith("<<") && match[2] !== "<<<") {
 			const doc = scan.heredocs.find((entry) => entry.at === after - match[2].length);
@@ -516,13 +517,14 @@ function stdinSource(command, scan, segment) {
 		const word = words(scan.visible, after, end)[0];
 		const operator = word ? word.text.search(/[<>]/) : -1;
 		const raw = word ? command.slice(word.start, operator === -1 ? word.end : word.start + operator) : "";
-		if (match[2] === "<&") {
+		if (match[2] === "<&" || match[2] === ">&") {
 			const source = raw.replace(/-$/, "");
 			fds.set(fd, fds.get(source) ?? null);
 			if (raw.endsWith("-") && source !== fd) fds.delete(source);
 		}
 		else if (match[2] === "<<<") fds.set(fd, { text: `${staticWord(raw) ?? literalText(raw)}\n` });
-		else fds.set(fd, { file: staticWord(raw) });
+		else if (match[2] === "<") fds.set(fd, { file: staticWord(raw) });
+		else fds.set(fd, null);
 	}
 	return fds.get("0") ?? null;
 }
