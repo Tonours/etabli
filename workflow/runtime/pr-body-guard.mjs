@@ -2,15 +2,25 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
-const INVOCATION =
-	/(?:^|[;&|(){}\n]|\b(?:then|do|else)[ \t])[ \t]*(?:(?:[A-Za-z_][A-Za-z0-9_]*=\S*|command|env|exec|time|nohup|rtk|proxy)[ \t]+)*gh(?:[ \t]+(?:-R\S+|-R[ \t]+\S+|--repo=\S+|--repo[ \t]+\S+))?[ \t]+pr[ \t]+(create|new|edit)(?=[ \t;&|)\n]|$)/g;
-const COMMIT =
-	/(?:^|[;&|(){}\n]|\b(?:then|do|else)[ \t])[ \t]*(?:(?:[A-Za-z_][A-Za-z0-9_]*=\S*|command|env|exec|time|nohup|rtk|proxy)[ \t]+)*git((?:[ \t]+(?:-C[ \t]+\S+|-C\S+|-c[ \t]+\S+|-c\S+|--[a-z-]+(?:=\S+)?))*)[ \t]+commit(?=[ \t;&|)\n]|$)/g;
+const PREFIX =
+	"(?:^|[;&|(){}\\n]|\\b(?:then|do|else)[ \\t])[ \\t]*(?:(?:[A-Za-z_][A-Za-z0-9_]*=\\S*|command|env|exec|time|nohup|rtk|proxy|sudo|if|elif|while|until|!|timeout[ \\t]+\\d\\S*)[ \\t]+)*";
+const INVOCATION = new RegExp(
+	`${PREFIX}gh(?:[ \\t]+(?:-R\\S+|-R[ \\t]+\\S+|--repo=\\S+|--repo[ \\t]+\\S+))?[ \\t]+pr[ \\t]+(create|new|edit)(?=[ \\t;&|)\\n]|$)`,
+	"g",
+);
+const COMMIT = new RegExp(
+	`${PREFIX}git((?:[ \\t]+(?:-C[ \\t]+\\S+|-C\\S+|-c[ \\t]+\\S+|-c\\S+|--[a-z-]+(?:=\\S+)?))*)[ \\t]+commit(?=[ \\t;&|)\\n]|$)`,
+	"g",
+);
 const CD = /(?:^|[;&|(){}\n])[ \t]*cd[ \t]+([^\s;&|()]+)/g;
 const OUR_HEADINGS = ["## What", "## Why", "## How to test"];
 const ATTRIBUTION = /claude-session:|generated with|co-authored-by:|claude\.ai\/code/i;
-const COMMIT_ATTRIBUTION = /^\s*(?:claude-session|co-authored-by):|generated (?:with|by)\b[^\n]*\b(?:claude|chatgpt|gpt|codex|copilot|openai|gemini|glm|mistral|deepseek|llama|grok|kimi|qwen|ai)\b|claude\.ai\/code/im;
-const MODEL_NAME = /\b(?:chatgpt|gpt|openai|codex|glm|zai|z\.ai|zhipu)\b/gi;
+const MODELS = "chatgpt|gpt\\w*|openai|codex|glm|zai|z\\.ai|zhipu|gemini|deepseek|mistral|grok|qwen|llama|kimi";
+const COMMIT_ATTRIBUTION = new RegExp(
+	`^\\s*(?:claude-session|co-authored-by)\\s*:|generated (?:with|by)\\b[^\\n]*\\b(?:${MODELS}|claude|copilot|cursor|windsurf|aider|devin|cline|tabnine|ai|llm)\\b|claude\\.ai\\/code`,
+	"im",
+);
+const MODEL_NAME = new RegExp(`\\b(?:${MODELS})\\b`, "gi");
 const MAX_BODY_BYTES = 1024 * 1024;
 const REMEDIATION =
 	"Write the body with the `pr` skill (workflow/pr-body-contract.md): one opening line, then ## What, ## Why, ## How to test, in English, and pass it with --body-file <file>.";
@@ -328,7 +338,7 @@ function templateHeadings(cwd) {
 	return [];
 }
 
-function markdownLines(body, { dropQuotesAndTables = false } = {}) {
+function markdownLines(body, { dropQuotesAndTables = false, keepComments = false } = {}) {
 	const lines = [];
 	let fence = null;
 	let comment = false;
@@ -355,8 +365,8 @@ function markdownLines(body, { dropQuotesAndTables = false } = {}) {
 		indentedCode = !blank && /^(?: {4}|\t)/.test(raw) && (indentedCode || previous === "");
 		previous = blank ? "" : raw;
 		if (indentedCode) continue;
-		raw = raw.replace(/<!--[\s\S]*?-->/g, "");
-		const open = raw.indexOf("<!--");
+		if (!keepComments) raw = raw.replace(/<!--[\s\S]*?-->/g, "");
+		const open = keepComments ? -1 : raw.indexOf("<!--");
 		if (open !== -1) {
 			raw = raw.slice(0, open);
 			comment = true;
@@ -464,15 +474,33 @@ function messageText(raw, scan, at) {
 	return literalText(raw);
 }
 
-function stdinHeredoc(command, scan, segment) {
-	const before = (doc) => command.slice(segment.start, doc.at);
-	const docs = scan.heredocs
-		.filter((doc) => doc.at >= segment.start && doc.at < segment.end)
-		.map((doc) => ({ doc, fd: /(?:^|[\s;&|(])(\d+)$/.exec(before(doc))?.[1] ?? "0" }));
-	const lineEnd = scan.visible.indexOf("\n", segment.start);
-	const duplications = [...scan.visible.slice(segment.start, lineEnd === -1 ? undefined : lineEnd).matchAll(/(?:^|\s)0?<&(\d+)/g)];
-	const stdin = duplications.length ? duplications[duplications.length - 1][1] : "0";
-	return docs.findLast((entry) => entry.fd === stdin)?.doc ?? null;
+function commandEnd(visible, from) {
+	for (let k = from; k < visible.length; k += 1) {
+		if (";|)\n".includes(visible[k]) || (visible[k] === "&" && !"<>".includes(visible[k - 1]))) return k;
+	}
+	return visible.length;
+}
+
+function stdinSource(command, scan, segment) {
+	const end = segment.end;
+	const fds = new Map();
+	const redirect = /(\d*)(<<<|<<-?|<&|<)/g;
+	const line = scan.visible.slice(segment.start, end);
+	for (let match = redirect.exec(line); match; match = redirect.exec(line)) {
+		const fd = match[1] && /^$|[\s;&|(]$/.test(line.slice(0, match.index).slice(-1)) ? match[1] : "0";
+		const after = segment.start + match.index + match[0].length;
+		if (match[2].startsWith("<<") && match[2] !== "<<<") {
+			const doc = scan.heredocs.find((entry) => entry.at === after - match[2].length);
+			fds.set(fd, doc ? { text: doc.body } : null);
+			continue;
+		}
+		const word = words(scan.visible, after, end)[0];
+		const raw = word ? command.slice(word.start, word.end) : "";
+		if (match[2] === "<&") fds.set(fd, fds.get(raw) ?? null);
+		else if (match[2] === "<<<") fds.set(fd, { text: `${staticWord(raw) ?? literalText(raw)}\n` });
+		else fds.set(fd, { file: staticWord(raw) });
+	}
+	return fds.get("0") ?? null;
 }
 
 function commitMessages(command, scan, args, segment, cwd) {
@@ -485,7 +513,8 @@ function commitMessages(command, scan, args, segment, cwd) {
 		const flag = /^--(message|file|trailer)(=|$)/.exec(word) ?? /^-(?!-)[A-Za-z]*?([mF])/.exec(word);
 		if (!flag) continue;
 		const kind = flag[1] === "file" || flag[1] === "F" ? "file" : "message";
-		const attached = flag[2] === "=" || (flag[2] === undefined && word.length > flag[0].length);
+		const attached =
+			flag[2] === "=" || (flag[2] === undefined && (word.length > flag[0].length || (raw.startsWith(flag[0]) && raw.length > flag[0].length)));
 		let text;
 		let name;
 		if (attached) {
@@ -499,16 +528,14 @@ function commitMessages(command, scan, args, segment, cwd) {
 			name = staticWord(valueRaw);
 		}
 		if (kind === "message") {
-			messages.push(text);
+			messages.push(flag[1] === "trailer" ? text.replace(/^([^:=]*)=/, "$1:") : text);
 			continue;
 		}
-		if (name === "-") {
-			const heredoc = stdinHeredoc(command, scan, segment);
-			if (heredoc) messages.push(heredoc.body);
-			continue;
-		}
-		if (!name || cwd === null) continue;
-		const path = resolve(cwd, expandHome(name));
+		const stdin = name === "-" ? stdinSource(command, scan, segment) : null;
+		if (stdin?.text !== undefined) messages.push(stdin.text);
+		const file = name === "-" ? stdin?.file : name;
+		if (!file || cwd === null) continue;
+		const path = resolve(cwd, expandHome(file));
 		const stat = existsSync(path) ? statSync(path) : null;
 		if (stat?.isFile() && stat.size <= MAX_BODY_BYTES) messages.push(readFileSync(path, "utf8"));
 	}
@@ -541,7 +568,7 @@ function checkBody(body, cwd, isWork) {
 		.join("\n");
 	const nonAscii = prose.match(/[^\x09\x0a\x0d\x20-\x7e]/gu);
 	if (nonAscii) problems.push(`non-ASCII outside code, tables and quotes: ${[...new Set(nonAscii)].join(" ")}`);
-	problems.push(...modelNameProblems(lines.join("\n"), isWork));
+	problems.push(...modelNameProblems(markdownLines(body, { keepComments: true }).join("\n"), isWork));
 	return problems;
 }
 
@@ -584,14 +611,13 @@ export function prBodyGuardDecision({ cwd, tool_name, tool_input }) {
 	COMMIT.lastIndex = 0;
 	for (let match = COMMIT.exec(scan.visible); match; match = COMMIT.exec(scan.visible)) {
 		const start = match.index + match[0].length;
-		const stop = /[;&|)\n]/.exec(scan.visible.slice(start));
-		const segment = { start: match.index, end: stop ? start + stop.index : command.length };
+		const segment = { start: match.index, end: commandEnd(scan.visible, start) };
 		const globalsStart = start - /[ \t]+commit$/.exec(match[0])[0].length - match[1].length;
 		const dir = gitDir(command, match[1], globalsStart, effectiveCwd(command, scan.visible, match.index, cwd || process.cwd()));
 		const isWork = () => inWorkOrg(originOwner(dir));
 		for (const message of commitMessages(command, scan, words(scan.visible, start, segment.end), segment, dir)) {
 			if (COMMIT_ATTRIBUTION.test(message)) commitProblems.push("git commit: trailer or AI attribution in the message");
-			commitProblems.push(...modelNameProblems(markdownLines(message).join("\n"), isWork).map((problem) => `git commit: ${problem}`));
+			commitProblems.push(...modelNameProblems(markdownLines(message, { keepComments: true }).join("\n"), isWork).map((problem) => `git commit: ${problem}`));
 		}
 	}
 	return problems.length || commitProblems.length ? deny(problems, [...new Set(commitProblems)]) : null;
