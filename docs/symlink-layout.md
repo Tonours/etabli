@@ -9,7 +9,7 @@ manifest, `scripts/lib/surfaces.mjs` (ADR-0038).
 ```bash
 scripts/deploy-agent-workflow              # dry run, the default: prints the drift
 scripts/deploy-agent-workflow --apply      # links, prunes, then syncs settings
-scripts/deploy-agent-workflow --check      # reports drift, skips the settings sync
+scripts/deploy-agent-workflow --check      # reports drift and skill-load failures, skips the settings sync
 scripts/deploy-agent-workflow --check --fix
 scripts/check-fix-symlinks.sh              # shortcut for --check, takes --fix
 ```

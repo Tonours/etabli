@@ -1,6 +1,6 @@
 ---
 name: adversary
-description: Red-teams a PLAN.md, diff or design as a hostile challenger. Use when work must survive deliberate attack (stress-test, devil's advocate); not for draft reviews (plan-loop) or final verdicts.
+description: Red-teams a PLAN.md, diff or design as a hostile challenger. Use to stress-test work that must survive deliberate attack; not for draft reviews (plan-loop) or final verdicts.
 argument-hint: "[optional: path to the plan file, defaults to ./PLAN.md; or --code-diff for post-implementation]"
 allowed-tools: [Read, Edit, Glob, Bash]
 ---

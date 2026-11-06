@@ -82,10 +82,14 @@ function isExecutableFile(path) {
   }
 }
 
+function onPath(name) {
+  return (process.env.PATH ?? "").split(delimiter).map((dir) => resolve(dir || ".", name)).find(isExecutableFile);
+}
+
 function piShadow(homeDir) {
   const managed = join(homeDir, ".local/bin/pi");
   if (!isExecutableFile(managed)) return 0;
-  const first = (process.env.PATH ?? "").split(delimiter).map((dir) => resolve(dir || ".", "pi")).find(isExecutableFile);
+  const first = onPath("pi");
   if (!first || realpathSync(first) === realpathSync(managed)) return 0;
   emit("SHADOWED", `pi ${first} runs before ${managed}; remove it or put $HOME/.local/bin first on PATH`);
   return 1;
@@ -120,19 +124,45 @@ function syncSettings({ homeDir, claudeRoot, claudeOnly, apply, timestamp: stamp
     emit("MISSING", "Claude skill-overrides fragment source");
     return failures;
   }
-  return failures + attempt(() => run(join(scriptDir, "lib/claude-settings-sync.mjs"), [join(claudeRoot, "settings.json"), fragment, dryRun, stamp, "deploy"]));
+  return failures + attempt(() => run(join(scriptDir, "lib/claude-settings-sync.mjs"), [join(claudeRoot, "settings.json"), fragment, dryRun, stamp, "deploy", homeDir]));
+}
+
+function claudeSkillLoadPasses(claudeRoot) {
+  const loadCheck = join(scriptDir, "claude-skill-load-check");
+  if (!isExecutable(loadCheck)) return null;
+  return spawnSync(loadCheck, [], { stdio: "inherit", env: { ...process.env, CLAUDE_SKILL_LOAD_CLAUDE_DIR: claudeRoot } }).status === 0;
 }
 
 function skillLoadCheck({ claudeRoot, install }) {
-  const loadCheck = join(scriptDir, "claude-skill-load-check");
-  if (!isExecutable(loadCheck)) return;
-  const result = spawnSync(loadCheck, [], { stdio: "inherit", env: { ...process.env, CLAUDE_SKILL_LOAD_CLAUDE_DIR: claudeRoot } });
-  if (result.status === 0) emit("OK", "Claude skill load check after apply");
+  const passed = claudeSkillLoadPasses(claudeRoot);
+  if (passed === null) return;
+  if (passed) emit("OK", "Claude skill load check after apply");
   else if (install) emit("WARN", "Claude skill load check after installer convergence (see output above)");
   else {
     emit("FAIL", `Claude skill load check on ${claudeRoot} after apply (see output above; scripts/claude-skill-load-check --fix governs new skills)`);
     process.exit(1);
   }
+}
+
+// Check mode: read-only skill-load checks; each failure counts as unresolved.
+function skillLoadChecks({ claudeRoot, claudeOnly }) {
+  let failures = 0;
+  if (claudeSkillLoadPasses(claudeRoot) === false) {
+    emit("FAIL", `Claude skill load check on ${claudeRoot} (see output above; scripts/claude-skill-load-check --fix governs new skills)`);
+    failures += 1;
+  }
+  if (claudeOnly) return failures;
+  const piCheck = join(scriptDir, "pi-skill-load-check");
+  if (!isExecutable(piCheck)) return failures;
+  if (!onPath("pi")) {
+    emit("SKIP", "Pi skill load check (pi not on PATH)");
+    return failures;
+  }
+  if (spawnSync(piCheck, [], { stdio: "inherit" }).status !== 0) {
+    emit("FAIL", "Pi skill load check (see output above; scripts/pi-skill-load-check names the fix)");
+    failures += 1;
+  }
+  return failures;
 }
 
 const options = parseArgs(process.argv.slice(2));
@@ -169,7 +199,14 @@ for (const root of roots) {
   const pass = { ...base, ...root };
   const counts = reconcile(pass, emit);
   for (const key of Object.keys(totals)) totals[key] += counts[key];
-  if (options.check) continue;
+  if (options.check) {
+    if (pass.live) {
+      const failures = skillLoadChecks(pass);
+      totals.issues += failures;
+      totals.unresolved += failures;
+    }
+    continue;
+  }
   totals.unresolved += syncSettings(pass);
   if (pass.apply && pass.live) skillLoadCheck(pass);
 }

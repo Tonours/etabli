@@ -1,6 +1,6 @@
 ---
 name: plan-loop
-description: Creates or reviews a PLAN.md and stops at READY or CHALLENGED without implementing. Use when drafting, hardening, or reviewing a plan; not for implementing or for unplanned questions.
+description: Creates or reviews a PLAN.md, stopping at READY or CHALLENGED without implementing. Use to draft, harden or review a plan; not for implementing or unplanned questions.
 argument-hint: <task description>
 allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, Skill]
 ---
