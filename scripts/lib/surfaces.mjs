@@ -419,16 +419,23 @@ function pruneStaleChildren(ctx, dir, managedParent, label, suffix) {
 function skillSurfaces(ctx) {
   const surfaces = [[CLAUDE_SKILLS, join(ctx.claudeRoot, "skills")]];
   if (!ctx.claudeOnly) surfaces.unshift([PI_SKILLS, join(ctx.homeDir, PI_SKILLS)]);
-  if (ctx.codexReady) surfaces.splice(1, 0, [CODEX_SKILLS, join(ctx.homeDir, CODEX_SKILLS)]);
+  if (ctx.codexSkip === null) surfaces.splice(1, 0, [CODEX_SKILLS, join(ctx.homeDir, CODEX_SKILLS)]);
   return surfaces;
 }
 
-// The Codex paths, physically, must not overlap a root Pi or Claude reads in
-// either direction, or Codex writes would land in that runtime's universe.
-// Returns why Codex is skipped, or null.
+// The Codex paths, physically, must not overlap a root Pi or Claude reads, in
+// either direction: the roots of every Claude config dir this deploy serves,
+// and each entry their skill folders list. Otherwise Codex writes would land
+// in that runtime's universe. Returns why Codex is skipped, or null.
 function codexOverlap(ctx) {
-  const read = [".pi", ".agents", ".agents/skills", PI_SKILLS].map((root) => join(ctx.homeDir, root));
-  const roots = [...read, ctx.claudeRoot, join(ctx.claudeRoot, "skills")].map((root) => physicalPath(root));
+  const skillDirs = [join(ctx.homeDir, ".agents/skills"), join(ctx.homeDir, PI_SKILLS)];
+  const read = [join(ctx.homeDir, ".pi"), join(ctx.homeDir, ".agents")];
+  for (const claudeRoot of ctx.claudeRoots ?? [ctx.claudeRoot]) {
+    read.push(claudeRoot);
+    skillDirs.push(join(claudeRoot, "skills"));
+  }
+  const listed = skillDirs.flatMap((dir) => entries(dir).map((name) => join(dir, name)));
+  const roots = [...read, ...skillDirs, ...listed].map((root) => physicalPath(root));
   for (const codex of [join(ctx.homeDir, ".codex"), join(ctx.homeDir, CODEX_SKILLS)]) {
     const path = physicalPath(codex);
     if (path === null) return `cannot resolve ${codex}`;
@@ -545,8 +552,8 @@ function reconcileCodex(ctx) {
   const { repoDir, homeDir } = ctx;
   const codexDir = join(homeDir, ".codex");
   ctx.emit("SECTION", "Codex");
-  if (!ctx.codexReady) {
-    unresolved(ctx, "WARN", `Codex links skipped: ${codexOverlap(ctx)}`);
+  if (ctx.codexSkip !== null) {
+    unresolved(ctx, "WARN", `Codex links skipped: ${ctx.codexSkip}`);
     return;
   }
   ensureLink(ctx, join(repoDir, "codex/AGENTS.md"), join(codexDir, "AGENTS.md"), "Codex AGENTS.md");
@@ -610,7 +617,7 @@ function reconcileClaude(ctx) {
 
 export function reconcile(options, emit) {
   const ctx = { ...options, repoReal: realpath(options.repoDir), emit, counts: { issues: 0, fixed: 0, unresolved: 0 } };
-  ctx.codexReady = !ctx.claudeOnly && codexOverlap(ctx) === null;
+  ctx.codexSkip = ctx.claudeOnly ? "Claude-only pass" : codexOverlap(ctx);
   if (!ctx.claudeOnly) {
     reconcilePi(ctx);
     reconcileCodex(ctx);

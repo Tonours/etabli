@@ -221,6 +221,15 @@ if ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --apply --home "$NESTED_HOME_DIR" 
   exit 1
 fi
 grep -Fxq 'personal spec' "$NESTED_HOME_DIR/.agents/skills/SKILL.md" || { printf 'deploy moved a folder Pi reads\n' >&2; exit 1; }
+ENTRY_HOME_DIR="$TMP_DIR/entry-pi-home"
+mkdir -p "$ENTRY_HOME_DIR/.codex/skills/spec" "$ENTRY_HOME_DIR/.agents/skills"
+printf 'personal spec\n' >"$ENTRY_HOME_DIR/.codex/skills/spec/SKILL.md"
+ln -s ../../.codex/skills/spec "$ENTRY_HOME_DIR/.agents/skills/personal"
+if ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --apply --home "$ENTRY_HOME_DIR" >"$TMP_DIR/entry-pi.out" 2>&1; then
+  printf 'deploy accepted a Pi skill entry inside ~/.codex/skills\n' >&2
+  exit 1
+fi
+grep -Fxq 'personal spec' "$ENTRY_HOME_DIR/.agents/skills/personal/SKILL.md" || { printf 'deploy moved a skill Pi reads\n' >&2; exit 1; }
 LOOP_HOME_DIR="$TMP_DIR/loop-codex-home"
 mkdir -p "$LOOP_HOME_DIR"
 ln -s .codex "$LOOP_HOME_DIR/.codex"

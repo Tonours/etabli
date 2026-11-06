@@ -395,6 +395,16 @@ describe("reconcile", () => {
     assert.ok(isLink(join(home, ".pi/agent/skills/adr")));
   });
 
+  test("a Claude config dir inside a Codex skill skips every Codex link", () => {
+    const repo = vendorRepo();
+    const home = join(tmp, "home");
+    const override = join(home, ".codex/skills/alpha");
+    writeSkill(override, "name: personal");
+    const { lines } = run(repo, home, { claudeRoots: [join(home, ".claude"), override] });
+    assert.ok(lines.some((line) => line.startsWith("WARN Codex links skipped:") && line.includes(override)));
+    assert.ok(!isLink(override) && !existsSync(join(home, ".codex/AGENTS.md")));
+  });
+
   test("install mode replaces a foreign link but still backs up a file", () => {
     const repo = vendorRepo();
     const home = join(tmp, "home");
