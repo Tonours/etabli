@@ -11,9 +11,8 @@ learn -> plan -> implement -> review -> validate
 
 ## Activation
 
-The workflow is ambient in any project that contains `workflow/spec.md`. Users
-should not need to write "use the Etabli workflow" in normal prompts. Agents
-must infer the smallest matching route from the request and local repo state.
+The workflow is ambient in any project containing `workflow/spec.md`: agents
+infer the smallest matching route from the request and repo state, unprompted.
 
 ## Agentic workflow loop
 
@@ -134,7 +133,7 @@ Rows are checked top to bottom; the first matching row wins.
 | --- | --- | --- | --- |
 | Adversarial plan review without "do not edit" intent | `adversary` | updated `PLAN.md` | `READY`, `CHALLENGED`, or blocker |
 | Review request (diff, GitHub PR, plan) or adversarial review with "do not edit" intent | `review` | findings only | `GO`, `GO WITH NOTES`, or `BLOCK` |
-| Verify, retest, prove, or completion audit (interface `verify`; internal id `verify-workflow`) | `verify` | verification report | `VERIFIED`, `NOT VERIFIED`, or `INCONCLUSIVE` |
+| Verify, retest, prove, or completion audit (interface `verify`; skill `verify-workflow`, leaving Claude's native `/verify` free) | `verify` | verification report | `VERIFIED`, `NOT VERIFIED`, or `INCONCLUSIVE` |
 | Existing `READY PLAN.md` covering the requested task, plus implementation request | `implement` | code/docs + archive | validated archive and root `PLAN.md` deleted |
 | "plan puis implémente", autonomous `plan-loop`, end-to-end ("A to Z") project, Linear ticket implementation, or self-improvement from run evidence | `plan-implement` | `PLAN.md` then code/docs | validated archive and root `PLAN.md` deleted, or explicit no-op/blocker |
 | Broad task, unclear implementation, or explicit plan request ("fais un plan") | `plan-loop` | `PLAN.md` | `READY` or `CHALLENGED` |
@@ -147,9 +146,10 @@ table: `/linear-work`, `/linear-ticket-create`, `/linear-project-setup`,
 commands require Linear MCP or stop with `LINEAR_MCP_UNAVAILABLE` — see
 `docs/mcp-strategy.md` § Linear MCP gap. Rationale: ADR-0027.
 
-`verify` is the contract route; its skill is `verify-workflow` on both runtimes
-(`/verify-workflow`, `/skill:verify-workflow`), so Claude's native `/verify`
-stays free.
+Obligations per case (tiers: `workflow/skills/implementation-loop.md`): planned
+work runs its tier's full sequence; a bounded fix needs no plan but a failing
+reproducer, focused checks and one fresh-context review; a review-only request
+returns findings and stops; host-restricted effects follow § Human checkpoints.
 
 A route says what to produce and when to stop; it does not say what the area
 already taught us. Where the runtime exposes skills, select the narrowest domain

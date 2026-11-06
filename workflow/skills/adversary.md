@@ -92,6 +92,10 @@ plan. After the fresh-context review (Logic hunter + Spec hunter, then lead):
      unavailability (items 4 and 6).
    - **small tier:** code-diff adversary is skipped (the loop's self-review
      covers it); a single same-family pass is never a substitute.
+   - **bounded fix** (`workflow/skills/implementation-loop.md` § Risk tiers):
+     its one fresh-context review stands in for this pass; cross-family when a
+     route is available, else a fresh same-family context labeled
+     `same-family` in the report. This is the only same-family exception.
    - **Forbidden at every tier:** a single same-family pass presented as
      independent review. Stop as `blocked` (autonomous **and** supervised).
 3. Hunt for: correctness bugs, regressions, unhandled edge cases, acceptance

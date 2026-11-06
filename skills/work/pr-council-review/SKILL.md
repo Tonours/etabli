@@ -1,7 +1,7 @@
 ---
 name: pr-council-review
 description: Runs the cross-family council review of one GitHub PR, dry-run unless --post. Use when a PR needs the council verdict; not for local diffs (review).
-argument-hint: "<PR number or URL> [owner/repo] [--post] [--phase-a-model <alias>] [--no-codex] [--codex-model <model>]"
+argument-hint: "<PR number or URL> [owner/repo] [--post] [--phase-a-model <alias>] [--no-codex] [--codex-model <model>] [--reuse-review <file>]"
 allowed-tools: [Bash, Read, Glob, Grep]
 ---
 
@@ -85,6 +85,14 @@ without its run marker as incomplete, and retries neither on the same head.
 Without `--post` the validator prints the review payload it would submit and
 writes nothing to GitHub. Pass `--post` whenever the request is to publish the
 review; no separate confirmation.
+
+Reused phase A: `--reuse-review <file>` (`PR_COUNCIL_REUSE_REVIEW`) skips
+phase A when the file's `patch-sha256: <hex>` line equals the sha256 of
+`git diff --no-color <merge-base> <head>`; the file then stands as phase A's
+report and the validator still runs. A missing, unreadable or different hash
+prints `reuse refused` and runs phase A in full. Pass a file only when its
+recorded passes match phase A on the same acceptance criteria: two
+fresh-context reviews plus a cross-family pass with effective-model provenance.
 
 When the script exits, report: the PR, what each phase found, how many phase A
 candidates survived the skeptic gate, whether anything was posted, and the path

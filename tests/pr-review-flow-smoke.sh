@@ -421,6 +421,38 @@ case_codex_member() {
   check "codex opt-out: exit 0" rc_is 0
 }
 
+case_one_phase_a_pass_fails() {
+  reset_state
+  set_head "$HEAD1"
+  FAKE_THERMO_RC=1 FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "one phase A pass fails: validator still runs" called "claude VALIDATOR"
+  check "one phase A pass fails: the gap reaches the validator" grep -q "thermo-nuclear pass failed" "$FAKE_DIR/validator-prompt.txt"
+}
+
+case_reuse_review() {
+  local sha
+  sha="$(git -C "$TMP_DIR/seed" diff --no-color main "$HEAD1" | shasum -a 256 | cut -d' ' -f1)"
+  printf 'patch-sha256: %s\nrecorded final review: reused finding a.txt:1\n' "$sha" >"$TMP_DIR/reuse-ok.md"
+  printf 'patch-sha256: %064d\nrecorded final review on another patch\n' 0 >"$TMP_DIR/reuse-stale.md"
+  reset_state
+  set_head "$HEAD1"
+  PR_COUNCIL_REUSE_REVIEW="$TMP_DIR/reuse-ok.md" FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "reuse, same patch: phase A skipped" not_called "claude QUALITY"
+  check "reuse, same patch: no thermo or codex pass" eval '! called "claude THERMO" && not_called codex'
+  check "reuse, same patch: validator still runs" called "claude VALIDATOR"
+  check "reuse, same patch: recorded review reaches the validator" grep -q "reused a recorded review" "$FAKE_DIR/validator-prompt.txt"
+  check "reuse, same patch: exit 0" rc_is 0
+  reset_state
+  PR_COUNCIL_REUSE_REVIEW="$TMP_DIR/reuse-stale.md" FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "reuse, other patch: refused" grep -q "reuse refused: patch sha" "$TMP_DIR/run.out"
+  check "reuse, other patch: full phase A" called "claude QUALITY"
+  check "reuse, other patch: validator runs" called "claude VALIDATOR"
+  reset_state
+  PR_COUNCIL_REUSE_REVIEW="$TMP_DIR/no-such-review.md" FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "reuse, missing file: refused" grep -q "reuse refused: " "$TMP_DIR/run.out"
+  check "reuse, missing file: full phase A" called "claude QUALITY"
+}
+
 case_phase_a_denial_vetoes() {
   reset_state
   set_head "$HEAD1"
@@ -1438,6 +1470,8 @@ case_launchd_plist() {
 case_clean_council_approves
 case_council_findings_wait
 case_codex_member
+case_reuse_review
+case_one_phase_a_pass_fails
 case_phase_a_denial_vetoes
 case_verify_after_findings_approves
 case_incomplete_reviews

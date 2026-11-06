@@ -36,6 +36,13 @@ Limit cases: (a) D2 findings → `blocked` (D exhausted);
 (c) out-of-delta change during D → full tour or `blocked`.
 Each round is recorded in `PLAN.md` § Review Changes.
 
+## Bounded fix
+
+A bounded fix (`workflow/skills/implementation-loop.md` § Risk tiers) has a
+smaller budget: its single review is T1, and blocking findings fold into one D1
+by a fresh reviewer of the same kind. Still blocking after D1, or a fix that
+leaves the surface → upgrade to standard with a plan, never a second T.
+
 ## Delta re-review
 
 After CI-driven commits that touch runtime code on a PR branch:
