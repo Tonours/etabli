@@ -32,7 +32,7 @@ grew from 112 lines on 2026-03-21 to 616 on 2026-08-30 before being
 hand-trimmed to 412. ADR-0035 removed the former context-budget meta-checks;
 the measured growth incident after that removal is the new evidence for this
 narrower form: one `wc -l` smoke in the core group
-(`tests/entry-chain-budget-smoke.sh`, cap 420) that self-tests its over-cap
+(`tests/entry-chain-budget-smoke.sh`, cap 420, lowered to 405 on 2026-11-06 after a read-count cut) that self-tests its over-cap
 failure. `workflow/skills/` stays out of the cap because it loads per route,
 on demand.
 

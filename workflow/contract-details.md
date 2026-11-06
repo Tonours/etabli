@@ -80,24 +80,3 @@ this section only adds detail.
   conventions. Docs and contract changes are validated by smoke pins or
   inspection instead. Style preferences and speculative robustness are optional
   review notes, never blockers.
-
-## Runtime surfaces (detail)
-
-Pi, Claude and Codex load the same thin skill adapters over the shared contract.
-
-- Skill adapters (Claude, Pi and Codex): `skills/<scope>/<name>/SKILL.md`, catalogued
-  in `workflow/runtime/skill-surface.tsv`
-- Shared skill contracts: `workflow/skills/`
-- Investigation/evidence contract: `workflow/skills/investigation.md`
-- Claude optional hooks: `claude/hooks/` with
-  `claude/settings.workflow-hooks.json`
-- Orchestration contract: `workflow/skills/orchestration.md`
-- Answer quality: `workflow/answer-quality.md`
-- Plan templates: `PLAN_TEMPLATE.md`, `PLAN_TEMPLATE_FULL.md`
-- Implemented plan archives: `docs/plan/` in workflow-scaffolded projects (`workflow/plan-archive.md`)
-- Project context: `docs/project-context.md` in workflow-scaffolded projects
-- Agent memory: `docs/agent-memory/` in workflow-scaffolded projects (`workflow/memory.md`)
-- Review rubric: `workflow/review-rubric.md`
-- Ticket template: `workflow/ticket-template.md`
-- Linear ticket template: `workflow/linear-ticket-template.md`
-- PR body contract: `workflow/pr-body-contract.md`; procedure: the `pr` skill
