@@ -41,13 +41,16 @@ by the branch and ticket:
      `pr-council-review` skill on Claude; the same script through Bash on
      Pi). Script missing, or a run that fails or times out without a
      verdict → `council: unavailable`, stop `blocked`.
-     Reuse: when `PLAN.md` § Review Changes holds a clean final round whose
-     pinned patch sha256 equals `git diff --no-color <merge-base> <head>` of
-     the PR, and whose passes match phase A on the same acceptance criteria
-     (two fresh-context reviews plus a cross-family pass with effective-model
-     provenance), write that round to a file whose first line is
-     `patch-sha256: <hex>` and add `--reuse-review <file>`. The script skips
-     phase A only on an equal hash; the validator always runs.
+     Reuse: when the clean final round in `PLAN.md` § Review Changes has
+     passes matching phase A on the same acceptance criteria (two
+     fresh-context reviews plus a cross-family pass with effective-model
+     provenance), write it, before the archive deletes `PLAN.md`, to a file
+     whose first line is `patch-sha256: <hex>` of
+     `git diff --no-color --no-ext-diff <merge-base> HEAD -- . ':(exclude)docs/plan'`
+     on the reviewed patch, and add `--reuse-review <file>`. The script skips
+     phase A only on an equal hash (pinned patch sha256 equals the PR's, the
+     archive aside) and never once the validator reviewed the head; the
+     validator gate always applies.
   3. Fix every blocking finding, push, rerun the council. At most 3 rounds;
      still not GO after round 3 → stop `blocked` with the open findings.
   4. Only after GO, move the Linear ticket to In Review.

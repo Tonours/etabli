@@ -186,12 +186,15 @@ PHASE_A_ARGS=("${ISOLATED_SETTINGS[@]}")
 [ -n "$PHASE_A_EFFORT" ] && PHASE_A_ARGS+=(--effort "$PHASE_A_EFFORT")
 
 # A recorded review of this exact patch stands in for phase A; the validator still runs.
+# The hash leaves out docs/plan/, where the plan archive lands after that review.
 REUSED=0
 if [ -n "$REUSE_REVIEW" ]; then
-  PATCH_SHA="$(git diff --no-color --no-ext-diff "$MERGE_BASE" "$HEAD_SHA" | shasum -a 256 | cut -d' ' -f1)"
-  RECORDED_SHA="$(sed -n 's/^patch-sha256: \([0-9a-f]\{64\}\)$/\1/p' "$REUSE_REVIEW" 2>/dev/null | head -1)"
-  if [ -z "$RECORDED_SHA" ]; then
-    echo "=== reuse refused: no readable patch-sha256 line in $REUSE_REVIEW; running phase A"
+  PATCH_SHA="$(git diff --no-color --no-ext-diff "$MERGE_BASE" "$HEAD_SHA" -- . ':(exclude)docs/plan' | shasum -a 256 | cut -d' ' -f1)"
+  RECORDED_SHA="$(sed -n '1s/^patch-sha256: \([0-9a-f]\{64\}\)$/\1/p' "$REUSE_REVIEW" 2>/dev/null)"
+  if [ "$PHASE_A_ONLY" = 1 ]; then
+    echo "=== reuse refused: the validator already reviewed this head, so phase B would only re-verify the recorded review; running phase A"
+  elif [ -z "$RECORDED_SHA" ]; then
+    echo "=== reuse refused: line 1 of $REUSE_REVIEW is not a readable patch-sha256 line; running phase A"
   elif [ "$RECORDED_SHA" != "$PATCH_SHA" ]; then
     echo "=== reuse refused: patch sha differs (recorded ${RECORDED_SHA:0:12}, PR ${PATCH_SHA:0:12}); running phase A"
   else

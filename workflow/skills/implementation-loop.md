@@ -7,7 +7,7 @@ unless a plan is requested; an existing DRAFT/CHALLENGED plan blocks implementat
 
 ## Risk tiers
 
-Record `tier: small|bounded-fix|standard|high-risk` before step 1; upgrade when needed,
+Record `tier: small|bounded-fix|standard|high-risk` before step 0; upgrade when needed,
 never downgrade mid-run.
 
 - **small** — docs-only, config-only, or a bounded single-surface edit with no
@@ -27,11 +27,14 @@ never downgrade mid-run.
   adversary, no READY gate. Journey: recon (0), a failing reproducer plus a
   valid and an invalid neighbor (8), focused checks and mutation probe (12),
   simplify (12b), quality (12c), then exactly one fresh-context independent
-  review of the cumulative diff in place of steps 13 and 13b (cross-family when
-  a route is available, else a fresh same-family reviewer labeled
-  `same-family` in the report), report (17). Re-review follows
-  `workflow/skills/review-rounds.md` § Bounded fix. A fix that leaves its
-  surface or touches a contract upgrades to standard with a plan.
+  review of the cumulative diff in place of steps 13 and 13b: by default a
+  fresh Claude `reviewer` subagent (a read-only Pi hunter on Pi),
+  cross-family preferred when a route is available, a same-family review
+  labeled `same-family` in the report; then report (17). Evidence the sequence
+  records in `PLAN.md` goes in the final report. Re-review follows
+  `workflow/skills/review-rounds.md` § Bounded fix. A high finding from a
+  same-family review, a fix that leaves its surface, or one that touches a
+  contract upgrades to standard with a plan.
 - **high-risk** — kernel guards, installer/deploy scripts, security, multi-surface contract changes, or a third
   recurrence of the same failure. Full sequence, cross-model adversary
   mandatory (13b), both hunters mandatory (13).
@@ -85,7 +88,7 @@ follow their journey in Risk tiers instead (no plan file, no plan adversary, no 
     tests or a direct run. Human-only legs stay `blocked`.
 12. Re-run the plan's focused checks after the product-flow check and each
     accepted fix — readiness never rests on checks predating the latest product-flow edit.
-    Small tier (no plan): run the surface's own focused checks instead —
+    Small tier and bounded fix (no plan): run the surface's own focused checks instead —
     the checks named by the task or the touched surface's suite.
     Mutation probe (standard and high-risk tiers, diffs touching executable
     sources: `.sh`, `.bash`, `.js`, `.mjs`, `.cjs`, `.ts`, `.tsx`, or an
@@ -199,10 +202,11 @@ Autonomous completion requires:
 - recorded risk tier;
 - adversary plan review (standard/high-risk; not a bounded fix);
 - adversary code-diff review (standard/high-risk: named model; standard
-  fallback: double-sample with `cross_model: unavailable (<category>)`);
+  fallback: double-sample with `cross_model: unavailable (<category>)`;
+  a bounded fix has its one review instead);
 - focused validation;
 - product-flow evidence when required by the plan;
-- mutation probe result (`mutation: …`) on standard and high-risk diffs
+- mutation probe result (`mutation: …`) on standard (bounded fix included) and high-risk diffs
   touching executable sources;
 - simplification pass result (`simplify: clean` or `simplify: removed N`);
 - quality pass result (or explicit skip for docs/plan-only);

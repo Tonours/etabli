@@ -3,7 +3,7 @@
 Bounded re-review machine for implementation runs. Open it only
 when a round returned blocking findings, a fold or re-review is due, or
 CI-driven commits landed after a review (`workflow/skills/implementation-loop.md`
-step 13b). A clean T1 never
+step 13b, or a bounded fix's single review). A clean T1 never
 needs it.
 
 ## Review budget machine
@@ -42,6 +42,7 @@ A bounded fix (`workflow/skills/implementation-loop.md` § Risk tiers) has a
 smaller budget: its single review is T1, and blocking findings fold into one D1
 by a fresh reviewer of the same kind. Still blocking after D1, or a fix that
 leaves the surface → upgrade to standard with a plan, never a second T.
+With no plan, record each round in the final report.
 
 ## Delta re-review
 

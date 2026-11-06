@@ -87,10 +87,12 @@ writes nothing to GitHub. Pass `--post` whenever the request is to publish the
 review; no separate confirmation.
 
 Reused phase A: `--reuse-review <file>` (`PR_COUNCIL_REUSE_REVIEW`) skips
-phase A when the file's `patch-sha256: <hex>` line equals the sha256 of
-`git diff --no-color <merge-base> <head>`; the file then stands as phase A's
-report and the validator still runs. A missing, unreadable or different hash
-prints `reuse refused` and runs phase A in full. Pass a file only when its
+phase A when the file's first line `patch-sha256: <hex>` equals the sha256 of
+`git diff --no-color --no-ext-diff <merge-base> <head> -- . ':(exclude)docs/plan'`
+(the plan archive lands after the review); the file then stands as phase A's
+report and the validator still runs. A missing, unreadable or different hash,
+or a validator review already on the head (phase A only mode), prints
+`reuse refused` and runs phase A in full. Pass a file only when its
 recorded passes match phase A on the same acceptance criteria: two
 fresh-context reviews plus a cross-family pass with effective-model provenance.
 

@@ -438,8 +438,8 @@ case_one_phase_a_pass_fails() {
 }
 
 case_reuse_review() {
-  local sha
-  sha="$(git -C "$TMP_DIR/seed" diff --no-color main "$HEAD1" | shasum -a 256 | cut -d' ' -f1)"
+  local sha archived
+  sha="$(git -C "$TMP_DIR/seed" diff --no-color main "$HEAD1" -- . ':(exclude)docs/plan' | shasum -a 256 | cut -d' ' -f1)"
   printf 'patch-sha256: %s\nrecorded final review: reused finding a.txt:1\n' "$sha" >"$TMP_DIR/reuse-ok.md"
   printf 'patch-sha256: %064d\nrecorded final review on another patch\n' 0 >"$TMP_DIR/reuse-stale.md"
   reset_state
@@ -459,6 +459,31 @@ case_reuse_review() {
   PR_COUNCIL_REUSE_REVIEW="$TMP_DIR/no-such-review.md" FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
   check "reuse, missing file: refused" grep -q "reuse refused: " "$TMP_DIR/run.out"
   check "reuse, missing file: full phase A" called "claude QUALITY"
+  { printf 'context line\n'; cat "$TMP_DIR/reuse-ok.md"; } >"$TMP_DIR/reuse-late.md"
+  reset_state
+  PR_COUNCIL_REUSE_REVIEW="$TMP_DIR/reuse-late.md" FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "reuse, hash not on line 1: refused" grep -q "reuse refused: " "$TMP_DIR/run.out"
+  # The plan archive commit lands after the final review; it must not void the reuse.
+  git -C "$TMP_DIR/seed" checkout -q "$HEAD1"
+  mkdir -p "$TMP_DIR/seed/docs/plan"
+  echo archive >"$TMP_DIR/seed/docs/plan/20260101-x.md"
+  git -C "$TMP_DIR/seed" add docs/plan
+  git -C "$TMP_DIR/seed" commit -q -m archive
+  archived="$(git -C "$TMP_DIR/seed" rev-parse HEAD)"
+  git -C "$TMP_DIR/seed" checkout -q feature
+  reset_state
+  set_head "$archived"
+  PR_COUNCIL_REUSE_REVIEW="$TMP_DIR/reuse-ok.md" FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$archived" -
+  check "reuse, plan archive added: phase A skipped" not_called "claude QUALITY"
+  check "reuse, plan archive added: validator runs" called "claude VALIDATOR"
+  # The validator already reviewed this head: phase B would only verify the
+  # reused findings, so the reuse is refused and phase A runs.
+  reset_state
+  set_head "$HEAD1"
+  PR_COUNCIL_VALIDATOR_LOGIN=some-validator[bot] FAKE_GH_REVIEWS='[{"user":{"login":"some-validator[bot]","type":"Bot"},"commit_id":"'"$HEAD1"'","state":"COMMENTED"}]' \
+    PR_COUNCIL_REUSE_REVIEW="$TMP_DIR/reuse-ok.md" FAKE_PHASEA_ONLY_TEXT="Nothing survived. $(marker 0)" run_review council "$HEAD1" -
+  check "reuse, validator already on head: refused" grep -q "reuse refused: the validator already reviewed" "$TMP_DIR/run.out"
+  check "reuse, validator already on head: phase A runs" called "claude QUALITY"
 }
 
 case_phase_a_denial_vetoes() {
