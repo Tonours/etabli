@@ -559,6 +559,19 @@ case_reuse_review() {
   PR_COUNCIL_REUSE_REVIEW="$TMP_DIR/reuse-ok.md" FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$archived" -
   check "reuse, plan archive added: phase A skipped" not_called "claude QUALITY"
   check "reuse, plan archive added: validator runs" called "claude VALIDATOR"
+  # A head that adds only a plan archive has no fingerprint: refuse on that, not on a hash mismatch.
+  git -C "$TMP_DIR/seed" checkout -q -b archive-only main
+  mkdir -p "$TMP_DIR/seed/docs/plan"
+  echo archive >"$TMP_DIR/seed/docs/plan/20260101-y.md"
+  git -C "$TMP_DIR/seed" add docs/plan
+  git -C "$TMP_DIR/seed" commit -q -m archive
+  archived="$(git -C "$TMP_DIR/seed" rev-parse HEAD)"
+  git -C "$TMP_DIR/seed" checkout -q feature
+  reset_state
+  set_head "$archived"
+  PR_COUNCIL_REUSE_REVIEW="$TMP_DIR/reuse-ok.md" FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$archived" -
+  check "reuse, no fingerprint: refused on the fingerprint" grep -q "reuse refused: cannot fingerprint" "$TMP_DIR/run.out"
+  check "reuse, no fingerprint: full phase A" called "claude QUALITY"
   # The validator already reviewed this head: phase B would only verify the
   # reused findings, so the reuse is refused and phase A runs.
   reset_state

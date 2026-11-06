@@ -201,10 +201,12 @@ PHASE_A_ARGS=("${ISOLATED_SETTINGS[@]}")
 # A recorded review of this exact patch stands in for phase A; the validator still runs.
 REUSED=0
 if [ -n "$REUSE_REVIEW" ]; then
-  PATCH_SHA="$(reuse_patch_sha "$MERGE_BASE" "$HEAD_SHA")"
+  PATCH_SHA="$(reuse_patch_sha "$MERGE_BASE" "$HEAD_SHA")" || PATCH_SHA=""
   RECORDED_SHA="$(sed -n '1s/^patch-sha256: \([0-9a-f]\{64\}\)$/\1/p' "$REUSE_REVIEW" 2>/dev/null)"
   if [ "$PHASE_A_ONLY" = 1 ]; then
     echo "=== reuse refused: the validator already reviewed this head, so phase B would only re-verify the recorded review; running phase A"
+  elif [ -z "$PATCH_SHA" ]; then
+    echo "=== reuse refused: cannot fingerprint the PR patch (git diff failed or the patch adds nothing); running phase A"
   elif [ -z "$RECORDED_SHA" ]; then
     echo "=== reuse refused: line 1 of $REUSE_REVIEW is not a readable patch-sha256 line; running phase A"
   elif [ "$RECORDED_SHA" != "$PATCH_SHA" ]; then
