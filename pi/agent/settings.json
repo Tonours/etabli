@@ -11,37 +11,10 @@
       "themes": []
     },
     {
-      "source": "git:github.com/badlogic/pi-skills@90bb51cae36515a648515b633a81c0c6efc8c74d",
-      "extensions": [],
-      "skills": [],
-      "prompts": [],
-      "themes": []
-    },
-    {
-      "source": "npm:pi-autoresearch@1.9.0",
-      "skills": []
-    },
-    {
-      "source": "npm:pi-cursor-sdk@0.5.3",
-      "skills": []
-    },
-    {
       "source": "npm:pi-mcp-adapter@5.2.0",
       "skills": [
         "mcp-scripting"
       ]
-    },
-    {
-      "source": "npm:@narumitw/pi-goal@0.54.11",
-      "skills": []
-    },
-    {
-      "source": "npm:pi-simplify@0.2.3",
-      "skills": []
-    },
-    {
-      "source": "npm:pi-subagents@0.77.0",
-      "skills": []
     }
   ],
   "skills": [

@@ -36,7 +36,13 @@ with `contents: read`.
 
 Only `.gitleaksignore` from the trusted base applies: the PR base SHA in CI,
 the previous main SHA on a main push, or the advertised remote commit for an
-existing pushed ref. Initial scans and new refs without a trusted base apply no
+existing pushed ref. For a new ref, the hook queries the push destination
+and uses its advertised `HEAD` commit only when the symbolic ref is exactly
+`refs/heads/main`, the reviewed base for this repository. A detached `HEAD`,
+a different default branch, or a remote with no default applies no suppressions.
+No local remote-tracking ref or candidate policy can supply this base.
+An unreachable remote or a reviewed default commit missing locally blocks the
+push; fetch the remote and retry. Initial scans without a trusted base apply no
 suppressions. When the remote commit of a pushed ref is missing locally, the
 pre-push hook scans the whole pushed history with no suppressions. Called
 directly, `.githooks/scan-secrets` fails closed on a base it cannot find, so

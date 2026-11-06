@@ -130,27 +130,18 @@ describe("Pi settings consistency", () => {
       prompts: [],
       themes: [],
     });
-    expect(packageBySource("git:github.com/badlogic/pi-skills")).toMatchObject({
-      extensions: [],
-      skills: [],
-      prompts: [],
-      themes: [],
-    });
-    for (const silenced of [
-      "npm:pi-autoresearch",
-      "npm:pi-cursor-sdk",
-      "npm:@narumitw/pi-goal",
-      "npm:pi-simplify",
-    ]) {
-      expect(packageBySource(silenced)?.skills).toEqual([]);
-    }
+    expect(packageBySource("git:github.com/badlogic/pi-skills")).toBeUndefined();
     expect(packageBySource("npm:pi-mcp-adapter")?.skills).toEqual([
       "mcp-scripting",
     ]);
     expect(packageBySource("npm:@zenspc/pi-pstack")).toBeUndefined();
-    expect(packageBySource("npm:pi-subagents")?.skills).toEqual([]);
+    expect(packageBySource("npm:pi-subagents")).toBeUndefined();
 
     // Removed from quasi-vanilla profile
+    expect(packageBySource("npm:@narumitw/pi-goal")).toBeUndefined();
+    expect(packageBySource("npm:pi-autoresearch")).toBeUndefined();
+    expect(packageBySource("npm:pi-simplify")).toBeUndefined();
+    expect(packageBySource("npm:pi-cursor-sdk")).toBeUndefined();
     expect(packageBySource("npm:pi-hooks")).toBeUndefined();
     expect(packageBySource("npm:glimpseui")).toBeUndefined();
     expect(packageBySource("npm:@tintinweb/pi-tasks")).toBeUndefined();
@@ -169,7 +160,7 @@ describe("Pi settings consistency", () => {
     // Installer delegates surface convergence; deploy owns settings synchronization.
     expect(installScript).toContain('"$BOOTSTRAP_DIR/deploy-agent-workflow" --apply');
     expect(deployAgentWorkflowScript).toContain("pi-agent-settings-sync.mjs");
-    expect(settingsSyncModule).not.toContain('"npm:pi-subagents",');
+    expect(settingsSyncModule).toContain('"npm:pi-subagents",');
     expect(settingsSyncModule).toContain('"npm:@tintinweb/pi-subagents",');
     expect(settingsSyncModule).toContain('"npm:pi-hooks",');
     expect(settingsSyncModule).not.toContain('"npm:@agwab/pi-workflow@0.8.1",');
