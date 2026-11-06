@@ -36,8 +36,12 @@ checkpoints) are dropped. Deploy backs the old file up beside the new link.
 
 - Pi reads neither `~/.codex/skills` nor `~/.codex/AGENTS.md`, so Pi's
   skill universe is unchanged; the deploy smoke asserts it. When `~/.codex`
-  or `~/.codex/skills` resolves onto or inside a root Pi or Claude reads, the
-  deploy skips every Codex link and fails instead of writing through.
+  or `~/.codex/skills` overlaps a root Pi or Claude reads, or an entry their
+  skill folders list, the deploy skips every Codex link and fails instead of
+  writing through. Residual, accepted: a user link deeper into
+  `~/.codex/skills` (nested folder, single `SKILL.md`, Pi settings path) is
+  not checked; the folder it reaches is backed up, then Pi loads the catalog
+  skill there.
 - A real folder in `~/.codex/skills` on a managed skill name moves to
   `~/.codex/skills.bak/`; other personal folders and foreign links stay.
 - Codex sessions only see new links after a restart.

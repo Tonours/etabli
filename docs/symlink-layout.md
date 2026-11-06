@@ -86,8 +86,13 @@ Codex is a managed runtime again (ADR-0043). Pi reads none of these paths.
   withheld under `work` too. Personal folders and foreign links on other
   names stay.
 
-When `~/.codex` or `~/.codex/skills` resolves onto or inside a root Pi or
-Claude reads, the deploy skips every Codex link and reports it unresolved.
+When `~/.codex` or `~/.codex/skills` overlaps, physically and in either
+direction, a root Pi or Claude reads (`~/.pi`, `~/.agents`, their skill
+folders, every Claude config dir this deploy serves) or an entry those skill
+folders list, the deploy skips every Codex link and reports it unresolved.
+A link you make deeper into `~/.codex/skills` (a nested folder, a single
+`SKILL.md`, a Pi settings skill path) is not checked; the folder it reaches
+moves to `~/.codex/skills.bak/` and Pi then loads the catalog skill.
 
 ## Shared links
 

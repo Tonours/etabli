@@ -230,6 +230,7 @@ if ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --apply --home "$ENTRY_HOME_DIR" >
   exit 1
 fi
 grep -Fxq 'personal spec' "$ENTRY_HOME_DIR/.agents/skills/personal/SKILL.md" || { printf 'deploy moved a skill Pi reads\n' >&2; exit 1; }
+grep -Fq 'Codex links skipped:' "$TMP_DIR/entry-pi.out" || { cat "$TMP_DIR/entry-pi.out" >&2; exit 1; }
 LOOP_HOME_DIR="$TMP_DIR/loop-codex-home"
 mkdir -p "$LOOP_HOME_DIR"
 ln -s .codex "$LOOP_HOME_DIR/.codex"
