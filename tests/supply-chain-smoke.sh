@@ -177,6 +177,22 @@ git -C "$hook_clone" fetch -q origin
 commit_file topic.txt 'new branch with a reviewed historical fixture'
 git -C "$hook_clone" push -q origin HEAD:refs/heads/reviewed-topic 2>"$hook_tmp/reviewed-topic.err" ||
   fail "new-ref scan rejected a fingerprint from the advertised remote default branch: $(cat "$hook_tmp/reviewed-topic.err")"
+reviewed_base="$(git --git-dir="$hook_tmp/remote.git" rev-parse refs/heads/main)"
+git --git-dir="$hook_tmp/remote.git" update-ref refs/heads/unreviewed "$(git -C "$hook_clone" rev-parse HEAD)"
+git --git-dir="$hook_tmp/remote.git" update-ref refs/heads/main "$clean_sha"
+git --git-dir="$hook_tmp/remote.git" symbolic-ref HEAD refs/heads/unreviewed
+if git -C "$hook_clone" push -q origin HEAD:refs/heads/unreviewed-topic 2>"$hook_tmp/unreviewed-head.err"; then
+  fail "new-ref scan trusted exemptions from an unreviewed remote HEAD branch"
+fi
+grep -Fq 'leaks found' "$hook_tmp/unreviewed-head.err" || fail "unreviewed remote HEAD must scan without exemptions"
+git --git-dir="$hook_tmp/remote.git" update-ref --no-deref HEAD "$reviewed_base"
+if git -C "$hook_clone" push -q origin HEAD:refs/heads/detached-topic 2>"$hook_tmp/detached-head.err"; then
+  fail "new-ref scan trusted exemptions from a detached remote HEAD"
+fi
+grep -Fq 'leaks found' "$hook_tmp/detached-head.err" || fail "detached remote HEAD must scan without exemptions"
+git --git-dir="$hook_tmp/remote.git" symbolic-ref HEAD refs/heads/main
+git --git-dir="$hook_tmp/remote.git" update-ref refs/heads/main "$reviewed_base"
+git --git-dir="$hook_tmp/remote.git" update-ref -d refs/heads/unreviewed
 remote_only_sha="$(git --git-dir="$hook_tmp/remote.git" -c user.name=t -c user.email=t@example.invalid commit-tree "$clean_sha^{tree}" -m remote-only)"
 git --git-dir="$hook_tmp/remote.git" update-ref refs/heads/main "$remote_only_sha"
 if git -C "$hook_clone" push -q origin HEAD:refs/heads/missing-base-topic 2>"$hook_tmp/missing-base.err"; then

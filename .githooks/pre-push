@@ -28,7 +28,10 @@ while read -r _local_ref local_sha _remote_ref remote_sha; do
           status=1
           continue
         fi
-        default_base="$(printf '%s\n' "$advertised" | awk '$2 == "HEAD" && length($1) == 40 && $1 ~ /^[0-9a-f]+$/ { print $1 }')"
+        default_ref="$(printf '%s\n' "$advertised" | awk '$1 == "ref:" && $3 == "HEAD" { print $2 }')"
+        if [ "$default_ref" = refs/heads/main ]; then
+          default_base="$(printf '%s\n' "$advertised" | awk '$2 == "HEAD" && length($1) == 40 && $1 ~ /^[0-9a-f]+$/ { print $1 }')"
+        fi
         if [ -n "$default_base" ] && ! git cat-file -e "$default_base^{commit}" 2>/dev/null; then
           printf 'pre-push: remote default commit is unavailable locally, push blocked. Fetch the remote and retry.\n' >&2
           status=1
