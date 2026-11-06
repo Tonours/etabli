@@ -426,3 +426,132 @@ describe("no-comments extension", () => {
 		expect(rewrite).toBeUndefined();
 	});
 });
+
+describe("no-comments lexer edges", () => {
+	const decide = (event: Parameters<typeof noCommentsGuardDecision>[0]) => guardDecision(event);
+	const note = ["// note"];
+	const lex = (family: string, text: string, expected: string[]) => expect(collectCommentLines(text, family)).toEqual(expected);
+
+	test("exempts only real shebang and license lines", () => {
+		lex("python", "#!/usr/bin/env python3\nx = 1\n", []);
+		lex("clike", "// License: MIT\n// licence Apache-2.0\n", []);
+		lex("clike", "// uses a license key\n// mit result\n", ["// uses a license key", "// mit result"]);
+	});
+
+	test("tells line comment starters apart from operators", () => {
+		lex("sql", "SELECT 5 - 3, a-b;\n", []);
+		lex("lua", "x = a-b\n", []);
+		lex("ruby", "# note\n", []);
+	});
+
+	test("ends block comments at the right closer", () => {
+		lex("clike", "/*/ added note\nstill */\nconst a = 1;\n", ["/*/ added note", "still */"]);
+		lex("clike", "/**/\nconst a = 1; // note\n", ["/**/", "// note"]);
+		lex("sql", "/* a /* b */ c */ SELECT 1; -- note\n", ["/* a /* b */ c */", "-- note"]);
+		lex("sql", "/* a /* b */*/ SELECT 1; -- note\n", ["/* a /* b */*/", "-- note"]);
+	});
+
+	test("reads regex literals up to their closing slash only", () => {
+		lex("clike", "const r = /ab\n// note\n", note);
+		lex("clike", "x = /ab", []);
+		lex("clike", "const r = /\\//; // note\n", note);
+		lex("clike", "x = /[///]/;\n", []);
+		lex("clike", 'x = /["]/; // note\n', note);
+		lex("clike", 'x = /a"b/; // note\n', note);
+		lex("clike", "x = /a/ / 2; // note\n", note);
+		lex("clike", 'x = /a/"b // c"\n', []);
+		lex("clike", 'if (a) b(); else return /"/; // note\n', note);
+	});
+
+	test("honours escapes per string family", () => {
+		lex("python", 'x = "a"  # note\n', ["# note"]);
+		lex("python", "x = 'it'\n# note\n", ["# note"]);
+		lex("clike", "x = 'a\\'b'; // note\n", note);
+		lex("clike", "x = `a\\`b` // note\n", note);
+		lex("clike", 's = "\\a\\" b"; // note\n', note);
+		lex("shell", "echo 'a\\'\n# note\n", ["# note"]);
+		lex("shell", 'echo "a\\"b" # note\n', ["# note"]);
+		lex("sql", "SELECT 'a\\'; -- note\n", ["-- note"]);
+		lex("sql", "SELECT $'a\\'; -- note\n", ["-- note"]);
+		lex("go", "x := `a\\`\n// note\n", note);
+		lex("go", 'x := "a\\"b" // note\n', note);
+	});
+
+	test("scans substitutions and template holes only where the language has them", () => {
+		lex("clike", 'x = "it`s"; // note\n', note);
+		lex("shell", "echo 'a`b' # note\n", ["# note"]);
+		lex("clike", 'x = "a${b"; // note\n', note);
+		lex("go", "x := `a${b`\n// note\n", note);
+		lex("clike", "x = `${a}`; // note\n", note);
+		lex("clike", "x = `a`; // note\n", note);
+		lex("shell", "echo `date` # note\n", ["# note"]);
+		lex("clike", `${"$(".repeat(70)}\n// note`, note);
+	});
+
+	test("caps nesting depth without recursing without bound", () => {
+		const nest = (depth: number) => `const x=${"`${".repeat(depth)}0${"}`".repeat(depth)};\n`;
+		expect(collectCommentLines(nest(64), "clike")).toEqual([]);
+		expect(collectCommentLines(nest(65), "clike")).toBeNull();
+		expect(collectCommentLines(nest(20000), "clike")).toBeNull();
+	});
+
+	test("resumes right after the construct that was skipped", () => {
+		lex("clike", 'x\n"a // b"\n', []);
+		lex("shell", 'echo \\a"b # c"\n', []);
+		lex("shell", 'x=$(a)"b # c"\n', []);
+		lex("lua", '--[[ a ]]"x -- y"\n', ["--[[ a ]]"]);
+		lex("lua", 's = [[a]]"x -- y"\n', []);
+		lex("sql", 'SELECT $$a$$"x -- y"\n', []);
+		lex("clike", "const a = [[\n// note\n]];\n", note);
+	});
+
+	test("reads heredocs in shell only", () => {
+		lex("clike", "x = a <<EOF;\n// note\nEOF\n", note);
+		lex("shell", "cat <<-EOF\n\tEOF\n# note\n", ["# note"]);
+		lex("shell", "cat <<EOF\n\tEOF\n# data\nEOF\n", []);
+	});
+
+	test("accepts a path under each input key and names the comment found", () => {
+		const added = "// note\nexport {};\n";
+		for (const key of ["file_path", "path", "filePath"]) {
+			const verdict = decide({ tool_name: "Write", tool_input: { [key]: "k.ts", content: added } });
+			expect(verdict?.hookSpecificOutput.permissionDecisionReason).toContain("k.ts adds a code comment (// note).");
+		}
+		expect(decide({ tool_name: "Write", tool_input: { filePath: "k.ts", content: "/**/\n" } })).not.toBeNull();
+	});
+
+	test("judges an edit without replace_all on its first occurrence only", () => {
+		writeFileSync(join(fixtureCwd, "one.ts"), 'const label = "run";\nrun();\n');
+		const edit = { path: "one.ts", old_string: "run", new_string: "run/* added note */" };
+		expect(decide({ tool_name: "Edit", tool_input: edit })).toBeNull();
+		expect(decide({ tool_name: "Edit", tool_input: { ...edit, replaceAll: false } })).toBeNull();
+		expect(decide({ tool_name: "Edit", tool_input: { ...edit, replace_all: false } })).toBeNull();
+		expect(decide({ tool_name: "Edit", tool_input: { ...edit, replaceAll: true } })).not.toBeNull();
+		expect(decide({ tool_name: "Edit", tool_input: { ...edit, replace_all: true } })).not.toBeNull();
+	});
+
+	test("judges a multi-edit on the whole file, not edit by edit", () => {
+		writeFileSync(join(fixtureCwd, "move.ts"), "// n\nfoo();\nbar();\n");
+		const moved = {
+			path: "move.ts",
+			edits: [
+				{ oldText: "// n\n", newText: "" },
+				{ oldText: "bar();", newText: "// n\nbar();" },
+			],
+		};
+		expect(decide({ tool_name: "MultiEdit", tool_input: moved })).toBeNull();
+	});
+
+	test("falls back to the edit text when the file cannot be read", () => {
+		mkdirSync(join(fixtureCwd, "dir.ts"));
+		const verdict = decide({ tool_name: "Edit", tool_input: { path: "dir.ts", old_string: "x", new_string: "// note" } });
+		expect(verdict?.hookSpecificOutput.permissionDecision).toBe("deny");
+	});
+
+	test("ignores tools that do not write files", () => {
+		const input = { path: "a.ts", old_string: "x", new_string: "// note" };
+		for (const tool_name of ["Read", "Bash", "shell", "run_terminal_command"]) {
+			expect(decide({ tool_name, tool_input: input })).toBeNull();
+		}
+	});
+});
