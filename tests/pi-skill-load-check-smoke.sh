@@ -294,4 +294,9 @@ chmod +x "$ARGV_PI_BIN/pi"
 grep -q -- "--no-extensions" "$TMP_DIR/pi-argv.txt" || fail "native render must disable extension discovery: $(cat "$TMP_DIR/pi-argv.txt")"
 [ "$(head -1 "$TMP_DIR/pi-argv.txt")" != "$(cd "$TMP_DIR/caller-project" && pwd -P)" ] || fail "native render must not run in the caller's project"
 
+# A relative PATH entry still finds pi once the render leaves the caller's cwd.
+rm -f "$TMP_DIR/pi-argv.txt"
+(cd "$TMP_DIR" && PATH="argv-pi-bin:$PATH" "$CHECK" --home "$STDIN_HOME" >/dev/null 2>&1) || :
+[ -f "$TMP_DIR/pi-argv.txt" ] || fail "native render must resolve a pi found through a relative PATH entry"
+
 printf '%s\n' "PASS: pi-skill-load-check fixture assertions"

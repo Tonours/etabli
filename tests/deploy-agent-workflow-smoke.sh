@@ -560,7 +560,9 @@ env -u CLAUDE_CONFIG_DIR HOME="$LIVE_HOME" ETABLI_SKIP_LIVE_CHECKS=1 "$NODE_BIN"
 live_check() {
   local path="$1"
   shift
-  env -u CLAUDE_CONFIG_DIR -u CLAUDE_SKILL_LOAD_HOME -u PI_SKILL_LOAD_HOME HOME="$LIVE_HOME" PATH="$path" \
+  # Stray fixture-home overrides must not redirect the live checks away from HOME.
+  env -u CLAUDE_CONFIG_DIR CLAUDE_SKILL_LOAD_HOME="$TMP_DIR/stray-home" PI_SKILL_LOAD_HOME="$TMP_DIR/stray-home" \
+    HOME="$LIVE_HOME" PATH="$path" \
     "$NODE_BIN" "$DEPLOY_SCRIPT" --check --home "$LIVE_HOME" "$@"
 }
 # A fixture home cannot own the repo's pi/extensions/node_modules link, so that
@@ -584,6 +586,13 @@ grep -Fq 'ungoverned skill on the surface: ungoverned-personal' "$TMP_DIR/live-b
   grep -q '^Summary: .* 2 unresolved' "$TMP_DIR/live-bad.out" || {
   printf 'live check must report both skill checks with remediation and aggregate them:\n' >&2
   cat "$TMP_DIR/live-bad.out" >&2
+  exit 1
+}
+ETABLI_SKIP_SKILL_LOAD_CHECKS=1 live_check "$TMP_DIR/live-pi-bin:$TMP_DIR/live-bin:/usr/bin:/bin" >"$TMP_DIR/live-skip.out" 2>&1 || :
+grep -q 'SKIP *skill load checks (ETABLI_SKIP_SKILL_LOAD_CHECKS=1)' "$TMP_DIR/live-skip.out" &&
+  grep -q '^Summary: .* 0 unresolved' "$TMP_DIR/live-skip.out" || {
+  printf 'the skill-check seam must skip both checks and say so:\n' >&2
+  cat "$TMP_DIR/live-skip.out" >&2
   exit 1
 }
 rm -rf "$LIVE_HOME/.claude/skills/ungoverned-personal" "$LIVE_HOME/.agents/skills/stale.bak.1"
