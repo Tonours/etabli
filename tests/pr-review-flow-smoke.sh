@@ -421,6 +421,167 @@ case_codex_member() {
   check "codex opt-out: exit 0" rc_is 0
 }
 
+case_one_phase_a_pass_fails() {
+  reset_state
+  set_head "$HEAD1"
+  FAKE_THERMO_RC=1 FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "one phase A pass fails: validator still runs" called "claude VALIDATOR"
+  check "one phase A pass fails: the gap reaches the validator" grep -q "thermo-nuclear pass failed" "$FAKE_DIR/validator-prompt.txt"
+  reset_state
+  FAKE_QUALITY_RC=1 FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "code-review pass fails: validator still runs" called "claude VALIDATOR"
+  check "code-review pass fails: the gap reaches the validator" grep -q "/code-review pass failed" "$FAKE_DIR/validator-prompt.txt"
+  reset_state
+  FAKE_QUALITY_RC=1 FAKE_THERMO_RC=1 FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "both Claude phase A passes fail: no validator" not_called "claude VALIDATOR"
+  check "both Claude phase A passes fail: said so" grep -q "both Claude phase A passes failed" "$TMP_DIR/run.out"
+}
+
+# The reuse fingerprint: repo-root scoped, stable across diff settings, and blind
+# only to plain additions under docs/plan/ (the plan archive).
+case_reuse_fingerprint() {
+  local repo="$TMP_DIR/fp" head sha_root sha_sub sha_archive sha_old sha_other
+  git init -q -b main "$repo"
+  mkdir -p "$repo/docs/plan" "$repo/sub"
+  echo old >"$repo/docs/plan/old.md"; echo a >"$repo/a.txt"; echo s >"$repo/sub/s.txt"
+  git -C "$repo" add -A && git -C "$repo" commit -q -m base
+  git -C "$repo" checkout -q -b feature
+  echo b >>"$repo/a.txt" && git -C "$repo" commit -q -am change
+  head="$(git -C "$repo" rev-parse HEAD)"
+  sha_root="$(cd "$repo" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  sha_sub="$(cd "$repo/sub" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: same from a subdirectory" eval '[ -n "$sha_root" ] && [ "$sha_root" = "$sha_sub" ]'
+  check "fingerprint: not the empty diff" [ "$sha_root" != "$(printf '' | shasum -a 256 | cut -d' ' -f1)" ]
+  sha_other="$(cd "$repo" && GIT_CONFIG_COUNT=4 GIT_CONFIG_KEY_0=diff.noprefix GIT_CONFIG_VALUE_0=true \
+    GIT_CONFIG_KEY_1=core.abbrev GIT_CONFIG_VALUE_1=12 GIT_CONFIG_KEY_2=diff.renames GIT_CONFIG_VALUE_2=copies \
+    GIT_CONFIG_KEY_3=color.diff GIT_CONFIG_VALUE_3=always /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: diff settings do not change it" [ "$sha_root" = "$sha_other" ]
+  echo archive >"$repo/docs/plan/new.md" && git -C "$repo" add docs/plan && git -C "$repo" commit -q -m archive
+  sha_archive="$(cd "$repo" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: an added plan archive is left out" [ "$sha_root" = "$sha_archive" ]
+  echo edited >>"$repo/docs/plan/old.md" && git -C "$repo" commit -q -am "edit old archive"
+  sha_old="$(cd "$repo" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: an edited existing archive counts" [ "$sha_root" != "$sha_old" ]
+  git -C "$repo" checkout -q "$head"
+  echo z >>"$repo/sub/s.txt" && git -C "$repo" commit -q -am "outside the caller dir"
+  sha_sub="$(cd "$repo/sub" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  sha_other="$(cd "$repo/docs" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: a change outside the caller's dir counts" eval '[ "$sha_root" != "$sha_other" ] && [ "$sha_sub" = "$sha_other" ]'
+  printf 'sub/*\n' >"$TMP_DIR/fp-order"
+  sha_other="$(cd "$repo" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=diff.orderFile GIT_CONFIG_VALUE_0="$TMP_DIR/fp-order" \
+    /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: diff.orderFile does not reorder it" [ "$sha_sub" = "$sha_other" ]
+  check "fingerprint: a git failure prints nothing and fails" eval '! sha_other="$(cd "$repo" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=diff.orderFile GIT_CONFIG_VALUE_0="$TMP_DIR/no-such-order" /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main 2>/dev/null)" && [ -z "$sha_other" ]'
+  git -C "$repo" checkout -q main
+  check "fingerprint: an empty diff prints nothing and fails" eval '! sha_other="$(cd "$repo" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main 2>/dev/null)" && [ -z "$sha_other" ]'
+  git -C "$repo" checkout -q "$head"
+  echo archive >"$repo/docs/plan/été.md" && git -C "$repo" add docs/plan && git -C "$repo" commit -q -m "non-ascii archive"
+  sha_other="$(cd "$repo" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: a non-ascii plan archive is left out" [ "$sha_root" = "$sha_other" ]
+  git -C "$repo" checkout -q "$head"
+  ln -s a.txt "$repo/docs/plan/link.md" && git -C "$repo" add docs/plan && git -C "$repo" commit -q -m "symlink in plan"
+  sha_other="$(cd "$repo" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: a non-file addition under docs/plan counts" [ "$sha_root" != "$sha_other" ]
+  git -C "$repo" checkout -q "$head"
+  git -C "$repo" update-index --add --cacheinfo "160000,$head,mod" && git -C "$repo" commit -q -m gitlink
+  mkdir -p "$repo/mod"
+  sha_other="$(cd "$repo" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=diff.ignoreSubmodules GIT_CONFIG_VALUE_0=all \
+    /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: a gitlink change counts under diff.ignoreSubmodules=all" [ "$sha_root" != "$sha_other" ]
+  git -C "$repo" checkout -q "$head"
+  chmod +x "$repo/a.txt" && git -C "$repo" commit -q -am "mode only"
+  sha_other="$(cd "$repo" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: a mode-only change counts" [ "$sha_root" != "$sha_other" ]
+  git -C "$repo" checkout -q "$head"
+  echo x >"$repo/docs/plan/run.sh" && chmod +x "$repo/docs/plan/run.sh" && git -C "$repo" add docs/plan && git -C "$repo" commit -q -m "executable in plan"
+  sha_other="$(cd "$repo" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: an executable addition under docs/plan counts" [ "$sha_root" != "$sha_other" ]
+  git -C "$repo" checkout -q "$head"
+  git -C "$repo" rm -q docs/plan/old.md && git -C "$repo" commit -q -m "drop old archive"
+  sha_other="$(cd "$repo" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: a deletion under docs/plan counts" [ "$sha_root" != "$sha_other" ]
+  git -C "$repo" checkout -q "$head"
+  echo uncommitted >>"$repo/a.txt"
+  check "fingerprint: an uncommitted tracked change prints nothing and fails" eval '! sha_other="$(cd "$repo" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main 2>/dev/null)" && [ -z "$sha_other" ]'
+  git -C "$repo" checkout -q -- a.txt
+  echo new >"$repo/untracked.txt"
+  check "fingerprint: an untracked file prints nothing and fails" eval '! sha_other="$(cd "$repo" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main 2>/dev/null)" && [ -z "$sha_other" ]'
+  check "fingerprint: an untracked file is refused under status.showUntrackedFiles=no" eval '! sha_other="$(cd "$repo" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=status.showUntrackedFiles GIT_CONFIG_VALUE_0=no /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main 2>/dev/null)" && [ -z "$sha_other" ]'
+  rm "$repo/untracked.txt"
+  check "fingerprint: a failing git status prints nothing and fails" eval '! sha_other="$(cd "$repo" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=status.relativePaths GIT_CONFIG_VALUE_0=invalid /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main 2>/dev/null)" && [ -z "$sha_other" ]'
+  echo b2 >>"$repo/a.txt" && git -C "$repo" add a.txt
+  check "fingerprint: a staged-only change prints nothing and fails" eval '! sha_other="$(cd "$repo" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main 2>/dev/null)" && [ -z "$sha_other" ]'
+  git -C "$repo" reset -q --hard "$head"
+  printf 'PLAN.md\n' >"$repo/.git/info/exclude" && echo plan >"$repo/PLAN.md"
+  sha_other="$(cd "$repo/sub" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: an ignored file does not refuse, from a subdirectory" [ "$sha_root" = "$sha_other" ]
+  rm "$repo/PLAN.md"
+}
+
+case_reuse_review() {
+  local sha archived
+  git -C "$TMP_DIR/seed" checkout -q "$HEAD1"
+  sha="$(cd "$TMP_DIR/seed" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  git -C "$TMP_DIR/seed" checkout -q feature
+  printf 'patch-sha256: %s\nrecorded final review: reused finding a.txt:1\n' "$sha" >"$TMP_DIR/reuse-ok.md"
+  printf 'patch-sha256: %064d\nrecorded final review on another patch\n' 0 >"$TMP_DIR/reuse-stale.md"
+  reset_state
+  set_head "$HEAD1"
+  PR_COUNCIL_REUSE_REVIEW="$TMP_DIR/reuse-ok.md" FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "reuse, same patch: phase A skipped" not_called "claude QUALITY"
+  check "reuse, same patch: no thermo or codex pass" eval '! called "claude THERMO" && not_called codex'
+  check "reuse, same patch: validator still runs" called "claude VALIDATOR"
+  check "reuse, same patch: recorded review reaches the validator" grep -q "reused a recorded review" "$FAKE_DIR/validator-prompt.txt"
+  check "reuse, same patch: exit 0" rc_is 0
+  reset_state
+  PR_COUNCIL_REUSE_REVIEW="$TMP_DIR/reuse-stale.md" FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "reuse, other patch: refused" grep -q "reuse refused: patch sha" "$TMP_DIR/run.out"
+  check "reuse, other patch: full phase A" called "claude QUALITY"
+  check "reuse, other patch: validator runs" called "claude VALIDATOR"
+  reset_state
+  PR_COUNCIL_REUSE_REVIEW="$TMP_DIR/no-such-review.md" FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "reuse, missing file: refused" grep -q "reuse refused: " "$TMP_DIR/run.out"
+  check "reuse, missing file: full phase A" called "claude QUALITY"
+  { printf 'context line\n'; cat "$TMP_DIR/reuse-ok.md"; } >"$TMP_DIR/reuse-late.md"
+  reset_state
+  PR_COUNCIL_REUSE_REVIEW="$TMP_DIR/reuse-late.md" FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "reuse, hash not on line 1: refused" grep -q "reuse refused: " "$TMP_DIR/run.out"
+  # The plan archive commit lands after the final review; it must not void the reuse.
+  git -C "$TMP_DIR/seed" checkout -q "$HEAD1"
+  mkdir -p "$TMP_DIR/seed/docs/plan"
+  echo archive >"$TMP_DIR/seed/docs/plan/20260101-x.md"
+  git -C "$TMP_DIR/seed" add docs/plan
+  git -C "$TMP_DIR/seed" commit -q -m archive
+  archived="$(git -C "$TMP_DIR/seed" rev-parse HEAD)"
+  git -C "$TMP_DIR/seed" checkout -q feature
+  reset_state
+  set_head "$archived"
+  PR_COUNCIL_REUSE_REVIEW="$TMP_DIR/reuse-ok.md" FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$archived" -
+  check "reuse, plan archive added: phase A skipped" not_called "claude QUALITY"
+  check "reuse, plan archive added: validator runs" called "claude VALIDATOR"
+  # A head that adds only a plan archive has no fingerprint: refuse on that, not on a hash mismatch.
+  git -C "$TMP_DIR/seed" checkout -q -b archive-only main
+  mkdir -p "$TMP_DIR/seed/docs/plan"
+  echo archive >"$TMP_DIR/seed/docs/plan/20260101-y.md"
+  git -C "$TMP_DIR/seed" add docs/plan
+  git -C "$TMP_DIR/seed" commit -q -m archive
+  archived="$(git -C "$TMP_DIR/seed" rev-parse HEAD)"
+  git -C "$TMP_DIR/seed" checkout -q feature
+  reset_state
+  set_head "$archived"
+  PR_COUNCIL_REUSE_REVIEW="$TMP_DIR/reuse-ok.md" FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$archived" -
+  check "reuse, no fingerprint: refused on the fingerprint" grep -q "reuse refused: cannot fingerprint" "$TMP_DIR/run.out"
+  check "reuse, no fingerprint: full phase A" called "claude QUALITY"
+  # The validator already reviewed this head: phase B would only verify the
+  # reused findings, so the reuse is refused and phase A runs.
+  reset_state
+  set_head "$HEAD1"
+  PR_COUNCIL_VALIDATOR_LOGIN=some-validator[bot] FAKE_GH_REVIEWS='[{"user":{"login":"some-validator[bot]","type":"Bot"},"commit_id":"'"$HEAD1"'","state":"COMMENTED"}]' \
+    PR_COUNCIL_REUSE_REVIEW="$TMP_DIR/reuse-ok.md" FAKE_PHASEA_ONLY_TEXT="Nothing survived. $(marker 0)" run_review council "$HEAD1" -
+  check "reuse, validator already on head: refused" grep -q "reuse refused: the validator already reviewed" "$TMP_DIR/run.out"
+  check "reuse, validator already on head: phase A runs" called "claude QUALITY"
+}
+
 case_phase_a_denial_vetoes() {
   reset_state
   set_head "$HEAD1"
@@ -1438,6 +1599,9 @@ case_launchd_plist() {
 case_clean_council_approves
 case_council_findings_wait
 case_codex_member
+case_reuse_fingerprint
+case_reuse_review
+case_one_phase_a_pass_fails
 case_phase_a_denial_vetoes
 case_verify_after_findings_approves
 case_incomplete_reviews

@@ -19,6 +19,14 @@ domain suite only when the brief clearly matches one.
 Rules:
 - Do not ask for confirmation once the plan is `READY`.
 - Do not create `REVIEW.md`.
+- Council reuse file: right after the clean final review round, before the
+  archive (implementation-loop step 14) deletes `PLAN.md`, when that round's
+  passes match the council's phase A on the same acceptance criteria (two
+  fresh-context reviews plus a cross-family pass with effective-model
+  provenance), commit the reviewed patch, then write the round to a file
+  outside the repo whose first line is `patch-sha256: ` followed by
+  `~/.claude/scripts/pr-council-review/run.sh --reuse-sha origin/<base>` (after a
+  fetch, so it matches the PR's merge base).
 - After focused checks, run the implementation-loop step 12 mutation probe
   on standard and high-risk diffs touching executable sources and record
   `mutation: …`. Then run 12b on this diff and record
@@ -41,6 +49,10 @@ by the branch and ticket:
      `pr-council-review` skill on Claude; the same script through Bash on
      Pi). Script missing, or a run that fails or times out without a
      verdict → `council: unavailable`, stop `blocked`.
+     Reuse: add `--reuse-review <file>` when the reuse file (Rules above) exists.
+     The script skips phase A only when the fingerprint still matches the PR
+     (the plan archive aside) and never once the validator reviewed the
+     head; the validator gate always applies.
   3. Fix every blocking finding, push, rerun the council. At most 3 rounds;
      still not GO after round 3 → stop `blocked` with the open findings.
   4. Only after GO, move the Linear ticket to In Review.

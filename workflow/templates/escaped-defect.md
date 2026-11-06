@@ -8,7 +8,7 @@ defect, with a concise statement of observable evidence.
 ```text
 escaped-defect:
   reviewed_change:
-  tier: small | standard | high-risk | unknown
+  tier: small | bounded-fix | standard | high-risk | unknown
   source_location:
   found_by: independent-review | human-review | ci | production
   defect: <source location + one sentence>

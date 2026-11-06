@@ -280,6 +280,20 @@ meet them has not been checked against a real report yet, so check one before
 you rely on the validator path. `run marker has no lenses` in the log points
 to a producer that does not emit lenses.
 
+## Failure ownership
+
+Name the owner before fixing: a failure goes to the layer whose check fails.
+
+| Failure | Owner | Recovery |
+| --- | --- | --- |
+| Dangling, foreign or shadowed managed link | Etabli deploy | `scripts/check-fix-symlinks.sh --fix` |
+| Claude skill missing or ungoverned | Etabli skill governance | `scripts/claude-skill-load-check --fix` |
+| Pi skill block wrong, stale backup loaded | Etabli Pi surface | `scripts/pi-skill-load-check`, then fix what each `FAIL` line names |
+| Hook missing or settings drift on a live home | Etabli settings sync | `scripts/deploy-agent-workflow --apply`, then `scripts/claude-hooks-check` |
+| Council run fails, vetoes (exit 3) or ends incomplete (exit 4) | work-scope council script | rerun `~/.claude/scripts/pr-council-review/run.sh <N>` on the same head |
+| Fleet daemon, thread or herdr pane failure | Fleet or herdr, outside this repo | `scripts/deploy-agent-workflow --check` green on that host clears Etabli; fix it in its own repo |
+| Runtime bug in Claude Code, Pi or Codex | the runtime | `scripts/verify-agentic-infra core` green clears Etabli; report it upstream |
+
 ## What's next
 
 [`../docs/symlink-layout.md`](../docs/symlink-layout.md) shows where each of
