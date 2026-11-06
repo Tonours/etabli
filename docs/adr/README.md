@@ -32,7 +32,7 @@ Decisions live in this directory. Run `/adr` to record one.
 - [0028](0028-define-write-authority-single-integrator-and-per-worktree-lease.md) — Define write authority as a single integrator plus a per-worktree lease [superseded by ADR-0034]
 - [0029](0029-subscription-model-routing.md) — Align model routing with the subscription stack [accepted]
 - [0030](0030-promote-recurring-findings-into-project-native-constraints.md) — Promote recurring findings into project-native constraints [accepted]
-- [0031](0031-manage-only-the-pi-and-claude-surfaces.md) — Manage only the Pi and Claude surfaces [accepted]
+- [0031](0031-manage-only-the-pi-and-claude-surfaces.md) — Manage only the Pi and Claude surfaces [accepted; Codex clause superseded by ADR-0043]
 - [0032](0032-drop-the-approval-guardrails.md) — Drop the approval guardrails [accepted]
 - [0033](0033-prune-the-skill-surface-and-drop-pstack.md) — Prune the skill surface and drop pstack [accepted]
 - [0034](0034-drop-the-eval-ledger-and-product-verification-tooling.md) — Drop the eval, ledger, product-verification and freeze tooling [accepted]
@@ -44,3 +44,4 @@ Decisions live in this directory. Run `/adr` to record one.
 - [0040](0040-judge-test-strength-with-a-sandboxed-mutation-probe.md) — Judge test strength with a sandboxed mutation probe [accepted]
 - [0041](0041-open-every-pr-through-the-pr-skill-and-a-body-guard.md) — Open every PR through the `pr` skill and a body guard [accepted]
 - [0042](0042-cap-the-entry-chain-and-keep-the-live-contracts.md) — Cap the entry chain and keep the live contracts [accepted]
+- [0043](0043-deploy-codex-as-a-managed-runtime.md) — Deploy Codex as a managed runtime [accepted]

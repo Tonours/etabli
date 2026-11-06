@@ -31,6 +31,8 @@ const SKILL_SLUG = /^[a-z0-9][a-z0-9-]*$/;
 const SHADOWS = [["work", "adr"]];
 const PI_SKILLS = ".pi/agent/skills";
 const CLAUDE_SKILLS = ".claude/skills";
+const CODEX_SKILLS = ".codex/skills";
+const RUNTIMES = { [PI_SKILLS]: "Pi", [CODEX_SKILLS]: "Codex", [CLAUDE_SKILLS]: "Claude" };
 const MAX_LINK_DEPTH = 40;
 const MANAGED_SKILL_TARGET = /^(skills\/[^/]+|pi\/skills|vendor\/[^/]+\/skills|claude\/scopes\/[^/]+\/skills)\/./;
 const ORPHAN_SKILL_TARGET = /^(skills\/[^/]+|vendor\/[^/]+\/skills)\/./;
@@ -417,7 +419,30 @@ function pruneStaleChildren(ctx, dir, managedParent, label, suffix) {
 function skillSurfaces(ctx) {
   const surfaces = [[CLAUDE_SKILLS, join(ctx.claudeRoot, "skills")]];
   if (!ctx.claudeOnly) surfaces.unshift([PI_SKILLS, join(ctx.homeDir, PI_SKILLS)]);
+  if (ctx.codexSkip === null) surfaces.splice(1, 0, [CODEX_SKILLS, join(ctx.homeDir, CODEX_SKILLS)]);
   return surfaces;
+}
+
+// The Codex paths, physically, must not overlap a root Pi or Claude reads, in
+// either direction: the roots of every Claude config dir this deploy serves,
+// and each entry their skill folders list. Otherwise Codex writes would land
+// in that runtime's universe. Returns why Codex is skipped, or null.
+function codexOverlap(ctx) {
+  const skillDirs = [join(ctx.homeDir, ".agents/skills"), join(ctx.homeDir, PI_SKILLS)];
+  const read = [join(ctx.homeDir, ".pi"), join(ctx.homeDir, ".agents")];
+  for (const claudeRoot of ctx.claudeRoots ?? [ctx.claudeRoot]) {
+    read.push(claudeRoot);
+    skillDirs.push(join(claudeRoot, "skills"));
+  }
+  const listed = skillDirs.flatMap((dir) => entries(dir).map((name) => join(dir, name)));
+  const roots = [...read, ...skillDirs, ...listed].map((root) => physicalPath(root));
+  for (const codex of [join(ctx.homeDir, ".codex"), join(ctx.homeDir, CODEX_SKILLS)]) {
+    const path = physicalPath(codex);
+    if (path === null) return `cannot resolve ${codex}`;
+    const root = roots.find((candidate) => candidate !== null && (path === candidate || under(path, candidate) || under(candidate, path)));
+    if (root) return `${codex} overlaps ${root}, which Pi or Claude reads`;
+  }
+  return null;
 }
 
 function matchingRecord(ctx, name, raw) {
@@ -432,13 +457,15 @@ function pruneSkillLinks(ctx, surface, dir) {
     const name = basename(link);
     const raw = readLinkOrNull(link);
     if (raw === null) continue;
-    if (raw.includes("/.claude/skills/") && !existsSync(link)) {
+    if (surface !== CODEX_SKILLS && raw.includes("/.claude/skills/") && !existsSync(link)) {
       pruneLink(ctx, link, `broken cross-surface mirror ${name} from ${surface}`);
       continue;
     }
     const record = matchingRecord(ctx, name, raw);
+    // Codex homes predate Etabli: only links into this checkout count as managed there.
+    if (record && surface === CODEX_SKILLS && !inRepo(ctx, linkTarget(link, raw))) continue;
     if (record) {
-      const shadowed = surface === CLAUDE_SKILLS && isShadowed(name, ctx.scopes);
+      const shadowed = surface !== PI_SKILLS && isShadowed(name, ctx.scopes);
       if (shadowed || !surfaceExpected(surface, record, ctx.scopes)) pruneLink(ctx, link, `skill ${name} not expected in ${surface}`);
       continue;
     }
@@ -468,9 +495,8 @@ function reconcileSkills(ctx) {
   for (const record of ctx.records) {
     for (const [surface, dir] of skillSurfaces(ctx)) {
       if (!surfaceExpected(surface, record, ctx.scopes)) continue;
-      if (surface === CLAUDE_SKILLS && isShadowed(record.name, ctx.scopes)) continue;
-      const runtime = surface === CLAUDE_SKILLS ? "Claude" : "Pi";
-      ensureLink(ctx, record.dir, join(dir, record.name), `${runtime} skill ${record.name}`);
+      if (surface !== PI_SKILLS && isShadowed(record.name, ctx.scopes)) continue;
+      ensureLink(ctx, record.dir, join(dir, record.name), `${RUNTIMES[surface]} skill ${record.name}`);
     }
   }
 }
@@ -518,6 +544,22 @@ function reconcilePi(ctx) {
   }
   for (const script of ["fix-links", "deploy-workflow", "security-audit-glm"]) {
     ensureLink(ctx, join(repoDir, "scripts", script), join(homeDir, ".local/bin", script), `script ${script}`);
+  }
+}
+
+// Codex reads ~/.codex/AGENTS.md and ~/.codex/skills; Pi reads neither (ADR-0043).
+function reconcileCodex(ctx) {
+  const { repoDir, homeDir } = ctx;
+  const codexDir = join(homeDir, ".codex");
+  ctx.emit("SECTION", "Codex");
+  if (ctx.codexSkip !== null) {
+    unresolved(ctx, "WARN", `Codex links skipped: ${ctx.codexSkip}`);
+    return;
+  }
+  ensureLink(ctx, join(repoDir, "codex/AGENTS.md"), join(codexDir, "AGENTS.md"), "Codex AGENTS.md");
+  ensureLink(ctx, join(repoDir, "workflow"), join(codexDir, "workflow"), "Codex workflow");
+  for (const template of ["PLAN_TEMPLATE.md", "PLAN_TEMPLATE_FULL.md"]) {
+    ensureLink(ctx, join(repoDir, template), join(codexDir, template), `Codex ${template}`);
   }
 }
 
@@ -575,7 +617,11 @@ function reconcileClaude(ctx) {
 
 export function reconcile(options, emit) {
   const ctx = { ...options, repoReal: realpath(options.repoDir), emit, counts: { issues: 0, fixed: 0, unresolved: 0 } };
-  if (!ctx.claudeOnly) reconcilePi(ctx);
+  ctx.codexSkip = ctx.claudeOnly ? "Claude-only pass" : codexOverlap(ctx);
+  if (!ctx.claudeOnly) {
+    reconcilePi(ctx);
+    reconcileCodex(ctx);
+  }
   reconcileSkills(ctx);
   reconcileClaude(ctx);
   return ctx.counts;

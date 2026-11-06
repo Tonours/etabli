@@ -9,7 +9,7 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoDir = dirname(scriptDir);
 const USAGE = `Usage: deploy-agent-workflow [--dry-run | --apply | --check [--fix] [--verbose]] [--home DIR]
 
-Reconcile the Etabli-managed workflow and skill surfaces for Claude Code and Pi.
+Reconcile the Etabli-managed workflow and skill surfaces for Claude Code, Pi and Codex.
 
 Options:
   --dry-run   Show planned changes without touching local harness files (default)
@@ -200,10 +200,11 @@ const roots = [{ claudeRoot: join(options.homeDir, ".claude"), claudeOnly: false
 const override = homeIsLive ? claudeConfigOverride() : null;
 if (override) roots.push({ claudeRoot: override, claudeOnly: true });
 
+const claudeRoots = roots.map((root) => root.claudeRoot);
 const totals = { issues: 0, fixed: 0, unresolved: 0 };
 for (const root of roots) {
   if (root.claudeOnly) emit("SECTION", `Claude config dir ${root.claudeRoot}`);
-  const pass = { ...base, ...root };
+  const pass = { ...base, ...root, claudeRoots };
   const counts = reconcile(pass, emit);
   for (const key of Object.keys(totals)) totals[key] += counts[key];
   if (options.check) {
