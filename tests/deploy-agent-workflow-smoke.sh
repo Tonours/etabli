@@ -548,4 +548,54 @@ grep -Fq "cwd-pi/pi runs before" "$TMP_DIR/pi-empty-entry.out" || {
   exit 1
 }
 
+# Check mode on a live home also runs the skill-load checks: healthy links with
+# invalid skill governance must fail, aggregated into the Summary line.
+LIVE_HOME="$TMP_DIR/live-home"
+mkdir -p "$LIVE_HOME/.claude/skills/herdr" "$LIVE_HOME/.pi/agent/npm/node_modules" "$TMP_DIR/live-bin" "$TMP_DIR/live-pi-bin"
+printf -- '---\nname: herdr\ndescription: stub herdr\n---\nstub\n' >"$LIVE_HOME/.claude/skills/herdr/SKILL.md"
+ln -s "$NODE_BIN" "$TMP_DIR/live-bin/node"
+printf '#!/bin/sh\nexit 1\n' >"$TMP_DIR/live-pi-bin/pi"
+chmod +x "$TMP_DIR/live-pi-bin/pi"
+env -u CLAUDE_CONFIG_DIR HOME="$LIVE_HOME" ETABLI_SKIP_LIVE_CHECKS=1 "$NODE_BIN" "$DEPLOY_SCRIPT" --apply --home "$LIVE_HOME" >/dev/null
+live_check() {
+  local path="$1"
+  shift
+  # Stray fixture-home overrides must not redirect the live checks away from HOME.
+  env -u CLAUDE_CONFIG_DIR CLAUDE_SKILL_LOAD_HOME="$TMP_DIR/stray-home" PI_SKILL_LOAD_HOME="$TMP_DIR/stray-home" \
+    CLAUDE_SKILL_LOAD_REPO="$TMP_DIR/stray-repo" PI_SKILL_LOAD_NO_REPO=1 \
+    HOME="$LIVE_HOME" PATH="$path" \
+    "$NODE_BIN" "$DEPLOY_SCRIPT" --check --home "$LIVE_HOME" "$@"
+}
+# A fixture home cannot own the repo's pi/extensions/node_modules link, so that
+# one issue stays reported; the healthy neighbor has no unresolved entry.
+live_check "$TMP_DIR/live-bin:/usr/bin:/bin" >"$TMP_DIR/live-ok.out" 2>&1 || :
+grep -q '^Summary: .* 0 unresolved' "$TMP_DIR/live-ok.out" && ! grep -q '^FAIL' "$TMP_DIR/live-ok.out" || {
+  printf 'live check failed on a healthy home:\n' >&2
+  cat "$TMP_DIR/live-ok.out" >&2
+  exit 1
+}
+grep -q 'Claude tracked settings' "$TMP_DIR/live-ok.out" && { printf 'check mode must not run the settings sync:\n' >&2; cat "$TMP_DIR/live-ok.out" >&2; exit 1; }
+grep -q 'SKIP .*Pi skill load check' "$TMP_DIR/live-ok.out" || { printf 'live check must say it skipped the Pi leg without pi:\n' >&2; cat "$TMP_DIR/live-ok.out" >&2; exit 1; }
+mkdir -p "$LIVE_HOME/.claude/skills/ungoverned-personal"
+printf -- '---\nname: ungoverned-personal\ndescription: stub\n---\nstub\n' >"$LIVE_HOME/.claude/skills/ungoverned-personal/SKILL.md"
+mkdir -p "$LIVE_HOME/.agents/skills/stale.bak.1"
+live_check "$TMP_DIR/live-pi-bin:$TMP_DIR/live-bin:/usr/bin:/bin" >"$TMP_DIR/live-bad.out" 2>&1 &&
+  { printf 'live check passed with healthy links but invalid skill governance\n' >&2; exit 1; }
+grep -Fq 'ungoverned skill on the surface: ungoverned-personal' "$TMP_DIR/live-bad.out" &&
+  grep -Fq 'stale skill backup(s) Pi may load' "$TMP_DIR/live-bad.out" &&
+  grep -Fq 'scripts/claude-skill-load-check --fix' "$TMP_DIR/live-bad.out" &&
+  grep -q '^Summary: .* 2 unresolved' "$TMP_DIR/live-bad.out" || {
+  printf 'live check must report both skill checks with remediation and aggregate them:\n' >&2
+  cat "$TMP_DIR/live-bad.out" >&2
+  exit 1
+}
+ETABLI_SKIP_SKILL_LOAD_CHECKS=1 live_check "$TMP_DIR/live-pi-bin:$TMP_DIR/live-bin:/usr/bin:/bin" >"$TMP_DIR/live-skip.out" 2>&1 || :
+grep -q 'SKIP *skill load checks (ETABLI_SKIP_SKILL_LOAD_CHECKS=1)' "$TMP_DIR/live-skip.out" &&
+  grep -q '^Summary: .* 0 unresolved' "$TMP_DIR/live-skip.out" || {
+  printf 'the skill-check seam must skip both checks and say so:\n' >&2
+  cat "$TMP_DIR/live-skip.out" >&2
+  exit 1
+}
+rm -rf "$LIVE_HOME/.claude/skills/ungoverned-personal" "$LIVE_HOME/.agents/skills/stale.bak.1"
+
 printf 'deploy agent workflow smoke test: ok\n'

@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
-import { backupFile, writeJsonAtomic } from "./surfaces.mjs";
+import { backupFile, machineLocalNames, writeJsonAtomic } from "./surfaces.mjs";
 
-const [localPath, trackedPath, dryRunRaw, timestamp, mode] =
+const [localPath, trackedPath, dryRunRaw, timestamp, mode, homeDir] =
   process.argv.slice(2);
 const dryRun = dryRunRaw === "1";
 if (!localPath || !trackedPath || !["deploy", "install"].includes(mode)) {
   console.error(
-    "usage: claude-settings-sync.mjs <local> <tracked> <dryRun> <timestamp> <deploy|install>",
+    "usage: claude-settings-sync.mjs <local> <tracked> <dryRun> <timestamp> <deploy|install> [home]",
   );
   process.exit(2);
 }
@@ -163,8 +163,12 @@ function surfaceSkillNames(skillsDir) {
 }
 
 const surfaceNames = surfaceSkillNames(path.join(path.dirname(localPath), "skills"));
-const machineLocalPath = path.join(path.dirname(trackedPath), "machine-local-skills.json");
-const machineLocalOn = new Set(fs.existsSync(machineLocalPath) ? readJson(machineLocalPath, "machine-local skill list") : []);
+let machineLocalOn;
+try {
+  machineLocalOn = machineLocalNames(path.join(path.dirname(trackedPath), "machine-local-skills.json"), homeDir, "skills");
+} catch (error) {
+  fail(error.message);
+}
 const mergedMap = Object.fromEntries(
   [
     ...Object.entries(liveMap).filter(

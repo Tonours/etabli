@@ -82,7 +82,8 @@ Personal skills, outside the repo, are governed in the live
 `~/.claude/settings.json`. The deploy keeps their states, drops entries whose
 skill is gone from `~/.claude/skills`, and drops a personal `on` unless the
 skill is named in `machine-local-skills.json` (today `alambic-brain`, `alambic-obvault`
-and `fleet`, `on` on the machines that have them). Plugins named in
+and `fleet`, `on` on the machines that have them) or in the machine-local
+`~/.config/etabli/machine-local-skills.json`, for a skill only one machine has. Plugins named in
 `machine-local-plugins.json` (`datadog`) or in the machine-local
 `~/.config/etabli/machine-local-plugins.json` may ship skills. They bring an MCP
 server, hooks or agents that vendoring would break, so their skills stay

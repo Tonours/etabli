@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { backupFile, writeJsonAtomic } from "./surfaces.mjs";
+import { backupFile, machineLocalNames, writeJsonAtomic } from "./surfaces.mjs";
 
 const [claudeDir, repoDir, gateRaw, alertRaw, fixRaw, homeDir] = process.argv.slice(2);
 const FIX = fixRaw === "1";
@@ -178,7 +178,15 @@ if (trackedMap === null) {
 }
 
 const governedMap = trackedMap ?? {};
-const MACHINE_LOCAL_ON = new Set(readJson(path.join(repoDir, "claude/machine-local-skills.json"), []));
+function machineLocal(kind) {
+  try {
+    return machineLocalNames(path.join(repoDir, `claude/machine-local-${kind}.json`), homeDir, kind);
+  } catch (error) {
+    console.error(`FAIL: ${error.message}`);
+    process.exit(1);
+  }
+}
+const MACHINE_LOCAL_ON = machineLocal("skills");
 const repoReal = (() => {
   try {
     return fs.realpathSync(repoDir);
@@ -199,7 +207,7 @@ for (const [name, state] of Object.entries(liveMap ?? {})) {
   if (Object.hasOwn(governedMap ?? {}, name) || (trackedMap && Object.hasOwn(trackedMap, name))) continue;
   if (byName.has(name) && !isPersonal(byName.get(name))) continue;
   if (state === "on" && !MACHINE_LOCAL_ON.has(name)) {
-    errors.push(`personal skill ${name} is "on" in ${liveSettingsPath}; only the pinned repo keep-set and claude/machine-local-skills.json are listed to the model (set it to user-invocable-only, name-only or off)`);
+    errors.push(`personal skill ${name} is "on" in ${liveSettingsPath}; only the pinned repo keep-set and the machine-local skill lists (claude/machine-local-skills.json, ~/.config/etabli/machine-local-skills.json) are listed to the model (set it to user-invocable-only, name-only or off)`);
     continue;
   }
   personalMap[name] = state;
@@ -333,18 +341,7 @@ const pluginsFile = path.join(claudeDir, "plugins/installed_plugins.json");
 const plugins = readJson(pluginsFile, {});
 const enabled =
 	liveSettings.enabledPlugins ?? {};
-function pluginList(file) {
-  const list = readJson(file, []);
-  if (!Array.isArray(list) || !list.every((key) => typeof key === "string")) {
-    console.error(`FAIL: ${file} must be a JSON array of plugin keys; fix it by hand, nothing written`);
-    process.exit(1);
-  }
-  return list;
-}
-const MACHINE_LOCAL_PLUGINS = new Set([
-  ...pluginList(path.join(repoDir, "claude/machine-local-plugins.json")),
-  ...(homeDir ? pluginList(path.join(homeDir, ".config/etabli/machine-local-plugins.json")) : []),
-]);
+const MACHINE_LOCAL_PLUGINS = machineLocal("plugins");
 for (const [key, on] of Object.entries(enabled)) {
   if (on !== true || MACHINE_LOCAL_PLUGINS.has(key)) continue;
   const records = plugins.plugins?.[key] ?? [];

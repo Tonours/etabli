@@ -115,7 +115,28 @@ set_live_state unmapped-newcomer on
 expect_fail "personal skill on in live settings" "$FIX/home" "$FIX/repo" 'personal skill unmapped-newcomer is "on"'
 printf '%s\n' '["unmapped-newcomer"]' >"$FIX/repo/claude/machine-local-skills.json"
 expect_ok "machine-local personal skill on in live settings" "$FIX/home" "$FIX/repo"
+printf '%s\n' '["alambic-brain"]' >"$FIX/repo/claude/machine-local-skills.json"
+mkdir -p "$FIX/home/.config/etabli"
+printf '%s\n' '["unmapped-newcomer"]' >"$FIX/home/.config/etabli/machine-local-skills.json"
+expect_ok "home machine-local skill list unions with the repo list" "$FIX/home" "$FIX/repo"
 rm "$FIX/repo/claude/machine-local-skills.json"
+expect_ok "home machine-local skill list alone" "$FIX/home" "$FIX/repo"
+mkdir -p "$FIX/other/.config/etabli"
+printf '%s\n' '["unmapped-newcomer"]' >"$FIX/other/.config/etabli/machine-local-skills.json"
+rm "$FIX/home/.config/etabli/machine-local-skills.json"
+expect_fail "only the target home's skill list counts" "$FIX/home" "$FIX/repo" 'personal skill unmapped-newcomer is "on"'
+rm -rf "$FIX/other/.config"
+if [ "$(id -u)" != 0 ]; then
+  printf '%s\n' '["unmapped-newcomer"]' >"$FIX/home/.config/etabli/machine-local-skills.json"
+  chmod 000 "$FIX/home/.config/etabli/machine-local-skills.json"
+  expect_fail "unreadable home skill list" "$FIX/home" "$FIX/repo" "cannot read"
+  chmod 644 "$FIX/home/.config/etabli/machine-local-skills.json"
+fi
+printf '%s\n' '{"unmapped-newcomer": true}' >"$FIX/home/.config/etabli/machine-local-skills.json"
+expect_fail "non-array home skill list" "$FIX/home" "$FIX/repo" "must be a JSON array"
+printf '{bad' >"$FIX/home/.config/etabli/machine-local-skills.json"
+expect_fail "invalid JSON home skill list" "$FIX/home" "$FIX/repo" "invalid JSON"
+rm -rf "$FIX/home/.config/etabli"
 set_live_state unmapped-newcomer user-invocable-only
 rm -rf "$FIX/home/.claude/skills/unmapped-newcomer"
 expect_fail "stale personal key" "$FIX/home" "$FIX/repo" "map key with no surface skill: unmapped-newcomer"
@@ -320,6 +341,16 @@ printf '%s\n' '{"skillOverrides":{"machine-on":"on","personal-on":"on"}}' >"$FIX
 node "$SYNC" "$FIX/sync/machine.json" "$FIX/sync/tracked.json" 0 t3 deploy >/dev/null || fail "settings sync machine-local pass failed"
 [ "$(jq -c .skillOverrides "$FIX/sync/machine.json")" = '{"machine-on":"on","repo-skill":"on"}' ] ||
   fail "settings sync must keep listed machine-local on keys and drop other personal on keys: $(jq -c .skillOverrides "$FIX/sync/machine.json")"
+mkdir -p "$FIX/sync-home/.config/etabli"
+printf '%s\n' '["home-on"]' >"$FIX/sync-home/.config/etabli/machine-local-skills.json"
+printf '%s\n' '{"skillOverrides":{"machine-on":"on","home-on":"on","personal-on":"on"}}' >"$FIX/sync/machine.json"
+node "$SYNC" "$FIX/sync/machine.json" "$FIX/sync/tracked.json" 0 t3b deploy "$FIX/sync-home" >/dev/null || fail "settings sync home machine-local pass failed"
+[ "$(jq -c .skillOverrides "$FIX/sync/machine.json")" = '{"home-on":"on","machine-on":"on","repo-skill":"on"}' ] ||
+  fail "settings sync must keep on keys listed in the home machine-local file too: $(jq -c .skillOverrides "$FIX/sync/machine.json")"
+printf '{bad' >"$FIX/sync-home/.config/etabli/machine-local-skills.json"
+node "$SYNC" "$FIX/sync/machine.json" "$FIX/sync/tracked.json" 0 t3c deploy "$FIX/sync-home" >/dev/null 2>"$FIX/sync-bad.txt" &&
+  fail "settings sync must refuse an invalid home machine-local file"
+grep -qF "invalid JSON" "$FIX/sync-bad.txt" || fail "settings sync must name the invalid home list: $(cat "$FIX/sync-bad.txt")"
 printf '%s\n' '{"skillOverrides":{"repo-skill":"on"},"autoMemoryEnabled":false}' >"$FIX/sync/tracked-memory.json"
 node "$SYNC" "$FIX/sync/settings.json" "$FIX/sync/tracked-memory.json" 0 t3 deploy >/dev/null || fail "settings sync must accept a tracked autoMemoryEnabled key"
 node -e '

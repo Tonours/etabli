@@ -5,6 +5,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 # asdf shims resolve node from HOME, which the fixtures replace.
 PATH="$(dirname "$(node -e 'process.stdout.write(process.execPath)')"):$PATH"
 TMP_HOME="$(cd -P "$(mktemp -d)" && pwd)"
+# This smoke covers links; the skill-load checks of a live home have their own smokes.
+export ETABLI_SKIP_SKILL_LOAD_CHECKS=1
 CHECKOUT_LINK="$ROOT_DIR/pi/extensions/node_modules"
 
 link_state() {

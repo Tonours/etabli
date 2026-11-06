@@ -34,7 +34,7 @@ skillOverrides map (claude/settings.skill-overrides.json):
   C3  effective on-set (state "on" and not frontmatter-dmi) equals the
       pinned keep-set minus skills another scope owns, failing in both
       directions; personal skills named in claude/machine-local-skills.json
-      may also be "on" where present
+      or ~/.config/etabli/machine-local-skills.json may also be "on" there
   C4  zero dangling links; zero links into skills.disabled
   C5  repo/live map equality (deploy applied)
   C6  no enabled plugin ships SKILL.md files, except plugins named in

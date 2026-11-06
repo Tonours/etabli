@@ -1,6 +1,6 @@
 ---
 name: code-quality
-description: Runs the bounded convention and stack-quality pass on a diff. Use after implementation or during review; not for feature work or deep refactors.
+description: Runs the bounded convention and stack-quality pass on a diff. Use after implementation or in review; not for feature work or deep refactors.
 ---
 
 # Code Quality

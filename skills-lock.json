@@ -64,12 +64,12 @@
     "shared/plan-loop": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "75835d709708020a9b7e1d7c2dfd0c050f1bad4af2c2c4e561f74d6e2976bfd8"
+      "computedHash": "ea1dbe4a91debad30464f7e415f9dbee249516d27684e6771a45aced7f2d8a87"
     },
     "shared/plan-implement": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "cd9fa8c7463eb2a82cbd7dfdd3c5ae6cd92a701da888919d8da203b1a67e4b44"
+      "computedHash": "da9a126487d61e65ef5a4662137a4711104a6db73a1b69c930e2935a03ed8b4e"
     },
     "shared/adversary": {
       "source": "local",
@@ -84,17 +84,17 @@
     "shared/implement": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "63bc781d7d4a72a5340ca9241913af4e4e8412cc12616d73d8673d91ed91ff9c"
+      "computedHash": "dfeeaf7c33afd679975a00fa6dd580d0ac1eac2dcfd63ef7411ef8271f36046a"
     },
     "shared/verify-workflow": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "488d9d74dbb3eda3a082764f288d8893cfaf0d22867b2b06d5e03c36198376c1"
+      "computedHash": "fa6ed71ca497182d3421b3549d55b5c23a2eb1909d76854ff6f27935e3f7d8a5"
     },
     "shared/write-direct": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "d636a3b6086a7cc28c62340da5661576fdd712f19e29dd55ff29af240b364fb1"
+      "computedHash": "8d6b99f742459a0e75dbb5131422f153e4dc8152326efd8716bf3e43f25bbc7d"
     },
     "shared/thermo-nuclear-code-quality-review": {
       "source": "local",
@@ -109,7 +109,7 @@
     "shared/spec": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "41f4f02f2f8a405e9768dd35f01f696bfa2a0fe7a3a65613a3041ff01d96f87d"
+      "computedHash": "eb3dd21b20e067343cb914996a746fcf9bbbbae27e6a21fc8f702969537ed48b"
     },
     "work/bug-check": {
       "source": "local",
@@ -154,7 +154,7 @@
     "shared/pr": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "94a311cb7e3263f71eab14ad7f1a1e95837cf456f0408e0670ff499a572d68dd"
+      "computedHash": "4cfdf61393d57e36b494563ba1ee908fe7736661d2672bac8c6d2deae38cd679"
     }
   }
 }

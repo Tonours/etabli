@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Implements an existing READY PLAN.md without replanning. Use when a READY plan should be built; not for planning, design, or unplanned fixes.
+description: Implements an existing READY PLAN.md without replanning. Use when a READY plan should be built; not for planning, design or unplanned fixes.
 allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, Agent]
 ---
 
