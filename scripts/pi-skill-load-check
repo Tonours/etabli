@@ -109,10 +109,10 @@ export default function (pi: {
 EXT
   # Global render only: outside the caller's project, no extension discovery
   # (extensions may write on load; the skill block is identical without them).
-  # Resolve pi before leaving the caller's cwd: a relative PATH entry would miss it.
-  PI_BIN=$(command -v pi)
-  case $PI_BIN in /*) ;; *) PI_BIN="$PWD/$PI_BIN" ;; esac
-  (cd "$TMP_DIR" && PI_SKILLS_DUMP="$DUMP_FILE" "$PI_BIN" -p --no-session --offline --no-extensions -e "$TMP_DIR/measure.ts" ok </dev/null >/dev/null 2>&1) || true
+  # Anchor relative PATH entries before leaving the caller's cwd, so pi and
+  # its interpreter resolve as they did here.
+  ABS_PATH=$(node -e 'const p = require("node:path"); console.log(process.env.PATH.split(p.delimiter).map((d) => p.resolve(d || ".")).join(p.delimiter))')
+  (cd "$TMP_DIR" && PATH="$ABS_PATH" PI_SKILLS_DUMP="$DUMP_FILE" pi -p --no-session --offline --no-extensions -e "$TMP_DIR/measure.ts" ok </dev/null >/dev/null 2>&1) || true
   [ -s "$DUMP_FILE" ] || {
     printf 'pi-skill-load-check: native dump failed or empty (pi run produced no system prompt)\n' >&2
     exit 1

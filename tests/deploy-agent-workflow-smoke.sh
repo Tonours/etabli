@@ -562,6 +562,7 @@ live_check() {
   shift
   # Stray fixture-home overrides must not redirect the live checks away from HOME.
   env -u CLAUDE_CONFIG_DIR CLAUDE_SKILL_LOAD_HOME="$TMP_DIR/stray-home" PI_SKILL_LOAD_HOME="$TMP_DIR/stray-home" \
+    CLAUDE_SKILL_LOAD_REPO="$TMP_DIR/stray-repo" PI_SKILL_LOAD_NO_REPO=1 \
     HOME="$LIVE_HOME" PATH="$path" \
     "$NODE_BIN" "$DEPLOY_SCRIPT" --check --home "$LIVE_HOME" "$@"
 }

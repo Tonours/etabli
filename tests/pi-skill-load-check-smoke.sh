@@ -294,7 +294,12 @@ chmod +x "$ARGV_PI_BIN/pi"
 grep -q -- "--no-extensions" "$TMP_DIR/pi-argv.txt" || fail "native render must disable extension discovery: $(cat "$TMP_DIR/pi-argv.txt")"
 [ "$(head -1 "$TMP_DIR/pi-argv.txt")" != "$(cd "$TMP_DIR/caller-project" && pwd -P)" ] || fail "native render must not run in the caller's project"
 
-# A relative PATH entry still finds pi once the render leaves the caller's cwd.
+# A relative PATH entry still finds pi and its interpreter once the render
+# leaves the caller's cwd.
+ln -s /bin/sh "$ARGV_PI_BIN/argvsh"
+{ printf '#!/usr/bin/env argvsh\n'; tail -n +2 "$ARGV_PI_BIN/pi"; } >"$ARGV_PI_BIN/pi.new"
+mv "$ARGV_PI_BIN/pi.new" "$ARGV_PI_BIN/pi"
+chmod +x "$ARGV_PI_BIN/pi"
 rm -f "$TMP_DIR/pi-argv.txt"
 (cd "$TMP_DIR" && PATH="argv-pi-bin:$PATH" "$CHECK" --home "$STDIN_HOME" >/dev/null 2>&1) || :
 [ -f "$TMP_DIR/pi-argv.txt" ] || fail "native render must resolve a pi found through a relative PATH entry"

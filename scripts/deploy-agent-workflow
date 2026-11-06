@@ -128,12 +128,10 @@ function syncSettings({ homeDir, claudeRoot, claudeOnly, apply, timestamp: stamp
   return failures + attempt(() => run(join(scriptDir, "lib/claude-settings-sync.mjs"), [join(claudeRoot, "settings.json"), fragment, dryRun, stamp, "deploy", homeDir]));
 }
 
-// Live checks target HOME: drop the fixture-home overrides both check scripts honor.
+// Live checks target HOME and the repo: drop every fixture knob both check scripts honor.
 function liveCheckEnv(extra = {}) {
-  const env = { ...process.env, ...extra };
-  delete env.CLAUDE_SKILL_LOAD_HOME;
-  delete env.PI_SKILL_LOAD_HOME;
-  return env;
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(CLAUDE|PI)_SKILL_LOAD_/.test(key)));
+  return { ...env, ...extra };
 }
 
 function claudeSkillLoadPasses(claudeRoot) {
