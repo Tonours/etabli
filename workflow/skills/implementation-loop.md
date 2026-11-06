@@ -2,12 +2,14 @@
 
 Shared implementation contract; adapters supply harness syntax. Select the route
 in `workflow/spec.md` before the risk tier. Plan routes and high-risk work use
-the full sequence. A bounded runtime fix remains ordinary coding unless a plan
-is requested; an existing DRAFT/CHALLENGED plan blocks implementation.
+the full sequence. A bounded runtime fix follows the bounded-fix variant below
+unless a plan is requested; an existing DRAFT/CHALLENGED plan blocks implementation.
+Review-only requests and host-restricted effects follow `workflow/spec.md`
+(routing obligations, § Human checkpoints).
 
 ## Risk tiers
 
-Record `tier: small|standard|high-risk` before step 1; upgrade when needed,
+Record `tier: small|bounded-fix|standard|high-risk` before step 0; upgrade when needed,
 never downgrade mid-run.
 
 - **small** — docs-only, config-only, or a bounded single-surface edit with no
@@ -21,6 +23,20 @@ never downgrade mid-run.
 - **standard** (default) — runtime code change on a known surface. Full
   sequence below; step 13b falls back to a documented same-family
   double-sample only when every eligible cross-model route is unavailable.
+- **bounded fix** — a standard variant: a reproducible defect fixed on one
+  known surface that is not a contract, guard, installer/deploy script,
+  settings sync, migration, or high-risk surface. No plan file, no plan
+  adversary, no READY gate. Journey: recon (0), a failing reproducer plus a
+  valid and an invalid neighbor (8), focused checks and mutation probe (12),
+  simplify (12b), quality (12c), then exactly one fresh-context independent
+  review of the cumulative diff in place of steps 13 and 13b: by default a
+  fresh Claude `reviewer` subagent (a read-only Pi hunter on Pi),
+  cross-family preferred when a route is available, a same-family review
+  labeled `same-family` in the report; then report (17). Evidence the sequence
+  records in `PLAN.md` goes in the final report. Re-review follows
+  `workflow/skills/review-rounds.md` § Bounded fix. Any high finding, a fix
+  that leaves its surface, or one that touches a contract upgrades to
+  standard with a plan.
 - **high-risk** — kernel guards, installer/deploy scripts, security, multi-surface contract changes, or a third
   recurrence of the same failure. Full sequence, cross-model adversary
   mandatory (13b), both hunters mandatory (13).
@@ -38,8 +54,8 @@ never downgrade mid-run.
 
 ## Required Sequence
 
-Steps 1–7 apply to plan routes only; the **small** tier follows the journey
-in Risk tiers instead (no plan file, no adversary passes, no READY gate).
+Steps 1–7 apply to plan routes only; the **small** tier and the **bounded fix**
+follow their journey in Risk tiers instead (no plan file, no plan adversary, no READY gate).
 
 0. Understand before planning: run a scoped local recon of the affected area
    and carry file:line findings into the plan (the task, for small).
@@ -74,9 +90,9 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
     tests or a direct run. Human-only legs stay `blocked`.
 12. Re-run the plan's focused checks after the product-flow check and each
     accepted fix — readiness never rests on checks predating the latest product-flow edit.
-    Small tier (no plan): run the surface's own focused checks instead —
+    Small tier and bounded fix (no plan): run the surface's own focused checks instead —
     the checks named by the task or the touched surface's suite.
-    Mutation probe (standard and high-risk tiers, diffs touching executable
+    Mutation probe (standard, bounded fix included, and high-risk tiers, diffs touching executable
     sources: `.sh`, `.bash`, `.js`, `.mjs`, `.cjs`, `.ts`, `.tsx`, or an
     extensionless `bash`, `sh` or `node` script), once these checks are green: run
     `node <probe> --base <base> --test "<focused test command>"` with the
@@ -146,7 +162,7 @@ in Risk tiers instead (no plan file, no adversary passes, no READY gate).
     technically unavailable (`workflow/skills/adversary.md` § Code diff mode).
     An answer without effective-model provenance, or truncated, is rerun once;
     still unproven or truncated → `blocked`, never the fallback.
-    Single same-family pass alone → `blocked`.
+    Single same-family pass alone → `blocked` (the bounded fix's labeled single review aside).
     Name `adversary_model` (or `same-family-pass` ids plus
     `cross_model: unavailable (<category>)`).
     **High** findings: accept/reject via cross-model (or second sample), not
@@ -186,18 +202,19 @@ Open-ended improvement/benchmark loops follow `workflow/skills/long-loop.md`.
 Autonomous completion requires:
 
 - recorded risk tier;
-- adversary plan review (standard/high-risk);
+- adversary plan review (standard/high-risk; not a bounded fix);
 - adversary code-diff review (standard/high-risk: named model; standard
-  fallback: double-sample with `cross_model: unavailable (<category>)`);
+  fallback: double-sample with `cross_model: unavailable (<category>)`;
+  a bounded fix has its one review instead);
 - focused validation;
 - product-flow evidence when required by the plan;
-- mutation probe result (`mutation: …`) on standard and high-risk diffs
+- mutation probe result (`mutation: …`) on standard (bounded fix included) and high-risk diffs
   touching executable sources;
 - simplification pass result (`simplify: clean` or `simplify: removed N`);
 - quality pass result (or explicit skip for docs/plan-only);
 - Logic+Spec lead review on the cumulative shippable workspace patch with a
   complete deciding-code table for runtime diffs (self-review only for small
-  tier);
+  tier; one fresh-context review, cross-family or labeled `same-family`, for a bounded fix);
 - review and adversary provenance in `PLAN.md` § Review Changes;
 - implemented-plan archive under `docs/plan/` and root `PLAN.md` cleanup
   after successful archive and validation (when a plan existed; small tier

@@ -5,9 +5,22 @@ usage() {
   echo "usage: run.sh <pr-number|url> [owner/repo] [--post] [--model <alias>] [--effort <level>]" >&2
   echo "                              [--phase-a-model <alias>] [--phase-a-effort <level>]" >&2
   echo "                              [--no-codex] [--codex-model <model>] [--codex-effort <level>]" >&2
-  echo "                              [--phase-a-only | --with-validator]" >&2
+  echo "                              [--phase-a-only | --with-validator] [--reuse-review <file>]" >&2
+  echo "       run.sh --reuse-sha <base-ref>   print the --reuse-review fingerprint of HEAD" >&2
   exit 2
 }
+
+if [ "${1:-}" = --reuse-sha ]; then
+  [ $# -eq 2 ] || usage
+  . "$(cd "$(dirname "$0")" && pwd)/lib.sh"
+  # The fingerprint covers commits only: a reviewed workspace patch must be committed first.
+  # Explicit flags, so status settings cannot hide untracked files or submodule changes.
+  REUSE_DIRT="$(git status --porcelain --untracked-files=all --ignore-submodules=none)" || { echo "no fingerprint: git status failed" >&2; exit 1; }
+  [ -z "$REUSE_DIRT" ] || { echo "no fingerprint: commit the reviewed files, remove or ignore stray ones:" >&2; printf '%s\n' "$REUSE_DIRT" >&2; exit 1; }
+  REUSE_BASE="$(git merge-base "$2" HEAD)" || { echo "no merge base between $2 and HEAD" >&2; exit 1; }
+  reuse_patch_sha "$REUSE_BASE" HEAD || { echo "no fingerprint: git diff failed or HEAD adds nothing to $2" >&2; exit 1; }
+  exit 0
+fi
 
 [ $# -ge 1 ] || usage
 case "$1" in
@@ -26,6 +39,7 @@ CODEX_MODEL="${PR_COUNCIL_CODEX_MODEL:-gpt-6.1-sol}"
 CODEX_EFFORT="${PR_COUNCIL_CODEX_EFFORT:-xhigh}"
 USE_CODEX="${PR_COUNCIL_USE_CODEX:-1}"
 PHASE_A_ONLY="${PR_COUNCIL_PHASE_A_ONLY:-auto}"
+REUSE_REVIEW="${PR_COUNCIL_REUSE_REVIEW:-}"
 while [ $# -gt 0 ]; do
   case "$1" in
     --post) POST_MODE="post" ;;
@@ -38,6 +52,7 @@ while [ $# -gt 0 ]; do
     --no-codex) USE_CODEX=0 ;;
     --phase-a-only) PHASE_A_ONLY=1 ;;
     --with-validator) PHASE_A_ONLY=0 ;;
+    --reuse-review) shift; REUSE_REVIEW="${1:?--reuse-review needs a file}" ;;
     -h|--help) usage ;;
     *)
       if [[ "$1" == *"/"* ]]; then
@@ -183,66 +198,96 @@ PHASE_A_ARGS=("${ISOLATED_SETTINGS[@]}")
 [ -n "$PHASE_A_MODEL" ] && PHASE_A_ARGS+=(--model "$PHASE_A_MODEL")
 [ -n "$PHASE_A_EFFORT" ] && PHASE_A_ARGS+=(--effort "$PHASE_A_EFFORT")
 
-echo
-echo "=== phase A: /code-review, /thermo-nuclear-code-quality-review$([ "$USE_CODEX" = 1 ] && echo " and codex") (parallel, no GitHub write)"
-(
-  cd "$WORKTREE" || exit 1
-  claude_pass code-review "$RAW_QUALITY" read-only "/code-review $REVIEW_LEVEL" "${PHASE_A_ARGS[@]}"
-) >"$REPORT_QUALITY" &
-PID_QUALITY=$!
-(
-  cd "$WORKTREE" || exit 1
-  claude_pass thermo "$RAW_THERMO" read-only "$THERMO_PROMPT" "${PHASE_A_ARGS[@]}"
-) >"$REPORT_THERMO" &
-PID_THERMO=$!
-PID_CODEX=""
-if [ "$USE_CODEX" = 1 ]; then
-  codex_pass "$WORKTREE" "$REPORT_CODEX" "$CODEX_MODEL" "$CODEX_EFFORT" \
-    "$(render_template "$CODEX_PROMPT_FILE" HEAD_SHA="$HEAD_SHA" MERGE_BASE="$MERGE_BASE")" &
-  PID_CODEX=$!
-fi
-
-RC_QUALITY=0; RC_THERMO=0; RC_CODEX=0
-wait "$PID_QUALITY" || RC_QUALITY=$?
-wait "$PID_THERMO" || RC_THERMO=$?
-[ -z "$PID_CODEX" ] || wait "$PID_CODEX" || RC_CODEX=$?
-PHASE_A_DENIED=0
-[ "$RC_QUALITY" -ne "$REVIEW_VETO_RC" ] || PHASE_A_DENIED=1
-[ "$RC_THERMO" -ne "$REVIEW_VETO_RC" ] || PHASE_A_DENIED=1
-
-echo
-echo "----- /code-review (exit $RC_QUALITY) -----"
-cat "$REPORT_QUALITY"
-echo
-echo "----- /thermo-nuclear-code-quality-review (exit $RC_THERMO) -----"
-cat "$REPORT_THERMO"
-if [ "$USE_CODEX" = 1 ]; then
-  echo
-  echo "----- codex $CODEX_MODEL $CODEX_EFFORT (exit $RC_CODEX) -----"
-  cat "$REPORT_CODEX" 2>/dev/null
-  if [ "$RC_CODEX" -ne 0 ]; then
-    echo "=== codex pass failed; the validator runs without it" >&2
-    USE_CODEX=0
+# A recorded review of this exact patch stands in for phase A; the validator still runs.
+REUSED=0
+if [ -n "$REUSE_REVIEW" ]; then
+  PATCH_SHA="$(reuse_patch_sha "$MERGE_BASE" "$HEAD_SHA")" || PATCH_SHA=""
+  RECORDED_SHA="$(sed -n '1s/^patch-sha256: \([0-9a-f]\{64\}\)$/\1/p' "$REUSE_REVIEW" 2>/dev/null)"
+  if [ "$PHASE_A_ONLY" = 1 ]; then
+    echo "=== reuse refused: the validator already reviewed this head, so phase B would only re-verify the recorded review; running phase A"
+  elif [ -z "$PATCH_SHA" ]; then
+    echo "=== reuse refused: cannot fingerprint the PR patch (git diff failed or the patch adds nothing); running phase A"
+  elif [ -z "$RECORDED_SHA" ]; then
+    echo "=== reuse refused: line 1 of $REUSE_REVIEW is not a readable patch-sha256 line; running phase A"
+  elif [ "$RECORDED_SHA" != "$PATCH_SHA" ]; then
+    echo "=== reuse refused: patch sha differs (recorded ${RECORDED_SHA:0:12}, PR ${PATCH_SHA:0:12}); running phase A"
+  else
+    REUSED=1
   fi
 fi
 
-if [ "$PHASE_A_DENIED" -ne 0 ]; then
-  echo "a phase A pass hit a permission denial or its denials are unreadable; not running the validator" >&2
-  exit "$REVIEW_VETO_RC"
+if [ "$REUSED" = 1 ]; then
+  echo
+  echo "=== phase A reused: recorded review of patch ${PATCH_SHA:0:12} ($REUSE_REVIEW)"
+  cp "$REUSE_REVIEW" "$REPORT_QUALITY"
+  echo "Not a review: phase A was reused, this pass did not run." >"$REPORT_THERMO"
+  USE_CODEX=0
+  PHASE_A_GAPS="Phase A did not run: it reused a recorded review of this exact patch (sha256 $PATCH_SHA), now in \`$REPORT_QUALITY\`; \`$REPORT_THERMO\` is a placeholder, not a review. Treat the recorded findings as candidates like any phase A report, and say in the terminal report that phase A was reused, not run."
+else
+  echo
+  echo "=== phase A: /code-review, /thermo-nuclear-code-quality-review$([ "$USE_CODEX" = 1 ] && echo " and codex") (parallel, no GitHub write)"
+  (
+    cd "$WORKTREE" || exit 1
+    claude_pass code-review "$RAW_QUALITY" read-only "/code-review $REVIEW_LEVEL" "${PHASE_A_ARGS[@]}"
+  ) >"$REPORT_QUALITY" &
+  PID_QUALITY=$!
+  (
+    cd "$WORKTREE" || exit 1
+    claude_pass thermo "$RAW_THERMO" read-only "$THERMO_PROMPT" "${PHASE_A_ARGS[@]}"
+  ) >"$REPORT_THERMO" &
+  PID_THERMO=$!
+  PID_CODEX=""
+  if [ "$USE_CODEX" = 1 ]; then
+    codex_pass "$WORKTREE" "$REPORT_CODEX" "$CODEX_MODEL" "$CODEX_EFFORT" \
+      "$(render_template "$CODEX_PROMPT_FILE" HEAD_SHA="$HEAD_SHA" MERGE_BASE="$MERGE_BASE")" &
+    PID_CODEX=$!
+  fi
+
+  RC_QUALITY=0; RC_THERMO=0; RC_CODEX=0
+  wait "$PID_QUALITY" || RC_QUALITY=$?
+  wait "$PID_THERMO" || RC_THERMO=$?
+  [ -z "$PID_CODEX" ] || wait "$PID_CODEX" || RC_CODEX=$?
+  PHASE_A_DENIED=0
+  [ "$RC_QUALITY" -ne "$REVIEW_VETO_RC" ] || PHASE_A_DENIED=1
+  [ "$RC_THERMO" -ne "$REVIEW_VETO_RC" ] || PHASE_A_DENIED=1
+
+  echo
+  echo "----- /code-review (exit $RC_QUALITY) -----"
+  cat "$REPORT_QUALITY"
+  echo
+  echo "----- /thermo-nuclear-code-quality-review (exit $RC_THERMO) -----"
+  cat "$REPORT_THERMO"
+  if [ "$USE_CODEX" = 1 ]; then
+    echo
+    echo "----- codex $CODEX_MODEL $CODEX_EFFORT (exit $RC_CODEX) -----"
+    cat "$REPORT_CODEX" 2>/dev/null
+    if [ "$RC_CODEX" -ne 0 ]; then
+      echo "=== codex pass failed; the validator runs without it" >&2
+      USE_CODEX=0
+    fi
+  fi
+
+  if [ "$PHASE_A_DENIED" -ne 0 ]; then
+    echo "a phase A pass hit a permission denial or its denials are unreadable; not running the validator" >&2
+    exit "$REVIEW_VETO_RC"
+  fi
+  if [ "$RC_QUALITY" -ne 0 ] && [ "$RC_THERMO" -ne 0 ]; then
+    echo "both Claude phase A passes failed; not running the validator" >&2
+    exit 1
+  fi
+  PHASE_A_GAPS=""
+  [ "$RC_QUALITY" -eq 0 ] || PHASE_A_GAPS="The /code-review pass failed: its report is not a review, ignore it and say in the terminal report that phase A ran without it."
+  [ "$RC_THERMO" -eq 0 ] || PHASE_A_GAPS="$PHASE_A_GAPS The thermo-nuclear pass failed: its report is not a review, ignore it and say in the terminal report that phase A ran without it."
 fi
-if [ "$RC_QUALITY" -ne 0 ] && [ "$RC_THERMO" -ne 0 ]; then
-  echo "both Claude phase A passes failed; not running the validator" >&2
-  exit 1
-fi
-PHASE_A_GAPS=""
-[ "$RC_QUALITY" -eq 0 ] || PHASE_A_GAPS="The /code-review pass failed: its report is not a review, ignore it and say in the terminal report that phase A ran without it."
-[ "$RC_THERMO" -eq 0 ] || PHASE_A_GAPS="$PHASE_A_GAPS The thermo-nuclear pass failed: its report is not a review, ignore it and say in the terminal report that phase A ran without it."
 VALIDATOR_FLAGS=""
 [ "$POST_MODE" = "dry-run" ] && VALIDATOR_FLAGS=" --dry-run"
 
 LINKED_SECTION="$(linked_section "$REPO" "$PR_NUMBER" "$WORK_DIR/linked")"
 
-if [ "$USE_CODEX" = 1 ]; then
+if [ "$REUSED" = 1 ]; then
+  CODEX_SECTION="
+Phase A reused a recorded review: its family mix is what that record states, not this run's. Say so in the terminal report."
+elif [ "$USE_CODEX" = 1 ]; then
   CODEX_SECTION="- \`$REPORT_CODEX\` — a review by \`codex\` on \`$CODEX_MODEL\` (reasoning effort $CODEX_EFFORT), a non-Claude model. It is the council's only cross-family member, so a finding only it raised is the most interesting kind: the defect two Claude passes agreed to miss. It is still a candidate with no privilege, verified or discarded on the same criteria as the others.
 
 Phase A was cross-family (two Claude passes and one codex pass)."
