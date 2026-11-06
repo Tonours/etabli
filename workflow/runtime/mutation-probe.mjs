@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { basename, dirname, extname, isAbsolute, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const USAGE = 'usage: mutation-probe.mjs --base <ref> --test "<command>" [--check "<command>"] [--paths <substring>]... [--allow-write <dir>]... [--max <n>] [--timeout <s>]';
+export const USAGE = 'usage: mutation-probe.mjs --base <ref> --test "<command>" [--check "<command>"] [--paths <substring>]... [--allow-write <dir>]... [--max <n>] [--timeout <s>] [--max-rss <MB>]';
 const HELP = `${USAGE}
 
 Mutates the added lines of the diff against <ref> (staged, unstaged and untracked
@@ -17,10 +17,12 @@ sandbox, where a denied write does not stop the writer (measured on macOS 14.4),
 hard-linked files or symlinks in git metadata.
 Outcomes: killed, survived, invalid (a check failed), denied (a write was denied),
 timeout. Only killed and survived are scored.
+A test whose process tree passes --max-rss resident memory is killed at once and
+counts as timeout, so a mutant that loops while allocating cannot exhaust the machine.
 Tests that detach children from their process tree (double fork, daemons) are not
-supported. Defaults: --max 30, --timeout 300 (at most 86400).`;
+supported. Defaults: --max 30, --timeout 300 (at most 86400), --max-rss 2048.`;
 
-const OPTIONS = new Map([["--base", "base"], ["--test", "test"], ["--check", "check"], ["--paths", "paths"], ["--allow-write", "allowWrite"], ["--max", "max"], ["--timeout", "timeout"]]);
+const OPTIONS = new Map([["--base", "base"], ["--test", "test"], ["--check", "check"], ["--paths", "paths"], ["--allow-write", "allowWrite"], ["--max", "max"], ["--timeout", "timeout"], ["--max-rss", "maxRss"]]);
 const SOURCES = new Map([[".sh", "sh"], [".bash", "sh"], [".js", "js"], [".mjs", "js"], [".cjs", "js"], [".ts", "ts"], [".tsx", "ts"]]);
 const SKIPPED_DIRS = new Set(["test", "tests", "__tests__", "spec", "dist", "build"]);
 const SWAPS = [["===", "!=="], ["!==", "==="], ["==", "!="], ["!=", "=="], ["&&", "||"], ["||", "&&"], ["-eq", "-ne"], ["-ne", "-eq"], ["-lt", "-ge"], ["-ge", "-lt"], ["-gt", "-le"], ["-le", "-gt"], ["true", "false"], ["false", "true"]];
@@ -33,7 +35,7 @@ export class Refusal extends Error {}
 export class UsageError extends Refusal {}
 
 export function parseArgs(argv) {
-  const options = { paths: [], allowWrite: [], max: 30, timeout: 300 };
+  const options = { paths: [], allowWrite: [], max: 30, timeout: 300, maxRss: 2048 };
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
     if (flag === "--help" || flag === "-h") return { help: true };
@@ -41,7 +43,7 @@ export function parseArgs(argv) {
     if (!key) throw new UsageError(`unknown option: ${flag}`);
     const value = argv[++index];
     if (value === undefined) throw new UsageError(`missing value for ${flag}`);
-    if (key === "max" || key === "timeout") {
+    if (key === "max" || key === "timeout" || key === "maxRss") {
       if (!/^[1-9]\d*$/.test(value) || (key === "timeout" && Number(value) > 86400)) throw new UsageError(`${flag} needs an integer >= 1${key === "timeout" ? " and <= 86400" : ""}: ${value}`);
       options[key] = Number(value);
     } else if (key === "allowWrite") {
@@ -278,7 +280,7 @@ export function profile({ roots, work, allowed, own }) {
 }
 
 export function parseProcesses(listing) {
-  return listing.split("\n").map((line) => /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(.*)$/.exec(line)).filter(Boolean).map((match) => ({ pid: Number(match[1]), ppid: Number(match[2]), pgid: Number(match[3]), stat: match[4], command: match[5] }));
+  return listing.split("\n").map((line) => /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s+(.*)$/.exec(line)).filter(Boolean).map((match) => ({ pid: Number(match[1]), ppid: Number(match[2]), pgid: Number(match[3]), rss: Number(match[4]), stat: match[5], command: match[6] }));
 }
 
 export function trackTree(processes, tracked, group) {
@@ -308,9 +310,10 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const canonical = (path) => realpathSync.native(path);
 const ENV = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("GIT_")));
 let activeKill = null;
+let rssCapKb = Infinity;
 
 function listProcesses() {
-  const result = spawnSync("/bin/ps", ["-A", "-o", "pid=,ppid=,pgid=,stat=,command="], { encoding: "utf8", env: {}, maxBuffer: 1 << 26, timeout: 10000 });
+  const result = spawnSync("/bin/ps", ["-A", "-o", "pid=,ppid=,pgid=,rss=,stat=,command="], { encoding: "utf8", env: {}, maxBuffer: 1 << 26, timeout: 10000 });
   if (result.status !== 0) throw new Refusal(`cannot list processes: ${result.error?.message ?? result.stderr}`);
   return parseProcesses(result.stdout);
 }
@@ -342,6 +345,7 @@ function sandboxed(sandbox, argv, cwd, timeout, keepStdout = false) {
     let stopped = null;
     let failure = null;
     let timedOut = false;
+    let overMemory = false;
     let killTimer = null;
     let finished = false;
     const closed = new Promise((done) => child.on("close", done));
@@ -391,12 +395,13 @@ function sandboxed(sandbox, argv, cwd, timeout, keepStdout = false) {
       child.stdout.destroy();
       child.stderr.destroy();
       activeKill = null;
-      resolve({ code, stopped, failure, timedOut, stdout: Buffer.concat(stdout).toString("utf8"), output: Buffer.concat(tail).toString("utf8") });
+      resolve({ code, stopped, failure, timedOut, overMemory, stdout: Buffer.concat(stdout).toString("utf8"), output: Buffer.concat(tail).toString("utf8") });
     };
     activeKill = () => killAll(members(), "SIGKILL");
     const poll = setInterval(() => {
       const live = members();
-      if (stopped || failure) killAll(live, "SIGKILL");
+      if (live.reduce((sum, member) => sum + member.rss, 0) > rssCapKb) overMemory = timedOut = true;
+      if (stopped || failure || overMemory) killAll(live, "SIGKILL");
     }, 100);
     const timer = setTimeout(() => {
       timedOut = true;
@@ -440,6 +445,7 @@ function builtinCheck(kind, path) {
 }
 
 async function probe(options, out) {
+  rssCapKb = options.maxRss * 1024;
   if (process.platform !== "darwin") throw new Refusal(`no write sandbox: ${process.platform} has no sandbox-exec`);
   if (!existsSync(SANDBOX)) throw new Refusal(`no write sandbox: ${SANDBOX} is missing`);
   const locked = ["-p", "(version 1)(allow default)(deny lsopen)(deny file-write* (with send-signal SIGSTOP))(allow file-write* (subpath \"/dev\"))"];
@@ -598,7 +604,7 @@ async function probe(options, out) {
 
   const baseline = await runStep(0, null);
   if (baseline.result.stopped) throw new Refusal(`baseline failed: denied write by ${baseline.result.stopped}`);
-  if (baseline.result.timedOut || baseline.result.code !== 0 || baseline.stage === "check") throw new Refusal(`baseline failed: ${baseline.stage}${baseline.result.timedOut ? " (timeout)" : ""}\n${lastLines(baseline.result.output)}`);
+  if (baseline.result.timedOut || baseline.result.code !== 0 || baseline.stage === "check") throw new Refusal(`baseline failed: ${baseline.stage}${baseline.result.overMemory ? ` (over --max-rss ${options.maxRss} MB)` : baseline.result.timedOut ? " (timeout)" : ""}\n${lastLines(baseline.result.output)}`);
 
   out.log(HEADER);
   const rows = [];
@@ -611,6 +617,7 @@ async function probe(options, out) {
       note = result.stopped.slice(0, 120);
     } else if (result.timedOut) {
       outcome = "timeout";
+      if (result.overMemory) note = `over --max-rss ${options.maxRss} MB`;
     } else if (stage === "check") {
       outcome = "invalid";
       note = firstFailure(result.output);
