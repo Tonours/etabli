@@ -554,7 +554,47 @@ describe("pr body and commit message sources", () => {
 	test("reads a quoted attached option and a message that looks like a file", () => {
 		writeFileSync(join(repo, "msg.txt"), "fix: x\n\nClaude-Session: x\n");
 		expect(reason("git commit '-Fmsg.txt'")).toContain("trailer");
-		expect(reason('git commit "-F${PWD}/msg.txt"')).not.toContain("trailer");
+		expect(reason('git commit "-F${PWD}/msg.txt"')).toContain("trailer");
+		expect(reason("git commit -F $PWD/msg.txt")).toContain("trailer");
+		expect(reason("git commit -F${PWD}/msg.txt")).toContain("trailer");
+		expect(reason(`git commit -F "$PWD"/'msg.txt'`)).toContain("trailer");
+		expect(reason("git commit --file=$PWD/msg.txt")).toContain("trailer");
+		expect(reason("git -C . commit -F ${PWD}/msg.txt")).toContain("trailer");
+		expect(decide("git commit -F '$PWD/msg.txt'")).toBeNull();
+		expect(decide('git commit -F "$PWDX/msg.txt"')).toBeNull();
+		expect(decide("git commit -F \\$PWD/msg.txt")).toBeNull();
+		expect(decide('PWD=/tmp; git commit -F "$PWD/msg.txt"')).toBeNull();
+		expect(decide('unset PWD; git commit -F "$PWD/msg.txt"')).toBeNull();
+		expect(decide(`export "PWD=/tmp"; unset 'P'WD; git commit -F "$PWD/msg.txt"`)).toBeNull();
+		expect(decide(`eval 'PWD=/tmp'; git commit -F "$PWD/msg.txt"`)).toBeNull();
+		expect(decide("IFS=/; git commit -F $PWD/msg.txt")).toBeNull();
+		expect(decide(`export $'PWD=/tmp'; git commit -F "$PWD/msg.txt"`)).toBeNull();
+		expect(decide(`export $"PWD=/tmp"; git commit -F "$PWD/msg.txt"`)).toBeNull();
+		expect(decide(`P\\\nWD=/tmp; git commit -F "$PWD/msg.txt"`)).toBeNull();
+		expect(decide(': ${PWD::=/tmp}; git commit -F "$PWD/msg.txt"')).toBeNull();
+		expect(decide('export PW{D,D}=/tmp; git commit -F $PWD/msg.txt')).toBeNull();
+		expect(decide('x=WD; export P$x=/tmp; git commit -F $PWD/msg.txt')).toBeNull();
+		expect(decide(`export $\\\n'P\\x57D=/tmp'; git commit -F "$PWD/msg.txt"`)).toBeNull();
+		mkdirSync(join(repo, "h"));
+		writeFileSync(join(repo, "h", "msg.txt"), "fix: x\n\nClaude-Session: x\n");
+		for (const dir of [`${repo}:h/h`, `${repo}[1]`]) {
+			mkdirSync(dir, { recursive: true });
+			writeFileSync(join(dir, "msg.txt"), "fix: x\n\nClaude-Session: x\n");
+		}
+		try {
+			expect(decide('git commit -F "$PWD:h/h/msg.txt"')).toBeNull();
+			expect(decide('git commit -F "${PWD}[1]/msg.txt"')).toBeNull();
+		} finally {
+			rmSync(`${repo}:h`, { recursive: true, force: true });
+			rmSync(`${repo}[1]`, { recursive: true, force: true });
+		}
+		expect(reason('cd h && git commit -F "$PWD/msg.txt"')).toContain("trailer");
+		writeFileSync(join(repo, "h", "clean.txt"), "fix: x\n");
+		writeFileSync(join(repo, "clean.txt"), "fix: x\n\nClaude-Session: x\n");
+		expect(decide('pushd h; git commit -F "$PWD/clean.txt"')).toBeNull();
+		writeFileSync(join(repo, "[object Object]"), "fix: x\n\nClaude-Session: x\n");
+		expect(decide('git commit -F "${__proto__}"')).toBeNull();
+		expect(decide('git commit -F "$constructor"')).toBeNull();
 		expect(decide("git commit -m msg.txt")).toBeNull();
 		expect(decide("git commit --message=msg.txt")).toBeNull();
 	});
