@@ -9,7 +9,7 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoDir = dirname(scriptDir);
 const USAGE = `Usage: deploy-agent-workflow [--dry-run | --apply | --check [--fix] [--verbose]] [--home DIR]
 
-Reconcile the Etabli-managed workflow and skill surfaces for Claude Code and Pi.
+Reconcile the Etabli-managed workflow and skill surfaces for Claude Code, Pi and Codex.
 
 Options:
   --dry-run   Show planned changes without touching local harness files (default)

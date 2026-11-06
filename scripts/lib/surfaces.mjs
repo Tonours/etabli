@@ -31,6 +31,8 @@ const SKILL_SLUG = /^[a-z0-9][a-z0-9-]*$/;
 const SHADOWS = [["work", "adr"]];
 const PI_SKILLS = ".pi/agent/skills";
 const CLAUDE_SKILLS = ".claude/skills";
+const CODEX_SKILLS = ".codex/skills";
+const RUNTIMES = { [PI_SKILLS]: "Pi", [CODEX_SKILLS]: "Codex", [CLAUDE_SKILLS]: "Claude" };
 const MAX_LINK_DEPTH = 40;
 const MANAGED_SKILL_TARGET = /^(skills\/[^/]+|pi\/skills|vendor\/[^/]+\/skills|claude\/scopes\/[^/]+\/skills)\/./;
 const ORPHAN_SKILL_TARGET = /^(skills\/[^/]+|vendor\/[^/]+\/skills)\/./;
@@ -416,7 +418,7 @@ function pruneStaleChildren(ctx, dir, managedParent, label, suffix) {
 
 function skillSurfaces(ctx) {
   const surfaces = [[CLAUDE_SKILLS, join(ctx.claudeRoot, "skills")]];
-  if (!ctx.claudeOnly) surfaces.unshift([PI_SKILLS, join(ctx.homeDir, PI_SKILLS)]);
+  if (!ctx.claudeOnly) surfaces.unshift([PI_SKILLS, join(ctx.homeDir, PI_SKILLS)], [CODEX_SKILLS, join(ctx.homeDir, CODEX_SKILLS)]);
   return surfaces;
 }
 
@@ -438,7 +440,7 @@ function pruneSkillLinks(ctx, surface, dir) {
     }
     const record = matchingRecord(ctx, name, raw);
     if (record) {
-      const shadowed = surface === CLAUDE_SKILLS && isShadowed(name, ctx.scopes);
+      const shadowed = surface !== PI_SKILLS && isShadowed(name, ctx.scopes);
       if (shadowed || !surfaceExpected(surface, record, ctx.scopes)) pruneLink(ctx, link, `skill ${name} not expected in ${surface}`);
       continue;
     }
@@ -468,9 +470,8 @@ function reconcileSkills(ctx) {
   for (const record of ctx.records) {
     for (const [surface, dir] of skillSurfaces(ctx)) {
       if (!surfaceExpected(surface, record, ctx.scopes)) continue;
-      if (surface === CLAUDE_SKILLS && isShadowed(record.name, ctx.scopes)) continue;
-      const runtime = surface === CLAUDE_SKILLS ? "Claude" : "Pi";
-      ensureLink(ctx, record.dir, join(dir, record.name), `${runtime} skill ${record.name}`);
+      if (surface !== PI_SKILLS && isShadowed(record.name, ctx.scopes)) continue;
+      ensureLink(ctx, record.dir, join(dir, record.name), `${RUNTIMES[surface]} skill ${record.name}`);
     }
   }
 }
@@ -518,6 +519,18 @@ function reconcilePi(ctx) {
   }
   for (const script of ["fix-links", "deploy-workflow", "security-audit-glm"]) {
     ensureLink(ctx, join(repoDir, "scripts", script), join(homeDir, ".local/bin", script), `script ${script}`);
+  }
+}
+
+// Codex reads ~/.codex/AGENTS.md and ~/.codex/skills; Pi reads neither (ADR-0043).
+function reconcileCodex(ctx) {
+  const { repoDir, homeDir } = ctx;
+  const codexDir = join(homeDir, ".codex");
+  ctx.emit("SECTION", "Codex");
+  ensureLink(ctx, join(repoDir, "codex/AGENTS.md"), join(codexDir, "AGENTS.md"), "Codex AGENTS.md");
+  ensureLink(ctx, join(repoDir, "workflow"), join(codexDir, "workflow"), "Codex workflow");
+  for (const template of ["PLAN_TEMPLATE.md", "PLAN_TEMPLATE_FULL.md"]) {
+    ensureLink(ctx, join(repoDir, template), join(codexDir, template), `Codex ${template}`);
   }
 }
 
@@ -575,7 +588,10 @@ function reconcileClaude(ctx) {
 
 export function reconcile(options, emit) {
   const ctx = { ...options, repoReal: realpath(options.repoDir), emit, counts: { issues: 0, fixed: 0, unresolved: 0 } };
-  if (!ctx.claudeOnly) reconcilePi(ctx);
+  if (!ctx.claudeOnly) {
+    reconcilePi(ctx);
+    reconcileCodex(ctx);
+  }
   reconcileSkills(ctx);
   reconcileClaude(ctx);
   return ctx.counts;

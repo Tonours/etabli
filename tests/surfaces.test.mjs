@@ -228,7 +228,8 @@ describe("reconcile", () => {
     run(repo, home);
     assert.ok(isLink(join(pi, "alpha")) && isLink(join(claude, "alpha")));
     assert.ok(!isLink(join(pi, "beta")) && isLink(join(claude, "beta")));
-    for (const retired of [".codex", ".config/devin", ".agents"]) assert.ok(!existsSync(join(home, retired)));
+    assert.ok(isLink(join(home, ".codex/skills/alpha")) && isLink(join(home, ".codex/skills/beta")));
+    for (const retired of [".config/devin", ".agents"]) assert.ok(!existsSync(join(home, retired)));
 
     writeSkill(join(tmp, "foreign/suiteB/skills/gamma"), "name: gamma");
     writeSkill(join(tmp, "foreign/suiteA/skills/beta"), "name: beta");

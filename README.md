@@ -5,7 +5,8 @@
 
 Etabli gives your coding agents one way of working. Pi and Claude Code read the
 same rules, follow the same plan-then-build loop and run the same guards, so a
-task behaves the same whichever agent picks it up.
+task behaves the same whichever agent picks it up. Codex reads the same rules
+and skills too, without the guards (ADR-0043).
 
 *Établi* is French for a craftsman's workbench: one bench, the same tools, put
 back in the same place every time.
@@ -175,6 +176,7 @@ has the details and the known blind spots.
 | --- | --- |
 | `workflow/` | Routing, plans, guards, loops, validation contracts |
 | `pi/`, `claude/` | Runtime adapters: settings, extensions, hooks, agents |
+| `codex/` | Codex adapter, linked as `~/.codex/AGENTS.md` |
 | `skills/` | First-party skills, one tree for both runtimes |
 | `vendor/`, `skills-lock.json` | Vendored skills, pinned by `UPSTREAM_SHA` and locked |
 | `extras/` | Skills tracked but not deployed |

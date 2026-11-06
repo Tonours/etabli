@@ -27,6 +27,10 @@ ln -s "$ROOT_DIR/claude/scopes/shared/skills/spec" "$HOME_DIR/.claude/skills/spe
 ln -s "$TMP_DIR/external-skill" "$HOME_DIR/.claude/skills/verify-workflow"
 mkdir -p "$HOME_DIR/.pi/agent/skills"
 ln -s "$ROOT_DIR/pi/skills/verify" "$HOME_DIR/.pi/agent/skills/verify"
+# Codex home: a foreign real adapter, a personal skill folder and a foreign skill link.
+mkdir -p "$HOME_DIR/.codex/skills/personal-codex"
+printf 'personal codex rules\n' >"$HOME_DIR/.codex/AGENTS.md"
+ln -s "$TMP_DIR/external-skill" "$HOME_DIR/.codex/skills/foreign-link"
 
 printf '%s\n' '{
   "defaultProvider": "kimi-for-coding",
@@ -147,6 +151,25 @@ collision_backups=( "$HOME_DIR/.claude/skills.bak"/verify-workflow.bak.* )
   printf 'deploy did not keep the foreign skill link in skills.bak\n' >&2
   exit 1
 }
+assert_link "$HOME_DIR/.codex/AGENTS.md" "$ROOT_DIR/codex/AGENTS.md"
+codex_backups=( "$HOME_DIR/.codex"/AGENTS.md.bak.* )
+grep -Fxq 'personal codex rules' "${codex_backups[0]}" || {
+  printf 'deploy replaced the foreign Codex AGENTS.md without a backup\n' >&2
+  exit 1
+}
+assert_link "$HOME_DIR/.codex/workflow" "$ROOT_DIR/workflow"
+assert_link "$HOME_DIR/.codex/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
+assert_link "$HOME_DIR/.codex/skills/plan-loop" "$ROOT_DIR/skills/shared/plan-loop"
+assert_link "$HOME_DIR/.codex/skills/spec" "$ROOT_DIR/skills/shared/spec"
+assert_absent "$HOME_DIR/.codex/skills/linear-work"
+[ -d "$HOME_DIR/.codex/skills/personal-codex" ] || { printf 'deploy moved a personal Codex skill folder\n' >&2; exit 1; }
+assert_link "$HOME_DIR/.codex/skills/foreign-link" "$TMP_DIR/external-skill"
+# Codex skills stay out of every root Pi reads.
+assert_absent "$HOME_DIR/.agents"
+if find "$HOME_DIR/.pi/agent/skills" -maxdepth 1 -type l -exec readlink {} \; | grep -q '/\.codex/'; then
+  printf 'a Pi skill link points into the Codex home\n' >&2
+  exit 1
+fi
 assert_file "$HOME_DIR/.claude/commands/recap.md"
 grep -Fxq 'personal command' "$HOME_DIR/.claude/commands/recap.md"
 assert_link "$HOME_DIR/.claude/commands/commit.md" "$TMP_DIR/external-command.md"
@@ -229,7 +252,7 @@ assert_absent "$HOME_DIR/.claude/scripts/claude-bin.sh"
 assert_absent "$HOME_DIR/.claude/skills/ember-employer-suite"
 assert_absent "$HOME_DIR/.claude/skills/adonisjs-suite"
 
-for retired_surface in .codex .config/devin .agents; do
+for retired_surface in .config/devin .agents; do
   assert_absent "$ISOLATED_HOME_DIR/$retired_surface"
 done
 
@@ -268,7 +291,9 @@ fi
   assert_absent "$WORK_HOME_DIR/.pi/agent/skills/adonisjs-suite"
   assert_absent "$WORK_HOME_DIR/.claude/skills/adonisjs-suite"
   assert_absent "$WORK_HOME_DIR/.grok"
-  for retired_surface in .codex .config/devin .agents; do
+  assert_link "$WORK_HOME_DIR/.codex/skills/linear-work" "$ROOT_DIR/skills/work/linear-work"
+  assert_absent "$WORK_HOME_DIR/.codex/skills/adr"
+  for retired_surface in .config/devin .agents; do
     assert_absent "$WORK_HOME_DIR/$retired_surface"
   done
 ) &
@@ -424,6 +449,19 @@ if grep -q '^WOULD_' "$SECOND_DRY_RUN_OUTPUT"; then
   cat "$SECOND_DRY_RUN_OUTPUT" >&2
   exit 1
 fi
+
+# Check mode reports Codex drift and exits 1.
+rm "$HOME_DIR/.codex/AGENTS.md" "$HOME_DIR/.codex/skills/plan-loop"
+if ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --check --home "$HOME_DIR" >"$TMP_DIR/codex-drift.out" 2>&1; then
+  printf 'check mode passed with Codex drift\n' >&2
+  exit 1
+fi
+grep -Fq 'Codex AGENTS.md missing' "$TMP_DIR/codex-drift.out" && grep -Fq 'Codex skill plan-loop missing' "$TMP_DIR/codex-drift.out" || {
+  printf 'check mode did not name the Codex drift:\n' >&2
+  cat "$TMP_DIR/codex-drift.out" >&2
+  exit 1
+}
+ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --apply --home "$HOME_DIR" >/dev/null
 
 wait "$DRY_RUN_PID"
 if [ -e "$DRY_HOME_DIR" ]; then
