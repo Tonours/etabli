@@ -292,13 +292,13 @@ describe("integration", { skip: !stops && "needs the macOS write sandbox with de
   });
 
   test("a mutant whose tree passes --max-rss is killed at once and counts as timeout", (t) => {
-    const grow = "node -e 'const keep = []; for (;;) keep.push(Buffer.alloc(1 << 20, 1))'";
+    const grow = "node -e 'const keep = []; for (let i = 0; i < 512; i += 1) keep.push(Buffer.alloc(1 << 20, 1)); setTimeout(() => keep, 60000)'";
     const { repo } = fixture(t, { "t.sh": `. ./lib.sh\nif $big; then ${grow}; fi\n`, "lib.sh": ":\n" }, { "lib.sh": "big=false\n" });
     const started = Date.now();
-    const result = runProbe(repo, ["--base", "HEAD", "--test", "bash t.sh", "--timeout", "120", "--max-rss", "256"]);
+    const result = runProbe(repo, ["--base", "HEAD", "--test", "bash t.sh", "--timeout", "30", "--max-rss", "256"]);
     assert.deepEqual(rowsOf(result.out), ["lib.sh:1 false->true timeout"]);
     assert.match(result.out, /\| timeout \| over --max-rss 256 MB \|/);
-    assert.ok(Date.now() - started < 60000, String(Date.now() - started));
+    assert.ok(Date.now() - started < 25000, String(Date.now() - started));
   });
 
   test("baseline failures exit 2", (t) => {

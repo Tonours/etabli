@@ -17,8 +17,10 @@ sandbox, where a denied write does not stop the writer (measured on macOS 14.4),
 hard-linked files or symlinks in git metadata.
 Outcomes: killed, survived, invalid (a check failed), denied (a write was denied),
 timeout. Only killed and survived are scored.
-A test whose process tree passes --max-rss resident memory is killed at once and
-counts as timeout, so a mutant that loops while allocating cannot exhaust the machine.
+A check or test whose process tree passes --max-rss resident memory (summed per
+process, so shared pages count more than once; raise it for parallel suites) is
+killed at the next poll and counts as timeout, so a mutant that loops while
+allocating cannot exhaust the machine.
 Tests that detach children from their process tree (double fork, daemons) are not
 supported. Defaults: --max 30, --timeout 300 (at most 86400), --max-rss 2048.`;
 
@@ -310,7 +312,6 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const canonical = (path) => realpathSync.native(path);
 const ENV = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith("GIT_")));
 let activeKill = null;
-let rssCapKb = Infinity;
 
 function listProcesses() {
   const result = spawnSync("/bin/ps", ["-A", "-o", "pid=,ppid=,pgid=,rss=,stat=,command="], { encoding: "utf8", env: {}, maxBuffer: 1 << 26, timeout: 10000 });
@@ -335,7 +336,7 @@ function remove(path) {
   }
 }
 
-function sandboxed(sandbox, argv, cwd, timeout, keepStdout = false) {
+function sandboxed(sandbox, argv, cwd, timeout, keepStdout = false, rssCapKb = Infinity) {
   return new Promise((resolve) => {
     const child = spawn(SANDBOX, [...sandbox, ...argv], { cwd, env: ENV, detached: true, stdio: ["ignore", "pipe", "pipe"] });
     const tracked = new Set(child.pid ? [child.pid] : []);
@@ -400,7 +401,7 @@ function sandboxed(sandbox, argv, cwd, timeout, keepStdout = false) {
     activeKill = () => killAll(members(), "SIGKILL");
     const poll = setInterval(() => {
       const live = members();
-      if (live.reduce((sum, member) => sum + member.rss, 0) > rssCapKb) overMemory = timedOut = true;
+      if (!failure && live.reduce((sum, member) => sum + member.rss, 0) > rssCapKb) overMemory = timedOut = true;
       if (stopped || failure || overMemory) killAll(live, "SIGKILL");
     }, 100);
     const timer = setTimeout(() => {
@@ -445,7 +446,6 @@ function builtinCheck(kind, path) {
 }
 
 async function probe(options, out) {
-  rssCapKb = options.maxRss * 1024;
   if (process.platform !== "darwin") throw new Refusal(`no write sandbox: ${process.platform} has no sandbox-exec`);
   if (!existsSync(SANDBOX)) throw new Refusal(`no write sandbox: ${SANDBOX} is missing`);
   const locked = ["-p", "(version 1)(allow default)(deny lsopen)(deny file-write* (with send-signal SIGSTOP))(allow file-write* (subpath \"/dev\"))"];
@@ -590,11 +590,11 @@ async function probe(options, out) {
       const checks = (mutant ? [mutant] : candidates).map((target) => builtinCheck(target.kind, target.path)).filter(Boolean);
       if (options.check) checks.push(["/bin/bash", "-c", options.check]);
       for (const argv of checks) {
-        const result = await sandboxed(own, argv, dir, options.timeout);
+        const result = await sandboxed(own, argv, dir, options.timeout, false, options.maxRss * 1024);
         if (result.failure) throw new Refusal(result.failure);
         if (result.stopped || result.timedOut || result.code !== 0) return { stage: "check", result };
       }
-      const result = await sandboxed(own, ["/bin/bash", "-c", options.test], dir, options.timeout);
+      const result = await sandboxed(own, ["/bin/bash", "-c", options.test], dir, options.timeout, false, options.maxRss * 1024);
       if (result.failure) throw new Refusal(result.failure);
       return { stage: "test", result };
     } finally {
