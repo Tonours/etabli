@@ -427,6 +427,14 @@ case_one_phase_a_pass_fails() {
   FAKE_THERMO_RC=1 FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
   check "one phase A pass fails: validator still runs" called "claude VALIDATOR"
   check "one phase A pass fails: the gap reaches the validator" grep -q "thermo-nuclear pass failed" "$FAKE_DIR/validator-prompt.txt"
+  reset_state
+  FAKE_QUALITY_RC=1 FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "code-review pass fails: validator still runs" called "claude VALIDATOR"
+  check "code-review pass fails: the gap reaches the validator" grep -q "/code-review pass failed" "$FAKE_DIR/validator-prompt.txt"
+  reset_state
+  FAKE_QUALITY_RC=1 FAKE_THERMO_RC=1 FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "both Claude phase A passes fail: no validator" not_called "claude VALIDATOR"
+  check "both Claude phase A passes fail: said so" grep -q "both Claude phase A passes failed" "$TMP_DIR/run.out"
 }
 
 case_reuse_review() {
