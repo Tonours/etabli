@@ -96,7 +96,7 @@ assert_contains "$ROOT_DIR/workflow/spec.md" "a bounded fix needs no plan but a 
 assert_contains "$ROOT_DIR/workflow/spec.md" "returns findings and stops; host-restricted effects follow § Human checkpoints."
 assert_contains "$ROOT_DIR/workflow/skills/adversary.md" "the only single-pass"
 assert_contains "$ROOT_DIR/workflow/skills/review-rounds.md" "## Bounded fix"
-assert_contains "$ROOT_DIR/skills/shared/plan-implement/SKILL.md" "--reuse-sha <base>"
+assert_contains "$ROOT_DIR/skills/shared/plan-implement/SKILL.md" "--reuse-sha origin/<base>"
 assert_contains "$ROOT_DIR/skills/work/pr-council-review/SKILL.md" "\`reuse refused\` and runs phase A in full."
 assert_contains "$ROOT_DIR/claude/README.md" "## Failure ownership"
 

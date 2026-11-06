@@ -127,11 +127,16 @@ record_timing() {
 }
 
 # Fingerprint a recorded review reuses: modes and blob ids of every change from the repo
-# root, so diff settings and the caller's directory do not move it. Plain additions under
-# docs/plan/ (the plan archive, committed after the review) are left out; edits count.
+# root, sorted, so diff settings and the caller's directory do not move it. Plain file
+# additions under docs/plan/ (the plan archive, committed after the review) are left out;
+# edits count. A git failure or an empty diff prints nothing and returns 1.
 reuse_patch_sha() {
-  git -C "$(git rev-parse --show-toplevel)" diff --raw --no-abbrev --no-renames "$1" "$2" \
-    | grep -Ev $'^:000000 [0-7]+ 0+ [0-9a-f]+ A\tdocs/plan/' | shasum -a 256 | cut -d' ' -f1
+  local raw
+  raw="$(git -C "$(git rev-parse --show-toplevel)" -c core.quotePath=false diff --raw --no-abbrev \
+    --no-renames --no-relative --ignore-submodules=none "$1" "$2")" || return 1
+  raw="$(printf '%s\n' "$raw" | { grep -Ev $'^:000000 100644 0+ [0-9a-f]+ A\tdocs/plan/' || :; } | LC_ALL=C sort)"
+  [ -n "$raw" ] || return 1
+  printf '%s\n' "$raw" | shasum -a 256 | cut -d' ' -f1
 }
 patch_id() { git diff --binary "$1" "$2" | git patch-id --verbatim | cut -d' ' -f1; }
 

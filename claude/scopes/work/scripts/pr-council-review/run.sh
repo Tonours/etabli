@@ -14,8 +14,8 @@ if [ "${1:-}" = --reuse-sha ]; then
   [ $# -eq 2 ] || usage
   . "$(cd "$(dirname "$0")" && pwd)/lib.sh"
   REUSE_BASE="$(git merge-base "$2" HEAD)" || { echo "no merge base between $2 and HEAD" >&2; exit 1; }
-  reuse_patch_sha "$REUSE_BASE" HEAD
-  exit
+  reuse_patch_sha "$REUSE_BASE" HEAD || { echo "no fingerprint: git diff failed or HEAD adds nothing to $2" >&2; exit 1; }
+  exit 0
 fi
 
 [ $# -ge 1 ] || usage

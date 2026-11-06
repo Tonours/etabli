@@ -467,6 +467,26 @@ case_reuse_fingerprint() {
   sha_sub="$(cd "$repo/sub" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
   sha_other="$(cd "$repo/docs" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
   check "fingerprint: a change outside the caller's dir counts" eval '[ "$sha_root" != "$sha_other" ] && [ "$sha_sub" = "$sha_other" ]'
+  printf 'sub/*\n' >"$TMP_DIR/fp-order"
+  sha_other="$(cd "$repo" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=diff.orderFile GIT_CONFIG_VALUE_0="$TMP_DIR/fp-order" \
+    /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: diff.orderFile does not reorder it" [ "$sha_sub" = "$sha_other" ]
+  check "fingerprint: a git failure prints nothing and fails" eval '! sha_other="$(cd "$repo" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=diff.orderFile GIT_CONFIG_VALUE_0="$TMP_DIR/no-such-order" /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main 2>/dev/null)" && [ -z "$sha_other" ]'
+  git -C "$repo" checkout -q main
+  check "fingerprint: an empty diff prints nothing and fails" eval '! sha_other="$(cd "$repo" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main 2>/dev/null)" && [ -z "$sha_other" ]'
+  git -C "$repo" checkout -q "$head"
+  echo archive >"$repo/docs/plan/été.md" && git -C "$repo" add docs/plan && git -C "$repo" commit -q -m "non-ascii archive"
+  sha_other="$(cd "$repo" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: a non-ascii plan archive is left out" [ "$sha_root" = "$sha_other" ]
+  git -C "$repo" checkout -q "$head"
+  ln -s a.txt "$repo/docs/plan/link.md" && git -C "$repo" add docs/plan && git -C "$repo" commit -q -m "symlink in plan"
+  sha_other="$(cd "$repo" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: a non-file addition under docs/plan counts" [ "$sha_root" != "$sha_other" ]
+  git -C "$repo" checkout -q "$head"
+  git -C "$repo" update-index --add --cacheinfo "160000,$head,mod" && git -C "$repo" commit -q -m gitlink
+  sha_other="$(cd "$repo" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=diff.ignoreSubmodules GIT_CONFIG_VALUE_0=all \
+    /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: a gitlink change counts under diff.ignoreSubmodules=all" [ "$sha_root" != "$sha_other" ]
 }
 
 case_reuse_review() {

@@ -25,7 +25,8 @@ Rules:
   fresh-context reviews plus a cross-family pass with effective-model
   provenance), write the round to a file outside the repo whose first line is
   `patch-sha256: ` followed by
-  `~/.claude/scripts/pr-council-review/run.sh --reuse-sha <base>`.
+  `~/.claude/scripts/pr-council-review/run.sh --reuse-sha origin/<base>` (after a
+  fetch, so it matches the PR's merge base).
 - After focused checks, run the implementation-loop step 12 mutation probe
   on standard and high-risk diffs touching executable sources and record
   `mutation: …`. Then run 12b on this diff and record
@@ -48,7 +49,7 @@ by the branch and ticket:
      `pr-council-review` skill on Claude; the same script through Bash on
      Pi). Script missing, or a run that fails or times out without a
      verdict → `council: unavailable`, stop `blocked`.
-     Reuse: add `--reuse-review <file>` when the reuse file below exists.
+     Reuse: add `--reuse-review <file>` when the reuse file (Rules above) exists.
      The script skips phase A only when the fingerprint still matches the PR
      (the plan archive aside) and never once the validator reviewed the
      head; the validator gate always applies.
