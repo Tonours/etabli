@@ -541,7 +541,7 @@ function reconcileCodex(ctx) {
   const codexDir = join(homeDir, ".codex");
   ctx.emit("SECTION", "Codex");
   if (!ctx.codexReady) {
-    unresolved(ctx, ctx.mode === "check" ? "WARN" : "FAIL", `Codex links skipped: ~/.codex resolves into ${codexOverlap(ctx)}, which Pi or Claude reads`);
+    unresolved(ctx, "WARN", `Codex links skipped: ~/.codex resolves into ${codexOverlap(ctx)}, which Pi or Claude reads`);
     return;
   }
   ensureLink(ctx, join(repoDir, "codex/AGENTS.md"), join(codexDir, "AGENTS.md"), "Codex AGENTS.md");

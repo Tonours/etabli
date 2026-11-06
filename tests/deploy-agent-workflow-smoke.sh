@@ -199,6 +199,14 @@ if ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --apply --home "$AGENTS_HOME_DIR" 
   exit 1
 fi
 assert_absent "$AGENTS_HOME_DIR/.codex/skills/spec"
+PI_CODEX_HOME_DIR="$TMP_DIR/pi-codex-home"
+mkdir -p "$PI_CODEX_HOME_DIR/.pi/agent"
+ln -s .pi/agent "$PI_CODEX_HOME_DIR/.codex"
+if ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --apply --home "$PI_CODEX_HOME_DIR" >"$TMP_DIR/pi-codex.out" 2>&1; then
+  printf 'deploy wrote the Codex adapter through a ~/.codex link into ~/.pi/agent\n' >&2
+  exit 1
+fi
+assert_link "$PI_CODEX_HOME_DIR/.pi/agent/AGENTS.md" "$ROOT_DIR/workflow/agent-rules.md"
 assert_file "$HOME_DIR/.claude/commands/recap.md"
 grep -Fxq 'personal command' "$HOME_DIR/.claude/commands/recap.md"
 assert_link "$HOME_DIR/.claude/commands/commit.md" "$TMP_DIR/external-command.md"
