@@ -437,9 +437,43 @@ case_one_phase_a_pass_fails() {
   check "both Claude phase A passes fail: said so" grep -q "both Claude phase A passes failed" "$TMP_DIR/run.out"
 }
 
+# The reuse fingerprint: repo-root scoped, stable across diff settings, and blind
+# only to plain additions under docs/plan/ (the plan archive).
+case_reuse_fingerprint() {
+  local repo="$TMP_DIR/fp" head sha_root sha_sub sha_archive sha_old sha_other
+  git init -q -b main "$repo"
+  mkdir -p "$repo/docs/plan" "$repo/sub"
+  echo old >"$repo/docs/plan/old.md"; echo a >"$repo/a.txt"; echo s >"$repo/sub/s.txt"
+  git -C "$repo" add -A && git -C "$repo" commit -q -m base
+  git -C "$repo" checkout -q -b feature
+  echo b >>"$repo/a.txt" && git -C "$repo" commit -q -am change
+  head="$(git -C "$repo" rev-parse HEAD)"
+  sha_root="$(cd "$repo" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  sha_sub="$(cd "$repo/sub" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: same from a subdirectory" eval '[ -n "$sha_root" ] && [ "$sha_root" = "$sha_sub" ]'
+  check "fingerprint: not the empty diff" [ "$sha_root" != "$(printf '' | shasum -a 256 | cut -d' ' -f1)" ]
+  sha_other="$(cd "$repo" && GIT_CONFIG_COUNT=4 GIT_CONFIG_KEY_0=diff.noprefix GIT_CONFIG_VALUE_0=true \
+    GIT_CONFIG_KEY_1=core.abbrev GIT_CONFIG_VALUE_1=12 GIT_CONFIG_KEY_2=diff.renames GIT_CONFIG_VALUE_2=copies \
+    GIT_CONFIG_KEY_3=color.diff GIT_CONFIG_VALUE_3=always /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: diff settings do not change it" [ "$sha_root" = "$sha_other" ]
+  echo archive >"$repo/docs/plan/new.md" && git -C "$repo" add docs/plan && git -C "$repo" commit -q -m archive
+  sha_archive="$(cd "$repo" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: an added plan archive is left out" [ "$sha_root" = "$sha_archive" ]
+  echo edited >>"$repo/docs/plan/old.md" && git -C "$repo" commit -q -am "edit old archive"
+  sha_old="$(cd "$repo" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: an edited existing archive counts" [ "$sha_root" != "$sha_old" ]
+  git -C "$repo" checkout -q "$head"
+  echo z >>"$repo/sub/s.txt" && git -C "$repo" commit -q -am "outside the caller dir"
+  sha_sub="$(cd "$repo/sub" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  sha_other="$(cd "$repo/docs" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: a change outside the caller's dir counts" eval '[ "$sha_root" != "$sha_other" ] && [ "$sha_sub" = "$sha_other" ]'
+}
+
 case_reuse_review() {
   local sha archived
-  sha="$(git -C "$TMP_DIR/seed" diff --no-color main "$HEAD1" -- . ':(exclude)docs/plan' | shasum -a 256 | cut -d' ' -f1)"
+  git -C "$TMP_DIR/seed" checkout -q "$HEAD1"
+  sha="$(cd "$TMP_DIR/seed" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  git -C "$TMP_DIR/seed" checkout -q feature
   printf 'patch-sha256: %s\nrecorded final review: reused finding a.txt:1\n' "$sha" >"$TMP_DIR/reuse-ok.md"
   printf 'patch-sha256: %064d\nrecorded final review on another patch\n' 0 >"$TMP_DIR/reuse-stale.md"
   reset_state
@@ -1503,6 +1537,7 @@ case_launchd_plist() {
 case_clean_council_approves
 case_council_findings_wait
 case_codex_member
+case_reuse_fingerprint
 case_reuse_review
 case_one_phase_a_pass_fails
 case_phase_a_denial_vetoes

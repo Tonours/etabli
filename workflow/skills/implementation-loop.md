@@ -4,6 +4,8 @@ Shared implementation contract; adapters supply harness syntax. Select the route
 in `workflow/spec.md` before the risk tier. Plan routes and high-risk work use
 the full sequence. A bounded runtime fix follows the bounded-fix variant below
 unless a plan is requested; an existing DRAFT/CHALLENGED plan blocks implementation.
+Review-only requests and host-restricted effects follow `workflow/spec.md`
+(routing obligations, § Human checkpoints).
 
 ## Risk tiers
 
@@ -32,9 +34,9 @@ never downgrade mid-run.
   cross-family preferred when a route is available, a same-family review
   labeled `same-family` in the report; then report (17). Evidence the sequence
   records in `PLAN.md` goes in the final report. Re-review follows
-  `workflow/skills/review-rounds.md` § Bounded fix. A high finding from a
-  same-family review, a fix that leaves its surface, or one that touches a
-  contract upgrades to standard with a plan.
+  `workflow/skills/review-rounds.md` § Bounded fix. Any high finding, a fix
+  that leaves its surface, or one that touches a contract upgrades to
+  standard with a plan.
 - **high-risk** — kernel guards, installer/deploy scripts, security, multi-surface contract changes, or a third
   recurrence of the same failure. Full sequence, cross-model adversary
   mandatory (13b), both hunters mandatory (13).
@@ -90,7 +92,7 @@ follow their journey in Risk tiers instead (no plan file, no plan adversary, no 
     accepted fix — readiness never rests on checks predating the latest product-flow edit.
     Small tier and bounded fix (no plan): run the surface's own focused checks instead —
     the checks named by the task or the touched surface's suite.
-    Mutation probe (standard and high-risk tiers, diffs touching executable
+    Mutation probe (standard, bounded fix included, and high-risk tiers, diffs touching executable
     sources: `.sh`, `.bash`, `.js`, `.mjs`, `.cjs`, `.ts`, `.tsx`, or an
     extensionless `bash`, `sh` or `node` script), once these checks are green: run
     `node <probe> --base <base> --test "<focused test command>"` with the

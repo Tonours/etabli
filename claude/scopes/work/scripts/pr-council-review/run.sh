@@ -6,8 +6,17 @@ usage() {
   echo "                              [--phase-a-model <alias>] [--phase-a-effort <level>]" >&2
   echo "                              [--no-codex] [--codex-model <model>] [--codex-effort <level>]" >&2
   echo "                              [--phase-a-only | --with-validator] [--reuse-review <file>]" >&2
+  echo "       run.sh --reuse-sha <base-ref>   print the --reuse-review fingerprint of HEAD" >&2
   exit 2
 }
+
+if [ "${1:-}" = --reuse-sha ]; then
+  [ $# -eq 2 ] || usage
+  . "$(cd "$(dirname "$0")" && pwd)/lib.sh"
+  REUSE_BASE="$(git merge-base "$2" HEAD)" || { echo "no merge base between $2 and HEAD" >&2; exit 1; }
+  reuse_patch_sha "$REUSE_BASE" HEAD
+  exit
+fi
 
 [ $# -ge 1 ] || usage
 case "$1" in
@@ -186,10 +195,9 @@ PHASE_A_ARGS=("${ISOLATED_SETTINGS[@]}")
 [ -n "$PHASE_A_EFFORT" ] && PHASE_A_ARGS+=(--effort "$PHASE_A_EFFORT")
 
 # A recorded review of this exact patch stands in for phase A; the validator still runs.
-# The hash leaves out docs/plan/, where the plan archive lands after that review.
 REUSED=0
 if [ -n "$REUSE_REVIEW" ]; then
-  PATCH_SHA="$(git diff --no-color --no-ext-diff "$MERGE_BASE" "$HEAD_SHA" -- . ':(exclude)docs/plan' | shasum -a 256 | cut -d' ' -f1)"
+  PATCH_SHA="$(reuse_patch_sha "$MERGE_BASE" "$HEAD_SHA")"
   RECORDED_SHA="$(sed -n '1s/^patch-sha256: \([0-9a-f]\{64\}\)$/\1/p' "$REUSE_REVIEW" 2>/dev/null)"
   if [ "$PHASE_A_ONLY" = 1 ]; then
     echo "=== reuse refused: the validator already reviewed this head, so phase B would only re-verify the recorded review; running phase A"

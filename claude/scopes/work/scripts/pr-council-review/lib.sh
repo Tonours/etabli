@@ -126,6 +126,13 @@ record_timing() {
   } 2>/dev/null || :
 }
 
+# Fingerprint a recorded review reuses: modes and blob ids of every change from the repo
+# root, so diff settings and the caller's directory do not move it. Plain additions under
+# docs/plan/ (the plan archive, committed after the review) are left out; edits count.
+reuse_patch_sha() {
+  git -C "$(git rev-parse --show-toplevel)" diff --raw --no-abbrev --no-renames "$1" "$2" \
+    | grep -Ev $'^:000000 [0-7]+ 0+ [0-9a-f]+ A\tdocs/plan/' | shasum -a 256 | cut -d' ' -f1
+}
 patch_id() { git diff --binary "$1" "$2" | git patch-id --verbatim | cut -d' ' -f1; }
 
 # same_patch <base ref> <old sha> <new sha>: both carry the same changes on their

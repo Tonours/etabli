@@ -98,8 +98,7 @@ plan. After the fresh-context review (Logic hunter + Spec hunter, then lead):
      its one fresh-context review stands in for this pass, cross-family
      preferred. A same-family one is allowed only when labeled `same-family`
      in the report, never presented as independent: the only single-pass
-     same-family exception. A high finding from it upgrades the fix to
-     standard.
+     same-family exception. Any high finding upgrades the fix to standard.
 3. Hunt for: correctness bugs, regressions, unhandled edge cases, acceptance
    criteria not actually met, client-controlled inputs that decide access,
    entry points to the same asset the change leaves ungated, silent scope
