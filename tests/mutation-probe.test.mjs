@@ -42,8 +42,8 @@ async function denialsStop() {
 const stops = await denialsStop();
 
 test("unit: options", () => {
-  assert.deepEqual(parseArgs(["--base", "main", "--test", "t"]), { paths: [], allowWrite: [], max: 30, timeout: 300, base: "main", test: "t" });
-  assert.deepEqual(parseArgs(["--base", "b", "--test", "t", "--check", "c", "--paths", "x", "--paths", "y", "--allow-write", "/tmp", "--max", "2", "--timeout", "9"]), { paths: ["x", "y"], allowWrite: ["/tmp"], max: 2, timeout: 9, base: "b", test: "t", check: "c" });
+  assert.deepEqual(parseArgs(["--base", "main", "--test", "t"]), { paths: [], allowWrite: [], max: 30, timeout: 300, maxRss: 2048, base: "main", test: "t" });
+  assert.deepEqual(parseArgs(["--base", "b", "--test", "t", "--check", "c", "--paths", "x", "--paths", "y", "--allow-write", "/tmp", "--max", "2", "--timeout", "9", "--max-rss", "64"]), { paths: ["x", "y"], allowWrite: ["/tmp"], max: 2, timeout: 9, maxRss: 64, base: "b", test: "t", check: "c" });
   assert.deepEqual(parseArgs(["--help"]), { help: true });
   for (const [argv, message] of [
     [["--test", "t"], /missing --base/],
@@ -55,6 +55,7 @@ test("unit: options", () => {
     [["--base", "b", "--test", "t", "--timeout", "1.5"], /--timeout needs an integer/],
     [["--base", "b", "--test", "t", "--timeout", "86401"], /--timeout needs an integer >= 1 and <= 86400/],
     [["--base", "b", "--test", "t", "--max", "x"], /--max needs an integer/],
+    [["--base", "b", "--test", "t", "--max-rss", "0"], /--max-rss needs an integer/],
     [["--base", "b", "--test", "t", "--allow-write", "tmp"], /--allow-write needs/],
     [["--base", "b", "--test", "t", "--allow-write", "/no/such/dir"], /--allow-write needs/],
     [["--base", "b", "--test", "t", "--allow-write", "/etc/hosts"], /--allow-write needs/],
@@ -155,16 +156,16 @@ test("unit: paths and process groups", () => {
   assert.equal(inside("/a/bc", "/a/b"), false);
   assert.equal(inside("/a", "/a/b"), false);
   assert.equal(inside("/x", "/"), true);
-  const processes = parseProcesses("  10     1    10 Ss   bash -c x\n  11    10    10 T    echo y > /z\n  12    11    12 TN   perl setpgrp\n  13    12    12 S    sleep 9\n  14     1    99 T    other\nbad line\n");
-  assert.deepEqual(processes[1], { pid: 11, ppid: 10, pgid: 10, stat: "T", command: "echo y > /z" });
+  const processes = parseProcesses("  10     1    10  900 Ss   bash -c x\n  11    10    10    0 T    echo y > /z\n  12    11    12   40 TN   perl setpgrp\n  13    12    12    8 S    sleep 9\n  14     1    99    1 T    other\nbad line\n");
+  assert.deepEqual(processes[1], { pid: 11, ppid: 10, pgid: 10, rss: 0, stat: "T", command: "echo y > /z" });
   const tracked = new Set([10]);
   assert.deepEqual(trackTree(processes, tracked, 10).map((entry) => entry.pid), [10, 11, 12, 13]);
   assert.deepEqual(trackTree(processes.filter((entry) => entry.pid === 13), tracked, 10).map((entry) => entry.pid), [13]);
   assert.deepEqual(trackTree(processes, new Set(), 5), []);
-  assert.deepEqual(trackTree(parseProcesses("  30    31    30 S    child\n  31    10    31 S    parent\n  10     1    10 S    leader\n"), new Set([10]), 10).map((entry) => entry.pid), [30, 31, 10]);
+  assert.deepEqual(trackTree(parseProcesses("  30    31    30 1 S    child\n  31    10    31 1 S    parent\n  10     1    10 1 S    leader\n"), new Set([10]), 10).map((entry) => entry.pid), [30, 31, 10]);
   const stale = new Set([10, 11]);
   trackTree(processes.filter((entry) => entry.pid !== 11), stale, 10);
-  assert.deepEqual(trackTree(parseProcesses("  11     1    50 T    unrelated\n  15    11    50 S    child\n"), stale, 10), []);
+  assert.deepEqual(trackTree(parseProcesses("  11     1    50 1 T    unrelated\n  15    11    50 1 S    child\n"), stale, 10), []);
   assert.equal(codeOnly('a "b && c" // d', "js"), `a${" ".repeat(10)}`);
   assert.equal(codeOnly("a 'b' # c", "sh"), "a     ");
 });
@@ -288,6 +289,16 @@ describe("integration", { skip: !stops && "needs the macOS write sandbox with de
     const elapsed = Date.now() - started;
     assert.deepEqual(rowsOf(result.out), ["lib.sh:1 false->true timeout"]);
     assert.ok(elapsed >= 6000 && elapsed < 30000, String(elapsed));
+  });
+
+  test("a mutant whose tree passes --max-rss is killed at once and counts as timeout", (t) => {
+    const grow = "node -e 'const keep = []; for (let i = 0; i < 512; i += 1) keep.push(Buffer.alloc(1 << 20, 1)); setTimeout(() => keep, 60000)'";
+    const { repo } = fixture(t, { "t.sh": `. ./lib.sh\nif $big; then ${grow}; fi\n`, "lib.sh": ":\n" }, { "lib.sh": "big=false\n" });
+    const started = Date.now();
+    const result = runProbe(repo, ["--base", "HEAD", "--test", "bash t.sh", "--timeout", "30", "--max-rss", "256"]);
+    assert.deepEqual(rowsOf(result.out), ["lib.sh:1 false->true timeout"]);
+    assert.match(result.out, /\| timeout \| over --max-rss 256 MB \|/);
+    assert.ok(Date.now() - started < 25000, String(Date.now() - started));
   });
 
   test("baseline failures exit 2", (t) => {
