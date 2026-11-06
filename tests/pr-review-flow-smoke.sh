@@ -484,6 +484,7 @@ case_reuse_fingerprint() {
   check "fingerprint: a non-file addition under docs/plan counts" [ "$sha_root" != "$sha_other" ]
   git -C "$repo" checkout -q "$head"
   git -C "$repo" update-index --add --cacheinfo "160000,$head,mod" && git -C "$repo" commit -q -m gitlink
+  mkdir -p "$repo/mod"
   sha_other="$(cd "$repo" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=diff.ignoreSubmodules GIT_CONFIG_VALUE_0=all \
     /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
   check "fingerprint: a gitlink change counts under diff.ignoreSubmodules=all" [ "$sha_root" != "$sha_other" ]
@@ -505,7 +506,16 @@ case_reuse_fingerprint() {
   git -C "$repo" checkout -q -- a.txt
   echo new >"$repo/untracked.txt"
   check "fingerprint: an untracked file prints nothing and fails" eval '! sha_other="$(cd "$repo" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main 2>/dev/null)" && [ -z "$sha_other" ]'
+  check "fingerprint: an untracked file is refused under status.showUntrackedFiles=no" eval '! sha_other="$(cd "$repo" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=status.showUntrackedFiles GIT_CONFIG_VALUE_0=no /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main 2>/dev/null)" && [ -z "$sha_other" ]'
   rm "$repo/untracked.txt"
+  check "fingerprint: a failing git status prints nothing and fails" eval '! sha_other="$(cd "$repo" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=status.relativePaths GIT_CONFIG_VALUE_0=invalid /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main 2>/dev/null)" && [ -z "$sha_other" ]'
+  echo b2 >>"$repo/a.txt" && git -C "$repo" add a.txt
+  check "fingerprint: a staged-only change prints nothing and fails" eval '! sha_other="$(cd "$repo" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main 2>/dev/null)" && [ -z "$sha_other" ]'
+  git -C "$repo" reset -q --hard "$head"
+  printf 'PLAN.md\n' >"$repo/.git/info/exclude" && echo plan >"$repo/PLAN.md"
+  sha_other="$(cd "$repo/sub" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: an ignored file does not refuse, from a subdirectory" [ "$sha_root" = "$sha_other" ]
+  rm "$repo/PLAN.md"
 }
 
 case_reuse_review() {

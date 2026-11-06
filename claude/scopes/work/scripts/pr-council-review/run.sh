@@ -14,7 +14,9 @@ if [ "${1:-}" = --reuse-sha ]; then
   [ $# -eq 2 ] || usage
   . "$(cd "$(dirname "$0")" && pwd)/lib.sh"
   # The fingerprint covers commits only: a reviewed workspace patch must be committed first.
-  [ -z "$(git status --porcelain)" ] || { echo "no fingerprint: commit the reviewed patch first (uncommitted or untracked changes)" >&2; exit 1; }
+  # Explicit flags, so status settings cannot hide untracked files or submodule changes.
+  REUSE_DIRT="$(git status --porcelain --untracked-files=all --ignore-submodules=none)" || { echo "no fingerprint: git status failed" >&2; exit 1; }
+  [ -z "$REUSE_DIRT" ] || { echo "no fingerprint: commit the reviewed files, remove or ignore stray ones:" >&2; printf '%s\n' "$REUSE_DIRT" >&2; exit 1; }
   REUSE_BASE="$(git merge-base "$2" HEAD)" || { echo "no merge base between $2 and HEAD" >&2; exit 1; }
   reuse_patch_sha "$REUSE_BASE" HEAD || { echo "no fingerprint: git diff failed or HEAD adds nothing to $2" >&2; exit 1; }
   exit 0
