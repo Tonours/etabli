@@ -438,17 +438,8 @@ function packageBySource(source) {
   return packages.find((entry) => entry && typeof entry === "object" && entry.source === source);
 }
 
-if (packages.some((entry) => typeof entry === "string" && entry === "npm:pi-subagents") ||
-    packages.some((entry) => {
-      const source = sourceOf(entry);
-      return typeof source === "string" && source.startsWith("npm:@tintinweb/pi-subagents");
-    })) {
-  throw new Error("pi-subagents must converge to the tracked object entry, tintinweb variants dropped");
-}
-
-const piSubagents = packageBySource("npm:pi-subagents@0.77.0");
-if (!piSubagents || JSON.stringify(piSubagents.skills) !== "[]") {
-  throw new Error("tracked npm:pi-subagents entry missing or not skill-silenced");
+if (packages.some((entry) => /^npm:(pi-subagents|@tintinweb\/pi-subagents)(@|$)/.test(sourceOf(entry) ?? ""))) {
+  throw new Error("retired pi-subagents package was kept");
 }
 
 if (hasObjectSource("local:etabli-workflow")) {
@@ -551,7 +542,7 @@ node "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" "$local_settings" "$ROOT
 jq -e '.defaultProvider == "zai" and .defaultModel == "glm-5.3" and (.enabledModels | index("custom/provider-model")) != null and (.enabledModels | index("zai/glm-5.3-flash")) != null and (.enabledModels | index("cursor/claude-sonnet-5@300k")) == null' "$local_settings" >/dev/null
 
 local_settings="$TMP_DIR/custom-default.json"
-printf '%s\n' '{"packages":["npm:mitsupi",{"source":"npm:pi-lens","skills":["lens"]},{"source":"npm:pi-lens@4.0.0"},{"source":"git:github.com/badlogic/pi-skills@feature/topic","skills":["danger"]},"https://github.com/badlogic/pi-skills.git@main","npm:@zhushanwen/pi-ask-user"]}' >"$local_settings"
+printf '%s\n' '{"packages":["npm:pi-cursor-sdk",{"source":"npm:pi-autoresearch@1.9.0"},"npm:@narumitw/pi-goal@0.54.11",{"source":"npm:pi-simplify"},"npm:pi-subagents@0.77.0","npm:mitsupi",{"source":"npm:pi-lens","skills":["lens"]},{"source":"npm:pi-lens@4.0.0"},{"source":"git:github.com/badlogic/pi-skills@feature/topic","skills":["danger"]},"https://github.com/badlogic/pi-skills.git@main","npm:@zhushanwen/pi-ask-user"]}' >"$local_settings"
 node "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" "$local_settings" "$ROOT_DIR/pi/agent/settings.json" 0 smoke >/dev/null
 node - "$local_settings" "$ROOT_DIR/pi/agent/settings.json" <<'NODE'
 const fs = require("node:fs");
@@ -562,6 +553,11 @@ const identities = sources.map(identity);
 if (new Set(identities).size !== identities.length) throw new Error(`pinned sync duplicated a package: ${sources.join(", ")}`);
 for (const entry of tracked.packages) {
   if (!sources.includes(entry.source)) throw new Error(`pinned sync did not install the tracked ${entry.source}`);
+}
+for (const source of sources) {
+  if (/^npm:(pi-cursor-sdk|pi-autoresearch|@narumitw\/pi-goal|pi-simplify|pi-subagents)(@|$)/.test(source) || source.includes("github.com/badlogic/pi-skills")) {
+    throw new Error(`retired Pi package survived sync: ${source}`);
+  }
 }
 if (!sources.includes("npm:@zhushanwen/pi-ask-user")) throw new Error("pinned sync dropped a local-only package");
 if (sources.length !== tracked.packages.length + 1) throw new Error(`pinned sync kept ${sources.length} entries for ${tracked.packages.length} tracked plus 1 local`);

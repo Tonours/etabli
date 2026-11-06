@@ -61,7 +61,16 @@ function packageIdentity(source) {
 }
 
 // Retired in every version, pinned or not.
-const retiredIdentities = new Set(["npm:@tintinweb/pi-tasks", "npm:pi-lens"]);
+const retiredIdentities = new Set([
+  "npm:@tintinweb/pi-tasks",
+  "npm:pi-lens",
+  "npm:pi-cursor-sdk",
+  "npm:pi-autoresearch",
+  "npm:@narumitw/pi-goal",
+  "npm:pi-simplify",
+  "npm:pi-subagents",
+  "git:github.com/badlogic/pi-skills",
+]);
 
 function isLegacySource(source) {
   return (
