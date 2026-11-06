@@ -1,6 +1,6 @@
 ---
 name: spec
-description: Writes or revises employer specs, technical Epics and design docs from the bundled templates. Use for /spec or a spec, Epic or design-doc draft or review; not for ADRs (adr) or Linear tickets.
+description: Writes or revises employer specs, Epics and design docs from bundled templates. Use for /spec or a spec, Epic or design-doc draft or review; not for ADRs (adr) or Linear tickets.
 ---
 
 # employer spec writing

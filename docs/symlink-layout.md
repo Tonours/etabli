@@ -9,15 +9,18 @@ manifest, `scripts/lib/surfaces.mjs` (ADR-0038).
 ```bash
 scripts/deploy-agent-workflow              # dry run, the default: prints the drift
 scripts/deploy-agent-workflow --apply      # links, prunes, then syncs settings
-scripts/deploy-agent-workflow --check      # reports drift, skips the settings sync
+scripts/deploy-agent-workflow --check      # reports drift and skill-load failures, skips the settings sync
 scripts/deploy-agent-workflow --check --fix
 scripts/check-fix-symlinks.sh              # shortcut for --check, takes --fix
 ```
 
 After an `--apply` on your live home, the deploy runs
 `scripts/claude-skill-load-check` and fails when it does. Under
-`scripts/install.sh` a failed check only warns. `ETABLI_SKIP_LIVE_CHECKS=1`
-treats the home as non-live and skips it.
+`scripts/install.sh` a failed check only warns. On a live home `--check` runs
+both skill-load checks; the Pi one launches `pi` once, which applies Pi's own
+startup migrations like any Pi session. `ETABLI_SKIP_LIVE_CHECKS=1`
+treats the home as non-live and skips it; `ETABLI_SKIP_SKILL_LOAD_CHECKS=1`
+skips only the skill-load checks of `--check`, for link-only test fixtures.
 
 A foreign file sitting on a managed name is moved aside to
 `<name>.bak.<stamp>` (under `skills.bak/` for a skill), never deleted. A

@@ -267,6 +267,33 @@ function replaceFile(path, content, mode) {
   } catch {}
 }
 
+// Machine-local allow list: the tracked repo file plus the target home's
+// ~/.config/etabli copy, unioned. Throws with a remediation on a bad file.
+export function machineLocalNames(repoFile, homeDir, kind) {
+  const files = [repoFile, ...(homeDir ? [join(homeDir, `.config/etabli/machine-local-${kind}.json`)] : [])];
+  return new Set(
+    files.flatMap((file) => {
+      let text;
+      try {
+        text = readFileSync(file, "utf8");
+      } catch (error) {
+        if (error.code === "ENOENT") return [];
+        throw new Error(`cannot read ${file} (${error.message}); fix its permissions, nothing written`);
+      }
+      let list;
+      try {
+        list = JSON.parse(text);
+      } catch (error) {
+        throw new Error(`invalid JSON in ${file} (${error.message}); fix it by hand, nothing written`);
+      }
+      if (!Array.isArray(list) || !list.every((name) => typeof name === "string")) {
+        throw new Error(`${file} must be a JSON array of ${kind} names; fix it by hand, nothing written`);
+      }
+      return list;
+    }),
+  );
+}
+
 export function writeJsonAtomic(path, value) {
   const target = existsSync(path) ? realpath(path) : path;
   const stat = lstatOrNull(target);
