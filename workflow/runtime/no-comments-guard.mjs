@@ -7,13 +7,6 @@ function normalizeToolName(toolName) {
 	if (lower === "write") return "Write";
 	if (lower === "edit") return "Edit";
 	if (lower === "multiedit") return "MultiEdit";
-	if (
-		lower === "bash" ||
-		lower === "shell" ||
-		lower === "run_terminal_command"
-	) {
-		return "Bash";
-	}
 	return raw;
 }
 

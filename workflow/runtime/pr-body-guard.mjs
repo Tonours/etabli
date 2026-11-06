@@ -191,9 +191,16 @@ function ansiC(raw, from) {
 	return k < raw.length ? { text, end: k } : null;
 }
 
-export function staticWord(raw) {
+// vars: known shell variables, read only as $NAME or ${NAME}; any other expansion stays unknown.
+export function staticWord(raw, vars = null) {
 	let out = "";
 	let i = 0;
+	const known = (at, quoted) => {
+		const match = vars && /^\$(?:\{(\w+)\}|([A-Za-z_]\w*))/.exec(raw.slice(at));
+		const value = match && Object.hasOwn(vars, match[1] ?? match[2]) ? vars[match[1] ?? match[2]] : undefined;
+		if (value === undefined || /^[:[]/.test(raw.slice(at + match[0].length)) || (!quoted && /[\s*?[]/.test(value))) return null;
+		return { value, end: at + match[0].length };
+	};
 	while (i < raw.length) {
 		const ch = raw[i];
 		if (ch === "'") {
@@ -214,7 +221,14 @@ export function staticWord(raw) {
 					k += 2;
 					continue;
 				}
-				if (raw[k] === "$" || raw[k] === "`") return null;
+				if (raw[k] === "$") {
+					const variable = known(k, true);
+					if (!variable) return null;
+					out += variable.value;
+					k = variable.end;
+					continue;
+				}
+				if (raw[k] === "`") return null;
 				out += raw[k];
 				k += 1;
 			}
@@ -223,7 +237,12 @@ export function staticWord(raw) {
 		} else if (ch === "\\") {
 			out += raw[i + 1] ?? "";
 			i += 2;
-		} else if (ch === "$" || ch === "`") {
+		} else if (ch === "$") {
+			const variable = known(i, false);
+			if (!variable) return null;
+			out += variable.value;
+			i = variable.end;
+		} else if (ch === "`") {
 			return null;
 		} else {
 			out += ch;
@@ -529,6 +548,18 @@ function stdinSource(command, scan, segment) {
 	return fds.get("0") ?? null;
 }
 
+// $PWD is the tracked shell directory only in an otherwise static command: no line
+// continuation and no directory change the cd tracking misses, and with quotes and
+// escapes dropped and its plain $PWD or ${PWD} reads removed, no $, backtick,
+// brace, PW or IFS is left. Anything else stays unknown.
+function pwdVars(command, dir) {
+	if (dir === null || /\\\n|\b(?:pushd|popd|builtin)\b/.test(command)) return null;
+	const rest = command
+		.replace(/[\\'"]/g, "")
+		.replace(/\$PWD(?![\w=:[])|\$\{PWD\}(?![:[])/g, "");
+	return /[$`{]|PW|IFS/.test(rest) ? null : { PWD: dir };
+}
+
 function commitMessages(command, scan, args, segment, dirs) {
 	const messages = [];
 	for (let k = 0; k < args.length; k += 1) {
@@ -546,16 +577,16 @@ function commitMessages(command, scan, args, segment, dirs) {
 		if (attached && raw.startsWith(flag[0])) {
 			const valueRaw = raw.slice(flag[0].length);
 			text = messageText(valueRaw, scan, { start: args[k].start + flag[0].length, end: args[k].end });
-			name = staticWord(valueRaw);
+			name = staticWord(valueRaw, dirs.vars);
 		} else if (attached) {
 			text = word.slice(flag[0].length);
-			name = decoded === null ? null : text;
+			name = decoded === null ? (staticWord(raw, dirs.vars)?.slice(flag[0].length) ?? null) : text;
 		} else {
 			k += 1;
 			if (!args[k]) continue;
 			const valueRaw = command.slice(args[k].start, args[k].end);
 			text = messageText(valueRaw, scan, args[k]);
-			name = staticWord(valueRaw);
+			name = staticWord(valueRaw, dirs.vars);
 		}
 		if (kind === "message") {
 			messages.push(flag[1] === "trailer" ? text.replace(/^([^:=]*)=/, "$1:") : text);
@@ -647,7 +678,7 @@ export function prBodyGuardDecision({ cwd, tool_name, tool_input }) {
 		const dir = gitDir(command, match[1], globalsStart, shellDir);
 		const isWork = () => inWorkOrg(originOwner(dir));
 		const args = commandWords(scan.visible, start, segment.end);
-		for (const message of commitMessages(command, scan, args, segment, { git: dir, shell: shellDir })) {
+		for (const message of commitMessages(command, scan, args, segment, { git: dir, shell: shellDir, vars: pwdVars(command, shellDir) })) {
 			if (COMMIT_ATTRIBUTION.test(message) || PROPER_CREDIT.test(message)) commitProblems.push("git commit: trailer or AI attribution in the message");
 			commitProblems.push(...modelNameProblems(message, isWork).map((problem) => `git commit: ${problem}`));
 		}
