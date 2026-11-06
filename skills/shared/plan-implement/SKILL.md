@@ -23,8 +23,8 @@ Rules:
   archive (implementation-loop step 14) deletes `PLAN.md`, when that round's
   passes match the council's phase A on the same acceptance criteria (two
   fresh-context reviews plus a cross-family pass with effective-model
-  provenance), write the round to a file outside the repo whose first line is
-  `patch-sha256: ` followed by
+  provenance), commit the reviewed patch, then write the round to a file
+  outside the repo whose first line is `patch-sha256: ` followed by
   `~/.claude/scripts/pr-council-review/run.sh --reuse-sha origin/<base>` (after a
   fetch, so it matches the PR's merge base).
 - After focused checks, run the implementation-loop step 12 mutation probe

@@ -487,6 +487,25 @@ case_reuse_fingerprint() {
   sha_other="$(cd "$repo" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=diff.ignoreSubmodules GIT_CONFIG_VALUE_0=all \
     /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
   check "fingerprint: a gitlink change counts under diff.ignoreSubmodules=all" [ "$sha_root" != "$sha_other" ]
+  git -C "$repo" checkout -q "$head"
+  chmod +x "$repo/a.txt" && git -C "$repo" commit -q -am "mode only"
+  sha_other="$(cd "$repo" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: a mode-only change counts" [ "$sha_root" != "$sha_other" ]
+  git -C "$repo" checkout -q "$head"
+  echo x >"$repo/docs/plan/run.sh" && chmod +x "$repo/docs/plan/run.sh" && git -C "$repo" add docs/plan && git -C "$repo" commit -q -m "executable in plan"
+  sha_other="$(cd "$repo" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: an executable addition under docs/plan counts" [ "$sha_root" != "$sha_other" ]
+  git -C "$repo" checkout -q "$head"
+  git -C "$repo" rm -q docs/plan/old.md && git -C "$repo" commit -q -m "drop old archive"
+  sha_other="$(cd "$repo" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main)"
+  check "fingerprint: a deletion under docs/plan counts" [ "$sha_root" != "$sha_other" ]
+  git -C "$repo" checkout -q "$head"
+  echo uncommitted >>"$repo/a.txt"
+  check "fingerprint: an uncommitted tracked change prints nothing and fails" eval '! sha_other="$(cd "$repo" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main 2>/dev/null)" && [ -z "$sha_other" ]'
+  git -C "$repo" checkout -q -- a.txt
+  echo new >"$repo/untracked.txt"
+  check "fingerprint: an untracked file prints nothing and fails" eval '! sha_other="$(cd "$repo" && /bin/bash "$SCRIPTS/pr-council-review/run.sh" --reuse-sha main 2>/dev/null)" && [ -z "$sha_other" ]'
+  rm "$repo/untracked.txt"
 }
 
 case_reuse_review() {
