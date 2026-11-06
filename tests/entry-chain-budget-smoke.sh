@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
-CAP=420
+CAP=405
 FILES="AGENTS.md workflow/spec.md workflow/agent-rules.md workflow/contract-details.md"
 
 total_lines() {

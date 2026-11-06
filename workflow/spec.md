@@ -174,5 +174,8 @@ remaining write gates (no-comments, read-only agents) stay authoritative code.
 
 ## Runtime surfaces
 
-Full index: `workflow/contract-details.md` § Runtime surfaces (detail). Key surfaces referenced by routing/guards: Claude hooks fragment
-`claude/settings.workflow-hooks.json` and `workflow/plan-archive.md`.
+Surfaces not mapped above: Claude hooks `claude/hooks/` with
+`claude/settings.workflow-hooks.json`; Linear tickets
+`workflow/linear-ticket-template.md`; scaffolded projects keep
+`docs/project-context.md`, `docs/plan/` and `docs/agent-memory/`
+(`workflow/memory.md`).
