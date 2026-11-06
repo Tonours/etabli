@@ -83,9 +83,9 @@ this section only adds detail.
 
 ## Runtime surfaces (detail)
 
-Pi and Claude load the same thin skill adapters over the shared contract.
+Pi, Claude and Codex load the same thin skill adapters over the shared contract.
 
-- Skill adapters (Claude and Pi): `skills/<scope>/<name>/SKILL.md`, catalogued
+- Skill adapters (Claude, Pi and Codex): `skills/<scope>/<name>/SKILL.md`, catalogued
   in `workflow/runtime/skill-surface.tsv`
 - Shared skill contracts: `workflow/skills/`
 - Investigation/evidence contract: `workflow/skills/investigation.md`

@@ -228,7 +228,8 @@ describe("reconcile", () => {
     run(repo, home);
     assert.ok(isLink(join(pi, "alpha")) && isLink(join(claude, "alpha")));
     assert.ok(!isLink(join(pi, "beta")) && isLink(join(claude, "beta")));
-    for (const retired of [".codex", ".config/devin", ".agents"]) assert.ok(!existsSync(join(home, retired)));
+    assert.ok(isLink(join(home, ".codex/skills/alpha")) && isLink(join(home, ".codex/skills/beta")));
+    for (const retired of [".config/devin", ".agents"]) assert.ok(!existsSync(join(home, retired)));
 
     writeSkill(join(tmp, "foreign/suiteB/skills/gamma"), "name: gamma");
     writeSkill(join(tmp, "foreign/suiteA/skills/beta"), "name: beta");
@@ -392,6 +393,16 @@ describe("reconcile", () => {
     run(repo, home, { scopes: ["shared", "work"] });
     assert.ok(!isLink(join(home, ".claude/skills/adr")));
     assert.ok(isLink(join(home, ".pi/agent/skills/adr")));
+  });
+
+  test("a Claude config dir inside a Codex skill skips every Codex link", () => {
+    const repo = vendorRepo();
+    const home = join(tmp, "home");
+    const override = join(home, ".codex/skills/alpha");
+    writeSkill(override, "name: personal");
+    const { lines } = run(repo, home, { claudeRoots: [join(home, ".claude"), override] });
+    assert.ok(lines.some((line) => line.startsWith("WARN Codex links skipped:") && line.includes(override)));
+    assert.ok(!isLink(override) && !existsSync(join(home, ".codex/AGENTS.md")));
   });
 
   test("install mode replaces a foreign link but still backs up a file", () => {

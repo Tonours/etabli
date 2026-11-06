@@ -74,6 +74,26 @@ longer ships.
 The deploy removes the retired `~/.pi/agent/subagents.json` link and requires
 `~/.pi/extensions` to be absent: that path makes Pi load every extension twice.
 
+## Codex links
+
+Codex is a managed runtime again (ADR-0043). Pi reads none of these paths.
+
+- `~/.codex/AGENTS.md` -> `codex/AGENTS.md`, the adapter. Codex has no
+  import, so it tells the model to read `~/.codex/workflow/agent-rules.md`.
+- `~/.codex/workflow/` -> `workflow/`
+- `~/.codex/PLAN_TEMPLATE.md`, `PLAN_TEMPLATE_FULL.md` -> repo root templates
+- `~/.codex/skills/<name>/` -> the same rows as the Claude skills, `adr`
+  withheld under `work` too. Personal folders and foreign links on other
+  names stay.
+
+When `~/.codex` or `~/.codex/skills` overlaps, physically and in either
+direction, a root Pi or Claude reads (`~/.pi`, `~/.agents`, their skill
+folders, every Claude config dir this deploy serves) or an entry those skill
+folders list, the deploy skips every Codex link and reports it unresolved.
+A link you make deeper into `~/.codex/skills` (a nested folder, a single
+`SKILL.md`, a Pi settings skill path) is not checked; the folder it reaches
+moves to `~/.codex/skills.bak/` and Pi then loads the catalog skill.
+
 ## Shared links
 
 `~/.local/bin/fix-links`, `deploy-workflow` and `security-audit-glm` ->
@@ -108,7 +128,7 @@ Scopes has the rules.
 
 ## Not managed
 
-- `~/.agents/`, `~/.codex/skills/` and `~/.config/devin/skills/` (ADR-0031):
+- `~/.agents/` and `~/.config/devin/skills/` (ADR-0031):
   stale links there stay. Pi still reads `~/.agents/skills/`, so the Pi skill
   load check counts what it finds there.
 - Editor, terminal and herdr config, herdr skill included: the

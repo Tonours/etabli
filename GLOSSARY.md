@@ -1,6 +1,6 @@
 # Etabli
 
-Agent harness: shared workflow contracts, adapted for Pi and Claude.
+Agent harness: shared workflow contracts, adapted for Pi, Claude and Codex.
 
 ## Language
 

@@ -5,9 +5,10 @@ Repo-specific instructions for this agent workflow repo.
 ## Architecture
 
 - `claude/` — Claude Code instructions, agents, hooks, scripts and settings fragments
+- `codex/` — Codex adapter, linked as `~/.codex/AGENTS.md` (ADR-0043)
 - `mcp/` — sanitized shared MCP server template (see `docs/mcp-strategy.md`); repo `.mcp.json` is empty
 - `vendor/` — vendored upstream skills (`vendor/sources.tsv`; update with `scripts/update-vendor-skills`)
-- `skills/<scope>/` — first-party skills served to both Claude and Pi (`workflow/runtime/skill-surface.tsv`)
+- `skills/<scope>/` — first-party skills served to Claude, Pi and Codex (`workflow/runtime/skill-surface.tsv`)
 - `workflow-scaffold/templates/` — deployable project workflow scaffold files
 - `workflow/` — canonical workflow contract
 - [`dotfiles`](https://github.com/Tonours/dotfiles) — Neovim, Ghostty, tmux and Herdr config (separate repo)
