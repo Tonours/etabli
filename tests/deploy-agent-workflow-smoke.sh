@@ -35,6 +35,8 @@ ln -s skills/AGENTS.md "$HOME_DIR/.codex/AGENTS.md"
 mkdir -p "$HOME_DIR/.codex/skills/spec" && printf 'personal spec fork\n' >"$HOME_DIR/.codex/skills/spec/SKILL.md"
 ln -s "$TMP_DIR/external-skill" "$HOME_DIR/.codex/skills/foreign-link"
 ln -s "$TMP_DIR/elsewhere/.claude/skills/personal-only" "$HOME_DIR/.codex/skills/personal-only"
+mkdir -p "$TMP_DIR/personal/skills/work/linear-project-setup"
+ln -s "$TMP_DIR/personal/skills/work/linear-project-setup" "$HOME_DIR/.codex/skills/linear-project-setup"
 
 printf '%s\n' '{
   "defaultProvider": "kimi-for-coding",
@@ -171,6 +173,8 @@ grep -Fxq 'personal spec fork' "${spec_backups[0]}/SKILL.md" || {
   exit 1
 }
 assert_link "$HOME_DIR/.codex/skills/personal-only" "$TMP_DIR/elsewhere/.claude/skills/personal-only"
+# A foreign link whose path only ends like an out-of-scope catalog skill stays.
+assert_link "$HOME_DIR/.codex/skills/linear-project-setup" "$TMP_DIR/personal/skills/work/linear-project-setup"
 assert_link "$HOME_DIR/.codex/workflow" "$ROOT_DIR/workflow"
 assert_link "$HOME_DIR/.codex/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
 assert_link "$HOME_DIR/.codex/skills/plan-loop" "$ROOT_DIR/skills/shared/plan-loop"
@@ -207,6 +211,24 @@ if ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --apply --home "$PI_CODEX_HOME_DIR
   exit 1
 fi
 assert_link "$PI_CODEX_HOME_DIR/.pi/agent/AGENTS.md" "$ROOT_DIR/workflow/agent-rules.md"
+# A Pi root nested under a Codex destination is refused too.
+NESTED_HOME_DIR="$TMP_DIR/nested-pi-home"
+mkdir -p "$NESTED_HOME_DIR/.codex/skills/spec" "$NESTED_HOME_DIR/.agents"
+printf 'personal spec\n' >"$NESTED_HOME_DIR/.codex/skills/spec/SKILL.md"
+ln -s ../.codex/skills/spec "$NESTED_HOME_DIR/.agents/skills"
+if ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --apply --home "$NESTED_HOME_DIR" >"$TMP_DIR/nested-pi.out" 2>&1; then
+  printf 'deploy accepted a Pi root nested under ~/.codex/skills\n' >&2
+  exit 1
+fi
+grep -Fxq 'personal spec' "$NESTED_HOME_DIR/.agents/skills/SKILL.md" || { printf 'deploy moved a folder Pi reads\n' >&2; exit 1; }
+LOOP_HOME_DIR="$TMP_DIR/loop-codex-home"
+mkdir -p "$LOOP_HOME_DIR"
+ln -s .codex "$LOOP_HOME_DIR/.codex"
+if ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --apply --home "$LOOP_HOME_DIR" >"$TMP_DIR/loop-codex.out" 2>&1; then
+  printf 'deploy accepted an unresolvable ~/.codex\n' >&2
+  exit 1
+fi
+grep -Fq 'Codex links skipped: cannot resolve' "$TMP_DIR/loop-codex.out" || { cat "$TMP_DIR/loop-codex.out" >&2; exit 1; }
 assert_file "$HOME_DIR/.claude/commands/recap.md"
 grep -Fxq 'personal command' "$HOME_DIR/.claude/commands/recap.md"
 assert_link "$HOME_DIR/.claude/commands/commit.md" "$TMP_DIR/external-command.md"

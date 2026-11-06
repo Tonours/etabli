@@ -423,14 +423,17 @@ function skillSurfaces(ctx) {
   return surfaces;
 }
 
-// The Codex paths, physically, must not overlap a root Pi or Claude reads, or
-// Codex links would land in that runtime's universe.
+// The Codex paths, physically, must not overlap a root Pi or Claude reads in
+// either direction, or Codex writes would land in that runtime's universe.
+// Returns why Codex is skipped, or null.
 function codexOverlap(ctx) {
   const read = [".pi", ".agents", ".agents/skills", PI_SKILLS].map((root) => join(ctx.homeDir, root));
   const roots = [...read, ctx.claudeRoot, join(ctx.claudeRoot, "skills")].map((root) => physicalPath(root));
-  for (const path of [join(ctx.homeDir, ".codex"), join(ctx.homeDir, CODEX_SKILLS)].map((codex) => physicalPath(codex))) {
-    const root = roots.find((candidate) => candidate !== null && (path === null || path === candidate || under(path, candidate)));
-    if (root) return root;
+  for (const codex of [join(ctx.homeDir, ".codex"), join(ctx.homeDir, CODEX_SKILLS)]) {
+    const path = physicalPath(codex);
+    if (path === null) return `cannot resolve ${codex}`;
+    const root = roots.find((candidate) => candidate !== null && (path === candidate || under(path, candidate) || under(candidate, path)));
+    if (root) return `${codex} overlaps ${root}, which Pi or Claude reads`;
   }
   return null;
 }
@@ -452,6 +455,8 @@ function pruneSkillLinks(ctx, surface, dir) {
       continue;
     }
     const record = matchingRecord(ctx, name, raw);
+    // Codex homes predate Etabli: only links into this checkout count as managed there.
+    if (record && surface === CODEX_SKILLS && !inRepo(ctx, linkTarget(link, raw))) continue;
     if (record) {
       const shadowed = surface !== PI_SKILLS && isShadowed(name, ctx.scopes);
       if (shadowed || !surfaceExpected(surface, record, ctx.scopes)) pruneLink(ctx, link, `skill ${name} not expected in ${surface}`);
@@ -541,7 +546,7 @@ function reconcileCodex(ctx) {
   const codexDir = join(homeDir, ".codex");
   ctx.emit("SECTION", "Codex");
   if (!ctx.codexReady) {
-    unresolved(ctx, "WARN", `Codex links skipped: ~/.codex resolves into ${codexOverlap(ctx)}, which Pi or Claude reads`);
+    unresolved(ctx, "WARN", `Codex links skipped: ${codexOverlap(ctx)}`);
     return;
   }
   ensureLink(ctx, join(repoDir, "codex/AGENTS.md"), join(codexDir, "AGENTS.md"), "Codex AGENTS.md");

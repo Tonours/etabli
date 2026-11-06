@@ -177,7 +177,7 @@ has the details and the known blind spots.
 | `workflow/` | Routing, plans, guards, loops, validation contracts |
 | `pi/`, `claude/` | Runtime adapters: settings, extensions, hooks, agents |
 | `codex/` | Codex adapter, linked as `~/.codex/AGENTS.md` |
-| `skills/` | First-party skills, one tree for both runtimes |
+| `skills/` | First-party skills, one tree for every runtime |
 | `vendor/`, `skills-lock.json` | Vendored skills, pinned by `UPSTREAM_SHA` and locked |
 | `extras/` | Skills tracked but not deployed |
 | `workflow-scaffold/` | Files `scripts/deploy-workflow` copies into a project |
