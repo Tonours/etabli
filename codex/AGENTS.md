@@ -26,8 +26,7 @@ and Pi load (ADR-0043).
   the last run, and update it before the final answer.
 - Local Codex audits: read only scoped Codex state, history and log files,
   aggregate first, and never open auth files, keys or tokens.
+- Shell commands: when `~/.codex/RTK.md` exists, read it and follow it.
 
 ## Safety
 - Never expose or commit secrets.
-
-@~/.codex/RTK.md

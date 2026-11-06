@@ -5,8 +5,8 @@
 
 Etabli gives your coding agents one way of working. Pi and Claude Code read the
 same rules, follow the same plan-then-build loop and run the same guards, so a
-task behaves the same whichever agent picks it up. Codex reads the same rules
-and skills too, without the guards (ADR-0043).
+task behaves the same whichever agent picks it up. Codex is pointed at the same
+rules and skills, without the guards (ADR-0043).
 
 *Établi* is French for a craftsman's workbench: one bench, the same tools, put
 back in the same place every time.
@@ -20,8 +20,8 @@ Setting up a second machine means copying config by hand.
 
 Etabli fixes that with:
 
-- **One contract, two harnesses.** The rules live once, in
-  [`workflow/`](workflow/). Pi and Claude reach them through thin adapters, so
+- **One contract, three harnesses.** The rules live once, in
+  [`workflow/`](workflow/). Pi, Claude and Codex reach them through thin adapters, so
   you never maintain two prompt files.
 - **Plans before risky work.** Broad or risky work gets a root `PLAN.md`.
   Nothing is implemented until that plan is `READY`, and a finished plan is

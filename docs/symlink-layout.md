@@ -86,6 +86,9 @@ Codex is a managed runtime again (ADR-0043). Pi reads none of these paths.
   withheld under `work` too. Personal folders and foreign links on other
   names stay.
 
+When `~/.codex` or `~/.codex/skills` resolves onto or inside a root Pi or
+Claude reads, the deploy skips every Codex link and reports it unresolved.
+
 ## Shared links
 
 `~/.local/bin/fix-links`, `deploy-workflow` and `security-audit-glm` ->

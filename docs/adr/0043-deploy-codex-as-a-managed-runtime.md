@@ -25,8 +25,9 @@ under a fixture `CODEX_HOME` listed the symlinked catalog skills and quoted
 the symlinked adapter.
 
 The former hand-kept `~/.codex/AGENTS.md` was mapped directive by directive:
-rules already in `workflow/agent-rules.md` are shared, the RTK include and
-the automation and audit rules are kept in the adapter, and the retired
+rules already in `workflow/agent-rules.md` are shared, the RTK include
+becomes a pointer to read `~/.codex/RTK.md` when present, the automation and
+audit rules are kept in the adapter, and the retired
 `answer-quality-check`, the missing `workflow/team-orchestration.md` and the
 approval-before-push rule (replaced by `workflow/spec.md` § Human
 checkpoints) are dropped. Deploy backs the old file up beside the new link.
@@ -34,7 +35,9 @@ checkpoints) are dropped. Deploy backs the old file up beside the new link.
 ## Consequences
 
 - Pi reads neither `~/.codex/skills` nor `~/.codex/AGENTS.md`, so Pi's
-  skill universe is unchanged; the deploy smoke asserts it.
+  skill universe is unchanged; the deploy smoke asserts it. When `~/.codex`
+  or `~/.codex/skills` resolves onto or inside a root Pi or Claude reads, the
+  deploy skips every Codex link and fails instead of writing through.
 - A real folder in `~/.codex/skills` on a managed skill name moves to
   `~/.codex/skills.bak/`; other personal folders and foreign links stay.
 - Codex sessions only see new links after a restart.

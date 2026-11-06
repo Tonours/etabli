@@ -27,10 +27,14 @@ ln -s "$ROOT_DIR/claude/scopes/shared/skills/spec" "$HOME_DIR/.claude/skills/spe
 ln -s "$TMP_DIR/external-skill" "$HOME_DIR/.claude/skills/verify-workflow"
 mkdir -p "$HOME_DIR/.pi/agent/skills"
 ln -s "$ROOT_DIR/pi/skills/verify" "$HOME_DIR/.pi/agent/skills/verify"
-# Codex home: a foreign real adapter, a personal skill folder and a foreign skill link.
-mkdir -p "$HOME_DIR/.codex/skills/personal-codex"
-printf 'personal codex rules\n' >"$HOME_DIR/.codex/AGENTS.md"
+# Codex home: the live layout (adapter as a relative link to a real file in
+# skills/), a personal folder on a catalog name, a hidden folder, foreign links.
+mkdir -p "$HOME_DIR/.codex/skills/personal-codex" "$HOME_DIR/.codex/skills/linear-work" "$HOME_DIR/.codex/skills/.system"
+printf 'personal codex rules\n' >"$HOME_DIR/.codex/skills/AGENTS.md"
+ln -s skills/AGENTS.md "$HOME_DIR/.codex/AGENTS.md"
+mkdir -p "$HOME_DIR/.codex/skills/spec" && printf 'personal spec fork\n' >"$HOME_DIR/.codex/skills/spec/SKILL.md"
 ln -s "$TMP_DIR/external-skill" "$HOME_DIR/.codex/skills/foreign-link"
+ln -s "$TMP_DIR/elsewhere/.claude/skills/personal-only" "$HOME_DIR/.codex/skills/personal-only"
 
 printf '%s\n' '{
   "defaultProvider": "kimi-for-coding",
@@ -153,23 +157,48 @@ collision_backups=( "$HOME_DIR/.claude/skills.bak"/verify-workflow.bak.* )
 }
 assert_link "$HOME_DIR/.codex/AGENTS.md" "$ROOT_DIR/codex/AGENTS.md"
 codex_backups=( "$HOME_DIR/.codex"/AGENTS.md.bak.* )
-grep -Fxq 'personal codex rules' "${codex_backups[0]}" || {
-  printf 'deploy replaced the foreign Codex AGENTS.md without a backup\n' >&2
+[ -L "${codex_backups[0]}" ] && grep -Fxq 'personal codex rules' "${codex_backups[0]}" || {
+  printf 'deploy replaced the foreign Codex AGENTS.md without a working backup\n' >&2
   exit 1
 }
+spec_backups=( "$HOME_DIR/.codex/skills.bak"/spec.bak.* )
+grep -Fxq 'personal spec fork' "${spec_backups[0]}/SKILL.md" || {
+  printf 'deploy did not move the personal Codex spec folder to skills.bak\n' >&2
+  exit 1
+}
+[ -d "$HOME_DIR/.codex/skills/.system" ] && [ -d "$HOME_DIR/.codex/skills/linear-work" ] || {
+  printf 'deploy touched a hidden or out-of-scope Codex folder\n' >&2
+  exit 1
+}
+assert_link "$HOME_DIR/.codex/skills/personal-only" "$TMP_DIR/elsewhere/.claude/skills/personal-only"
 assert_link "$HOME_DIR/.codex/workflow" "$ROOT_DIR/workflow"
 assert_link "$HOME_DIR/.codex/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
 assert_link "$HOME_DIR/.codex/skills/plan-loop" "$ROOT_DIR/skills/shared/plan-loop"
 assert_link "$HOME_DIR/.codex/skills/spec" "$ROOT_DIR/skills/shared/spec"
-assert_absent "$HOME_DIR/.codex/skills/linear-work"
 [ -d "$HOME_DIR/.codex/skills/personal-codex" ] || { printf 'deploy moved a personal Codex skill folder\n' >&2; exit 1; }
 assert_link "$HOME_DIR/.codex/skills/foreign-link" "$TMP_DIR/external-skill"
 # Codex skills stay out of every root Pi reads.
 assert_absent "$HOME_DIR/.agents"
-if find "$HOME_DIR/.pi/agent/skills" -maxdepth 1 -type l -exec readlink {} \; | grep -q '/\.codex/'; then
-  printf 'a Pi skill link points into the Codex home\n' >&2
+# A Codex skills root that resolves inside a Pi root (Pi may scan nested
+# folders) or onto one is refused, not written through.
+SHARED_HOME_DIR="$TMP_DIR/shared-codex-home"
+mkdir -p "$SHARED_HOME_DIR/.pi/agent/skills/codex" "$SHARED_HOME_DIR/.codex"
+ln -s ../.pi/agent/skills/codex "$SHARED_HOME_DIR/.codex/skills"
+if ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --apply --home "$SHARED_HOME_DIR" >"$TMP_DIR/shared-codex.out" 2>&1; then
+  printf 'deploy accepted a Codex skills root inside a Pi root\n' >&2
   exit 1
 fi
+grep -Fq 'Codex links skipped' "$TMP_DIR/shared-codex.out" || { cat "$TMP_DIR/shared-codex.out" >&2; exit 1; }
+assert_absent "$SHARED_HOME_DIR/.pi/agent/skills/codex/spec"
+assert_link "$SHARED_HOME_DIR/.pi/agent/skills/plan-loop" "$ROOT_DIR/skills/shared/plan-loop"
+AGENTS_HOME_DIR="$TMP_DIR/agents-codex-home"
+mkdir -p "$AGENTS_HOME_DIR/.codex/skills" "$AGENTS_HOME_DIR/.agents"
+ln -s ../.codex/skills "$AGENTS_HOME_DIR/.agents/skills"
+if ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --apply --home "$AGENTS_HOME_DIR" >"$TMP_DIR/agents-codex.out" 2>&1; then
+  printf 'deploy wrote Codex skills into a root Pi reads through ~/.agents/skills\n' >&2
+  exit 1
+fi
+assert_absent "$AGENTS_HOME_DIR/.codex/skills/spec"
 assert_file "$HOME_DIR/.claude/commands/recap.md"
 grep -Fxq 'personal command' "$HOME_DIR/.claude/commands/recap.md"
 assert_link "$HOME_DIR/.claude/commands/commit.md" "$TMP_DIR/external-command.md"

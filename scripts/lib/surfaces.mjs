@@ -418,8 +418,21 @@ function pruneStaleChildren(ctx, dir, managedParent, label, suffix) {
 
 function skillSurfaces(ctx) {
   const surfaces = [[CLAUDE_SKILLS, join(ctx.claudeRoot, "skills")]];
-  if (!ctx.claudeOnly) surfaces.unshift([PI_SKILLS, join(ctx.homeDir, PI_SKILLS)], [CODEX_SKILLS, join(ctx.homeDir, CODEX_SKILLS)]);
+  if (!ctx.claudeOnly) surfaces.unshift([PI_SKILLS, join(ctx.homeDir, PI_SKILLS)]);
+  if (ctx.codexReady) surfaces.splice(1, 0, [CODEX_SKILLS, join(ctx.homeDir, CODEX_SKILLS)]);
   return surfaces;
+}
+
+// The Codex paths, physically, must not overlap a root Pi or Claude reads, or
+// Codex links would land in that runtime's universe.
+function codexOverlap(ctx) {
+  const read = [".pi", ".agents", ".agents/skills", PI_SKILLS].map((root) => join(ctx.homeDir, root));
+  const roots = [...read, ctx.claudeRoot, join(ctx.claudeRoot, "skills")].map((root) => physicalPath(root));
+  for (const path of [join(ctx.homeDir, ".codex"), join(ctx.homeDir, CODEX_SKILLS)].map((codex) => physicalPath(codex))) {
+    const root = roots.find((candidate) => candidate !== null && (path === null || path === candidate || under(path, candidate)));
+    if (root) return root;
+  }
+  return null;
 }
 
 function matchingRecord(ctx, name, raw) {
@@ -434,7 +447,7 @@ function pruneSkillLinks(ctx, surface, dir) {
     const name = basename(link);
     const raw = readLinkOrNull(link);
     if (raw === null) continue;
-    if (raw.includes("/.claude/skills/") && !existsSync(link)) {
+    if (surface !== CODEX_SKILLS && raw.includes("/.claude/skills/") && !existsSync(link)) {
       pruneLink(ctx, link, `broken cross-surface mirror ${name} from ${surface}`);
       continue;
     }
@@ -527,6 +540,10 @@ function reconcileCodex(ctx) {
   const { repoDir, homeDir } = ctx;
   const codexDir = join(homeDir, ".codex");
   ctx.emit("SECTION", "Codex");
+  if (!ctx.codexReady) {
+    unresolved(ctx, ctx.mode === "check" ? "WARN" : "FAIL", `Codex links skipped: ~/.codex resolves into ${codexOverlap(ctx)}, which Pi or Claude reads`);
+    return;
+  }
   ensureLink(ctx, join(repoDir, "codex/AGENTS.md"), join(codexDir, "AGENTS.md"), "Codex AGENTS.md");
   ensureLink(ctx, join(repoDir, "workflow"), join(codexDir, "workflow"), "Codex workflow");
   for (const template of ["PLAN_TEMPLATE.md", "PLAN_TEMPLATE_FULL.md"]) {
@@ -588,6 +605,7 @@ function reconcileClaude(ctx) {
 
 export function reconcile(options, emit) {
   const ctx = { ...options, repoReal: realpath(options.repoDir), emit, counts: { issues: 0, fixed: 0, unresolved: 0 } };
+  ctx.codexReady = !ctx.claudeOnly && codexOverlap(ctx) === null;
   if (!ctx.claudeOnly) {
     reconcilePi(ctx);
     reconcileCodex(ctx);

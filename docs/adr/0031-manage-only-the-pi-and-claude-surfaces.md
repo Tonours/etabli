@@ -18,6 +18,6 @@ Etabli deploys skills, workflow links and the /etabli cockpit to Claude Code and
 ## Consequences
 
 - Pi still loads ~/.agents/skills natively, so pi-skill-load-check and pi-dmi-stamp keep reading it to measure Pi's prompt; they deploy nothing there.
-- Codex stays available as a model provider for adversary passes; only its skill surface is retired.
+- Codex stays available as a model provider for adversary passes; only its skill surface is retired. Superseded by ADR-0043: Codex is a managed runtime again.
 - A new harness needs a new ADR and its own deploy block.
 - The /etabli plugin is installed through the etabli-local folder marketplace in claude/mods, read from the checkout.
