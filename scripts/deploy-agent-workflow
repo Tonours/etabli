@@ -200,7 +200,8 @@ for (const root of roots) {
   const counts = reconcile(pass, emit);
   for (const key of Object.keys(totals)) totals[key] += counts[key];
   if (options.check) {
-    if (pass.live) {
+    // ETABLI_SKIP_SKILL_LOAD_CHECKS=1 keeps link-only fixtures (fix-links smoke) out of these checks.
+    if (pass.live && process.env.ETABLI_SKIP_SKILL_LOAD_CHECKS !== "1") {
       const failures = skillLoadChecks(pass);
       totals.issues += failures;
       totals.unresolved += failures;

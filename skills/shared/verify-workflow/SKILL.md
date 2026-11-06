@@ -1,6 +1,6 @@
 ---
 name: verify-workflow
-description: Verifies or retests a claim without editing. Use when evidence must confirm or reject a stated claim; not for fixing, implementing or open-ended research.
+description: Verifies or retests a claim without editing. Use when evidence must confirm or reject a claim; not for fixing, implementing or open-ended research.
 argument-hint: [target claim or checks]
 allowed-tools: [Read, Glob, Grep, AskUserQuestion]
 ---

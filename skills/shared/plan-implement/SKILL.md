@@ -1,6 +1,6 @@
 ---
 name: plan-implement
-description: Plans, then implements the same task in one run once PLAN.md is READY. Use for multi-step work needing a plan and its implementation; not for planning alone or plan-free fixes.
+description: Plans, then implements a task in one run once PLAN.md is READY. Use for multi-step work needing a plan and its implementation; not for planning alone or plan-free fixes.
 argument-hint: [task description]
 allowed-tools: [Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion, Agent, Skill]
 ---

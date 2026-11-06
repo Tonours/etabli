@@ -282,4 +282,16 @@ exec 3>&-
 [ "$stdin_status" -ne 142 ] || fail "native pi run must not wait on an open stdin"
 grep -q "native dump failed" "$TMP_DIR/stdin-out.txt" || fail "native pi run with an empty dump unexplained"
 
+# The native render stays read-only and global: no extension discovery, and it
+# runs outside the caller's project so project skills cannot enter the block.
+ARGV_PI_BIN="$TMP_DIR/argv-pi-bin"
+mkdir -p "$ARGV_PI_BIN" "$TMP_DIR/caller-project/.pi/skills"
+printf '#!/bin/sh
+printf "%%s\\n%%s\\n" "$PWD" "$*" >"%s"\n' "$TMP_DIR/pi-argv.txt" >"$ARGV_PI_BIN/pi"
+chmod +x "$ARGV_PI_BIN/pi"
+(cd "$TMP_DIR/caller-project" && PATH="$ARGV_PI_BIN:$PATH" "$CHECK" --home "$STDIN_HOME" >/dev/null 2>&1) || :
+[ -f "$TMP_DIR/pi-argv.txt" ] || fail "native render must invoke pi"
+grep -q -- "--no-extensions" "$TMP_DIR/pi-argv.txt" || fail "native render must disable extension discovery: $(cat "$TMP_DIR/pi-argv.txt")"
+[ "$(head -1 "$TMP_DIR/pi-argv.txt")" != "$(cd "$TMP_DIR/caller-project" && pwd -P)" ] || fail "native render must not run in the caller's project"
+
 printf '%s\n' "PASS: pi-skill-load-check fixture assertions"

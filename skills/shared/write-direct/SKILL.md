@@ -1,6 +1,6 @@
 ---
 name: write-direct
-description: Rewrites internal docs and messages in Anthony's direct, informal voice (French by default). Use only on an explicit tone request or /write-direct; not for commits, PRs or code.
+description: Writes or rewrites docs and messages in Anthony's direct, informal voice (French by default). Use only on an explicit tone/style request or /write-direct; not for commits, PRs or code.
 ---
 
 # write-direct: direct voice for internal docs and messages

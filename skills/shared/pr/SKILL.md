@@ -1,6 +1,6 @@
 ---
 name: pr
-description: Writes and opens a pull request in the What, Why, How to test body contract, in the owner's direct voice. Use when opening a PR or rewriting its description; not for PR review (review, pr-council-review).
+description: Writes and opens a PR in the What, Why, How to test body contract, in the owner's direct voice. Use when opening a PR or rewriting its description; not for PR review (review, pr-council-review).
 ---
 
 # pr: open a pull request
