@@ -12,12 +12,12 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 PROMPT_FILE="$HERE/delta-prompt.md"
 . "$HERE/../pr-council-review/lib.sh"
 
-USAGE_TARGET="$REPO#$NUMBER"
 FINDINGS_SCHEMA='{"type":"object","additionalProperties":false,"required":["findings","confident"],"properties":{"findings":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["path","line","body","severity","verification"],"properties":{"path":{"type":"string","minLength":1},"line":{"type":"integer","minimum":1},"body":{"type":"string","minLength":1},"severity":{"type":"string","enum":["high","medium","low"]},"verification":{"type":"string","enum":["confirmed","unverified"]}}}},"confident":{"type":"boolean"}}}'
 
 META="$(gh pr view "$NUMBER" --repo "$REPO" --json headRefOid,baseRefName,url \
   --jq '[.headRefOid, .baseRefName, .url] | @tsv')" || { echo "cannot read $REPO#$NUMBER" >&2; exit 1; }
 IFS=$'\t' read -r HEAD_SHA BASE_REF PR_URL <<<"$META"
+USAGE_TARGET="$REPO#$NUMBER@$HEAD_SHA"
 if [ -n "$EXPECTED_SHA" ] && [ "$HEAD_SHA" != "$EXPECTED_SHA" ]; then
   echo "=== delta: head moved from ${EXPECTED_SHA:0:8} to ${HEAD_SHA:0:8}; no verdict for the requested commit" >&2
   exit "$REVIEW_INCOMPLETE_RC"

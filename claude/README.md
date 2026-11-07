@@ -190,6 +190,14 @@ Explicit reviewer models, effort and turn limits stay unchanged. Plugin
 
 ## PR autoreview
 
+Review usage and timing share `~/.claude/logs/pr-review-usage.log`. The target
+field is `repo#PR@<40-character-head-SHA>` across council, watcher verification,
+delta and autoreview, so runs on different commits stay distinct. Legacy rows
+without a SHA remain unbound; never infer one. Compare native input/cache-write/
+cache-read/output categories and task outcomes on matching scopes. These logs can
+be inspected alongside Fleet measurements; no automatic Fleet log importer or
+measured token saving is implied.
+
 `scopes/work/scripts/pr-autoreview/` reviews your own PRs. A husky `pre-push`
 hook detaches a runner that waits for the pushed head, checks that the PR
 author is the `gh` user, and reviews the PR against `profiles/<profile>.md`,
