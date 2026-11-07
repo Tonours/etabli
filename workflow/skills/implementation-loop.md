@@ -55,6 +55,9 @@ never downgrade mid-run.
 - Phase changes load the active route; prior procedures, decisions and tasks are
   evidence, not active work. User authority, safety gates and open findings persist.
   Keep review context isolation (`workflow/skills/review.md`).
+- At the next stable checkpoint after a material unexpected failure, recovered
+  or unresolved, use `workflow/skills/investigation.md` § Learning from run evidence.
+  This adds no retry allowance, per-tool judge or change to the no-progress stop.
 - A session handoff goes in `PLAN.md` § Notes / Handoff: goal/phase, branch/SHA,
   proved checks, open findings, evidence paths, next action and do-not-redo.
   Replace stale state, never paste a transcript. Finish or hand off a started migration.
