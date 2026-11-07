@@ -803,7 +803,7 @@ describe("Claude managed env", () => {
     assert.equal(JSON.parse(readFileSync(f.settings)).env, undefined);
   });
   test("bounds version output and stalled probes without exposing output", () => {
-    for (const script of ["printf '2.1.300 '; head -c 5000 /dev/zero | tr '\\000' x", "exec sleep 10"]) {
+    for (const script of ["printf '2.1.300 %5000s' x", "exec sleep 10"]) {
       const original = { skillOverrides: {}, env: { TOKEN: secret, CLAUDE_CODE_SUBAGENT_MODEL: "opus" } };
       const f = fixture({ CLAUDE_CODE_SUBAGENT_MODEL: "sonnet" }, original);
       writeFileSync(f.claude, `#!/bin/sh\n${script}\n`);
@@ -812,7 +812,7 @@ describe("Claude managed env", () => {
       assert.equal(child.status, 0, child.stderr);
       assert.match(child.stderr, /WARN.*2.1.251/);
       assert.ok(Date.now() - start < 6500, "version probe exceeded its deadline");
-      assert.equal(child.stdout.includes("xxxx"), false);
+      assert.equal((child.stdout + child.stderr).includes("2.1.300 "), false);
       assert.deepEqual(JSON.parse(readFileSync(f.settings)), original);
     }
   });

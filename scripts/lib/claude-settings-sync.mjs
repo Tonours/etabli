@@ -167,7 +167,7 @@ if (Object.keys(managedEnv ?? {}).length > 0) {
   const version = spawnSync("claude", ["--version"], { encoding: "utf8", timeout: 5000, maxBuffer: 4096 });
   const match = /^(\d+)\.(\d+)\.(\d+)(?:\s|$)/.exec(version.stdout ?? "");
   const [major, minor, patch] = match ? match.slice(1).map(Number) : [];
-  const supported = version.status === 0 && (major > 2 || (major === 2 && (minor > 1 || (minor === 1 && patch >= 251))));
+  const supported = !version.error && version.status === 0 && (major > 2 || (major === 2 && (minor > 1 || (minor === 1 && patch >= 251))));
   if (!supported) {
     console.error("WARN           Claude env default skipped: requires Claude Code >=2.1.251 on PATH; install/upgrade it and rerun deploy");
     managedEnv = undefined;
