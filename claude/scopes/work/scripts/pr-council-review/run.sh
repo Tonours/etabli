@@ -7,18 +7,53 @@ usage() {
   echo "                              [--no-codex] [--codex-model <model>] [--codex-effort <level>]" >&2
   echo "                              [--phase-a-only | --with-validator] [--reuse-review <file>]" >&2
   echo "       run.sh --reuse-sha <base-ref>   print the --reuse-review fingerprint of HEAD" >&2
+  echo "       run.sh --record-review <base-ref> <report-file> <output-file>   atomically package a completed eligible review" >&2
   exit 2
 }
 
-if [ "${1:-}" = --reuse-sha ]; then
-  [ $# -eq 2 ] || usage
+if [ "${1:-}" = --reuse-sha ] || [ "${1:-}" = --record-review ]; then
+  if [ "$1" = --record-review ]; then
+    [ $# -eq 4 ] || usage
+  else
+    [ $# -eq 2 ] || usage
+  fi
   . "$(cd "$(dirname "$0")" && pwd)/lib.sh"
+  for key in GIT_INDEX_FILE GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES; do
+    if declare -p "$key" >/dev/null 2>&1; then
+      echo "no fingerprint: unset $key and retry from the reviewed checkout" >&2
+      exit 1
+    fi
+  done
+  CONFIG_RC=0
+  git -c core.fsmonitor=false config --get core.worktree >/dev/null || CONFIG_RC=$?
+  [ "$CONFIG_RC" -eq 1 ] || { echo "no fingerprint: core.worktree configured or unreadable config; keep required submodule settings and use a standard checkout or full phase A" >&2; exit 1; }
+  FLAGS="$(git -c core.fsmonitor=false ls-files -v)" || { echo "no fingerprint: git index inspection failed" >&2; exit 1; }
+  if LC_ALL=C grep -q '^[a-zS] ' <<<"$FLAGS"; then
+    echo "no fingerprint: remove assume-unchanged/skip-worktree flags and review the visible changes" >&2
+    exit 1
+  fi
   # The fingerprint covers commits only: a reviewed workspace patch must be committed first.
   # Explicit flags, so status settings cannot hide untracked files or submodule changes.
-  REUSE_DIRT="$(git status --porcelain --untracked-files=all --ignore-submodules=none)" || { echo "no fingerprint: git status failed" >&2; exit 1; }
+  REUSE_DIRT="$(git -c core.fsmonitor=false status --porcelain --untracked-files=all --ignore-submodules=none)" || { echo "no fingerprint: git status failed" >&2; exit 1; }
   [ -z "$REUSE_DIRT" ] || { echo "no fingerprint: commit the reviewed files, remove or ignore stray ones:" >&2; printf '%s\n' "$REUSE_DIRT" >&2; exit 1; }
   REUSE_BASE="$(git merge-base "$2" HEAD)" || { echo "no merge base between $2 and HEAD" >&2; exit 1; }
-  reuse_patch_sha "$REUSE_BASE" HEAD || { echo "no fingerprint: git diff failed or HEAD adds nothing to $2" >&2; exit 1; }
+  PATCH_SHA="$(reuse_patch_sha "$REUSE_BASE" HEAD)" || { echo "no fingerprint: git diff failed or HEAD adds nothing to $2" >&2; exit 1; }
+  if [ "$1" = --record-review ]; then
+    [ -f "$3" ] || { echo "no record: provide a readable nonempty review report" >&2; exit 1; }
+    [ ! -d "$4" ] || { echo "no record: output must be a file, not a directory" >&2; exit 1; }
+    OUTPUT="$4"
+    case "$OUTPUT" in /*) ;; *) OUTPUT="./$OUTPUT" ;; esac
+    RECORD="$(mktemp "${TMPDIR:-/tmp}/pr-review-record.XXXXXX")" || exit 1
+    OUTPUT_TEMP=""
+    trap 'rm -f "$RECORD"; [ -z "$OUTPUT_TEMP" ] || rm -f "$OUTPUT_TEMP"' EXIT
+    cat <"$3" >"$RECORD" || { echo "no record: cannot read the report" >&2; exit 1; }
+    [ -s "$RECORD" ] || { echo "no record: report became empty" >&2; exit 1; }
+    OUTPUT_TEMP="$(mktemp "$(dirname "$OUTPUT")/.pr-review-record.XXXXXX")" || exit 1
+    { printf 'patch-sha256: %s\n' "$PATCH_SHA" && cat "$RECORD"; } >"$OUTPUT_TEMP" || exit 1
+    node -e 'try { require("node:fs").renameSync(process.argv[1], process.argv[2]); } catch (e) { console.error("no record: output rename failed (" + e.code + "); choose a writable file path"); process.exit(1); }' "$OUTPUT_TEMP" "$OUTPUT" || exit 1
+  else
+    printf '%s\n' "$PATCH_SHA"
+  fi
   exit 0
 fi
 

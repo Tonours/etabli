@@ -24,9 +24,14 @@ Rules:
   passes match the council's phase A on the same acceptance criteria (two
   fresh-context reviews plus a cross-family pass with effective-model
   provenance), commit the reviewed patch, then write the round to a file
-  outside the repo whose first line is `patch-sha256: ` followed by
-  `~/.claude/scripts/pr-council-review/run.sh --reuse-sha origin/<base>` (after a
-  fetch, so it matches the PR's merge base).
+  outside the repo with `~/.claude/scripts/pr-council-review/run.sh
+  --record-review origin/<base> <complete-round-report> <reuse-file>` after a
+  fetch. Keep the destination outside the checkout or ignored. It is replaced
+  atomically with private permissions; a failure leaves its prior bytes intact.
+  Check the exit code. This packages the committed patch fingerprint plus exact
+  report bytes; it does not certify the
+  passes, effective-model provenance or matching criteria. Pass an eligible file
+  explicitly to the council with `--reuse-review`; keep private paths out of PRs.
 
 ## Delivery
 

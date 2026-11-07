@@ -105,6 +105,19 @@ or a validator review already on the head (phase A only mode), prints
 recorded passes match phase A on the same acceptance criteria: two
 fresh-context reviews plus a cross-family pass with effective-model provenance.
 
+Prepare that file after fetching the base and committing the reviewed patch:
+`run.sh --record-review origin/<base> <complete-round-report> <reuse-file>`.
+Keep the destination outside the checkout or ignored. A private same-directory
+temporary file is renamed atomically; failures preserve its previous contents.
+Directory destinations refuse. It writes the fingerprint header and exact report bytes, refusing missing/empty
+reports, dirty workspaces, masked index flags and Git repository/index/object-store
+environment overrides. Both modes also refuse configured `core.worktree` and
+config-read errors, and disable fsmonitor. Ordinary diff settings still work.
+Submodule checkouts also refuse; retain their Git config and use full phase A.
+The recorder uses Node's rename primitive so a concurrent directory also refuses.
+Packaging certifies no review: verify eligibility/provenance before passing it.
+The file stays private; the validator still examines its findings against code.
+
 When the script exits, report: the PR, what each phase found, how many phase A
 candidates survived the skeptic gate, whether anything was posted, and the path
 to the kept reports. Do not restate the full reports; they already went to
