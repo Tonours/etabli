@@ -169,6 +169,25 @@ limit>` for till-done loops. Pi and Claude orchestration parity lives in
 [`../workflow/skills/orchestration.md`](../workflow/skills/orchestration.md);
 Task* state is Pi-only.
 
+Sync supports optional `env.CLAUDE_CODE_SUBAGENT_MODEL` (for example `sonnet`).
+It stays unset in the shared fragment until all runtimes (including SDK/IDE CLIs) are verified.
+An explicitly tracked key overwrites its local value; other local `env` keys and
+values are preserved without logging. On Claude Code >=2.1.251, this is a default for
+subagents with no explicit model: per-call model and agent frontmatter
+(including `inherit`) take precedence. Explicit Opus adversaries remain Opus.
+`CLAUDE_CODE_SUBAGENT_MODEL_FORCE` is not managed; if set by the user, native
+forced-model behavior still applies. Older Claude versions gave the default
+env key higher precedence; upgrade before using this policy. See the
+[native model resolution order](https://code.claude.com/docs/en/sub-agents#choose-a-model).
+The PATH version probe is a partial check, not certification of other runtimes.
+Sync probes `claude --version` on PATH (5 s cap). On an old, missing or
+unrecognized runtime, it warns and skips only the managed env key; other
+tracked settings still sync. Existing local env values remain untouched.
+Council launchers exclude user settings but do not scrub an inherited process
+env: a model-less descendant can receive this default from a Claude caller.
+Explicit reviewer models, effort and turn limits stay unchanged. Plugin
+`model: inherit` remains explicit. No measured token saving is established.
+
 ## PR autoreview
 
 `scopes/work/scripts/pr-autoreview/` reviews your own PRs. A husky `pre-push`

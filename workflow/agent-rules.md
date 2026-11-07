@@ -46,9 +46,9 @@
   whose GitHub org is listed in the machine-local `~/.config/etabli/work-orgs`; all other projects use
   `alambic-obvault` / `~/work/obvault`. Match GitHub remote organization, not machine scope; no
   cross-vault fallback. See `workflow/skills/obvault-memory.md`.
-- Fleet: when you run under fleet (`FLEET_SESSION_ID` set) or operate it, read
-  brain `ref/fleet-memory.md` first (`vault_read`, or the file in `~/work/brain`),
-  whatever the repo; it is fleet's global memory. Skip when brain is absent.
+- Fleet: read brain `ref/fleet-memory.md` (`vault_read`, or `~/work/brain`) when
+  operating Fleet (CLI/daemon/skill, reporting or host questions) or working in
+  GitHub `Tonours/fleet`. `FLEET_SESSION_ID` alone is not a trigger. Skip when brain is absent.
 - Tickets: `workflow/ticket-template.md`; one behavior per PR.
 - Branches and commits: `workflow/git-contract.md`. Branch
   `<type>/<ticket-id>-<short-slug>`, slug 3 words max, under 50 chars. Commit

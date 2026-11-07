@@ -671,3 +671,168 @@ describe("settings writes", () => {
     assert.equal(backupFile(path, { stamp: "20261023T063547Z" }), `${path}.bak.20261023T063547Z.1`);
   });
 });
+
+
+describe("Claude managed env", () => {
+  const sync = fileURLToPath(new URL("../scripts/lib/claude-settings-sync.mjs", import.meta.url));
+  const secret = "SYNTHETIC_PRIVATE_VALUE_NEVER_LOG";
+  function fixture(env, local = { skillOverrides: {} }) {
+    const bin = join(tmp, "bin");
+    mkdirSync(bin, { recursive: true });
+    const claude = join(bin, "claude");
+    writeFileSync(claude, "#!/bin/sh\nprintf '%s\\n' '2.1.251 (Claude Code)'\n");
+    chmodSync(claude, 0o755);
+    const tracked = join(tmp, "tracked.json");
+    const settings = join(tmp, "settings.json");
+    writeFileSync(tracked, JSON.stringify({ skillOverrides: {}, env }));
+    writeFileSync(settings, JSON.stringify(local));
+    const run = (stamp = "first", dry = "0", mode = "deploy") =>
+      spawnSync(process.execPath, [sync, settings, tracked, dry, stamp, mode, tmp], { encoding: "utf8", env: { ...process.env, PATH: `${bin}:/usr/bin:/bin` } });
+    return { tracked, settings, run, claude };
+  }
+  test("merges managed default, preserves secrets, backs up and detects env-only drift", () => {
+    const original = { skillOverrides: {}, env: { TOKEN: secret, CLAUDE_CODE_SUBAGENT_MODEL: "opus", CLAUDE_CODE_SUBAGENT_MODEL_FORCE: "0" } };
+    const f = fixture({ CLAUDE_CODE_SUBAGENT_MODEL: "sonnet" }, original);
+    const first = f.run();
+    assert.equal(first.status, 0, first.stderr);
+    assert.doesNotMatch(first.stdout + first.stderr, new RegExp(secret));
+    assert.match(first.stdout, /SET +env.CLAUDE_CODE_SUBAGENT_MODEL -> sonnet/);
+    assert.deepEqual(JSON.parse(readFileSync(f.settings)), { ...original, env: { ...original.env, CLAUDE_CODE_SUBAGENT_MODEL: "sonnet" } });
+    assert.deepEqual(JSON.parse(readFileSync(`${f.settings}.bak.first`)), original);
+    const bytes = readFileSync(f.settings, "utf8");
+    const second = f.run("second");
+    assert.equal(second.status, 0, second.stderr);
+    assert.match(second.stdout, /^OK +Claude tracked settings/);
+    assert.equal(readFileSync(f.settings, "utf8"), bytes);
+    assert.equal(existsSync(`${f.settings}.bak.second`), false);
+  });
+  test("dry-run counts env-only changes without writing or exposing local values", () => {
+    const f = fixture({ CLAUDE_CODE_SUBAGENT_MODEL: "sonnet" }, { skillOverrides: {}, env: { TOKEN: secret } });
+    const bytes = readFileSync(f.settings, "utf8");
+    const child = f.run("dry", "1");
+    assert.equal(child.status, 0, child.stderr);
+    assert.match(child.stdout, /0 skills, 1 settings keys/);
+    assert.doesNotMatch(child.stdout + child.stderr, new RegExp(secret));
+    assert.equal(readFileSync(f.settings, "utf8"), bytes);
+    assert.equal(existsSync(`${f.settings}.bak.dry`), false);
+  });
+  test("creates missing settings and initializes absent env in install mode", () => {
+    const f = fixture({ CLAUDE_CODE_SUBAGENT_MODEL: "sonnet" });
+    rmSync(f.settings);
+    const created = f.run("create", "0", "install");
+    assert.equal(created.status, 0, created.stderr);
+    assert.deepEqual(JSON.parse(readFileSync(f.settings)), { skillOverrides: {}, env: { CLAUDE_CODE_SUBAGENT_MODEL: "sonnet" } });
+    assert.equal(lstatSync(f.settings).mode & 0o777, 0o600);
+    assert.equal(existsSync(`${f.settings}.bak.create`), false);
+    writeFileSync(f.settings, JSON.stringify({ skillOverrides: {}, theme: "dark" }));
+    assert.equal(f.run("absent").status, 0);
+    assert.equal(JSON.parse(readFileSync(f.settings)).theme, "dark");
+  });
+  test("rejects invalid tracked env before backup or write", () => {
+    for (const env of [null, [], "bad", { OTHER: secret }, { ["__proto__"]: secret }, { CLAUDE_CODE_SUBAGENT_MODEL: "" }, { CLAUDE_CODE_SUBAGENT_MODEL: null }, { CLAUDE_CODE_SUBAGENT_MODEL: 1 }]) {
+      const f = fixture(env, { skillOverrides: {}, env: { TOKEN: secret } });
+      const bytes = readFileSync(f.settings, "utf8");
+      const child = f.run();
+      assert.equal(child.status, 1);
+      assert.match(child.stderr, /^claude-settings-sync: /);
+      assert.match(child.stderr, /env/);
+      assert.doesNotMatch(child.stdout + child.stderr, new RegExp(secret));
+      assert.equal(readFileSync(f.settings, "utf8"), bytes);
+      assert.equal(existsSync(`${f.settings}.bak.first`), false);
+    }
+  });
+  test("rejects invalid local env without printing its values", () => {
+    for (const env of [null, [], secret, 1]) {
+      const f = fixture({ CLAUDE_CODE_SUBAGENT_MODEL: "sonnet" }, { skillOverrides: {}, env });
+      const bytes = readFileSync(f.settings, "utf8");
+      const child = f.run();
+      assert.equal(child.status, 1);
+      assert.match(child.stderr, /^claude-settings-sync: /);
+      assert.match(child.stderr, /local.*env/);
+      assert.doesNotMatch(child.stdout + child.stderr, new RegExp(secret));
+      assert.equal(readFileSync(f.settings, "utf8"), bytes);
+      assert.equal(existsSync(`${f.settings}.bak.first`), false);
+    }
+  });
+  test("does not expose malformed local or tracked JSON parser snippets", () => {
+    for (const target of ["settings", "tracked"]) {
+      const f = fixture({ CLAUDE_CODE_SUBAGENT_MODEL: "sonnet" });
+      const malformed = `{"env":{"TOKEN":${secret}}}`;
+      writeFileSync(f[target], malformed);
+      const original = readFileSync(f.settings, "utf8");
+      const child = f.run();
+      assert.equal(child.status, 1);
+      assert.match(child.stderr, /^claude-settings-sync: /);
+      assert.match(child.stderr, /invalid JSON/);
+      assert.doesNotMatch(child.stdout + child.stderr, new RegExp(secret));
+      assert.equal(readFileSync(f.settings, "utf8"), original);
+      assert.equal(existsSync(`${f.settings}.bak.first`), false);
+    }
+  });
+  test("skips only the managed env on an old, absent or unrecognized runtime", () => {
+    for (const version of ["2.1.250 (Claude Code)", "2.0.999", "1.9.999", "2.1.251-beta", "unrecognized", null]) {
+      const original = { skillOverrides: {}, env: { TOKEN: secret, CLAUDE_CODE_SUBAGENT_MODEL: "opus" } };
+      const f = fixture({ CLAUDE_CODE_SUBAGENT_MODEL: "sonnet" }, original);
+      if (version === null) rmSync(f.claude);
+      else writeFileSync(f.claude, `#!/bin/sh\nprintf '%s\\n' '${version}'\n`);
+      const child = f.run();
+      assert.equal(child.status, 0, child.stderr);
+      assert.match(child.stderr, /WARN.*2.1.251/);
+      assert.doesNotMatch(child.stdout + child.stderr, new RegExp(secret));
+      assert.deepEqual(JSON.parse(readFileSync(f.settings)), original);
+      assert.equal(existsSync(`${f.settings}.bak.first`), false);
+      writeFileSync(f.tracked, JSON.stringify({ skillOverrides: {}, autoMemoryEnabled: false, env: { CLAUDE_CODE_SUBAGENT_MODEL: "sonnet" } }));
+      assert.equal(f.run("other").status, 0);
+      assert.equal(JSON.parse(readFileSync(f.settings)).autoMemoryEnabled, false);
+      assert.deepEqual(JSON.parse(readFileSync(f.settings)).env, original.env);
+    }
+  });
+  test("accepts newer releases and rejects a failed version probe", () => {
+    for (const version of ["2.1.251", "2.1.319", "2.2.0", "3.0.0"]) {
+      const f = fixture({ CLAUDE_CODE_SUBAGENT_MODEL: "sonnet" });
+      writeFileSync(f.claude, `#!/bin/sh\nprintf '%s\\n' '${version}'\n`);
+      const child = f.run();
+      assert.equal(child.status, 0, child.stderr);
+      assert.equal(JSON.parse(readFileSync(f.settings)).env.CLAUDE_CODE_SUBAGENT_MODEL, "sonnet");
+    }
+    const f = fixture({ CLAUDE_CODE_SUBAGENT_MODEL: "sonnet" });
+    writeFileSync(f.claude, "#!/bin/sh\nprintf '2.1.319\\n'\nexit 1\n");
+    const child = f.run();
+    assert.equal(child.status, 0, child.stderr);
+    assert.match(child.stderr, /WARN.*2.1.251/);
+    assert.equal(JSON.parse(readFileSync(f.settings)).env, undefined);
+  });
+  test("bounds version output and stalled probes without exposing output", () => {
+    for (const script of ["printf '2.1.300 '; head -c 5000 /dev/zero | tr '\\000' x", "exec sleep 10"]) {
+      const original = { skillOverrides: {}, env: { TOKEN: secret, CLAUDE_CODE_SUBAGENT_MODEL: "opus" } };
+      const f = fixture({ CLAUDE_CODE_SUBAGENT_MODEL: "sonnet" }, original);
+      writeFileSync(f.claude, `#!/bin/sh\n${script}\n`);
+      const start = Date.now();
+      const child = f.run();
+      assert.equal(child.status, 0, child.stderr);
+      assert.match(child.stderr, /WARN.*2.1.251/);
+      assert.ok(Date.now() - start < 6500, "version probe exceeded its deadline");
+      assert.equal(child.stdout.includes("xxxx"), false);
+      assert.deepEqual(JSON.parse(readFileSync(f.settings)), original);
+    }
+  });
+  test("shared fragment leaves existing model choices unchanged", () => {
+    const original = { skillOverrides: {}, env: { TOKEN: secret, CLAUDE_CODE_SUBAGENT_MODEL: "opus" } };
+    const f = fixture(undefined, original);
+    copyFileSync(fileURLToPath(new URL("../claude/settings.skill-overrides.json", import.meta.url)), f.tracked);
+    const result = f.run();
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(JSON.parse(readFileSync(f.settings)).env, original.env);
+    assert.doesNotMatch(result.stdout + result.stderr, new RegExp(secret));
+  });
+  test("fragments without env preserve existing local env", () => {
+    const original = { skillOverrides: {}, env: { TOKEN: secret } };
+    const f = fixture(undefined, original);
+    writeFileSync(f.claude, "#!/bin/sh\nexit 1\n");
+    const child = f.run();
+    assert.equal(child.status, 0);
+    assert.equal(child.stderr, "");
+    assert.deepEqual(JSON.parse(readFileSync(f.settings)), original);
+    assert.equal(existsSync(`${f.settings}.bak.first`), false);
+  });
+});

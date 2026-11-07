@@ -368,4 +368,17 @@ jq -e '.skillOverrides == {"nested-declared":"off","personal-hidden":"off","repo
 jq -e '.autoMemoryEnabled == false' "$ROOT_DIR/claude/settings.skill-overrides.json" >/dev/null ||
   fail "claude/settings.skill-overrides.json must track autoMemoryEnabled false (the vault owns durable memory)"
 
+jq -e 'has("env") | not' "$ROOT_DIR/claude/settings.skill-overrides.json" >/dev/null ||
+  fail "shared fragment must not activate a global subagent model"
+printf '%s\n' '{"skillOverrides":{},"env":{"LOCAL_TOKEN":"synthetic-env-secret"}}' >"$FIX/sync/env-settings.json"
+jq '.env = {"CLAUDE_CODE_SUBAGENT_MODEL":"sonnet"}' "$ROOT_DIR/claude/settings.skill-overrides.json" >"$FIX/sync/env-tracked.json"
+mkdir -p "$FIX/runtime-bin"
+printf '#!/bin/sh\nprintf "2.1.251 (Claude Code)\\n"\n' >"$FIX/runtime-bin/claude"
+chmod +x "$FIX/runtime-bin/claude"
+env_out="$(PATH="$FIX/runtime-bin:$PATH" node "$SYNC" "$FIX/sync/env-settings.json" "$FIX/sync/env-tracked.json" 0 env deploy)" || fail "tracked env deployment failed"
+jq -e '.env == {"LOCAL_TOKEN":"synthetic-env-secret","CLAUDE_CODE_SUBAGENT_MODEL":"sonnet"}' "$FIX/sync/env-settings.json" >/dev/null ||
+  fail "tracked env must preserve local values while setting Sonnet"
+[ -f "$FIX/sync/env-settings.json.bak.env" ] || fail "env deployment must back up existing settings"
+case "$env_out" in *synthetic-env-secret*) fail "env deployment leaked a local value" ;; esac
+
 printf '%s\n' "PASS: claude-skill-load-check fixture assertions"
