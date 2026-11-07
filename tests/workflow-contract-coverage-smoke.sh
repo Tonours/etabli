@@ -129,4 +129,7 @@ assert_contains "$ROOT_DIR/skills/work/pr-council-review/SKILL.md" 'Process exit
 # Always-loaded guidance must stay bounded; long explanations belong in cold docs.
 ruby -e 'abort "RTK.md exceeds 1000 characters" if File.read(ARGV[0]).length > 1000' "$ROOT_DIR/claude/RTK.md"
 
+assert_contains "$ROOT_DIR/workflow/agent-rules.md" 'operating Fleet (CLI/daemon/skill, reporting or host questions)'
+assert_contains "$ROOT_DIR/workflow/agent-rules.md" 'GitHub `Tonours/fleet`. `FLEET_SESSION_ID` alone is not a trigger.'
+
 printf 'workflow contract coverage smoke test: ok\n'
