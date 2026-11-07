@@ -210,6 +210,10 @@ policy and how to report a leaked credential.
 
 ## Learn more
 
+- [`workflow/skills/investigation.md`](workflow/skills/investigation.md): learning
+  from recovered run incidents, with evidence and no automatic rule changes.
+- [Research note (French)](docs/research/20261107-agent-self-improvement.md):
+  source analysis of Skill Doctor, GEPA, Reflexion and ACE.
 - [`workflow/spec.md`](workflow/spec.md): workflow entry and map;
   [`workflow/contract-details.md`](workflow/contract-details.md) has the full
   rules.
