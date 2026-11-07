@@ -644,6 +644,19 @@ PY
   check "record: dirty report refuses without stdout" eval '[ "$rc" != 0 ] && cmp -s "$TMP_DIR/expected-record" "$TMP_DIR/record.out"'
 }
 
+case_usage_head() {
+  reset_state
+  set_head "$HEAD1"
+  FAKE_VALIDATOR_TEXT="Review posted. $(marker 2)" run_review council "$HEAD1" -
+  check "usage: council binds usage and timing to head" eval 'grep -qF "$(printf "\to/r#7@%s\tcode-review:" "$HEAD1")" "$PR_REVIEW_USAGE_LOG" && grep -qF "$(printf "\to/r#7@%s\ttiming code-review:" "$HEAD1")" "$PR_REVIEW_USAGE_LOG"'
+  verify_after_findings "$HEAD2"
+  check "usage: delta has its own resolved head" grep -qF "$(printf '\to/r#7@%s\tdelta:' "$HEAD2")" "$PR_REVIEW_USAGE_LOG"
+  check "usage: watcher verify has its requested head" grep -qF "$(printf '\to/r#7@%s\tverify:' "$HEAD2")" "$PR_REVIEW_USAGE_LOG"
+  set_head "$HEAD1"
+  autoreview
+  check "usage: autoreview has its actual head" grep -qF "$(printf '\to/r#7@%s\tautoreview:' "$HEAD1")" "$PR_REVIEW_USAGE_LOG"
+}
+
 case_reuse_review() {
   local sha archived
   git -C "$TMP_DIR/seed" checkout -q "$HEAD1"
@@ -1725,12 +1738,14 @@ case_launchd_plist() {
 if [ "${1:-}" = --efficiency ]; then
 case_reuse_fingerprint
 case_record_review
+case_usage_head
 else
 case_clean_council_approves
 case_council_findings_wait
 case_codex_member
 case_reuse_fingerprint
 case_record_review
+case_usage_head
 case_reuse_review
 case_one_phase_a_pass_fails
 case_phase_a_denial_vetoes

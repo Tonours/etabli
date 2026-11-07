@@ -147,7 +147,7 @@ IFS=$'\t' read -r PR_NUMBER HEAD_SHA BASE_REF PR_URL PR_STATE PR_TITLE <<< "$MET
 case "$PR_NUMBER" in
   ''|*[!0-9]*) echo "gh returned no usable PR number for $PR_ARG on $REPO" >&2; exit 1 ;;
 esac
-USAGE_TARGET="$REPO#$PR_NUMBER"
+USAGE_TARGET="$REPO#$PR_NUMBER@$HEAD_SHA"
 [ "$PR_STATE" = "OPEN" ] || { echo "$REPO#$PR_NUMBER is $PR_STATE, nothing to review" >&2; exit 1; }
 VALIDATOR_LOGIN="${PR_COUNCIL_VALIDATOR_LOGIN:-$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/pr-council-review/validator-login" 2>/dev/null)}"
 # Prints "<validator reviews on head> <0 only when its latest is an approval, else 1> <our COMMENTED reviews on head>".

@@ -250,7 +250,7 @@ trap finish EXIT
 trap 'stop_children; exit 130' INT
 trap 'stop_children; exit 143' TERM
 trap 'stop_children; exit 129' HUP
-USAGE_TARGET="$REPO#$NUMBER"
+USAGE_TARGET="$REPO#$NUMBER@$SHA"
 ME="$(gh api user --jq .login)" || exit 1
 echo "=== $MODE $REPO#$NUMBER @${SHA:0:8} — $URL"
 case "$MODE" in
