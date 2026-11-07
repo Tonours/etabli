@@ -48,9 +48,12 @@ never downgrade mid-run.
 - Before a mutable local-device or server action, name the exact target, the
   control path, and the post-check.
 - Golden principles: `workflow/contract-details.md`.
-- A session handoff goes in `PLAN.md` § Notes / Handoff (branch, sha, done,
-  pending, next action, do-not-redo); a started migration is finished or handed
-  off that way, never left half done.
+- Phase changes load the active route; prior procedures, decisions and tasks are
+  evidence, not active work. User authority, safety gates and open findings persist.
+  Keep review context isolation (`workflow/skills/review.md`).
+- A session handoff goes in `PLAN.md` § Notes / Handoff: goal/phase, branch/SHA,
+  proved checks, open findings, evidence paths, next action and do-not-redo.
+  Replace stale state, never paste a transcript. Finish or hand off a started migration.
 
 ## Required Sequence
 
