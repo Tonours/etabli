@@ -73,4 +73,8 @@ One line each: `AC-n [product|process|judgment]: criterion`; a product AC adds `
 - None / ...
 
 ## Notes / Handoff
-- Branch, sha, done, pending, next action, do-not-redo:
+- Current goal / phase:
+- Branch / SHA:
+- Proved checks / evidence paths:
+- Open findings / pending:
+- Next action / do-not-redo:

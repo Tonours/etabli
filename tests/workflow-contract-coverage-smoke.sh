@@ -100,4 +100,33 @@ assert_contains "$ROOT_DIR/skills/shared/plan-implement/SKILL.md" "--reuse-sha o
 assert_contains "$ROOT_DIR/skills/work/pr-council-review/SKILL.md" "\`reuse refused\` and runs phase A in full."
 assert_contains "$ROOT_DIR/claude/README.md" "## Failure ownership"
 
+# Thin wrappers rely on these canonical gates; removing duplication must not
+# remove the obligations or each adapter's distinct delivery behavior.
+for skill in implement plan-implement; do
+  assert_contains "$ROOT_DIR/skills/shared/$skill/SKILL.md" 'workflow/skills/implementation-loop.md'
+done
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'mutation: N survived of M'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'simplify: clean'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'quality: unavailable'
+assert_contains "$ROOT_DIR/skills/shared/implement/SKILL.md" 'READY plan must cover the requested task'
+assert_contains "$ROOT_DIR/skills/shared/plan-implement/SKILL.md" '## Delivery'
+assert_contains "$ROOT_DIR/skills/shared/plan-implement/SKILL.md" 'No Linear ticket: open the PR'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'authority, safety gates and open findings persist.'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Keep review context isolation'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'Changes; current handoff in Notes / Handoff follows'
+assert_contains "$ROOT_DIR/workflow/spec.md" '`workflow/skills/implementation-loop.md` § Standing rules.'
+for template in PLAN_TEMPLATE.md PLAN_TEMPLATE_FULL.md; do
+  for field in 'Current goal / phase:' 'Branch / SHA:' 'Proved checks / evidence paths:' 'Open findings / pending:' 'Next action / do-not-redo:'; do
+    assert_contains "$ROOT_DIR/$template" "$field"
+    assert_contains "$DEPLOY_TARGET/$template" "$field"
+  done
+done
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'prior procedures, decisions and tasks'
+assert_contains "$ROOT_DIR/skills/work/pr-council-review/SKILL.md" 'If the harness files Bash output'
+assert_contains "$ROOT_DIR/skills/work/pr-council-review/SKILL.md" 'If output stays inline, read phase B in that stream.'
+assert_contains "$ROOT_DIR/skills/work/pr-council-review/SKILL.md" 'phase_b_output "$1"'
+assert_contains "$ROOT_DIR/skills/work/pr-council-review/SKILL.md" 'Process exit zero is not approval'
+# Always-loaded guidance must stay bounded; long explanations belong in cold docs.
+ruby -e 'abort "RTK.md exceeds 1000 characters" if File.read(ARGV[0]).length > 1000' "$ROOT_DIR/claude/RTK.md"
+
 printf 'workflow contract coverage smoke test: ok\n'

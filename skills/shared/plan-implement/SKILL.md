@@ -27,13 +27,6 @@ Rules:
   outside the repo whose first line is `patch-sha256: ` followed by
   `~/.claude/scripts/pr-council-review/run.sh --reuse-sha origin/<base>` (after a
   fetch, so it matches the PR's merge base).
-- After focused checks, run the implementation-loop step 12 mutation probe
-  on standard and high-risk diffs touching executable sources and record
-  `mutation: …`. Then run 12b on this diff and record
-  `simplify: clean` or `simplify: removed N`. Then run 12c (`code-quality` when
-  exposed, else the narrowest domain skill or 1-3 local siblings) and record
-  `quality: pass`, or `quality: unavailable` and stop before completion if no
-  pass exists.
 
 ## Delivery
 

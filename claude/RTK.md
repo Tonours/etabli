@@ -1,8 +1,11 @@
-# RTK - Rust Token Killer
+# RTK
 
-`rtk-guard` compacts only a simple Bash command, optionally piped to
-`head`/`tail`/`cat`; the rest runs raw (`workflow/runtime/rtk-data-flow.mjs`).
+The guard rewrites a simple display command, optionally piped to
+`head`/`tail`/`cat`; other compounds stay raw.
 
-- `rtk proxy <cmd>`: run one command raw when compacted output would mislead.
-- `rtk gain -p [--history]`: token savings for the current project.
-- `rtk discover`: commands that ran raw and could have been rewritten.
+- Parent/writer: `rtk git -C <path> status`; trusted compound:
+  `cd <path> && rtk git status`.
+- Parent/writer exact evidence, structured data, program pipelines and file output:
+  `rtk proxy <cmd>`; never compact data another program parses.
+- Read-only: Read/Grep/Glob or approved simple Bash, e.g.
+  `rtk git log --oneline -3`. Interior `rtk` prefixes and `rtk grep` are denied.
