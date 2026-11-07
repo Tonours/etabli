@@ -121,7 +121,8 @@ follow their journey in Risk tiers instead (no plan file, no plan adversary, no 
       command once, as residual risk;
     - `mutation: unavailable (<reason>)` when the tool cannot be resolved or
       run (no sandbox, refusal), as residual risk, never a block.
-12b. Simplification pass once checks are green. Walk **this diff only**.
+12b. Combined local pre-review pass once checks are green: run 12b+12c together,
+    keeping both scopes and records. Simplify **this diff only**.
     Stop at the first rung that holds; delete or rewrite what a higher rung
     already covers. No behavior change.
 
@@ -141,7 +142,7 @@ follow their journey in Risk tiers instead (no plan file, no plan adversary, no 
 
     Re-run focused checks if anything was edited. Record `simplify: clean` or
     `simplify: removed N` in `PLAN.md`.
-12c. Quality pass on the cumulative diff: invoke `code-quality` when the
+12c. Quality lens in that same pass, on the cumulative diff: invoke `code-quality` when the
     runtime exposes it, else the narrowest exposed domain or project skill,
     else compare the diff with 1–3 local sibling implementations. Record
     `quality: pass` (naming the producer) when a pass ran, or

@@ -138,6 +138,8 @@ assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Exclude AGEN
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'surfaces, directives, prompt/heredoc strings, smoke-pinned contract text'
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'executable/assertion logic, routes, gates, obligations, schemas and locks.'
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Verified generated `skills-lock.json` hashes may follow editorial skill text;'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'keeping both scopes and records. Simplify **this diff only**.'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Quality lens in that same pass, on the cumulative diff:'
 assert_contains "$ROOT_DIR/workflow/agent-rules.md" 'operating Fleet (CLI/daemon/skill, reporting or host questions)'
 assert_contains "$ROOT_DIR/workflow/agent-rules.md" 'GitHub `Tonours/fleet`. `FLEET_SESSION_ID` alone is not a trigger.'
 
