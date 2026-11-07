@@ -129,6 +129,15 @@ assert_contains "$ROOT_DIR/skills/work/pr-council-review/SKILL.md" 'Process exit
 # Always-loaded guidance must stay bounded; long explanations belong in cold docs.
 ruby -e 'abort "RTK.md exceeds 1000 characters" if File.read(ARGV[0]).length > 1000' "$ROOT_DIR/claude/RTK.md"
 
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'docs-only, config-only, or a bounded single-surface edit with no'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'runtime behavior change, outside contractual and AGENTS high-risk surfaces.'
+# Editorial routing is narrow; semantic gates and in-flight escalation remain.
+assert_contains "$ROOT_DIR/workflow/spec.md" 'non-semantic editorial edits on any repo'
+assert_contains "$ROOT_DIR/workflow/spec.md" 'In-flight delta'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Exclude AGENTS high-risk'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'surfaces, directives, prompt/heredoc strings, smoke-pinned contract text'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'executable/assertion logic, routes, gates, obligations, schemas and locks.'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Verified generated `skills-lock.json` hashes may follow editorial skill text;'
 assert_contains "$ROOT_DIR/workflow/agent-rules.md" 'operating Fleet (CLI/daemon/skill, reporting or host questions)'
 assert_contains "$ROOT_DIR/workflow/agent-rules.md" 'GitHub `Tonours/fleet`. `FLEET_SESSION_ID` alone is not a trigger.'
 

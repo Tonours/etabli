@@ -13,13 +13,17 @@ Record `tier: small|bounded-fix|standard|high-risk` before step 0; upgrade when 
 never downgrade mid-run.
 
 - **small** — docs-only, config-only, or a bounded single-surface edit with no
-  runtime behavior change. Runs **outside the plan gate**: scoped recon
-  (step 0), implement (step 8 semantics), product-flow check (step 11) when
-  its trigger fires, checks (12), simplify (12b), quality (12c), report (17). One
-  self-review of the cumulative diff replaces hunters and adversary passes
-  (accepted risk: no external feedback; small excludes behavior change).
-  No plan file and no READY gate unless the surface is contractual — in which
-  case the tier is not small.
+  runtime behavior change, outside contractual and AGENTS high-risk surfaces.
+  Also includes non-semantic editorial text on contractual paths: wording,
+  links, examples, comments or test failure messages. Exclude AGENTS high-risk
+  surfaces, directives, prompt/heredoc strings, smoke-pinned contract text,
+  executable/assertion logic, routes, gates, obligations, schemas and locks.
+  Verified generated `skills-lock.json` hashes may follow editorial skill text;
+  other lock changes are excluded. Runs **outside the plan gate**: scoped recon
+  (0), implement (8), applicable product-flow check (11), focused checks (12),
+  combined simplify/quality (12b+12c), report (17). Self-review replaces hunters
+  and adversary passes (accepted risk: no external feedback). No plan or READY
+  gate unless requested. A contractual path alone does not upgrade editorial text.
 - **standard** (default) — runtime code change on a known surface. Full
   sequence below; step 13b falls back to a documented same-family
   double-sample only when every eligible cross-model route is unavailable.
