@@ -58,6 +58,13 @@ never downgrade mid-run.
 - A session handoff goes in `PLAN.md` § Notes / Handoff: goal/phase, branch/SHA,
   proved checks, open findings, evidence paths, next action and do-not-redo.
   Replace stale state, never paste a transcript. Finish or hand off a started migration.
+- Keep the handoff within 400 words, including owner decisions/constraints,
+  acceptance criteria and all open safety findings. Link full reports and hashes;
+  indispensable state may exceed the target with an explanation, never truncation.
+  At a stable checkpoint, persist this packet before a session transition; the
+  next session reads it and verifies the live plan status/ref before continuing.
+  No automatic clear, compaction or restart. Phase changes do not unload skills;
+  do not replay old procedures as current work or erase their unresolved decisions.
 
 ## Required Sequence
 
@@ -97,6 +104,11 @@ follow their journey in Risk tiers instead (no plan file, no plan adversary, no 
     tests or a direct run. Human-only legs stay `blocked`.
 12. Re-run the plan's focused checks after the product-flow check and each
     accepted fix — readiness never rests on checks predating the latest product-flow edit.
+    Save verbose check output to a private artifact; capture the command's exit
+    code before summarizing counts, failures and the artifact path. Read relevant
+    ranges on demand. Preserve raw machine-consumed data, canonical council
+    streams and required review tables; summaries never replace decisive evidence
+    or turn a failed command into success. No blanket output-rewriting hook.
     Small tier and bounded fix (no plan): run the surface's own focused checks instead —
     the checks named by the task or the touched surface's suite.
     Mutation probe (standard, bounded fix included, and high-risk tiers, diffs touching executable
