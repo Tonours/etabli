@@ -70,8 +70,8 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   proxy support, and blocked surfaces stay distinct.
 - Run evidence lives in `PLAN.md`: check results in Checks, review and adversary
   provenance (model, `shasum -a 256 PLAN.md` at dispatch, verdict) in Review
-  Changes, handoff (branch, sha, done, pending, next action, do-not-redo) in
-  Notes / Handoff.
+  Changes; current handoff in Notes / Handoff follows
+  `workflow/skills/implementation-loop.md` § Standing rules.
 - Pre-READY, edit only root `PLAN.md`. On resume, archive validated work or
   discard an unrelated plan with `scripts/plan-cleanup --discard <reason-slug>`;
   age alone is not abandonment (`workflow/plan-archive.md`).

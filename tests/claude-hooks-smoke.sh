@@ -167,6 +167,8 @@ read_only_probes=(
 	"git grep --open-files-in-page=touch x"
 	"gh auth status --show-token=true"
 	"git grep -nOtouch x"
+	"rtk grep -n x f"
+	"cd /tmp && rtk git status"
 	"rtk grep x f -- --pre=touch"
 	"test -v 'BASH_VERSINFO[\$(touch x)]'"
 	"gh pr view 1 -w"
@@ -179,6 +181,7 @@ read_only_probes=(
 	"rg -z foo a.gz"
 )
 read_only_controls=(
+	"cd /tmp && git status"
 	"git status"
 	"rtk git log --oneline -3"
 	"grep -n 'a#b' file"
@@ -208,7 +211,7 @@ import { spawnSync } from "node:child_process";
 const root = process.env.ROOT_DIR;
 const { isReadOnlyBashCommand } = await import(`${root}/workflow/runtime/read-only-bash.mjs`);
 const decide = (command) => {
-  if (command.startsWith("rtk ")) {
+  if (/\brtk\s/.test(command)) {
     const input = JSON.stringify({ cwd: process.env.CWD, hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command } });
     const run = spawnSync("node", [`${root}/claude/hooks/read-only-agent-guard.mjs`], { input, encoding: "utf8" });
     if (run.stdout.includes('"permissionDecision":"deny"')) return "deny";

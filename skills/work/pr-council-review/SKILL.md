@@ -7,7 +7,13 @@ allowed-tools: [Bash, Read, Glob, Grep]
 
 Run `~/.claude/scripts/pr-council-review/run.sh` with the arguments of the
 request, in their order (the PR, then its flags), from the repository the PR
-belongs to, and stream its output.
+belongs to, and stream its output unchanged. The watcher keeps its full canonical
+stream. If the harness files Bash output, `<log-file>` is that file; read phase B
+first, then relevant phase A evidence:
+`bash -c '. ~/.claude/scripts/pr-council-review/lib.sh && phase_b_output "$1"' _ "<log-file>"`.
+If output stays inline, read phase B in that stream. Never RTK-compact either.
+A nonzero helper exit means incomplete. Process exit zero is not approval;
+read the validator verdict, findings, denial and run markers.
 
 The script does the orchestration; you do not re-run any of the passes yourself.
 To run a round again (interrupted, or a new head), run the same command again.
