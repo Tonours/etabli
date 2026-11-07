@@ -518,6 +518,132 @@ case_reuse_fingerprint() {
   rm "$repo/PLAN.md"
 }
 
+case_record_review() {
+  local repo="$TMP_DIR/record" script="$SCRIPTS/pr-council-review/run.sh" sha out rc key flag
+  : >"$TMP_DIR/run.out"
+  git init -q -b main "$repo"
+  echo base >"$repo/a"; git -C "$repo" add a; git -C "$repo" commit -q -m base
+  git -C "$repo" checkout -q -b feature
+  echo change >>"$repo/a"; git -C "$repo" commit -q -am change
+  printf 'complete review\nwith literal $() text\n\n' >"$TMP_DIR/review report.md"
+  sha="$(cd "$repo" && /bin/bash "$script" --reuse-sha main)"
+  { printf 'patch-sha256: %s\n' "$sha"; cat "$TMP_DIR/review report.md"; } >"$TMP_DIR/expected-record"
+  (cd "$repo" && /bin/bash "$script" --record-review main "$TMP_DIR/review report.md" "$TMP_DIR/record.out") >"$TMP_DIR/record.stdout" 2>"$TMP_DIR/record.err" || :
+  check "record: exact report bytes, including final newlines" cmp -s "$TMP_DIR/expected-record" "$TMP_DIR/record.out"
+  for out in "$TMP_DIR/missing-review" "$repo" "$TMP_DIR/empty-review"; do
+    : >"$TMP_DIR/empty-review"
+    rc=0
+    (cd "$repo" && /bin/bash "$script" --record-review main "$out" "$TMP_DIR/record.out") >"$TMP_DIR/record.stdout" 2>"$TMP_DIR/record.err" || rc=$?
+    check "record: missing, directory or empty input refuses" [ "$rc" != 0 ]
+    check "record: invalid input emits no partial record" cmp -s "$TMP_DIR/expected-record" "$TMP_DIR/record.out"
+  done
+  for flag in assume-unchanged skip-worktree; do
+    git -C "$repo" update-index "--$flag" a
+    echo hidden >>"$repo/a"
+    for out in --reuse-sha --record-review; do
+      rc=0
+      if [ "$out" = --reuse-sha ]; then
+        (cd "$repo" && /bin/bash "$script" --reuse-sha main) >"$TMP_DIR/record.stdout" 2>"$TMP_DIR/record.err" || rc=$?
+      else
+        (cd "$repo" && /bin/bash "$script" --record-review main "$TMP_DIR/review report.md" "$TMP_DIR/record.out") >"$TMP_DIR/record.stdout" 2>"$TMP_DIR/record.err" || rc=$?
+      fi
+      check "record: $out refuses $flag" [ "$rc" != 0 ]
+      check "record: masked state has no stdout" test ! -s "$TMP_DIR/record.stdout"
+      check "record: masked state preserves prior record" cmp -s "$TMP_DIR/expected-record" "$TMP_DIR/record.out"
+    done
+    git -C "$repo" update-index "--no-$flag" a
+    git -C "$repo" checkout -q -- a
+  done
+  for key in GIT_INDEX_FILE GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES; do
+    for out in --reuse-sha --record-review; do
+      rc=0
+      if [ "$out" = --reuse-sha ]; then
+        (cd "$repo" && env "$key=" /bin/bash "$script" --reuse-sha main) >"$TMP_DIR/record.stdout" 2>"$TMP_DIR/record.err" || rc=$?
+      else
+        (cd "$repo" && env "$key=" /bin/bash "$script" --record-review main "$TMP_DIR/review report.md" "$TMP_DIR/record.out") >"$TMP_DIR/record.stdout" 2>"$TMP_DIR/record.err" || rc=$?
+      fi
+      check "record: $out refuses set-empty $key" [ "$rc" != 0 ]
+      check "record: override refusal has no stdout" test ! -s "$TMP_DIR/record.stdout"
+      check "record: override preserves prior record" cmp -s "$TMP_DIR/expected-record" "$TMP_DIR/record.out"
+    done
+  done
+  printf '#!/bin/sh\ntouch "%s"\n' "$TMP_DIR/fsmonitor-ran" >"$TMP_DIR/fsmonitor"
+  chmod +x "$TMP_DIR/fsmonitor"
+  rc=0
+  (cd "$repo" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.fsmonitor GIT_CONFIG_VALUE_0="$TMP_DIR/fsmonitor" /bin/bash "$script" --record-review main "$TMP_DIR/review report.md" "$TMP_DIR/record.out") >"$TMP_DIR/record.stdout" 2>"$TMP_DIR/record.err" || rc=$?
+  check "record: fsmonitor config is neutralized" test ! -e "$TMP_DIR/fsmonitor-ran"
+  check "record: ordinary clean record still succeeds" eval '[ "$rc" = 0 ] && cmp -s "$TMP_DIR/expected-record" "$TMP_DIR/record.out"'
+  check "record: success emits no stdout" test ! -s "$TMP_DIR/record.stdout"
+  check "record: private destination mode" python3 -c 'import os,stat,sys;sys.exit(stat.S_IMODE(os.stat(sys.argv[1]).st_mode)!=0o600)' "$TMP_DIR/record.out"
+  mkdir "$TMP_DIR/output-dir" "$TMP_DIR/clean-tree"
+  cp "$repo/a" "$TMP_DIR/clean-tree/a"
+  rc=0
+  (cd "$repo" && /bin/bash "$script" --record-review main "$TMP_DIR/review report.md" "$TMP_DIR/output-dir") >"$TMP_DIR/record.stdout" 2>"$TMP_DIR/record.err" || rc=$?
+  check "record: directory destination refuses without children" eval '[ "$rc" != 0 ] && [ -z "$(ls -A "$TMP_DIR/output-dir")" ]'
+  ln -s "$TMP_DIR/output-dir" "$TMP_DIR/output-link"
+  rc=0
+  (cd "$repo" && /bin/bash "$script" --record-review main "$TMP_DIR/review report.md" "$TMP_DIR/output-link") >"$TMP_DIR/record.stdout" 2>"$TMP_DIR/record.err" || rc=$?
+  check "record: symlink to directory also refuses" eval '[ "$rc" != 0 ] && [ -z "$(ls -A "$TMP_DIR/output-dir")" ]'
+  echo dirty >>"$repo/a"
+  for key in local env; do
+    [ "$key" != local ] || git -C "$repo" config core.worktree "$TMP_DIR/clean-tree"
+    for out in --reuse-sha --record-review; do
+      rc=0
+      if [ "$key" = env ]; then
+        if [ "$out" = --reuse-sha ]; then
+          (cd "$repo" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.worktree GIT_CONFIG_VALUE_0="$TMP_DIR/clean-tree" /bin/bash "$script" --reuse-sha main) >"$TMP_DIR/record.stdout" 2>"$TMP_DIR/record.err" || rc=$?
+        else
+          (cd "$repo" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.worktree GIT_CONFIG_VALUE_0="$TMP_DIR/clean-tree" /bin/bash "$script" --record-review main "$TMP_DIR/review report.md" "$TMP_DIR/record.out") >"$TMP_DIR/record.stdout" 2>"$TMP_DIR/record.err" || rc=$?
+        fi
+      else
+        if [ "$out" = --reuse-sha ]; then
+          (cd "$repo" && /bin/bash "$script" --reuse-sha main) >"$TMP_DIR/record.stdout" 2>"$TMP_DIR/record.err" || rc=$?
+        else
+          (cd "$repo" && /bin/bash "$script" --record-review main "$TMP_DIR/review report.md" "$TMP_DIR/record.out") >"$TMP_DIR/record.stdout" 2>"$TMP_DIR/record.err" || rc=$?
+        fi
+      fi
+      check "record: $out refuses $key core.worktree" eval '[ "$rc" != 0 ] && [ ! -s "$TMP_DIR/record.stdout" ]'
+      check "record: config guard reached" grep -qF core.worktree "$TMP_DIR/record.err"
+      check "record: config refusal preserves destination" cmp -s "$TMP_DIR/expected-record" "$TMP_DIR/record.out"
+    done
+    [ "$key" != local ] || git config --file "$repo/.git/config" --unset core.worktree
+  done
+  git -C "$repo" checkout -q -- a
+  git -C "$repo" config core.worktree ""
+  rc=0
+  (cd "$repo" && /bin/bash "$script" --record-review main "$TMP_DIR/review report.md" "$TMP_DIR/record.out") >"$TMP_DIR/record.stdout" 2>"$TMP_DIR/record.err" || rc=$?
+  check "record: set-empty core.worktree refuses" eval '[ "$rc" != 0 ] && cmp -s "$TMP_DIR/expected-record" "$TMP_DIR/record.out"'
+  git config --file "$repo/.git/config" --unset core.worktree
+  printf '[broken\n' >"$TMP_DIR/broken-gitconfig"
+  rc=0
+  (cd "$repo" && GIT_CONFIG_GLOBAL="$TMP_DIR/broken-gitconfig" /bin/bash "$script" --record-review main "$TMP_DIR/review report.md" "$TMP_DIR/record.out") >"$TMP_DIR/record.stdout" 2>"$TMP_DIR/record.err" || rc=$?
+  check "record: config-read error preserves destination" eval '[ "$rc" != 0 ] && [ ! -s "$TMP_DIR/record.stdout" ] && cmp -s "$TMP_DIR/expected-record" "$TMP_DIR/record.out"'
+  printf 'replace this old record\n' >"$TMP_DIR/record.out"
+  rc=0
+  (cd "$repo" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=diff.noprefix GIT_CONFIG_VALUE_0=true /bin/bash "$script" --record-review main "$TMP_DIR/review report.md" "$TMP_DIR/record.out") || rc=$?
+  check "record: harmless diff config writes new exact bytes" eval '[ "$rc" = 0 ] && cmp -s "$TMP_DIR/expected-record" "$TMP_DIR/record.out"'
+  mkdir "$TMP_DIR/race-bin"
+  printf '#!/bin/bash\n"$RACE_REAL_CAT" "$@" || exit\nif [ "$#" = 1 ]; then rm -f "$RACE_OUTPUT"; mkdir "$RACE_OUTPUT"; fi\n' >"$TMP_DIR/race-bin/cat"
+  chmod +x "$TMP_DIR/race-bin/cat"
+  printf 'old record\n' >"$TMP_DIR/race.out"
+  rc=0
+  (cd "$repo" && PATH="$TMP_DIR/race-bin:$PATH" RACE_REAL_CAT=/bin/cat RACE_OUTPUT="$TMP_DIR/race.out" /bin/bash "$script" --record-review main "$TMP_DIR/review report.md" "$TMP_DIR/race.out") >"$TMP_DIR/record.stdout" 2>"$TMP_DIR/record.err" || rc=$?
+  check "record: concurrent directory refuses with no hidden artifact" eval '[ "$rc" != 0 ] && [ -d "$TMP_DIR/race.out" ] && [ -z "$(ls -A "$TMP_DIR/race.out")" ]'
+  python3 - "$repo" "$script" "$TMP_DIR/large-review.md" "$TMP_DIR/record.out" <<'PY'
+import pathlib,resource,subprocess,sys
+report=pathlib.Path(sys.argv[3]);report.write_bytes(b"evidence\n"*4096)
+limit=report.stat().st_size
+result=subprocess.run(["/bin/bash",sys.argv[2],"--record-review","main",str(report),sys.argv[4]],cwd=sys.argv[1],stdout=subprocess.PIPE,stderr=subprocess.PIPE,preexec_fn=lambda:resource.setrlimit(resource.RLIMIT_FSIZE,(limit,limit)))
+sys.exit(0 if result.returncode != 0 and result.stdout == b"" else 1)
+PY
+  check "record: I/O failure preserves prior valid record" cmp -s "$TMP_DIR/expected-record" "$TMP_DIR/record.out"
+  check "record: no output temporary remains" eval '[ -z "$(find "$TMP_DIR" -name ".pr-review-record.*" -print)" ]'
+  echo dirty >>"$repo/a"
+  rc=0
+  (cd "$repo" && /bin/bash "$script" --record-review main "$TMP_DIR/review report.md" "$TMP_DIR/record.out") >"$TMP_DIR/record.stdout" 2>"$TMP_DIR/record.err" || rc=$?
+  check "record: dirty report refuses without stdout" eval '[ "$rc" != 0 ] && cmp -s "$TMP_DIR/expected-record" "$TMP_DIR/record.out"'
+}
+
 case_reuse_review() {
   local sha archived
   git -C "$TMP_DIR/seed" checkout -q "$HEAD1"
@@ -1596,10 +1722,15 @@ case_launchd_plist() {
   check "launchd: PATH starts with ~/.local/bin" grep -q "<string>$HOME/.local/bin:/opt/homebrew/bin:" "$plist"
 }
 
+if [ "${1:-}" = --efficiency ]; then
+case_reuse_fingerprint
+case_record_review
+else
 case_clean_council_approves
 case_council_findings_wait
 case_codex_member
 case_reuse_fingerprint
+case_record_review
 case_reuse_review
 case_one_phase_a_pass_fails
 case_phase_a_denial_vetoes
@@ -1643,6 +1774,7 @@ case_validator_checkout
 case_stalled_pass
 case_linked_on_later_pushes
 case_council_hangup
+fi
 
 if [ "$failures" -ne 0 ]; then
   printf 'PR review flow smoke test: %s failure(s)\n' "$failures"

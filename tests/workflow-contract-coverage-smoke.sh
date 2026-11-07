@@ -96,7 +96,7 @@ assert_contains "$ROOT_DIR/workflow/spec.md" "a bounded fix needs no plan but a 
 assert_contains "$ROOT_DIR/workflow/spec.md" "returns findings and stops; host-restricted effects follow § Human checkpoints."
 assert_contains "$ROOT_DIR/workflow/skills/adversary.md" "the only single-pass"
 assert_contains "$ROOT_DIR/workflow/skills/review-rounds.md" "## Bounded fix"
-assert_contains "$ROOT_DIR/skills/shared/plan-implement/SKILL.md" "--reuse-sha origin/<base>"
+assert_contains "$ROOT_DIR/skills/shared/plan-implement/SKILL.md" "--record-review origin/<base>"
 assert_contains "$ROOT_DIR/skills/work/pr-council-review/SKILL.md" "\`reuse refused\` and runs phase A in full."
 assert_contains "$ROOT_DIR/claude/README.md" "## Failure ownership"
 
@@ -142,5 +142,8 @@ assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'keeping both
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Quality lens in that same pass, on the cumulative diff:'
 assert_contains "$ROOT_DIR/workflow/agent-rules.md" 'operating Fleet (CLI/daemon/skill, reporting or host questions)'
 assert_contains "$ROOT_DIR/workflow/agent-rules.md" 'GitHub `Tonours/fleet`. `FLEET_SESSION_ID` alone is not a trigger.'
+
+assert_contains "$ROOT_DIR/skills/shared/plan-implement/SKILL.md" '--record-review origin/<base> <complete-round-report> <reuse-file>'
+assert_contains "$ROOT_DIR/skills/work/pr-council-review/SKILL.md" 'Packaging certifies no review: verify eligibility/provenance before passing it.'
 
 printf 'workflow contract coverage smoke test: ok\n'
