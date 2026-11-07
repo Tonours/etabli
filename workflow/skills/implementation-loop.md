@@ -13,13 +13,17 @@ Record `tier: small|bounded-fix|standard|high-risk` before step 0; upgrade when 
 never downgrade mid-run.
 
 - **small** — docs-only, config-only, or a bounded single-surface edit with no
-  runtime behavior change. Runs **outside the plan gate**: scoped recon
-  (step 0), implement (step 8 semantics), product-flow check (step 11) when
-  its trigger fires, checks (12), simplify (12b), quality (12c), report (17). One
-  self-review of the cumulative diff replaces hunters and adversary passes
-  (accepted risk: no external feedback; small excludes behavior change).
-  No plan file and no READY gate unless the surface is contractual — in which
-  case the tier is not small.
+  runtime behavior change, outside contractual and AGENTS high-risk surfaces.
+  Also includes non-semantic editorial text on contractual paths: wording,
+  links, examples, comments or test failure messages. Exclude AGENTS high-risk
+  surfaces, directives, prompt/heredoc strings, smoke-pinned contract text,
+  executable/assertion logic, routes, gates, obligations, schemas and locks.
+  Verified generated `skills-lock.json` hashes may follow editorial skill text;
+  other lock changes are excluded. Runs **outside the plan gate**: scoped recon
+  (0), implement (8), applicable product-flow check (11), focused checks (12),
+  combined simplify/quality (12b+12c), report (17). Self-review replaces hunters
+  and adversary passes (accepted risk: no external feedback). No plan or READY
+  gate unless requested. A contractual path alone does not upgrade editorial text.
 - **standard** (default) — runtime code change on a known surface. Full
   sequence below; step 13b falls back to a documented same-family
   double-sample only when every eligible cross-model route is unavailable.
@@ -117,7 +121,8 @@ follow their journey in Risk tiers instead (no plan file, no plan adversary, no 
       command once, as residual risk;
     - `mutation: unavailable (<reason>)` when the tool cannot be resolved or
       run (no sandbox, refusal), as residual risk, never a block.
-12b. Simplification pass once checks are green. Walk **this diff only**.
+12b. Combined local pre-review pass once checks are green: run 12b+12c together,
+    keeping both scopes and records. Simplify **this diff only**.
     Stop at the first rung that holds; delete or rewrite what a higher rung
     already covers. No behavior change.
 
@@ -137,7 +142,7 @@ follow their journey in Risk tiers instead (no plan file, no plan adversary, no 
 
     Re-run focused checks if anything was edited. Record `simplify: clean` or
     `simplify: removed N` in `PLAN.md`.
-12c. Quality pass on the cumulative diff: invoke `code-quality` when the
+12c. Quality lens in that same pass, on the cumulative diff: invoke `code-quality` when the
     runtime exposes it, else the narrowest exposed domain or project skill,
     else compare the diff with 1–3 local sibling implementations. Record
     `quality: pass` (naming the producer) when a pass ran, or

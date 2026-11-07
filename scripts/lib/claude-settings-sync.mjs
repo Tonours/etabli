@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { backupFile, machineLocalNames, writeJsonAtomic } from "./surfaces.mjs";
 
@@ -21,10 +22,12 @@ const SCALAR_KEYS = new Set([
 ]);
 const PERMISSION_KEYS = new Set(["defaultMode"]);
 const ATTRIBUTION_KEYS = new Set(["commit", "pr"]);
+const ENV_KEYS = new Set(["CLAUDE_CODE_SUBAGENT_MODEL"]);
 const ALLOWED_TOP_LEVEL = new Set([
   "skillOverrides",
   "permissions",
   "attribution",
+  "env",
   ...SCALAR_KEYS,
 ]);
 
@@ -37,7 +40,7 @@ function readJson(path, label) {
   try {
     return JSON.parse(fs.readFileSync(path, "utf8"));
   } catch (error) {
-    fail(`cannot read ${label} at ${path}: ${error.message}`);
+    fail(`cannot read ${label} at ${path}: ${error.code ?? "invalid JSON"}`);
   }
 }
 
@@ -107,6 +110,21 @@ if (tracked.attribution !== undefined) {
     }
   }
 }
+if (tracked.env !== undefined) {
+  if (
+    typeof tracked.env !== "object" ||
+    tracked.env === null ||
+    Array.isArray(tracked.env)
+  ) {
+    fail("env must be an object");
+  }
+  for (const [name, value] of Object.entries(tracked.env)) {
+    if (!ENV_KEYS.has(name)) fail(`env[${name}] is not allowed`);
+    if (typeof value !== "string" || value.length === 0) {
+      fail(`env[${name}] must be a non-empty string`);
+    }
+  }
+}
 for (const key of SCALAR_KEYS) {
   if (tracked[key] !== undefined && typeof tracked[key] !== "boolean") {
     fail(`${key} must be a boolean`);
@@ -122,7 +140,7 @@ try {
     localMissing = true;
     localSettings = {};
   } else {
-    fail(`cannot read local settings at ${localPath}: ${error.message}`);
+    fail(`cannot read local settings at ${localPath}: ${error.code ?? "invalid JSON"}`);
   }
 }
 if (
@@ -133,6 +151,27 @@ if (
   fail(
     `local settings at ${localPath} is not a JSON object; refusing to merge`,
   );
+}
+
+if (
+  localSettings.env !== undefined &&
+  (typeof localSettings.env !== "object" ||
+    localSettings.env === null ||
+    Array.isArray(localSettings.env))
+) {
+  fail("local settings env must be an object; refusing to merge");
+}
+
+let managedEnv = tracked.env;
+if (Object.keys(managedEnv ?? {}).length > 0) {
+  const version = spawnSync("claude", ["--version"], { encoding: "utf8", timeout: 5000, maxBuffer: 4096 });
+  const match = /^(\d+)\.(\d+)\.(\d+)(?:\s|$)/.exec(version.stdout ?? "");
+  const [major, minor, patch] = match ? match.slice(1).map(Number) : [];
+  const supported = version.status === 0 && (major > 2 || (major === 2 && (minor > 1 || (minor === 1 && patch >= 251))));
+  if (!supported) {
+    console.error("WARN           Claude env default skipped: requires Claude Code >=2.1.251 on PATH; install/upgrade it and rerun deploy");
+    managedEnv = undefined;
+  }
 }
 
 const liveMap =
@@ -197,6 +236,9 @@ function trackedMatchesLocal() {
   for (const [name, value] of Object.entries(tracked.attribution ?? {})) {
     if (liveAttribution[name] !== value) return false;
   }
+  for (const [name, value] of Object.entries(managedEnv ?? {})) {
+    if (localSettings.env?.[name] !== value) return false;
+  }
   for (const key of SCALAR_KEYS) {
     if (tracked[key] !== undefined && localSettings[key] !== tracked[key]) {
       return false;
@@ -218,6 +260,7 @@ const keyCount = Object.keys(trackedMap).length;
 const settingsKeyCount =
   Object.keys(tracked.permissions ?? {}).length +
   Object.keys(tracked.attribution ?? {}).length +
+  Object.keys(managedEnv ?? {}).length +
   [...SCALAR_KEYS].filter((key) => tracked[key] !== undefined).length;
 if (dryRun) {
   if (mode === "deploy") {
@@ -246,6 +289,9 @@ if (!localMissing && mode === "deploy") {
   )) {
     console.log(`SET            attribution.${name} -> ${JSON.stringify(value)}`);
   }
+  for (const [name, value] of Object.entries(managedEnv ?? {})) {
+    console.log(`SET            env.${name} -> ${value}`);
+  }
   for (const key of [...SCALAR_KEYS].sort()) {
     if (tracked[key] !== undefined) {
       console.log(`SET            ${key} -> ${tracked[key]}`);
@@ -265,6 +311,9 @@ if (tracked.attribution !== undefined) {
     ...(localSettings.attribution ?? {}),
     ...tracked.attribution,
   };
+}
+if (managedEnv !== undefined) {
+  localSettings.env = { ...(localSettings.env ?? {}), ...managedEnv };
 }
 for (const key of SCALAR_KEYS) {
   if (tracked[key] !== undefined) {
