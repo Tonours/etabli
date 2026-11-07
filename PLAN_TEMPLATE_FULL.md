@@ -129,8 +129,11 @@ One line each: `AC-n [product|process|judgment]: criterion`; a product AC adds `
 - READY only when `workflow/spec.md` § Minimal READY gate holds.
 
 ## Notes / Handoff
+Keep this current-state packet within 400 words; link detailed evidence. Preserve indispensable state and explain any necessary overrun; never silently truncate it.
 - Current goal / phase:
+- Owner decisions / constraints:
 - Branch / SHA:
+- Criteria / open safety findings:
 - Proved checks / evidence paths:
 - Open findings / pending:
 - Next action / do-not-redo:

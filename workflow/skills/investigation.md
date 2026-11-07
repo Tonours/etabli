@@ -28,6 +28,10 @@ are separate.
    hypothesis an explicit falsifier before concluding.
 4. Collect evidence that can reject alternatives. Keep runtime, UI, and
    performance artifacts distinct from source-only evidence.
+   Read relevant symbols/ranges and request only needed tool fields. Keep verbose
+   results in private artifacts; surface the command, exit code, decisive excerpts
+   and artifact references. Preserve raw machine-consumed data and canonical
+   review streams; never infer success from a shortened or empty result.
 5. When safe and authorized, change or isolate one mechanism and check whether
    the symptom changes as predicted. A failing/passing pair is acceptable.
 6. Emit one verdict and the smallest next evidence or implementation action.

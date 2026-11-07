@@ -143,6 +143,16 @@ assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Quality lens
 assert_contains "$ROOT_DIR/workflow/agent-rules.md" 'operating Fleet (CLI/daemon/skill, reporting or host questions)'
 assert_contains "$ROOT_DIR/workflow/agent-rules.md" 'GitHub `Tonours/fleet`. `FLEET_SESSION_ID` alone is not a trigger.'
 
+for template in PLAN_TEMPLATE.md PLAN_TEMPLATE_FULL.md; do
+  assert_contains "$ROOT_DIR/$template" 'within 400 words; link detailed evidence'
+  assert_contains "$ROOT_DIR/$template" 'Owner decisions / constraints:'
+  assert_contains "$ROOT_DIR/$template" 'Criteria / open safety findings:'
+done
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'indispensable state may exceed the target with an explanation, never truncation.'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'No automatic clear, compaction or restart.'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'code before summarizing counts, failures and the artifact path.'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'streams and required review tables; summaries never replace decisive evidence'
+assert_contains "$ROOT_DIR/workflow/skills/investigation.md" 'results in private artifacts; surface the command, exit code, decisive excerpts'
 assert_contains "$ROOT_DIR/skills/shared/plan-implement/SKILL.md" '--record-review origin/<base> <complete-round-report> <reuse-file>'
 assert_contains "$ROOT_DIR/skills/work/pr-council-review/SKILL.md" 'Packaging certifies no review: verify eligibility/provenance before passing it.'
 
