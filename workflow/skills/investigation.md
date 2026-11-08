@@ -138,7 +138,7 @@ approved for that subject project's code; otherwise mark judging unavailable.
 | Supported mechanism | Disposition |
 | --- | --- |
 | Wrong instruction actually loaded | Propose the smallest correction or replacement on its named owning surface; check the current version first. |
-| Missing instruction | A non-severe one-off is `no_op` with mechanism state `pending`; new prose needs a severe supported gap or more than one supported distinct task in the same project, counted under `workflow/project-constraints.md`, after considering a mechanical control. |
+| Missing instruction | A non-severe one-off is `no_op` with mechanism state `pending`; new prose needs a severe supported gap or at least three verified distinct originating tasks for the same mechanism in the same project, counted under `workflow/project-constraints.md`, after considering a mechanical control. |
 | Correct loaded instruction ignored | Inspect retrieval/application or a mechanical control; do not restate it, add examples or weaken it. |
 | Broken tool, environment or control | Route to the matching owner (`tool_fix`, `environment_fix`, `control_fix`); do not disguise a code, service or control fix as a new skill rule. |
 | Supported mechanizable recurring or severe mistake | Use `workflow/project-constraints.md`: type, lint, test or CI before prose. |
