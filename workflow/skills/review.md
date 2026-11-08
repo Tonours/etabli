@@ -179,6 +179,9 @@ Open before changing a hunter's model, prompt, extra pass or inspection method.
 Reuse private escaped-defect records, confirmed incident/fix pairs and clean
 controls; keep raw project code, oracles and reports outside tracked/public
 Etabli files. Use a temporary driver, not a new evaluator subsystem.
+A `run-incident` record alone is neither an escaped defect nor a confirmed
+replay case. An independently verified incident/fix pair can be curated under
+the requirements below, with its own provenance and without escaped-defect counts.
 
 Before calls, freeze case selection, defect mechanism/severity, clean controls,
 base/head and tree-content hashes, patch bytes, template hashes, runner, tools,
