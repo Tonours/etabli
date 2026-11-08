@@ -1,7 +1,18 @@
 # Project Constraints
 
-Open when the same agent mistake on a project's code recurs (third occurrence,
-or an `escaped-defect` with `action: project_constraint`).
+Open for a third occurrence of the same agent mistake on a project's code,
+an `escaped-defect` with `action: project_constraint`, or a severe supported
+run incident whose `run-mechanism` header proposes `disposition: project_constraint`.
+
+For run incidents, count distinct originating tasks within the same subject
+project and mechanism. Bind task identities and child/resume links to trusted
+task metadata; trace claims never split or merge tasks. Count an
+occurrence only with source-backed evidence of the incident and its mechanism
+at `CAUSE_SUPPORTED` or `CAUSE_CONFIRMED`; source-only evidence need not claim
+confirmed causality. Missing decisive evidence is not a verified occurrence.
+An unavailable corpus leaves recurrence unknown; partial coverage gives only a lower bound.
+Three verified tasks meet the existing threshold; fewer do not prove absence.
+Use `workflow/skills/investigation.md` § Learning from run evidence for attribution.
 
 The project's code is the agents' memory: a mistake that only lives in prose
 keeps coming back. Turn it into a constraint in the subject project's own
