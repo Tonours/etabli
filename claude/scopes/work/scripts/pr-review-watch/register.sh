@@ -93,10 +93,10 @@ ingest_council_registrations() {
     if [ "$status_sha" = "$sha" ] && [ "$status_rc" != running ] && { [ "$status_mode" != council ] || [ "$status_rc" != 0 ] || [ ! -f "$report" ]; }; then
       reject_registration "$record" "$repo" "$number" "$mode" 'same-head decision kept'; continue
     fi
-    if [ "$status_rc" != running ] && [ "$(cat "$key.exhausted" 2>/dev/null)" = "$sha" ]; then
+    if [ "$(cat "$key.exhausted" 2>/dev/null)" = "$sha" ] && { [ "$status_rc" != running ] || [ "$status_sha" != "$sha" ]; }; then
       reject_registration "$record" "$repo" "$number" "$mode" 'same-head stopped decision kept'; continue
     fi
-    if [ "$mode" = approve ] && [ -f "$key.council-done" ] && [ "$(cat "$key.council-done")" != "$sha" ]; then
+    if [ -f "$key.council-done" ] && [ "$(cat "$key.council-done")" != "$sha" ]; then
       reject_registration "$record" "$repo" "$number" "$mode" 'follow-up verification required'; continue
     fi
     temp="$(mktemp "$REPORTS/.registration.XXXXXX")" || return 1

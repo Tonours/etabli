@@ -1343,6 +1343,30 @@ case_import_cannot_override_verification() {
   check "delayed import: cannot mint approval after incomplete verify" [ "$(approvals)" = 0 ]
 }
 
+case_later_registration_keeps_baseline() {
+  local mode out
+  for mode in approve follow; do
+    reset_state
+    set_head "$HEAD1"
+    FAKE_VALIDATOR_TEXT="$(marker 2)" run_review council "$HEAD1" -
+    echo "$HEAD1" >"$KEY.watermark"
+    cp "$KEY.status" "$TMP_DIR/baseline-status"
+    set_head "$HEAD2"
+    watch_fn 'write_watch_heartbeat me' >/dev/null
+    if [ "$mode" = follow ]; then
+      FLEET_THREAD=fleet-test FAKE_VALIDATOR_TEXT="$(marker 0)" direct_council --post
+    else
+      FAKE_VALIDATOR_TEXT="$(marker 0)" direct_council --post
+    fi
+    out="$(watch_fn "ingest_council_registrations me; launch() { echo \"launch \$5 since \$6\"; }; consider me o/r 7 '$HEAD2' url")"
+    check "$mode later import: baseline retained" grep -qx "$HEAD1" "$KEY.council-done"
+    check "$mode later import: watermark retained" grep -qx "$HEAD1" "$KEY.watermark"
+    check "$mode later import: status retained" cmp -s "$KEY.status" "$TMP_DIR/baseline-status"
+    check "$mode later import: normal verify remains due" grep -qx "launch verify since $HEAD1" <<<"$out"
+    check "$mode later import: no initial approval" no_file "$KEY.approval-pending"
+  done
+}
+
 case_verify_retry_skips_delta() {
   reset_state
   set_head "$HEAD1"
@@ -1935,6 +1959,7 @@ case_usage_accounting
 elif [ "${1:-}" = --d1 ]; then
 case_registration_requires_all_passes
 case_import_cannot_override_verification
+case_later_registration_keeps_baseline
 case_codex_member
 case_reuse_review
 elif [ "${1:-}" = --lifecycle ]; then
@@ -1944,6 +1969,7 @@ case_council_registration
 case_registration_degraded_proof
 case_registration_requires_all_passes
 case_import_cannot_override_verification
+case_later_registration_keeps_baseline
 case_approval_post_failure_stays_pending
 case_pending_and_clean_delta
 elif [ "${1:-}" = --efficiency ]; then
@@ -1984,6 +2010,7 @@ case_council_registration
 case_registration_degraded_proof
 case_registration_requires_all_passes
 case_import_cannot_override_verification
+case_later_registration_keeps_baseline
 case_verify_retry_skips_delta
 case_delta_structured
 case_delta_evidence

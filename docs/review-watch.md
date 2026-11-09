@@ -28,8 +28,9 @@ baseline or grant approval. Supported exact-patch reuse and explicit opt-outs
 retain their existing semantics. Rejected approval imports generate one notice.
 Stale-head imports cannot rearm a veto; same-head verification decisions remain
 authoritative. Already-followed PRs use their normal delta and verify-fixes path,
-so another direct council cannot bypass that verification. A dead runner's status
-defers imports only during the existing launch grace; the batch stays bounded.
+so another direct or Fleet council cannot bypass that verification. A dead runner's
+status defers imports only during the existing launch grace; recovery cannot clear
+another head's stopped decision. The batch stays bounded.
 
 Approval retries first check actual reviews from the same account on the exact
 commit. This recovers an accepted POST whose response was lost. Deterministic
