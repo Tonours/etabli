@@ -405,7 +405,13 @@ validator_marker_json() {
     elif any(.[]; (.security | type) != "string") then "validator security is missing or malformed"
     elif any(.[]; .security | test("\\S") | not) then "validator security is blank"
     elif any(.[]; .security | ascii_downcase | gsub("^\\s+|\\s+$"; "") == "ticketed") then "a security finding waits on a ticket"
+    elif any(.[]; .security | ascii_downcase | gsub("^\\s+|\\s+$"; "") | IN("pending", "failed", "error")) then "the security pass is incomplete"
     elif any(.[]; ([.lenses[] | ascii_downcase | gsub("^\\s+|\\s+$"; "")] | index("pending")) != null) then "a validator lens is still pending"
+    elif any(.[]; [.lenses[] | ascii_downcase | gsub("^\\s+|\\s+$"; "")] | any(. == "failed" or . == "error")) then "a validator lens failed"
+    elif any(.[]; .run | if type == "string" then test("\\S") | not else true end) then "validator run identity is missing or malformed"
+    elif any(.[]; .floor | if type == "string" then test("\\S") | not else true end) then "validator floor is missing or malformed"
+    elif any(.[]; (.suppressed | type) != "number") then "validator suppressed count is invalid"
+    elif any(.[]; .suppressed < 0 or .suppressed != (.suppressed | floor)) then "validator suppressed count is invalid"
     elif any(.[]; (.findings | type) != "number") then "validator finding count is invalid"
     elif any(.[]; .findings < 0 or .findings != (.findings | floor)) then "validator finding count is invalid"
     else empty end')" || return 1

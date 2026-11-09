@@ -29,6 +29,7 @@ export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PA
 . "$HERE/herdr.sh"
 . "$HERE/../pr-council-review/lib.sh"
 . "$HERE/clones.sh"
+. "$HERE/register.sh"
 
 log() { echo "$(date '+%F %T') $*"; }
 
@@ -56,7 +57,7 @@ merge_into_watched() {
   local repo number
   while IFS=$'\t' read -r repo number; do
     [ -n "$repo" ] || continue
-    if ! awk -F'\t' -v r="$repo" -v n="$number" '$1==r && $2==n {found=1} END {exit !found}' "$WATCHED"; then
+    if ! awk -F'\t' -v r="$repo" -v n="$number" 'tolower($1)==tolower(r) && $2==n {found=1} END {exit !found}' "$WATCHED"; then
       printf '%s\t%s\n' "$repo" "$number" >>"$WATCHED"
       log "watching $repo#$number"
     fi
@@ -154,11 +155,19 @@ write_launcher() {
 }
 
 pr_snapshot() {
-  gh pr view "$2" --repo "$1" --json state,isDraft,headRefOid,url,reviewRequests,latestReviews </dev/null \
-    | jq -r --arg me "$3" '[
+  local pr review
+  pr="$(gh pr view "$2" --repo "$1" --json state,isDraft,headRefOid,url,reviewRequests,latestReviews </dev/null)" || return 1
+  # gh latestReviews can serialize an empty commit.oid. REST carries the
+  # reviewed commit, and its last non-comment opinion supersedes older approval.
+  review="$(gh api --paginate "repos/$1/pulls/$2/reviews" </dev/null | jq -cs --arg me "$3" '
+    [.[][] | select((.user.login|ascii_downcase) == ($me|ascii_downcase))
+      | select(.state == "APPROVED" or .state == "CHANGES_REQUESTED" or .state == "DISMISSED")]
+    | max_by(.id) // {} | {state,commit_id}')" || return 1
+  printf '%s\n' "$pr" | jq -r --arg me "$3" --argjson review "$review" '[
       .state, .isDraft, .headRefOid, .url,
-      ((([.reviewRequests[].login] + [.latestReviews[].author.login]) | index($me)) != null),
-      ([.latestReviews[] | select(.author.login == $me and .state == "APPROVED")] | length > 0)
+      ((([.reviewRequests[]?.login] + [.latestReviews[]?.author.login]) | map(ascii_downcase) | index($me|ascii_downcase)) != null),
+      ($review.state == "APPROVED" and $review.commit_id == .headRefOid),
+      ($review.state == "APPROVED" and $review.commit_id != .headRefOid)
     ] | @tsv'
 }
 
@@ -277,23 +286,40 @@ consider() {
 }
 
 process_watched() {
-  local me="$1" repo number state draft sha url involved approved
+  local me="$1" repo number state draft sha url involved approved stale key registered_sha registered_login
   local next="$WATCHED.next"
   : >"$next"
   while IFS=$'\t' read -r repo number _; do
     [ -n "$repo" ] || continue
-    IFS=$'\t' read -r state draft sha url involved approved <<<"$(pr_snapshot "$repo" "$number" "$me" 2>/dev/null)"
+    IFS=$'\t' read -r state draft sha url involved approved stale <<<"$(pr_snapshot "$repo" "$number" "$me" 2>/dev/null)"
     if [ -z "${state:-}" ]; then
       printf '%s\t%s\n' "$repo" "$number" >>"$next"
       continue
     fi
-    if [ "$state" != "OPEN" ] || [ "$involved" != "true" ] || [ "$approved" = "true" ]; then
+    key="$(run_key "$repo" "$number")"
+    if [ "$state" = OPEN ] && [ -f "$key.registered" ]; then
+      IFS=$'\t' read -r registered_sha registered_login <"$key.registered" || registered_login=''
+      if [ "$registered_login" != "$(printf '%s' "$me" | tr '[:upper:]' '[:lower:]')" ]; then
+        log "$repo#$number registered account changed; not reviewing or approving"
+        printf '%s\t%s\n' "$repo" "$number" >>"$next"
+        continue
+      fi
+      involved=true
+    fi
+    if [ "$state" != "OPEN" ] || [ "$involved" != "true" ] || { [ "$stale" = true ] && [ ! -f "$key.council-done" ] && [ ! -f "$key.registered" ]; }; then
       herdr_available && close_review_tab "${repo#*/}#$number"
       log "unwatching $repo#$number ($state, involved=$involved, approved=$approved)"
-      [ "$state" = OPEN ] || rm -f "$(run_key "$repo" "$number")".{status,seen,watermark,council-done,council-clean,approval-pending,approval-body,skipped,exhausted,delta-done,unconfigured,verify-unconfigured}
+      [ "$state" = OPEN ] || rm -f "$key".{status,seen,watermark,council-done,council-clean,approval-pending,approval-body,registered,skipped,exhausted,delta-done,unconfigured,verify-unconfigured}
       continue
     fi
-    [ "$draft" = "false" ] && consider "$me" "$repo" "$number" "$sha" "$url" </dev/null
+    if [ "$approved" = true ]; then
+      if [ -f "$key.approval-pending" ]; then
+        rm -f "$key.approval-pending" "$key.approval-body"
+        log "$repo#$number approval already confirmed on @${sha:0:8}; pending cleared"
+      fi
+    elif [ "$draft" = false ]; then
+      consider "$me" "$repo" "$number" "$sha" "$url" </dev/null
+    fi
     printf '%s\t%s\n' "$repo" "$number" >>"$next"
   done <"$WATCHED"
   mv "$next" "$WATCHED"
@@ -314,6 +340,7 @@ stop_everything() {
 }
 
 main() {
+  umask 077
   [ "${1:-}" = stop ] && { stop_everything; exit 0; }
   mkdir -p "$STATE_DIR" "$REPORTS" "$RUNS" "$(dirname "$LOG")"
   touch "$WATCHED"
@@ -327,7 +354,10 @@ main() {
   [ -x "$RUNNER" ] || { log "review runner not found at $RUNNER"; exit 1; }
   local me
   me="$(gh api user --jq .login 2>/dev/null)" || { log "gh not authenticated"; exit 1; }
+  [ -n "$me" ] || { log "gh answered no login"; exit 1; }
+  write_watch_heartbeat "$me" || exit 1
   discover_requested | merge_into_watched
+  ingest_council_registrations "$me" || exit 1
   process_watched "$me"
   find "$REPORTS" -type f -mtime +30 -delete 2>/dev/null
 }
