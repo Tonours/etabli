@@ -76,6 +76,24 @@ check test ! -e "$key.registered"
 TEST_STATUS_AGE=181 ingest_council_registrations me
 check test -e "$key.registered"
 
+# A dead launch may recover its own head, but cannot erase another head's stop.
+for number in 29 30; do
+  key="$(run_key o/r "$number")"
+  printf '%s\n' "$FAKE_HEAD" >"$key.exhausted"
+  stopped_status_head="$FAKE_HEAD"
+  [ "$number" != 29 ] || stopped_status_head=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  printf '%s\tcouncil\trunning\t3\n' "$stopped_status_head" >"$key.status"
+  cp "$key.status" "$TMP_DIR/status"
+  submit_council_registration o/r "$number" "$FAKE_HEAD" me "$TMP_DIR/report-b" approve >/dev/null
+  TEST_STATUS_AGE=181 ingest_council_registrations me
+  if [ "$number" = 29 ]; then
+    check cmp -s "$key.status" "$TMP_DIR/status"
+    check test ! -e "$key.approval-pending"
+  else
+    check grep -qx "$FAKE_HEAD" "$key.approval-pending"
+  fi
+done
+
 # Initial ownership stays with Fleet on an equal clean direct handoff; the
 # watcher explicitly notifies rather than claiming it queued another approver.
 submit_council_registration o/r 27 "$FAKE_HEAD" me "$TMP_DIR/report-b" follow >/dev/null
