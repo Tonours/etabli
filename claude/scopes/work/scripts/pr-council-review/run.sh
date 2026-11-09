@@ -65,6 +65,7 @@ PR_ARG="$1"; shift
 
 REPO=""
 POST_MODE="dry-run"
+WATCH_REGISTER=1
 MODEL="${PR_COUNCIL_MODEL:-opus}"
 EFFORT="${PR_COUNCIL_EFFORT:-high}"
 PHASE_A_MODEL="${PR_COUNCIL_PHASE_A_MODEL:-sonnet}"
@@ -78,6 +79,7 @@ REUSE_REVIEW="${PR_COUNCIL_REUSE_REVIEW:-}"
 while [ $# -gt 0 ]; do
   case "$1" in
     --post) POST_MODE="post" ;;
+    --no-watch-register) WATCH_REGISTER=0 ;;
     --model) shift; MODEL="${1:?--model needs a value}" ;;
     --effort) shift; EFFORT="${1:?--effort needs a value}" ;;
     --phase-a-model) shift; PHASE_A_MODEL="${1:?--phase-a-model needs a value}" ;;
@@ -131,8 +133,10 @@ done
 [ -n "$THERMO_SKILL_FILE" ] || { echo "thermo-nuclear-code-quality-review SKILL.md not found" >&2; exit 1; }
 
 CODEX_PROMPT_FILE="$HERE/codex-prompt.md"
+COUNCIL_DEGRADED=""
 if [ "$USE_CODEX" = 1 ] && [ -z "$CODEX" ]; then
   echo "=== codex not found, running a Claude-only council" >&2
+  COUNCIL_DEGRADED="required Codex member unavailable"
   USE_CODEX=0
 fi
 
@@ -150,6 +154,10 @@ esac
 USAGE_TARGET="$REPO#$PR_NUMBER@$HEAD_SHA"
 [ "$PR_STATE" = "OPEN" ] || { echo "$REPO#$PR_NUMBER is $PR_STATE, nothing to review" >&2; exit 1; }
 VALIDATOR_LOGIN="${PR_COUNCIL_VALIDATOR_LOGIN:-$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/pr-council-review/validator-login" 2>/dev/null)}"
+ME=""
+if [ "$WATCH_REGISTER" = 1 ] || { [ -n "$VALIDATOR_LOGIN" ] && [ "$PHASE_A_ONLY" != 0 ]; }; then
+  ME="$("$GH" api user --jq .login 2>/dev/null)" || ME=""
+fi
 # Prints "<validator reviews on head> <0 only when its latest is an approval, else 1> <our COMMENTED reviews on head>".
 head_review_counts() {
   "$GH" api --paginate "repos/$REPO/pulls/$PR_NUMBER/reviews" 2>/dev/null \
@@ -252,6 +260,7 @@ if [ -n "$REUSE_REVIEW" ]; then
 fi
 
 if [ "$REUSED" = 1 ]; then
+  COUNCIL_DEGRADED=""
   echo
   echo "=== phase A reused: recorded review of patch ${PATCH_SHA:0:12} ($REUSE_REVIEW)"
   cp "$REUSE_REVIEW" "$REPORT_QUALITY"
@@ -313,6 +322,9 @@ else
   PHASE_A_GAPS=""
   [ "$RC_QUALITY" -eq 0 ] || PHASE_A_GAPS="The /code-review pass failed: its report is not a review, ignore it and say in the terminal report that phase A ran without it."
   [ "$RC_THERMO" -eq 0 ] || PHASE_A_GAPS="$PHASE_A_GAPS The thermo-nuclear pass failed: its report is not a review, ignore it and say in the terminal report that phase A ran without it."
+  if [ "$RC_QUALITY" -ne 0 ] || [ "$RC_THERMO" -ne 0 ] || [ "$RC_CODEX" -ne 0 ]; then
+    COUNCIL_DEGRADED="a required phase A pass failed"
+  fi
 fi
 VALIDATOR_FLAGS=""
 [ "$POST_MODE" = "dry-run" ] && VALIDATOR_FLAGS=" --dry-run"
@@ -343,8 +355,9 @@ else
   echo "=== phase B: /validator with phase A findings as extra step 6 candidates"
 fi
 RC_VALIDATOR=0
-if [ "$PHASE_A_ONLY" = 1 ]; then
-  COUNTS="$(head_review_counts)" || exit 1
+OWN_BEFORE=""
+if [ -n "$ME" ] && { [ "$PHASE_A_ONLY" = 1 ] || { [ "$WATCH_REGISTER" = 1 ] && [ "$POST_MODE" = post ]; }; }; then
+  COUNTS="$(head_review_counts)" || { [ "$PHASE_A_ONLY" != 1 ] || exit 1; COUNTS=""; }
   read -r _ _ OWN_BEFORE <<< "$COUNTS"
 fi
 validator_checkout "$VALIDATOR_REPO" || { echo "cannot create the validator checkout" >&2; exit 1; }
@@ -355,6 +368,7 @@ validator_checkout "$VALIDATOR_REPO" || { echo "cannot create the validator chec
 ) | tee "$WORK_DIR/phase-b.md" &
 wait "$!" || RC_VALIDATOR=$?
 
+PHASE_A_RUN_MARKER=""
 if [ "$PHASE_A_ONLY" = 1 ] && [ "$RC_VALIDATOR" -eq 0 ]; then
   KEPT="$(validator_run_findings <(printf '=== phase B: \n'; cat "$WORK_DIR/phase-b.md") "$HEAD_SHA")"
   COUNTS="$(head_review_counts)" || exit 1
@@ -364,11 +378,32 @@ if [ "$PHASE_A_ONLY" = 1 ] && [ "$RC_VALIDATOR" -eq 0 ]; then
     exit 1
   fi
   if [ -n "$KEPT" ] && [ "${VALIDATOR_OPEN:-0}" -gt 0 ]; then
-    printf '<!-- claudine:v1 {"kind":"run","run":"phase-a-only","sha":"%s","findings":%s,"floor":"should-fix","suppressed":0,"security":"clean","lenses":{"phase-a":"verified","validator":"open"}} -->\n' \
-      "$HEAD_SHA" "$((KEPT + VALIDATOR_OPEN))"
+    PHASE_A_RUN_MARKER="$(printf '<!-- claudine:v1 {"kind":"run","run":"phase-a-only","sha":"%s","findings":%s,"floor":"should-fix","suppressed":0,"security":"clean","lenses":{"phase-a":"verified","validator":"open"}} -->' \
+      "$HEAD_SHA" "$((KEPT + VALIDATOR_OPEN))")"
+    printf '%s\n' "$PHASE_A_RUN_MARKER"
   fi
 fi
 
 echo
 echo "=== done (validator exit $RC_VALIDATOR)"
+[ -z "$COUNCIL_DEGRADED" ] || echo "=== council degraded: $COUNCIL_DEGRADED"
+if [ "$WATCH_REGISTER" = 1 ] && [ "$POST_MODE" = post ] && [ "$RC_VALIDATOR" -eq 0 ]; then
+  REGISTRATION_REPORT="$WORK_DIR/registration.md"
+  { printf '=== phase B: \n'; cat "$WORK_DIR/phase-b.md"; printf '\n%s\n' "$PHASE_A_RUN_MARKER"; } >"$REGISTRATION_REPORT"
+  KEPT="$(validator_run_findings <(printf '=== phase B: \n'; cat "$WORK_DIR/phase-b.md") "$HEAD_SHA")" || KEPT=""
+  COUNTS="$(head_review_counts)" || COUNTS=""
+  read -r _ _ OWN_AFTER <<< "$COUNTS"
+  REGISTER_MODE=approve
+  [ -z "${FLEET_THREAD:-}" ] && [ -z "$PHASE_A_RUN_MARKER" ] || REGISTER_MODE=follow
+  if [ -n "$COUNCIL_DEGRADED" ]; then
+    echo '=== watcher: not queued (degraded council)'
+  elif [ -z "$KEPT" ] || { [ "$KEPT" -gt 0 ] && { [ -z "$OWN_BEFORE" ] || [ -z "$OWN_AFTER" ] || [ "$OWN_AFTER" -le "$OWN_BEFORE" ]; }; }; then
+    echo '=== watcher: not queued (no complete posted council proof)'
+  elif [ -f "$HERE/../pr-review-watch/register.sh" ]; then
+    . "$HERE/../pr-review-watch/register.sh"
+    submit_council_registration "$REPO" "$PR_NUMBER" "$HEAD_SHA" "$ME" "$REGISTRATION_REPORT" "$REGISTER_MODE"
+  else
+    echo '=== watcher: not queued (registration adapter missing)'
+  fi
+fi
 exit "$RC_VALIDATOR"

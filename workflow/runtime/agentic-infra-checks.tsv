@@ -18,6 +18,8 @@ core	shell-docs	skill-hygiene	tests/skill-hygiene-smoke.sh
 core	shell-docs	entry-chain-budget	tests/entry-chain-budget-smoke.sh
 full	shell-docs	pr-review-gates-smoke	tests/pr-review-gates-smoke.sh
 full	shell-docs	pr-review-flow-smoke	tests/pr-review-flow-smoke.sh
+full	shell-docs	pr-review-registration-smoke	tests/pr-review-registration-smoke.sh
+full	shell-docs	pr-review-import-smoke	tests/pr-review-import-smoke.sh
 full	shell-docs	pr-review-signals-smoke	tests/pr-review-signals-smoke.sh
 full	shell-docs	workflow-scaffold-smoke	tests/workflow-scaffold-smoke.sh
 full	shell-docs	workflow-scaffold-check-smoke	tests/workflow-scaffold-check-smoke.sh

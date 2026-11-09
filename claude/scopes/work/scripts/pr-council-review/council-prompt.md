@@ -80,6 +80,8 @@ marker on its own line, starting with that prefix; prose and quoted copies do
 not count. Include a nonempty `lenses` object or array of strings, with
 `pending` for any unresolved material candidate. Missing or malformed lenses
 make the run incomplete. Keep the skill's GitHub payload and write rules.
+Keep the run identity, floor and nonnegative integer suppressed count in every
+marker. Failed or errored lenses and pending or failed security are incomplete.
 
 `security` must be a nonempty string; use `ticketed` while a security ticket
 remains unresolved. Other states from the skill remain supported. Emit only

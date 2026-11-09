@@ -54,8 +54,51 @@ keep_pending_approval() {
 }
 
 post_approval() {
-  local body="$1" url pending
-  if ! url="$(gh api "repos/$REPO/pulls/$NUMBER/reviews" -f event=APPROVE -f commit_id="$SHA" -f body="$body" --jq .html_url)"; then
+  local body="$1" url pending actor registered_sha registered_actor reviews response status
+  actor="$(gh api user --jq .login)" || actor=''
+  actor="$(printf '%s' "$actor" | tr '[:upper:]' '[:lower:]')"
+  registered_actor="$(printf '%s' "$ME" | tr '[:upper:]' '[:lower:]')"
+  if [ -f "$KEY.registered" ]; then
+    IFS=$'\t' read -r registered_sha registered_actor <"$KEY.registered" || registered_actor=''
+  fi
+  if [ -z "$actor" ] || [ "$actor" != "$registered_actor" ]; then
+    keep_pending_approval "$body"
+    echo '=== approval pending: authenticated account changed or unavailable'
+    return 0
+  fi
+  reviews="$(gh api --paginate "repos/$REPO/pulls/$NUMBER/reviews")" || {
+    keep_pending_approval "$body"
+    echo '=== approval pending: review history unavailable'
+    return 0
+  }
+  url="$(printf '%s' "$reviews" | jq -csr --arg me "$actor" --arg sha "$SHA" '
+    [.[][] | select((.user.login|ascii_downcase) == $me)
+      | select(.state == "APPROVED" or .state == "CHANGES_REQUESTED" or .state == "DISMISSED")]
+    | max_by(.id) // {} | select(.state == "APPROVED" and .commit_id == $sha) | .html_url // "confirmed"')" || {
+    keep_pending_approval "$body"; echo '=== approval pending: unreadable review history'; return 0
+  }
+  if [ -n "$url" ]; then
+    rm -f "$KEY.approval-pending" "$KEY.approval-body"
+    echo "=== approved: $url (already confirmed on this head)"
+    return 0
+  fi
+  if ! response="$(gh api --include "repos/$REPO/pulls/$NUMBER/reviews" -f event=APPROVE -f commit_id="$SHA" -f body="$body")"; then
+    status="$(printf '%s\n' "$response" | sed -n 's/^HTTP\/[^ ]* \([0-9][0-9][0-9]\).*/\1/p' | tail -1)"
+    case "$status" in
+      400|401|403|404|405|410|422)
+        # A rate-limit response is retryable; other deterministic 4xx refusals
+        # cannot become approvals by posting the same proof every minute.
+        if ! printf '%s\n' "$response" | grep -qiE '^(retry-after:|x-ratelimit-remaining: 0)|rate limit'; then
+          rm -f "$KEY.approval-pending" "$KEY.approval-body"
+          echo "=== approval terminal: GitHub refused HTTP $status; no automatic retry"
+          notify 'PR approval refused' "$REPO#$NUMBER: HTTP $status" "$URL"
+          return 0
+        fi ;;
+    esac
+    response=''
+  fi
+  url="$(printf '%s\n' "$response" | awk 'body {print} /^\r?$/ {body=1}' | jq -er '.html_url | select(type == "string" and startswith("https://"))' 2>/dev/null)" || url=''
+  if [ -z "$url" ]; then
     pending="$(cat "$KEY.approval-pending" 2>/dev/null)"
     keep_pending_approval "$body"
     echo "=== approval pending: the approval POST failed (retried by the watcher without a new review)"
@@ -99,7 +142,9 @@ council_report_path() {
 }
 
 council_state_complete() {
-  local council findings
+  local council findings actor_sha actor
+  IFS=$'\t' read -r actor_sha actor <"$KEY.registered" 2>/dev/null || return 1
+  [ "$actor" = "$(printf '%s' "$ME" | tr '[:upper:]' '[:lower:]')" ] || return 1
   council="$(cat "$KEY.council-done" 2>/dev/null)" && [ -n "$council" ] || return 1
   findings="$(validator_run_findings "$(council_report_path "$council")" "$council")" || return 1
   if [ -f "$KEY.council-clean" ]; then
@@ -111,7 +156,11 @@ run_council() {
   local body findings
   REPORT="$(council_report_path "$SHA")"
   rm -f "$KEY.council-done" "$KEY.council-clean" || return "$REVIEW_INCOMPLETE_RC"
-  run_shown "$REPORT" "$COUNCIL" "$NUMBER" "$REPO" --post || return
+  run_shown "$REPORT" "$COUNCIL" "$NUMBER" "$REPO" --post --no-watch-register || return
+  if grep -q '^=== council degraded:' "$REPORT"; then
+    echo '=== incomplete council: a required independent pass did not complete'
+    return "$REVIEW_INCOMPLETE_RC"
+  fi
   findings="$(validator_run_findings "$REPORT" "$SHA" 2>>"$REPORT")"
   [ -n "$findings" ] || {
     rm -f "$KEY.council-done" "$KEY.council-clean"
@@ -119,6 +168,7 @@ run_council() {
     return "$REVIEW_INCOMPLETE_RC"
   }
   echo "$SHA" >"$KEY.council-done"
+  printf '%s\t%s\n' "$SHA" "$(printf '%s' "$ME" | tr '[:upper:]' '[:lower:]')" >"$KEY.registered"
   [ "$findings" = 0 ] || return 0
   echo "=== approval"
   body="$(validator_approval_body "$REPORT" "$SHA" 2>&1)" || { decide_and_approve "$body" ""; return 0; }
@@ -204,14 +254,6 @@ run_verify() {
     { echo "$SHA"; grep -E '^DELTA_(HEAD|FINDINGS|CONFIDENT) ' "$delta_log"; } >"$KEY.delta-done"
   fi
   delta_findings="$(sed -n 's/^DELTA_FINDINGS \([0-9]*\).*/\1/p' "$delta_log" | tail -1)"
-
-  if [ -f "$KEY.council-clean" ] && [ "$(my_review_count)" = 0 ]; then
-    echo "=== step 2: skipped, the full review found nothing to verify"
-    echo "$SHA" >"$KEY.watermark"
-    decide_and_approve "$(clean_blocker "$delta_log" "$delta_findings")" \
-      "Approved: the full review at $(cut -c1-8 "$KEY.council-clean") found nothing, and the commits since add no finding."
-    return
-  fi
 
   VERIFY_SKILL_NAME="$(verify_skill)" || {
     echo "$SHA" >"$KEY.verify-unconfigured"

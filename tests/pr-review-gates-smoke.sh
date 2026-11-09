@@ -36,12 +36,14 @@ run_gates() {
 }
 
 pr_json() {
-  printf '{"state":"%s","isDraft":%s,"headRefOid":"%s","latestReviews":[%s]}' "$1" "$2" "$3" "${4:-}"
+  printf '{"state":"%s","isDraft":%s,"headRefOid":"%s","latestReviews":[%s],"author":{"login":"other"}}' "$1" "$2" "$3" "${4:-}"
 }
 
 export FAKE_UNRESOLVED=0 FAKE_BUCKETS="pass,skipping"
 export FAKE_PR_JSON="$(pr_json OPEN false abc)"
 expect "objective: all green approves" "" "$(run_gates objective_blocker)"
+expect "objective: own PR blocks" 'cannot approve own PR' "$(FAKE_PR_JSON="$(pr_json OPEN false abc | jq '.author.login = "me"')" run_gates objective_blocker)"
+expect "objective: unknown author blocks" 'PR author unreadable' "$(FAKE_PR_JSON="$(pr_json OPEN false abc | jq 'del(.author)')" run_gates objective_blocker)"
 FAKE_PR_JSON="$(pr_json OPEN false def)" expect "objective: moved head blocks" "head moved to def" "$(FAKE_PR_JSON="$(pr_json OPEN false def)" run_gates objective_blocker)"
 expect "objective: merged PR blocks" "PR is MERGED" "$(FAKE_PR_JSON="$(pr_json MERGED false abc)" run_gates objective_blocker)"
 expect "objective: draft blocks" "PR is a draft" "$(FAKE_PR_JSON="$(pr_json OPEN true abc)" run_gates objective_blocker)"
@@ -113,9 +115,9 @@ expect "veto: a denial vetoes even a failed pass" "0" "$(lib "denial_veto '$TMP_
 expect "veto: unreadable denials veto a used pass" "0" "$(lib "denial_veto '$TMP_DIR/denials-mixed.json' 0 2>/dev/null; echo \$?")"
 expect "veto: unreadable output of a failed pass stays a gap" "1" "$(lib "denial_veto '$TMP_DIR/denials-empty.json' 1 2>/dev/null; echo \$?")"
 expect "veto: a clean pass does not veto" "1" "$(lib "denial_veto '$TMP_DIR/denials-none.json' 0 2>/dev/null; echo \$?")"
-printf '<!-- claudine:v1 {"kind":"run","run":"r","pr":7,"sha":"abc","findings":0,"floor":"should-fix","security":"none","lenses":["done"]} -->\n' >"$TMP_DIR/council.log"
+printf '<!-- claudine:v1 {"kind":"run","run":"r","pr":7,"sha":"abc","findings":0,"floor":"should-fix","suppressed":0,"security":"none","lenses":["done"]} -->\n' >"$TMP_DIR/council.log"
 expect "run marker: a marker before phase B is ignored" "" "$(lib "validator_run_findings '$TMP_DIR/council.log' abc")"
-printf '=== phase B: /validator\n<!-- claudine:v1 {"kind":"run","run":"r","pr":7,"sha":"abc","findings":0,"floor":"should-fix","security":"none","lenses":["done"]} -->\n' >"$TMP_DIR/council.log"
+printf '=== phase B: /validator\n<!-- claudine:v1 {"kind":"run","run":"r","pr":7,"sha":"abc","findings":0,"floor":"should-fix","suppressed":0,"security":"none","lenses":["done"]} -->\n' >"$TMP_DIR/council.log"
 expect "run marker: findings for the reviewed sha" "0" "$(lib "validator_run_findings '$TMP_DIR/council.log' abc")"
 expect "run marker: other sha is not clean" "" "$(lib "validator_run_findings '$TMP_DIR/council.log' def")"
 marker='{"kind":"run","run":"7-x-me","pr":7,"sha":"abc","findings":0,"floor":"should-fix","suppressed":1,"security":"clean","lenses":{"linear":"ran","conventions":"narrowed"}}'
@@ -127,6 +129,20 @@ printf '=== phase B: /validator\n<!-- claudine:v1 %s -->\n' "${marker/\"conventi
 expect "approval body: pending lens withholds" "a validator lens is still pending" "$(lib "validator_approval_body '$TMP_DIR/pending.log' abc" 2>&1)"
 printf '=== phase B: /validator\n<!-- claudine:v1 %s -->\n' "${marker/\"security\":\"clean\"/\"security\":\"ticketed\"}" >"$TMP_DIR/ticketed.log"
 expect "approval body: ticketed security withholds" "a security finding waits on a ticket" "$(lib "validator_approval_body '$TMP_DIR/ticketed.log' abc" 2>&1)"
+
+for attack in failed-lens error-lens failed-security pending-security missing-run missing-floor missing-suppressed; do
+  case "$attack" in
+    failed-lens) patch='.lenses=["failed"]' ;;
+    error-lens) patch='.lenses={correctness:"error"}' ;;
+    failed-security) patch='.security="failed"' ;;
+    pending-security) patch='.security="pending"' ;;
+    missing-run) patch='del(.run)' ;;
+    missing-floor) patch='del(.floor)' ;;
+    missing-suppressed) patch='del(.suppressed)' ;;
+  esac
+  printf '=== phase B: /validator\n<!-- claudine:v1 %s -->\n' "$(jq -c "$patch" <<<"$marker")" >"$TMP_DIR/incomplete.log"
+  expect "incomplete $attack cannot grant approval" 1 "$(lib "validator_approval_body '$TMP_DIR/incomplete.log' abc >/dev/null 2>&1; echo \$?")"
+done
 
 for prefix in '<!-- claudine:v1 ' '=== run marker: claudine:v1 '; do
   ending=' -->'; [ "$prefix" != '=== run marker: claudine:v1 ' ] || ending=' --'

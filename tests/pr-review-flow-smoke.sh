@@ -40,7 +40,7 @@ case "$1 $2" in
   "api user")
     echo x >>"$FAKE_DIR/user-calls"
     [ -z "${FAKE_GH_USER_FAIL_FROM:-}" ] || [ "$(wc -l <"$FAKE_DIR/user-calls")" -lt "$FAKE_GH_USER_FAIL_FROM" ] || exit 1
-    out='{"login":"me"}' ;;
+    out="$(jq -cn --arg login "${FAKE_GH_LOGIN:-me}" '{login:$login}')" ;;
   "pr view") [ -z "${FAKE_GH_VIEW_FAIL:-}" ] || exit 1; out="$(cat "$FAKE_DIR/pr.json")"
     if [ -n "${FAKE_DELTA_HEAD:-}" ] && [[ "$*" == *"--json headRefOid,baseRefName,url"* ]]; then
       out="$(jq --arg sha "$FAKE_DELTA_HEAD" '.headRefOid = $sha' <<<"$out")"
@@ -54,12 +54,21 @@ case "$1 $2" in
       api*repos/*/pulls/*/reviews*)
         if [ "$write" = 1 ]; then
           printf 'POST %s\n' "$*" >>"$FAKE_DIR/posts.log"
-          [ -z "${FAKE_GH_POST_FAIL:-}" ] || exit 1
+          if [ -n "${FAKE_GH_POST_FAIL:-}" ]; then
+            [ "$FAKE_GH_POST_FAIL" != 422 ] || printf 'HTTP/2.0 422 Unprocessable Entity\r\n\r\n{"message":"cannot approve"}\n'
+            exit 1
+          fi
+          [[ " $* " != *" --include "* ]] || printf 'HTTP/2.0 200 OK\r\n\r\n'
           out='{"html_url":"https://github.invalid/o/r/pull/7#review"}'
         else
+          echo x >>"$FAKE_DIR/review-reads"
+          reads="$(wc -l <"$FAKE_DIR/review-reads" | tr -d ' ')"
+          [ "$reads" != "${FAKE_GH_REVIEWS_FAIL_AT:-0}" ] || exit 1
+          [ -z "${FAKE_GH_REVIEWS_FAIL_FROM:-}" ] || [ "$reads" -lt "$FAKE_GH_REVIEWS_FAIL_FROM" ] || exit 1
           out="${FAKE_GH_REVIEWS:-[]}"
           [ ! -f "$FAKE_DIR/phase-a-ran" ] || [ -z "${FAKE_GH_REVIEWS_MID:-}" ] || out="$FAKE_GH_REVIEWS_MID"
           [ ! -f "$FAKE_DIR/phasea-prompt.txt" ] || [ -z "${FAKE_GH_REVIEWS_AFTER:-}" ] || out="$FAKE_GH_REVIEWS_AFTER"
+          [ ! -f "$FAKE_DIR/validator-prompt.txt" ] || [ -z "${FAKE_GH_POSTED_REVIEWS:-}" ] || out="$FAKE_GH_POSTED_REVIEWS"
           [ "$paginate" = 0 ] || [ -z "${FAKE_GH_REVIEWS_PAGE2:-}" ] || out="$out$FAKE_GH_REVIEWS_PAGE2"
         fi ;;
       api*repos/*/issues/*/timeline*)
@@ -189,7 +198,7 @@ run_review() {
   mkdir -p "$STATE/runs" "$STATE/reports"
   : >"$FAKE_LOG"
   : >"$FAKE_DIR/posts.log"
-  rm -f "$FAKE_DIR/validator-prompt.txt" "$FAKE_DIR/phasea-prompt.txt" "$FAKE_DIR/phase-a-ran" "$FAKE_DIR/user-calls"
+  rm -f "$FAKE_DIR/validator-prompt.txt" "$FAKE_DIR/phasea-prompt.txt" "$FAKE_DIR/phase-a-ran" "$FAKE_DIR/user-calls" "$FAKE_DIR/review-reads"
   RC=0
   (cd "$CLONE" && PR_REVIEW_WATCH_STATE_DIR="$STATE" /bin/bash "$SCRIPTS/pr-review-watch/review-run.sh" \
     "$1" o/r 7 "$2" "$3" https://github.invalid/o/r/pull/7 "$STATE/reports/o_r-7-${2:0:8}-$1.md" "$KEY") \
@@ -413,7 +422,8 @@ case_codex_member() {
   check "codex failure: validator still runs" called "claude VALIDATOR"
   check "codex failure: same-family" grep -q "Phase A was same-family" "$FAKE_DIR/validator-prompt.txt"
   check "codex failure: process timing recorded" grep -Eq "^=== timing codex: elapsed_s=[0-9]+ process_exit=1$" "$TMP_DIR/run.out"
-  check "codex failure: exit 0" rc_is 0
+  check "codex failure: incomplete council cannot approve" rc_is 4
+  check "codex failure: no approval" [ "$(approvals)" = 0 ]
   reset_state
   PR_COUNCIL_USE_CODEX=0 FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
   check "codex opt-out: not called" not_called codex
@@ -817,7 +827,7 @@ watch_fn() {
 unwatch_as() {
   printf 'o/r\t7\n' >"$STATE/watched.tsv"
   echo "$HEAD1" >"$KEY.council-done"
-  watch_fn "pr_snapshot() { printf '$1\tfalse\t$HEAD1\turl\t$2\t$3\n'; }; herdr_available() { return 1; }; remove_finished_clones() { :; }; process_watched me" >/dev/null
+  watch_fn "pr_snapshot() { printf '$1\tfalse\t$HEAD1\turl\t$2\t$3\tfalse\n'; }; herdr_available() { return 1; }; remove_finished_clones() { :; }; process_watched me" >/dev/null
 }
 
 settle_decision() {
@@ -1075,6 +1085,36 @@ case_unwatch_state() {
   check "unwatch: a closed PR drops its run state" no_file "$KEY.council-done"
   unwatch_as OPEN true true
   check "unwatch: an approved open PR keeps its run state" [ -f "$KEY.council-done" ]
+  check "unwatch: an approved open PR stays watched for future pushes" [ -s "$STATE/watched.tsv" ]
+}
+
+case_approval_head_watch() {
+  local snapshot out
+  reset_state
+  set_head "$HEAD2" '[{"state":"APPROVED","author":{"login":"me"}}]'
+  snapshot="$(FAKE_GH_REVIEWS='[{"id":10,"user":{"login":"me"},"state":"APPROVED","commit_id":"'"$HEAD1"'"}]' watch_fn 'pr_snapshot o/r 7 me')"
+  check "watch: prior-head approval is stale" [ "$(cut -f6-7 <<<"$snapshot")" = $'false\ttrue' ]
+  snapshot="$(FAKE_GH_REVIEWS='[{"id":10,"user":{"login":"me"},"state":"APPROVED","commit_id":"'"$HEAD2"'"}]' watch_fn 'pr_snapshot o/r 7 me')"
+  check "watch: current-head approval recognized" [ "$(cut -f6-7 <<<"$snapshot")" = $'true\tfalse' ]
+  snapshot="$(FAKE_GH_REVIEWS='[{"id":10,"user":{"login":"me"},"state":"APPROVED","commit_id":"'"$HEAD2"'"},{"id":11,"user":{"login":"me"},"state":"CHANGES_REQUESTED","commit_id":"'"$HEAD2"'"}]' watch_fn 'pr_snapshot o/r 7 me')"
+  check "watch: newer requested changes supersede approval" [ "$(cut -f6-7 <<<"$snapshot")" = $'false\tfalse' ]
+  mkdir -p "$STATE/runs"
+  printf 'o/r\t7\n' >"$STATE/watched.tsv"
+  printf '%s\tme\n' "$HEAD1" >"$KEY.registered"
+  out="$(watch_fn 'herdr_available() { return 1; }; remove_finished_clones() { :; }; consider() { echo considered; }; process_watched another')"
+  check "watch: account change refuses cached proof" grep -q 'account changed' <<<"$out"
+  check "watch: account change does not consider" eval '! grep -q "^considered" <<<"$out"'
+  set_head "$HEAD2"
+  printf '%s\n' "$HEAD2" >"$KEY.approval-pending"
+  printf 'approval body' >"$KEY.approval-body"
+  FAKE_GH_REVIEWS='[{"id":10,"user":{"login":"me"},"state":"APPROVED","commit_id":"'"$HEAD2"'"}]' watch_fn 'herdr_available() { return 1; }; remove_finished_clones() { :; }; process_watched me' >/dev/null
+  check "watch: accepted POST recovery clears pending through the tick" no_file "$KEY.approval-pending"
+  check "watch: accepted POST recovery preserves follow-up" [ -s "$STATE/watched.tsv" ]
+  jq '.state="CLOSED"' "$FAKE_DIR/pr.json" >"$TMP_DIR/closed.json"
+  mv "$TMP_DIR/closed.json" "$FAKE_DIR/pr.json"
+  watch_fn 'herdr_available() { return 1; }; remove_finished_clones() { :; }; process_watched another' >/dev/null
+  check "watch: terminal PR removed despite account change" [ ! -s "$STATE/watched.tsv" ]
+  check "watch: terminal PR cleans cached actor" no_file "$KEY.registered"
 }
 
 attempt_after() {
@@ -1177,6 +1217,130 @@ case_approval_post_failure_stays_pending() {
   check "pending approval: approved" [ "$(approvals)" = 1 ]
   check "pending approval: no model call" not_called "claude "
   check "pending approval: cleared" no_file "$KEY.approval-pending"
+}
+
+case_approval_recovery() {
+  reset_state
+  set_head "$HEAD1"
+  FAKE_GH_POST_FAIL=1 FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  FAKE_GH_REVIEWS='[{"id":42,"state":"APPROVED","commit_id":"'"$HEAD1"'","user":{"login":"me"}}]' run_review approve "$HEAD1" -
+  check "ambiguous approval: recovered without duplicate POST" [ "$(approvals)" = 0 ]
+  check "ambiguous approval: pending cleared" no_file "$KEY.approval-pending"
+  check "ambiguous approval: explicit confirmation" grep -q 'approved:.*already confirmed' "$TMP_DIR/run.out"
+
+  reset_state
+  set_head "$HEAD1"
+  FAKE_GH_POST_FAIL=422 FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "terminal approval: pending cleared" no_file "$KEY.approval-pending"
+  check "terminal approval: diagnostic" grep -q 'terminal.*422' "$TMP_DIR/run.out"
+
+  reset_state
+  set_head "$HEAD1"
+  FAKE_GH_POST_FAIL=1 FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  FAKE_GH_LOGIN=another run_review approve "$HEAD1" -
+  check "account change: cached proof cannot approve" [ "$(approvals)" = 0 ]
+}
+
+direct_council() {
+  : >"$FAKE_LOG"
+  rm -f "$FAKE_DIR/validator-prompt.txt" "$FAKE_DIR/phasea-prompt.txt" "$FAKE_DIR/phase-a-ran" "$FAKE_DIR/review-reads"
+  (cd "$CLONE" && PATH="$HOME/.local/bin:$PATH" PR_REVIEW_WATCH_STATE_DIR="$STATE" /bin/bash "$SCRIPTS/pr-council-review/run.sh" 7 o/r "$@") >"$TMP_DIR/run.out" 2>&1 || RC=$?
+}
+
+case_council_registration() {
+  local records
+  reset_state
+  set_head "$HEAD1"
+  FLEET_THREAD=fleet-test FAKE_VALIDATOR_TEXT="$(marker 0)" direct_council --post
+  check "Fleet launcher: complete clean result follows automatically" grep -q "^=== watcher: following $HEAD1 (approval not queued)$" "$TMP_DIR/run.out"
+  check "Fleet launcher: sender leaves watched state to the watcher" no_file "$STATE/watched.tsv"
+  watch_fn 'mkdir -p "$RUNS" "$REPORTS"; touch "$WATCHED"; ingest_council_registrations me' >/dev/null
+  check "Fleet launcher: clean baseline ingested" [ "$(cat "$KEY.council-clean" 2>/dev/null)" = "$HEAD1" ]
+  check "Fleet launcher: no competing initial approval" no_file "$KEY.approval-pending"
+  set_head "$HEAD2"
+  FAKE_VERIFY_TEXT='VERIFY_VERDICT reviewed=0 reopened=0 regressions=0 complete=true confident=true' run_review verify "$HEAD2" "$HEAD1"
+  check "registered clean baseline: new head verifies and approves" [ "$(approvals)" = 1 ]
+  check "registered clean baseline: verification ran" called 'claude VERIFY'
+
+  reset_state
+  set_head "$HEAD1"
+  FLEET_THREAD=fleet-test FAKE_VALIDATOR_TEXT="$(marker 2)" direct_council --post
+  check "positive unposted review: registration refused" grep -q '^=== watcher: not queued (no complete posted council proof)' "$TMP_DIR/run.out"
+  check "positive unposted review: no envelope" no_file "$STATE/register"
+  FLEET_THREAD=fleet-test FAKE_VALIDATOR_TEXT="$(marker 0)" direct_council
+  check "dry council: no automatic registration" no_file "$STATE/register"
+  FLEET_THREAD=fleet-test FAKE_VALIDATOR_TEXT="$(marker 0)" direct_council --post --no-watch-register
+  check "watcher council: recursive registration suppressed" no_file "$STATE/register"
+
+  FLEET_THREAD=fleet-test FAKE_GH_POSTED_REVIEWS='[{"state":"COMMENTED","commit_id":"'"$HEAD1"'","user":{"login":"me"}}]' FAKE_VALIDATOR_TEXT="$(marker 2)" direct_council --post
+  check "positive posted review: follows automatically" grep -q '^=== watcher: following ' "$TMP_DIR/run.out"
+
+  reset_state
+  PR_COUNCIL_VALIDATOR_LOGIN='validator[bot]' FAKE_GH_REVIEWS='[{"state":"COMMENTED","commit_id":"'"$HEAD1"'","user":{"login":"validator[bot]"}}]' FAKE_PHASEA_ONLY_TEXT="$(marker 0)" direct_council --post
+  check "validator-only findings: follow-only without our posted review" grep -q '^=== watcher: following ' "$TMP_DIR/run.out"
+}
+
+case_registration_degraded_proof() {
+  reset_state
+  set_head "$HEAD1"
+  PR_COUNCIL_VALIDATOR_LOGIN='validator[bot]' FAKE_VALIDATOR_TEXT="$(marker 0)" direct_council --post --no-watch-register --with-validator
+  check "explicit full council without registration: no unused identity lookup" not_called 'gh api user'
+  check "explicit full council without registration: no unused review count" not_called 'gh api --paginate'
+  FAKE_VALIDATOR_TEXT="$(marker 0)" direct_council
+  check "dry council: no posted-review count" not_called 'gh api --paginate'
+
+  FAKE_GH_REVIEWS_FAIL_AT=1 FLEET_THREAD=fleet-test FAKE_VALIDATOR_TEXT="$(marker 0)" direct_council --post
+  check "unavailable counter: full validator still runs" called 'claude VALIDATOR'
+  check "unavailable counter: clean marker still follows" grep -q '^=== watcher: following ' "$TMP_DIR/run.out"
+  reset_state
+  FAKE_GH_REVIEWS_FAIL_AT=1 FLEET_THREAD=fleet-test FAKE_GH_POSTED_REVIEWS='[{"state":"COMMENTED","commit_id":"'"$HEAD1"'","user":{"login":"me"}}]' FAKE_VALIDATOR_TEXT="$(marker 2)" direct_council --post
+  check "unknown before count: positive review cannot borrow after count" grep -q '^=== watcher: not queued ' "$TMP_DIR/run.out"
+  check "unknown before count: no positive envelope" no_file "$STATE/register"
+
+  PR_COUNCIL_VALIDATOR_LOGIN='validator[bot]' FAKE_GH_REVIEWS_FAIL_FROM=2 FAKE_GH_REVIEWS='[{"state":"APPROVED","commit_id":"'"$HEAD1"'","user":{"login":"validator[bot]"}}]' FAKE_PHASEA_ONLY_TEXT="$(marker 0)" direct_council --post --phase-a-only
+  check "phase-A-only: missing before count stops before verification pass" not_called 'claude PHASEA_ONLY'
+}
+
+case_registration_requires_all_passes() {
+  local failure mode
+  for failure in FAKE_QUALITY_RC FAKE_THERMO_RC FAKE_CODEX_RC; do
+    for mode in '' fleet-test; do
+      reset_state
+      set_head "$HEAD1"
+      watch_fn 'write_watch_heartbeat me' >/dev/null
+      (export "$failure=1"; FLEET_THREAD="$mode" FAKE_VALIDATOR_TEXT="$(marker 0)" direct_council --post)
+      check "$failure/$mode: degraded council cannot register" grep -q '^=== watcher: not queued (degraded council)' "$TMP_DIR/run.out"
+      check "$failure/$mode: no baseline can be laundered" no_file "$STATE/register"
+    done
+  done
+  reset_state
+  set_head "$HEAD1"
+  watch_fn 'write_watch_heartbeat me' >/dev/null
+  PR_COUNCIL_CODEX="$TMP_DIR/no-codex" FAKE_VALIDATOR_TEXT="$(marker 0)" direct_council --post
+  check "unavailable required member: no registration" grep -q '^=== watcher: not queued (degraded council)' "$TMP_DIR/run.out"
+  FAKE_VALIDATOR_TEXT="$(marker 0)" direct_council --post --no-codex
+  check "explicit optional opt-out: initial handoff remains allowed" grep -q '^=== watcher: \(queued\|submitted\) ' "$TMP_DIR/run.out"
+  reset_state
+  FAKE_THERMO_RC=1 FAKE_VALIDATOR_TEXT="$(marker 0)" run_review council "$HEAD1" -
+  check "watcher fallback: degraded council is incomplete" rc_is 4
+  check "watcher fallback: no degraded clean proof" no_file "$KEY.council-clean"
+  check "watcher fallback: no degraded approval" [ "$(approvals)" = 0 ]
+}
+
+case_import_cannot_override_verification() {
+  reset_state
+  set_head "$HEAD1"
+  FAKE_VALIDATOR_TEXT="$(marker 2)" run_review council "$HEAD1" -
+  set_head "$HEAD2"
+  watch_fn 'write_watch_heartbeat me' >/dev/null
+  FAKE_VALIDATOR_TEXT="$(marker 0)" direct_council --post
+  FAKE_VERIFY_TEXT='VERIFY_VERDICT reviewed=2 reopened=0 regressions=0 complete=false confident=true' run_review verify "$HEAD2" "$HEAD1"
+  check "incomplete verification: no approval before import" [ "$(approvals)" = 0 ]
+  cp "$KEY.status" "$TMP_DIR/verify-status"
+  watch_fn 'ingest_council_registrations me' >/dev/null
+  check "delayed import: verification decision preserved" cmp -s "$KEY.status" "$TMP_DIR/verify-status"
+  run_review approve "$HEAD2" -
+  check "delayed import: cannot mint approval after incomplete verify" [ "$(approvals)" = 0 ]
 }
 
 case_verify_retry_skips_delta() {
@@ -1338,9 +1502,11 @@ case_pending_and_clean_delta() {
       malformed) patch="$(jq -cn --argjson f "$candidate" '{findings:[($f | del(.verification))],confident:true}')" ;;
       hesitant) patch='{"findings":[],"confident":false}' ;;
     esac
-    FAKE_DELTA_PATCH="$(delta_review "$patch")" run_review verify "$HEAD2" "$HEAD1"
+    FAKE_VERIFY_TEXT='VERIFY_VERDICT reviewed=0 reopened=0 regressions=0 complete=true confident=true' \
+      FAKE_DELTA_PATCH="$(delta_review "$patch")" run_review verify "$HEAD2" "$HEAD1"
     if [ "$mode" = clean ]; then
       check "clean delta: still approves clean-council path" [ "$(approvals)" = 1 ]
+      check "clean delta: verify-fixes still required" called 'claude VERIFY'
     else
       check "$mode delta: clean-council path cannot approve" [ "$(approvals)" = 0 ]
     fi
@@ -1713,7 +1879,7 @@ case_phase_a_only() {
   FAKE_GH_REVIEWS="[$(review some-validator[bot] Bot "$HEAD1" COMMENTED)]" \
     FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
   check "no login: validator runs" called "claude VALIDATOR"
-  check "no login: reviews not listed" not_called "gh api --paginate"
+  check "no validator login: only the approval recovery reads review history" [ "$(grep -c '^gh api --paginate' "$FAKE_LOG")" = 1 ]
   reset_state
   PR_COUNCIL_PHASE_A_ONLY=1 run_review council "$HEAD1" -
   check "no login, forced phase A only: usage error" rc_is 2
@@ -1735,7 +1901,21 @@ case_launchd_plist() {
   check "launchd: PATH starts with ~/.local/bin" grep -q "<string>$HOME/.local/bin:/opt/homebrew/bin:" "$plist"
 }
 
-if [ "${1:-}" = --efficiency ]; then
+if [ "${1:-}" = --d1 ]; then
+case_registration_requires_all_passes
+case_import_cannot_override_verification
+case_codex_member
+case_reuse_review
+elif [ "${1:-}" = --lifecycle ]; then
+case_approval_recovery
+case_approval_head_watch
+case_council_registration
+case_registration_degraded_proof
+case_registration_requires_all_passes
+case_import_cannot_override_verification
+case_approval_post_failure_stays_pending
+case_pending_and_clean_delta
+elif [ "${1:-}" = --efficiency ]; then
 case_reuse_fingerprint
 case_record_review
 case_usage_head
@@ -1762,9 +1942,15 @@ case_unresolved_council_lifecycle
 case_legacy_council_state
 case_ambiguous_marker_attacks
 case_unwatch_state
+case_approval_head_watch
 case_next_attempt
 case_verify_skill_config
 case_approval_post_failure_stays_pending
+case_approval_recovery
+case_council_registration
+case_registration_degraded_proof
+case_registration_requires_all_passes
+case_import_cannot_override_verification
 case_verify_retry_skips_delta
 case_delta_structured
 case_delta_evidence
