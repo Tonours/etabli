@@ -1735,11 +1735,43 @@ case_launchd_plist() {
   check "launchd: PATH starts with ~/.local/bin" grep -q "<string>$HOME/.local/bin:/opt/homebrew/bin:" "$plist"
 }
 
-if [ "${1:-}" = --efficiency ]; then
+case_usage_accounting() {
+  local native="$FIXTURES/2.1.308-success.json" variant="$TMP_DIR/usage-variant.json" out
+  out="$(. "$SCRIPTS/pr-council-review/lib.sh"; usage_line "$native" fixture 2.1.308)"
+  check "usage scope: native cumulative includes possible restored spend" grep -qF 'scope=native-session-cumulative restored=possible' <<<"$out"
+  check "usage scope: model totals are reported, not independently attributed" grep -qF 'modelUsage=reported-including-subagents' <<<"$out"
+  check "usage scope: zero cost and error state retained" grep -qF 'cost=0 denials=0 is_error=false' <<<"$out"
+  check "usage scope: pricing provenance" grep -qF 'basis=list' <<<"$out"
+  jq '.modelUsage["claude-sonnet-5-5"] = {inputTokens:17,cacheCreationInputTokens:3,cacheReadInputTokens:5,outputTokens:11,thinkingTokens:7,costBasis:"managed"} | .total_cost_usd=2 | .result="PRIVATE_RESULT" | .session_id="PRIVATE_SESSION"' "$native" >"$variant"
+  out="$(. "$SCRIPTS/pr-council-review/lib.sh"; usage_line "$variant" synthetic 2.1.308)"
+  check "usage scope: all model entries, thinking not added twice" grep -qF 'claude-sonnet-5-5 in=17 cache_write=3 cache_read=5 out=11 basis=managed' <<<"$out"
+  check "usage scope: original model retained" grep -qF 'claude-haiku-5-5 in=2' <<<"$out"
+  check "usage scope: no session ID or result text" eval '! grep -qE "PRIVATE_RESULT|PRIVATE_SESSION" <<<"$out"'
+  jq '.total_cost_usd=12 | .modelUsage["claude-haiku-5-5"].inputTokens=12000' "$native" >"$variant"
+  out="$(. "$SCRIPTS/pr-council-review/lib.sh"; usage_line "$variant" synthetic-resumed 2.1.308)"
+  check "usage scope: synthetic restored cumulative balance not relabeled a new-call delta" eval 'grep -qF "cost=12" <<<"$out" && grep -qF "scope=native-session-cumulative restored=possible" <<<"$out" && grep -qF "in=12000" <<<"$out"'
+  jq 'del(.total_cost_usd,.modelUsage,.is_error)' "$native" >"$variant"
+  out="$(. "$SCRIPTS/pr-council-review/lib.sh"; usage_line "$variant" synthetic 2.1.308)"
+  check "usage scope: absent accounting stays unknown" grep -qF 'cost=? denials=0 is_error=? scope=native-session-cumulative restored=possible modelUsage=unknown' <<<"$out"
+  jq '.is_error=true | .subtype="error_during_execution" | .total_cost_usd=0 | .modelUsage["claude-haiku-5-5"].inputTokens=null | .modelUsage["claude-haiku-5-5"].costBasis="unexpected"' "$native" >"$variant"
+  out="$(. "$SCRIPTS/pr-council-review/lib.sh"; usage_line "$variant" synthetic 2.1.308)"
+  check "usage scope: zero after error not marked successful" grep -qF 'subtype=error_during_execution cost=0 denials=0 is_error=true' <<<"$out"
+  check "usage scope: missing model counter and pricing stay unknown" grep -qF 'in=? cache_write=5908 cache_read=10644 out=4 basis=unknown' <<<"$out"
+  jq '.total_cost_usd="PRIVATE_COST" | .modelUsage["claude-haiku-5-5"].inputTokens="PRIVATE_COUNTER" | .modelUsage["claude-haiku-5-5"].outputTokens=-3 | .modelUsage["claude-haiku-5-5"].costBasis="PRIVATE_BASIS" | .result="PRIVATE_RESULT" | .session_id="PRIVATE_SESSION" | .is_error="true"' "$native" >"$variant"
+  out="$(. "$SCRIPTS/pr-council-review/lib.sh"; usage_line "$variant" synthetic 2.1.308)"
+  check "usage scope: invalid numeric fields are not echoed" eval 'grep -qF "cost=?" <<<"$out" && grep -qF "in=? cache_write=5908 cache_read=10644 out=?" <<<"$out" && ! grep -q PRIVATE <<<"$out"'
+  check "usage scope: string is_error does not become a successful boolean" grep -qF 'is_error=?' <<<"$out"
+}
+
+if [ "${1:-}" = --usage ]; then
+case_usage_accounting
+elif [ "${1:-}" = --efficiency ]; then
+case_usage_accounting
 case_reuse_fingerprint
 case_record_review
 case_usage_head
 else
+case_usage_accounting
 case_clean_council_approves
 case_council_findings_wait
 case_codex_member

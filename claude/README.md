@@ -158,7 +158,14 @@ Claude Code runs without permission prompts on this machine. The tracked
 fragment `settings.skill-overrides.json` carries the skill map plus
 `attribution: { commit: "", pr: "" }` (no AI trailer or PR line) and
 `autoMemoryEnabled: false`, since durable memory is the vault plus the
-`PLAN.md` handoff. `scripts/lib/claude-settings-sync.mjs` copies only
+`PLAN.md` handoff. `promptSuggestionEnabled: false` and
+`awaySummaryEnabled: false` turn off generated next-prompt suggestions and
+automatic away recaps. These managed scalars win over local values at each
+deploy; changing a toggle in `/config` lasts only until the next sync.
+`CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION` and `CLAUDE_CODE_ENABLE_AWAY_SUMMARY`
+can override them; sync preserves those environment values. Idle/auto
+compaction, models, effort and permissions are not changed by these defaults.
+`scripts/lib/claude-settings-sync.mjs` copies only
 whitelisted keys into `~/.claude/settings.json`, so no secret can leak into the
 fragment. `permissions.defaultMode: "bypassPermissions"` and the two skip flags
 stay in the local settings file. No hook gates pushes, deletions or `PLAN.md`
@@ -187,6 +194,79 @@ Council launchers exclude user settings but do not scrub an inherited process
 env: a model-less descendant can receive this default from a Claude caller.
 Explicit reviewer models, effort and turn limits stay unchanged. Plugin
 `model: inherit` remains explicit. No measured token saving is established.
+
+## Token usage and session continuity
+
+The statusline labels `parent(last)` as the last parent request and
+`session(native-est)` as the client's native session USD estimate, not a bill,
+quota, or verified whole-tree token total. `subagents:inconnu` remains explicit
+because that payload does not provide their token breakdown.
+
+Existing review logs use native `modelUsage` totals, which include reported
+subagent requests according to the
+[native accounting contract](https://code.claude.com/docs/en/agent-sdk/cost-tracking).
+They are grouped by model, not individual parent/child. `scope=native-session-cumulative`
+and `restored=possible` mean that resumes, copies and forks can include an
+opening balance. **Never add overlapping snapshots of a resumed/copied/forked
+session.** Only proven independent calls can have their totals added. With
+an unknown opening balance, new consumption is unknown. Pricing `basis` is
+`list`, `managed`, or `unknown`; a native zero is valid, but error/crash zeros
+do not prove no spend. Keep `is_error` and `subtype` beside the estimate.
+Thinking is already included in output tokens, not a second amount to add.
+
+To inspect a final native JSON already retained privately, without another
+model call or a history scan:
+
+```bash
+rtk proxy jq '{scope:"native-session-cumulative",restored:"possible",total_cost_usd,is_error,subtype,modelUsage}' "$private_result_json"
+```
+
+Missing counters stay unknown. A native final result covers what the runtime
+reported; background exit deadlines can leave work unreported. Keep task
+success, input/cache-write/cache-read/output, USD estimate, account quota and
+latency separate. Compare the same task and quality, including failed branches
+and rework; no measured saving follows from these labels or fixture tests.
+
+Use `/context` to inspect actual loaded instructions and `/usage` for the
+native account/session view. Imports in `CLAUDE.md` are eager; skills load their
+body on invocation and then remain in history. Keep specialized material cold,
+read decisive files/ranges, and retain full logs privately with exit status and
+proof references. Use ToolSearch on supported MCP routes instead of loading
+all schemas; do not toggle servers or models needlessly mid-task. RTK's `proxy`
+path preserves structured data and exact evidence. The delegation choices and
+handoff rules live in `workflow/skills/orchestration.md`; no review gate changes.
+
+For remote follow-up, first identify the machine, directory and session doing
+the job. Prefer its existing session to re-explaining the task on another Mac:
+
+| Intent | Native action | Boundary |
+| --- | --- | --- |
+| Expose the running interactive session | `/rc` inside that session | Documented by Claude; not a CLI `--help` or live mobile test |
+| Start a new interactive session with remote access | `claude --remote-control` | A new session, not attachment to the old one |
+| Resume the last server-recorded session | `claude remote-control --continue` | Server record for that directory; can expire or fail; not an ordinary interactive session |
+| Resume a specific server session | `claude remote-control --session-id <id>` | Cannot combine with spawn flags or `--continue`; server defaults can still allow additional sessions |
+| Intentionally start one new server session | `claude remote-control --spawn=session` | Explicitly new work; not a fallback after failed attachment |
+
+Only CLI help/syntax was checked locally; no server, account eligibility or
+mobile connection was exercised for these recipes. Do not launch a second
+copy or retry a failed resume as new work automatically.
+An attached multi-session server can still accept new requests; capacity is
+not a token budget, and same-directory writers can conflict. For independent
+concurrent jobs, retain the workflow's worktree isolation. Remote Control runs
+locally; cloud sessions and `/remote-env` are different execution environments.
+Remote access has no documented intrinsic token discount. Availability depends
+on account, policy, provider and runtime; this change enables no server or
+service. See [Remote Control](https://code.claude.com/docs/en/remote-control).
+
+Keep caching enabled and avoid opportunistic model changes on a large warm
+history. Longer TTLs cost more to write and need evidence before adoption.
+After persisting the handoff, use `/clear` only for unrelated work. At a
+natural task boundary, `/compact Keep decisions, constraints, checked results,
+open findings and the next action` preserves continuity; never run it on a timer.
+Fast mode buys latency at a higher price; it is not a cost optimization.
+The two optional background defaults above do not disable compaction or a
+mandatory evaluator. The sourced research and proposed comparison protocol are
+in [`20261109-claude-code-token-optimization.md`](../docs/research/20261109-claude-code-token-optimization.md).
 
 ## PR autoreview
 
