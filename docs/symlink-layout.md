@@ -115,11 +115,15 @@ linking them. `--apply` runs both syncs; `--check` skips them.
 - `~/.claude/settings.json`: `scripts/lib/claude-settings-sync.mjs` merges
   `skillOverrides` from `claude/settings.skill-overrides.json`, where the
   tracked entries win, and copies the other keys the fragment carries,
-  `attribution`, `autoMemoryEnabled` and optional
+  `attribution`, `autoMemoryEnabled`, `promptSuggestionEnabled`,
+  `awaySummaryEnabled` and optional
   `env.CLAUDE_CODE_SUBAGENT_MODEL` support (not activated in the shared fragment).
   The PATH check does not certify SDK/IDE runtimes; other local env keys are preserved. The
   whitelist also admits `permissions.defaultMode` and the two skip prompts, and
   refuses any other key. Nothing is read back into the repo.
+  Managed suggestion/away-recap defaults are false and overwrite local toggles
+  on deploy; their native environment overrides are preserved. Compaction,
+  model, effort and permission defaults are not changed by these two keys.
 
 ## Scopes
 

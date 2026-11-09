@@ -96,7 +96,14 @@ check_denials() {
 }
 
 usage_line() {
-  jq -r --arg label "$2" --arg version "$3" '"=== usage \($label): claude_version=\($version) turns=\(.num_turns // "?") subtype=\(.subtype // "?") cost=\(.total_cost_usd // "?") denials=\(.permission_denials | length? // "?") | " + ([.modelUsage // {} | to_entries[] | "\(.key) in=\(.value.inputTokens) cache_write=\(.value.cacheCreationInputTokens) cache_read=\(.value.cacheReadInputTokens) out=\(.value.outputTokens)"] | join(" | "))' "$1" 2>/dev/null
+  jq -r --arg label "$2" --arg version "$3" '
+    def n: if type == "number" and . >= 0 then . else "?" end;
+    (.modelUsage | if type == "object" then . else {} end) as $models |
+    "=== usage \($label): claude_version=\($version) turns=\(.num_turns | n) subtype=\(.subtype // "?") cost=\(.total_cost_usd | n) denials=\(.permission_denials | if type == "array" then length else "?" end)" +
+    " is_error=\(.is_error | if type == "boolean" then tostring else "?" end) scope=native-session-cumulative restored=possible modelUsage=\(if ($models | length) > 0 then "reported-including-subagents" else "unknown" end) | " +
+    ([$models | to_entries[] |
+      "\(.key) in=\(.value.inputTokens | n) cache_write=\(.value.cacheCreationInputTokens | n) cache_read=\(.value.cacheReadInputTokens | n) out=\(.value.outputTokens | n) basis=\(.value.costBasis | if . == "list" or . == "managed" then . else "unknown" end)"
+    ] | join(" | "))' "$1" 2>/dev/null
 }
 
 # $1 session JSON, $2 the pass's exit code: a denied pass always vetoes the

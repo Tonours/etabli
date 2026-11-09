@@ -19,6 +19,8 @@ const SCALAR_KEYS = new Set([
   "skipDangerousModePermissionPrompt",
   "skipAutoPermissionPrompt",
   "autoMemoryEnabled",
+  "promptSuggestionEnabled",
+  "awaySummaryEnabled",
 ]);
 const PERMISSION_KEYS = new Set(["defaultMode"]);
 const ATTRIBUTION_KEYS = new Set(["commit", "pr"]);

@@ -14,6 +14,13 @@ r=run({cwd:'/tmp'});assert.equal(r.status,0);assert.match(r.stdout,/effort:incon
 r=run({cwd:'/tmp',context_window:{current_usage:{input_tokens:0,output_tokens:0,cache_creation_input_tokens:0,cache_read_input_tokens:0}},prompt_cache:{warm:false,hit_ratio:0,misses:0}});assert.equal(r.status,0);assert.match(r.stdout,/ctx:0t/);assert.match(r.stdout,/in:0/);assert.match(r.stdout,/cache:0%/);assert.match(r.stdout,/miss:0/);
 r=run({context_window:{current_usage:null,total_input_tokens:20},effort:{level:4},rate_limits:{five_hour:{used_percentage:'0'},seven_day:{used_percentage:-1}}});assert.equal(r.status,0);assert.match(r.stdout,/ctx:20t/);assert.match(r.stdout,/5h:inconnu/);assert.match(r.stdout,/7j:inconnu/);
 r=spawnSync('bash',[command],{input:'{bad',encoding:'utf8'});assert.notEqual(r.status,0);assert.match(r.stderr,/invalid statusline JSON/);
+for (const amount of [0, 0.55, 0.30000000000000004, 1.2e-7]) {
+  r=run({...full,cost:{total_cost_usd:amount}});assert.equal(r.status,0);assert.ok(r.stdout.includes(`session(native-est):$${amount} |`));assert.match(r.stdout,/parent\(last\)/);assert.match(r.stdout,/subagents:inconnu/);assert.doesNotMatch(r.stdout,/whole.tree|arbre.total/);
+}
+for (const amount of [undefined,null,-1,'0.55','1e9',-0.0001]) {
+  r=run({...full,cost:{total_cost_usd:amount}});assert.equal(r.status,0);assert.match(r.stdout,/session\(native-est\):inconnu/);
+}
+r=spawnSync('bash',[command],{input:'{"cost":{"total_cost_usd":1e400}}',encoding:'utf8'});assert.equal(r.status,0);assert.match(r.stdout,/session\(native-est\):inconnu/);
 console.log('claude-statusline smoke: ok');
 NODE
 
