@@ -40,6 +40,7 @@ export function normalizeUsage(data) {
     effort: text(data?.effort?.level),
     tokens,
     counters,
+    estimatedUsd: number(data?.cost?.total_cost_usd),
     used: number(context?.used_percentage),
     remaining: number(context?.remaining_percentage),
     fiveHour: number(data?.rate_limits?.five_hour?.used_percentage),
@@ -88,6 +89,7 @@ export function renderStatusline(data) {
   const remaining =
     usage.remaining === null ? "" : ` (${percent(usage.remaining)} left)`;
   const warmth = usage.warm === null ? "inconnu" : usage.warm ? "warm" : "cold";
+  const estimate = usage.estimatedUsd === null ? "inconnu" : `$${usage.estimatedUsd}`;
   const color = (code, value) => `\x1b[${code}m${value}\x1b[0m`;
   const dir = color("36", cwd ? text(basename(cwd)) : "inconnu");
   const git = branch
@@ -105,7 +107,7 @@ export function renderStatusline(data) {
         : usage.used < 80
           ? "33"
           : "31";
-  return `${dir}${git} ${color("1", usage.model)} effort:${usage.effort} ${color(ctxColor, `ctx:${ctx}${remaining}`)}\nparent(last) in:${show(usage.counters.input_tokens)} out:${show(usage.counters.output_tokens)} write:${show(usage.counters.cache_creation_input_tokens)} read:${show(usage.counters.cache_read_input_tokens)} cache:${percent(usage.hitPercent)} ${warmth} miss:${show(usage.misses)} | compte 5h:${percent(usage.fiveHour)} 7j:${percent(usage.sevenDay)} | subagents:inconnu\n`;
+  return `${dir}${git} ${color("1", usage.model)} effort:${usage.effort} ${color(ctxColor, `ctx:${ctx}${remaining}`)}\nparent(last) in:${show(usage.counters.input_tokens)} out:${show(usage.counters.output_tokens)} write:${show(usage.counters.cache_creation_input_tokens)} read:${show(usage.counters.cache_read_input_tokens)} cache:${percent(usage.hitPercent)} ${warmth} miss:${show(usage.misses)} | session(native-est):${estimate} | compte 5h:${percent(usage.fiveHour)} 7j:${percent(usage.sevenDay)} | subagents:inconnu\n`;
 }
 let isMain = false;
 try {
