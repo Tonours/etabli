@@ -4,6 +4,8 @@
     "pr": ""
   },
   "autoMemoryEnabled": false,
+  "promptSuggestionEnabled": false,
+  "awaySummaryEnabled": false,
   "skillOverrides": {
     "adr": "user-invocable-only",
     "adversary": "on",

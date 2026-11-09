@@ -82,6 +82,28 @@ Delegate only when all are true:
 Keep the critical path local. Use fresh-context reviewer/oracle-style agents
 before writer agents. Do not use subagents to hide uncertainty.
 
+For native Claude Code, choose the context boundary explicitly:
+
+- Keep a small operation in the parent when it already has the needed evidence.
+- Use a fresh, named subagent for a bounded independent investigation; send the
+  question, scope, known references, expected result and stop condition. Do not
+  have the parent explore that same slice while the child works. Return decisive
+  facts and proof references instead of full logs or copied instructions.
+- Use a conversation fork only when it needs the parent's history and that
+  dependency is allowed. Its inherited prefix may reuse the cache, but it is
+  not fresh input. Mandatory independent review always keeps fresh context.
+- Resume a worker for a continuation of its own task, not an evaluator whose
+  contract requires a new review. Stop unused branches; parallelism changes
+  latency, not the account's allocation. Count reported work from all branches,
+  including retries, compaction and synthesis, without adding restored totals.
+
+Preserve the same session and stable model/tool prefix for the same job when
+possible; persist the handoff before a transition. Clear unrelated work rather
+than accumulating it. Compact at a useful boundary, never on a periodic timer.
+Do not force a TTL, disable compaction, weaken permissions or change review
+models to lower a counter. Native Claude recipes and accounting limits:
+`claude/README.md` section "Token usage and session continuity" in Etabli.
+
 ## Retry And Error Rules
 
 - Retry only classified retryable failures: transient provider/runtime errors,
