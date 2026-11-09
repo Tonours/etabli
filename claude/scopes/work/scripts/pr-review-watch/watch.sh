@@ -30,6 +30,7 @@ export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PA
 . "$HERE/../pr-council-review/lib.sh"
 . "$HERE/clones.sh"
 . "$HERE/register.sh"
+. "$HERE/requests.sh"
 
 log() { echo "$(date '+%F %T') $*"; }
 
@@ -330,6 +331,7 @@ stop_everything() {
   local pidfile pid
   mkdir -p "$STATE_DIR"
   touch "$KILL_SWITCH"
+  rm -f "$STATE_DIR/requests/ready"
   while IFS= read -r pidfile; do
     pid="$(cat "$pidfile" 2>/dev/null)"
     run_alive "${pidfile%.pid}" || continue
@@ -356,8 +358,11 @@ main() {
   me="$(gh api user --jq .login 2>/dev/null)" || { log "gh not authenticated"; exit 1; }
   [ -n "$me" ] || { log "gh answered no login"; exit 1; }
   write_watch_heartbeat "$me" || exit 1
+  write_review_request_ready "$me" || exit 1
   discover_requested | merge_into_watched
   ingest_council_registrations "$me" || exit 1
+  ingest_review_requests "$me" || exit 1
+  [ -f "$KILL_SWITCH" ] && exit 0
   process_watched "$me"
   find "$REPORTS" -type f -mtime +30 -delete 2>/dev/null
 }
