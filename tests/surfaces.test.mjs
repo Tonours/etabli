@@ -690,6 +690,72 @@ describe("Claude managed env", () => {
       spawnSync(process.execPath, [sync, settings, tracked, dry, stamp, mode, tmp], { encoding: "utf8", env: { ...process.env, PATH: `${bin}:/usr/bin:/bin` } });
     return { tracked, settings, run, claude };
   }
+  test("managed optional suggestions and recaps preserve all unrelated settings", () => {
+    const original = { skillOverrides: {}, promptSuggestionEnabled: true, awaySummaryEnabled: true, model: "opus", effortLevel: "high", idleCompaction: true, autoCompactEnabled: true, permissions: { defaultMode: "default" }, env: { TOKEN: secret, CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION: "true", CLAUDE_CODE_ENABLE_AWAY_SUMMARY: "1", CLAUDE_CODE_SUBAGENT_MODEL: "opus" } };
+    const f = fixture(undefined, original);
+    chmodSync(f.settings, 0o600);
+    writeFileSync(f.tracked, JSON.stringify({ skillOverrides: {}, promptSuggestionEnabled: false, awaySummaryEnabled: false }));
+    const dry = f.run("dry", "1");
+    assert.equal(dry.status, 0, dry.stderr);
+    assert.match(dry.stdout, /^WOULD_SYNC +Claude tracked settings/);
+    assert.match(dry.stdout, /2 settings keys/);
+    assert.deepEqual(JSON.parse(readFileSync(f.settings)), original);
+    assert.equal(existsSync(`${f.settings}.bak.dry`), false);
+    const applied = f.run();
+    assert.equal(applied.status, 0, applied.stderr);
+    assert.doesNotMatch(applied.stdout + applied.stderr, new RegExp(secret));
+    assert.deepEqual(JSON.parse(readFileSync(f.settings)), { ...original, promptSuggestionEnabled: false, awaySummaryEnabled: false });
+    assert.deepEqual(JSON.parse(readFileSync(`${f.settings}.bak.first`)), original);
+    assert.equal(lstatSync(f.settings).mode & 0o777, 0o600);
+    assert.equal(f.run("unchanged").status, 0);
+    assert.equal(existsSync(`${f.settings}.bak.unchanged`), false);
+    writeFileSync(f.tracked, JSON.stringify({ skillOverrides: {}, promptSuggestionEnabled: true, awaySummaryEnabled: true }));
+    assert.equal(f.run("enable").status, 0);
+    assert.deepEqual(JSON.parse(readFileSync(f.settings)), original);
+  });
+  test("optional background switches reject non-booleans before touching settings", () => {
+    for (const key of ["promptSuggestionEnabled", "awaySummaryEnabled"]) {
+      for (const value of [null, "false", 0, [], {}, { x: 1 }]) {
+        const f = fixture(undefined, { skillOverrides: {}, env: { TOKEN: secret } });
+        writeFileSync(f.tracked, JSON.stringify({ skillOverrides: {}, [key]: value }));
+        const bytes = readFileSync(f.settings, "utf8");
+        const child = f.run();
+        assert.equal(child.status, 1);
+        assert.match(child.stderr, /must be a boolean/);
+        assert.doesNotMatch(child.stdout + child.stderr, new RegExp(secret));
+        assert.equal(readFileSync(f.settings, "utf8"), bytes);
+        assert.equal(existsSync(`${f.settings}.bak.first`), false);
+      }
+    }
+  });
+  test("shared background defaults install privately without changing compaction or models", () => {
+    const f = fixture(undefined);
+    copyFileSync(fileURLToPath(new URL("../claude/settings.skill-overrides.json", import.meta.url)), f.tracked);
+    rmSync(f.settings);
+    const child = f.run("install", "0", "install");
+    assert.equal(child.status, 0, child.stderr);
+    const settings = JSON.parse(readFileSync(f.settings));
+    assert.equal(settings.promptSuggestionEnabled, false);
+    assert.equal(settings.awaySummaryEnabled, false);
+    for (const key of ["model", "effortLevel", "idleCompaction", "autoCompactEnabled"]) assert.equal(settings[key], undefined);
+    assert.equal(lstatSync(f.settings).mode & 0o777, 0o600);
+  });
+  test("background fragments cannot admit adjacent privileged settings or env keys", () => {
+    for (const extra of [{ model: "haiku", env: { CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION: "0" } }, { env: { CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION: "0" } }]) {
+      const original = { skillOverrides: {}, env: { TOKEN: secret } };
+      const f = fixture(undefined, original);
+      writeFileSync(f.tracked, JSON.stringify({ skillOverrides: {}, promptSuggestionEnabled: false, ...extra }));
+      const child = f.run();
+      assert.equal(child.status, 1);
+      assert.match(child.stderr, /not allowed/);
+      assert.doesNotMatch(child.stdout + child.stderr, new RegExp(secret));
+      assert.deepEqual(JSON.parse(readFileSync(f.settings)), original);
+      assert.equal(existsSync(`${f.settings}.bak.first`), false);
+      writeFileSync(f.tracked, JSON.stringify({ skillOverrides: {}, promptSuggestionEnabled: false }));
+      assert.equal(f.run("control").status, 0);
+      assert.equal(JSON.parse(readFileSync(f.settings)).promptSuggestionEnabled, false);
+    }
+  });
   test("merges managed default, preserves secrets, backs up and detects env-only drift", () => {
     const original = { skillOverrides: {}, env: { TOKEN: secret, CLAUDE_CODE_SUBAGENT_MODEL: "opus", CLAUDE_CODE_SUBAGENT_MODEL_FORCE: "0" } };
     const f = fixture({ CLAUDE_CODE_SUBAGENT_MODEL: "sonnet" }, original);
