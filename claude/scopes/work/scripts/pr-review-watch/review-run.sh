@@ -1,5 +1,6 @@
 #!/bin/bash
 set -uo pipefail
+umask 077
 
 MODE="${1:?usage: review-run.sh <council|verify|approve> <owner/repo> <number> <sha> <since> <url> <report> <state-key>}"
 REPO="${2:?}"
@@ -10,23 +11,39 @@ URL="${6:?}"
 REPORT="${7:?}"
 KEY="${8:?}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
+canonical_key="$(cd "$(dirname "$KEY")" && pwd -P)/${KEY##*/}" || exit 1
+if [ "$KEY" != "$canonical_key" ]; then exec "$HERE/review-run.sh" "$MODE" "$REPO" "$NUMBER" "$SHA" "$SINCE" "$URL" "$REPORT" "$canonical_key"; fi
 COUNCIL="${PR_REVIEW_WATCH_COUNCIL:-$HOME/.claude/scripts/pr-council-review/run.sh}"
 TIMEOUT="${PR_REVIEW_WATCH_TIMEOUT:-2700}"
 VERIFY_MODEL="${PR_REVIEW_WATCH_VERIFY_MODEL:-opus}"
 VERIFY_EFFORT="${PR_REVIEW_WATCH_VERIFY_EFFORT:-low}"
 
-export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
-. "$HERE/../pr-council-review/lib.sh"
-. "$HERE/gates.sh"
+# Preserve the eight-argument CLI; only the immediate supervised child may enter.
+if [ "${PR_REVIEW_WATCH_SUPERVISOR:-}" != "$PPID" ] || [ "${PR_REVIEW_WATCH_RUN_KEY:-}" != "$KEY" ] \
+  || [ "$(cat "$KEY.execution/pid" 2>/dev/null)" != "$PPID" ] \
+  || [ "${PR_REVIEW_WATCH_RUN_TOKEN:-}" != "$(cat "$KEY.execution/token" 2>/dev/null)" ]; then
+  attempt=1
+  IFS=$'\t' read -r status_sha status_mode status_rc status_attempt <"$KEY.status" 2>/dev/null || true
+  if [ "${status_sha:-}" = "$SHA" ] && [[ "${status_attempt:-}" =~ ^[1-9][0-9]*$ ]]; then attempt="$status_attempt"; fi
+  exec "$HERE/launch-run.sh" "$KEY" - "$MODE" "$SHA" "$attempt" "$HERE/review-run.sh" "$@"
+fi
 
+# Advertise the child too: a killed supervisor must not hide a live runner.
+printf '%s\n' "$$" >"$KEY.pid"
 finish() {
-  local rc=$? attempt
-  attempt="$(cut -f4 "$KEY.status" 2>/dev/null || echo 1)"
-  [ "$MODE" = approve ] || printf '%s\t%s\t%s\t%s\n' "$SHA" "$MODE" "$rc" "${attempt:-1}" >"$KEY.status"
-  rm -f "$KEY.pid"
+  local rc=$?
   echo "=== exit $rc"
-  [ "$rc" -eq 0 ] || notify "PR review failed ($MODE, $rc)" "$REPO#$NUMBER @${SHA:0:8}" "file://$REPORT"
+  if [ "$rc" -ne 0 ] && declare -F notify >/dev/null; then
+    notify "PR review failed ($MODE, $rc)" "$REPO#$NUMBER @${SHA:0:8}" "file://$REPORT"
+  fi
 }
+trap finish EXIT
+trap 'declare -F stop_children >/dev/null && stop_children; exit 130' INT
+trap 'declare -F stop_children >/dev/null && stop_children; exit 143' TERM
+trap 'declare -F stop_children >/dev/null && stop_children; exit 129' HUP
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+. "$HERE/../pr-council-review/lib.sh" || exit 1
+. "$HERE/gates.sh" || exit 1
 
 my_review_count() {
   gh pr view "$NUMBER" --repo "$REPO" --json latestReviews \
@@ -286,12 +303,12 @@ run_pending_approval() {
   post_approval "$(cat "$KEY.approval-body")"
 }
 
-[ -f "${PR_REVIEW_WATCH_STATE_DIR:-$HOME/.claude/state/pr-review-watch}/off" ] && { echo "kill switch is on"; exit 0; }
-echo $$ >"$KEY.pid"
-trap finish EXIT
-trap 'stop_children; exit 130' INT
-trap 'stop_children; exit 143' TERM
-trap 'stop_children; exit 129' HUP
+if [ -f "${PR_REVIEW_WATCH_STATE_DIR:-$HOME/.claude/state/pr-review-watch}/off" ]; then
+  if [ "$MODE" != approve ]; then
+    printf '%s\t%s\n' "$SHA" "$(cut -f4 "$KEY.status")" >"$KEY.paused"
+  fi
+  exit 75
+fi
 USAGE_TARGET="$REPO#$NUMBER@$SHA"
 ME="$(gh api user --jq .login)" || exit 1
 echo "=== $MODE $REPO#$NUMBER @${SHA:0:8} — $URL"

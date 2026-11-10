@@ -48,3 +48,4 @@ full	shell-docs	claude-statusline-smoke	tests/claude-statusline-smoke.sh
 full	shell-docs	security-audit-glm-smoke	tests/security-audit-glm-smoke.sh
 full	shell-docs	security-audit-sandbox-smoke	tests/security-audit-sandbox-smoke.sh
 full	shell-docs	mutation-probe-test	tests/mutation-probe.test.mjs
+full	shell-docs	pr-review-lifecycle-smoke	tests/pr-review-lifecycle-smoke.sh
