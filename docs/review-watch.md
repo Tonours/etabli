@@ -49,7 +49,7 @@ retain their existing semantics. Rejected approval imports generate one notice.
 Stale-head imports cannot rearm a veto; same-head verification decisions remain
 authoritative. Already-followed PRs use their normal delta and verify-fixes path,
 so another direct or Fleet council cannot bypass that verification. A dead runner's
-status defers imports only during the existing launch grace; recovery cannot clear
+status reserves a slot and defers imports until max(180 seconds, configured retry backoff); recovery cannot clear
 another head's stopped decision. The batch stays bounded.
 
 Approval retries first check actual reviews from the same account on the exact
@@ -74,3 +74,30 @@ The pre-existing race between an independently running direct council and a
 watcher discovering its review request remains: before the council completes
 registration, discovery can launch an initial review after its settle interval.
 There is no new global pre-start lease.
+
+## Launch ownership and diagnostics
+
+Each attempt has an immutable private launcher and a one-shot token. Herdr and
+headless fallback deliver the same token; a per-PR execution lock admits it once.
+Delayed delivery after a retry, head change or imported report cannot execute.
+Pending delivery reserves concurrency until max(180 seconds, retry backoff).
+A pause before work preserves the per-head attempt budget; the global daily
+submission cap still applies. Approval retries share exclusion and preserve the
+council/verify attempt status.
+
+Launch and transport output stays in private `diagnostics/` files (0600), under
+private state directories (0700). Generated launchers are private too. They can
+contain environment values: never attach these files to a PR or Slack message.
+Old launchers and diagnostics expire after 30 days; active attempts are retained.
+Reports remain private. Generic watcher summaries contain no raw launch errors.
+
+Fleet waits for retryable failures rather than announcing failure on attempt one.
+After 30 minutes without a fresh failed/interrupted attempt status it reports an
+inconclusive retry timeout. A long configured backoff or queue can legitimately
+outlast this notification deadline; the watcher may still finish later. Only a
+fresh exact-head published GitHub review proves a posted review or approval.
+This source change does not prove activation on another host. This Mac links the
+source directory directly: verify the local service is absent (or paused with no
+live runs) before editing. Pause before installing the complete watcher helper set
+on another host; update Fleet for retry-aware notifications. Older Fleet can
+report a pre-work pause as failed; it cannot infer an approval from that status.

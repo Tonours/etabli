@@ -1,4 +1,6 @@
 #!/bin/bash
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lifecycle.sh"
+
 # Council producers publish immutable envelopes. Only the watcher changes state.
 
 write_watch_heartbeat() (
@@ -57,7 +59,7 @@ reject_registration() {
 # Called while watch.sh owns its lock. Reports and proof fields are validated
 # again here; an envelope cannot declare itself clean or borrow another account.
 ingest_council_registrations() {
-  local me="$1" record repo number sha login mode key report temp findings stored_findings author snapshot listed status_sha status_mode status_rc status_attempt count=0
+  local me="$1" record repo number sha login mode key report temp findings stored_findings author snapshot listed status_sha status_mode status_rc status_attempt status_before count=0
   me="$(printf '%s' "$me" | tr '[:upper:]' '[:lower:]')"
   mkdir -p "$STATE_DIR/register" "$RUNS" "$REPORTS" || return 1
   for record in "$STATE_DIR/register/"*.json; do
@@ -79,8 +81,9 @@ ingest_council_registrations() {
     repo="${listed:-$repo}"
     key="$(run_key "$repo" "$number")"
     status_sha='' status_mode='' status_rc='' status_attempt=''
-    [ ! -f "$key.status" ] || IFS=$'\t' read -r status_sha status_mode status_rc status_attempt <"$key.status" || true
-    if run_alive "$key" || { [ "$status_rc" = running ] && [ "$(status_age "$key")" -lt "$LAUNCH_GRACE_SECONDS" ]; }; then continue; fi
+    status_before="$(cat "$key.status" 2>/dev/null || true)"
+    IFS=$'\t' read -r status_sha status_mode status_rc status_attempt <<<"$status_before" || true
+    if run_reserved "$key"; then continue; fi
     snapshot="$(gh pr view "$number" --repo "$repo" --json author,state,headRefOid 2>/dev/null)" || continue
     if ! printf '%s' "$snapshot" | jq -e --arg sha "$sha" '.state == "OPEN" and .headRefOid == $sha' >/dev/null; then
       reject_registration "$record" "$repo" "$number" "$mode" 'stale or closed PR'; continue
@@ -90,7 +93,7 @@ ingest_council_registrations() {
       reject_registration "$record" "$repo" "$number" "$mode" 'own PR or missing author'; continue
     fi
     report="$REPORTS/${repo//\//_}-$number-${sha:0:8}-council.md"
-    if [ "$status_sha" = "$sha" ] && [ "$status_rc" != running ] && { [ "$status_mode" != council ] || [ "$status_rc" != 0 ] || [ ! -f "$report" ]; }; then
+    if [ "$status_sha" = "$sha" ] && [ "$status_rc" != running ] && [ "$(cat "$key.paused" 2>/dev/null)" != "$(printf '%s\t%s' "$sha" "$status_attempt")" ] && { [ "$status_mode" != council ] || [ "$status_rc" != 0 ] || [ ! -f "$report" ]; }; then
       reject_registration "$record" "$repo" "$number" "$mode" 'same-head decision kept'; continue
     fi
     if [ "$(cat "$key.exhausted" 2>/dev/null)" = "$sha" ] && { [ "$status_rc" != running ] || [ "$status_sha" != "$sha" ]; }; then
@@ -114,9 +117,15 @@ ingest_council_registrations() {
         reject_registration "$record" "$repo" "$number" "$mode" 'existing same-head evidence and initial approval owner kept'; continue
       fi
     fi
+    clear_dead_execution "$key" || { rm -f "$temp"; continue; }
+    take_execution "$key" || { rm -f "$temp"; continue; }
+    if run_reserved "$key" || [ "$(cat "$key.status" 2>/dev/null)" != "$status_before" ]; then
+      release_execution "$key"; rm -f "$temp"; continue
+    fi
+    rm -f "$key.token" "$key.claimed" "$key.paused"
     if ! mv "$temp" "$report"; then
       log "registration deferred: $repo#$number cannot store its report"
-      rm -f "$temp"; continue
+      release_execution "$key"; rm -f "$temp"; continue
     fi
     if [ -z "$listed" ]; then
       printf '%s\t%s\n' "$repo" "$number" >>"$WATCHED"
@@ -134,6 +143,7 @@ ingest_council_registrations() {
         else rm -f "$key.approval-body"; fi
       fi
     fi
+    release_execution "$key"
     log "registered $repo#$number @${sha:0:8} ($mode, $findings findings)"
     rm -f "$record"
   done

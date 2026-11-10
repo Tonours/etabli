@@ -73,7 +73,7 @@ submit_council_registration o/r 26 "$FAKE_HEAD" me "$TMP_DIR/report-b" follow >/
 printf '%s\tverify\trunning\t3\n' "$FAKE_HEAD" >"$key.status"
 TEST_STATUS_AGE=179 ingest_council_registrations me
 check test ! -e "$key.registered"
-TEST_STATUS_AGE=181 ingest_council_registrations me
+TEST_STATUS_AGE=600 ingest_council_registrations me
 check test -e "$key.registered"
 
 # A dead launch may recover its own head, but cannot erase another head's stop.
@@ -85,7 +85,7 @@ for number in 29 30; do
   printf '%s\tcouncil\trunning\t3\n' "$stopped_status_head" >"$key.status"
   cp "$key.status" "$TMP_DIR/status"
   submit_council_registration o/r "$number" "$FAKE_HEAD" me "$TMP_DIR/report-b" approve >/dev/null
-  TEST_STATUS_AGE=181 ingest_council_registrations me
+  TEST_STATUS_AGE=600 ingest_council_registrations me
   if [ "$number" = 29 ]; then
     check cmp -s "$key.status" "$TMP_DIR/status"
     check test ! -e "$key.approval-pending"
@@ -117,8 +117,8 @@ done
 records() { find "$STATE_DIR/register" -name '*.json' | wc -l | tr -d ' '; }
 TEST_STATUS_AGE=179 ingest_council_registrations me
 check test "$(records)" = 65
-TEST_STATUS_AGE=181 ingest_council_registrations me
+TEST_STATUS_AGE=600 ingest_council_registrations me
 check test "$(records)" = 1
-TEST_STATUS_AGE=181 ingest_council_registrations me
+TEST_STATUS_AGE=600 ingest_council_registrations me
 check test "$(records)" = 0
 test "$failures" = 0

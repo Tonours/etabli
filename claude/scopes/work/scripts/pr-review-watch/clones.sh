@@ -10,7 +10,7 @@ ensure_clone() {
     rm -rf "$dir"
     mkdir -p "$TEMP_CLONES"
     log "cloning $repo into $dir" >&2
-    command gh repo clone "$repo" "$dir" -- --quiet --filter=blob:none </dev/null >/dev/null 2>&1 || { rm -rf "$dir"; return 1; }
+    command gh repo clone "$repo" "$dir" -- --quiet --filter=blob:none </dev/null >/dev/null || { rm -rf "$dir"; return 1; }
   fi
   printf '%s' "$dir"
 }
@@ -18,8 +18,8 @@ ensure_clone() {
 repo_has_live_run() {
   local pidfile
   while IFS= read -r pidfile; do
-    run_alive "${pidfile%.pid}" && return 0
-  done < <(find "$RUNS" -maxdepth 1 -name "${1//\//_}_*.pid")
+    run_reserved "${pidfile%.*}" && return 0
+  done < <(find "$RUNS" -maxdepth 1 \( -name "${1//\//_}_*.pid" -o -name "${1//\//_}_*.status" \))
   return 1
 }
 

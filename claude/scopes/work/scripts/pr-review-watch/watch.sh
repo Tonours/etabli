@@ -1,5 +1,6 @@
 #!/bin/bash
 set -uo pipefail
+umask 077
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STATE_DIR="${PR_REVIEW_WATCH_STATE_DIR:-$HOME/.claude/state/pr-review-watch}"
@@ -76,19 +77,13 @@ find_clone() {
   return 1
 }
 
-run_key() { printf '%s/%s_%s' "$RUNS" "${1//\//_}" "$2"; }
-
-run_alive() {
-  local pid
-  pid="$(cat "$1.pid" 2>/dev/null)"
-  [ -n "$pid" ] && ps -p "$pid" -o command= 2>/dev/null | grep -q 'review-run\.sh'
-}
+run_key() { printf '%s/%s_%s' "$(cd "$RUNS" 2>/dev/null && pwd -P || printf '%s' "$RUNS")" "${1//\//_}" "$2"; }
 
 running_count() {
-  local pidfile count=0
-  while IFS= read -r pidfile; do
-    run_alive "${pidfile%.pid}" && count=$((count + 1))
-  done < <(find "$RUNS" -maxdepth 1 -name '*.pid')
+  local key count=0
+  while IFS= read -r key; do
+    run_reserved "$key" && count=$((count + 1))
+  done < <(find "$RUNS" -maxdepth 1 \( -name '*.status' -o -name '*.pid' -o -name '*.execution' \) | sed -E 's/\.(status|pid|execution)$//' | sort -u)
   echo "$count"
 }
 
@@ -140,10 +135,11 @@ diff_scope() {
 }
 
 write_launcher() {
-  local launcher="$1" name value
-  shift
+  local launcher="$1" diagnostic="$2" name value
+  shift 2
   {
     echo '#!/bin/bash'
+    printf 'exec >>%q 2>&1\n' "$diagnostic"
     env | grep -E '^(PR_REVIEW_|PR_COUNCIL_)' | while IFS='=' read -r name value; do
       printf 'export %s=%q\n' "$name" "$value"
     done
@@ -151,8 +147,8 @@ write_launcher() {
     printf 'exec'
     printf ' %q' "$@"
     echo
-  } >"$launcher"
-  chmod +x "$launcher"
+  } >"$launcher" || return 1
+  chmod 700 "$launcher"
 }
 
 pr_snapshot() {
@@ -179,10 +175,14 @@ next_attempt() {
     echo 1
     return
   fi
+  if [ "$s_rc" = 75 ] && [ "$(cat "$key.paused" 2>/dev/null)" = "$(printf '%s\t%s' "$sha" "$s_attempts")" ]; then
+    if [ "$(status_age "$key")" -lt "$RETRY_BACKOFF_SECONDS" ]; then echo wait; else echo "$s_attempts"; fi
+    return
+  fi
   case "$s_rc" in
     0) echo done ;;
     running)
-      if [ "$(status_age "$key")" -lt "$LAUNCH_GRACE_SECONDS" ]; then echo wait
+      if [ "$(status_age "$key")" -lt "$(reservation_seconds)" ]; then echo wait
       elif [ "$s_attempts" -ge "$MAX_ATTEMPTS" ]; then echo exhausted
       else echo $((s_attempts + 1)); fi ;;
     "$REVIEW_VETO_RC"|"$REVIEW_INCOMPLETE_RC") echo stopped ;;
@@ -198,22 +198,40 @@ next_attempt() {
 
 launch() {
   local repo="$1" number="$2" sha="$3" url="$4" mode="$5" since="$6" key="$7" attempt="$8"
-  local clone report label
-  clone="$(ensure_clone "$repo")" || {
-    log "cannot clone $repo, skip $repo#$number"
-    notify "PR review skipped" "$repo#$number: cannot clone $repo" "$url"
+  local clone report label launcher token temp diagnostic status_before
+  status_before="$(cat "$key.status" 2>/dev/null || true)"
+  run_reserved "$key" && return 0
+  clear_dead_execution "$key" || return 0
+  take_execution "$key" || return 0
+  if run_reserved "$key" || [ "$(cat "$key.status" 2>/dev/null)" != "$status_before" ]; then release_execution "$key"; return 0; fi
+  if ! mkdir -p "$STATE_DIR/diagnostics" "$RUNS" "$REPORTS" \
+    || ! chmod 700 "$STATE_DIR" "$STATE_DIR/diagnostics" "$RUNS" "$REPORTS"; then
+    release_execution "$key"; return 1
+  fi
+  launcher="$(mktemp "$key.launch.XXXXXX")" || { release_execution "$key"; return 1; }
+  token="${launcher##*/}"
+  diagnostic="$STATE_DIR/diagnostics/$token.log"
+  if ! { : >"$diagnostic" && chmod 600 "$diagnostic"; }; then release_execution "$key"; return 1; fi
+  temp="$(mktemp "$key.token.XXXXXX")" || { release_execution "$key"; return 1; }
+  printf '%s\n' "$token" >"$temp" && mv "$temp" "$key.token" || { release_execution "$key"; return 1; }
+  write_run_status "$key" "$sha" "$mode" running "$attempt" || { release_execution "$key"; return 1; }
+  rm -f "$key.paused"
+  echo "$repo#$number@$sha" >>"$(launches_file)" || { write_run_status "$key" "$sha" "$mode" 1 "$attempt"; release_execution "$key"; return 1; }
+  clone="$(ensure_clone "$repo" 2>>"$diagnostic")" || {
+    write_run_status "$key" "$sha" "$mode" 1 "$attempt"
+    release_execution "$key"
+    log "cannot prepare clone for $repo#$number; diagnostic retained privately"
     return 1
   }
   report="$REPORTS/${repo//\//_}-$number-${sha:0:8}-$mode.md"
   label="${repo#*/}#$number"
-  printf '%s\t%s\trunning\t%s\n' "$sha" "$mode" "$attempt" >"$key.status"
-  echo "$repo#$number@$sha" >>"$(launches_file)"
-  write_launcher "$key.launch" "$RUNNER" "$mode" "$repo" "$number" "$sha" "$since" "$url" "$report" "$key"
-  if herdr_available && open_review_tab "$label" "$clone" "$(printf '%q' "$key.launch")"; then
-    log "$mode $repo#$number @${sha:0:8} attempt $attempt opened in herdr $HERDR_WORKSPACE/$label"
+  write_launcher "$launcher" "$diagnostic" "$HERE/launch-run.sh" "$key" "$token" "$mode" "$sha" "$attempt" "$RUNNER" "$mode" "$repo" "$number" "$sha" "$since" "$url" "$report" "$key" || { release_execution "$key"; return 1; }
+  release_execution "$key"
+  if herdr_available && open_review_tab "$label" "$clone" "$(printf '%q' "$launcher")" >>"$diagnostic" 2>&1; then
+    log "$mode $repo#$number @${sha:0:8} attempt $attempt submitted to herdr"
   else
-    (cd "$clone" && nohup "$key.launch" >/dev/null 2>&1 &)
-    log "$mode $repo#$number @${sha:0:8} attempt $attempt started headless (herdr unavailable)"
+    (cd "$clone" && nohup "$launcher" >>"$diagnostic" 2>&1 </dev/null &)
+    log "$mode $repo#$number @${sha:0:8} attempt $attempt submitted headless"
   fi
 }
 
@@ -224,6 +242,7 @@ retry_pending_approval() {
     rm -f "$key.approval-pending" "$key.approval-body"
     return
   fi
+  clear_dead_execution "$key" || return 0
   "$RUNNER" approve "$repo" "$number" "$sha" - "$url" "$REPORTS/${repo//\//_}-$number-${sha:0:8}-approve.md" "$key" </dev/null \
     | grep -E '^=== (approved|approval)' | while IFS= read -r line; do log "$repo#$number $line"; done
 }
@@ -231,7 +250,7 @@ retry_pending_approval() {
 consider() {
   local me="$1" repo="$2" number="$3" sha="$4" url="$5" key attempt age size mode since
   key="$(run_key "$repo" "$number")"
-  run_alive "$key" && { log "$repo#$number review still running, wait"; return; }
+  run_reserved "$key" && { log "$repo#$number review still running, wait"; return; }
   if [ -f "$key.approval-pending" ]; then
     retry_pending_approval "$repo" "$number" "$sha" "$url" "$key"
     return
@@ -310,7 +329,13 @@ process_watched() {
     if [ "$state" != "OPEN" ] || [ "$involved" != "true" ] || { [ "$stale" = true ] && [ ! -f "$key.council-done" ] && [ ! -f "$key.registered" ]; }; then
       herdr_available && close_review_tab "${repo#*/}#$number"
       log "unwatching $repo#$number ($state, involved=$involved, approved=$approved)"
-      [ "$state" = OPEN ] || rm -f "$key".{status,seen,watermark,council-done,council-clean,approval-pending,approval-body,registered,skipped,exhausted,delta-done,unconfigured,verify-unconfigured}
+      if [ "$state" != OPEN ]; then
+        if ! clear_dead_execution "$key" || ! take_execution "$key"; then
+          printf '%s\t%s\n' "$repo" "$number" >>"$next"; continue
+        fi
+        rm -f "$key".{status,seen,watermark,council-done,council-clean,approval-pending,approval-body,registered,skipped,exhausted,delta-done,unconfigured,verify-unconfigured,token,claimed,paused}
+        release_execution "$key"
+      fi
       continue
     fi
     if [ "$approved" = true ]; then
@@ -344,7 +369,9 @@ stop_everything() {
 main() {
   umask 077
   [ "${1:-}" = stop ] && { stop_everything; exit 0; }
-  mkdir -p "$STATE_DIR" "$REPORTS" "$RUNS" "$(dirname "$LOG")"
+  mkdir -p "$STATE_DIR" "$REPORTS" "$RUNS" "$STATE_DIR/diagnostics" "$(dirname "$LOG")"
+  chmod 700 "$STATE_DIR" "$REPORTS" "$RUNS" "$STATE_DIR/diagnostics" || exit 1
+  RUNS="$(cd "$RUNS" && pwd -P)" || exit 1
   touch "$WATCHED"
   [ "$(perl -e 'print((stat shift)[7] // 0)' "$LOG")" -lt "$LOG_MAX_BYTES" ] || mv -f "$LOG" "$LOG.1"
   exec >>"$LOG" 2>&1
@@ -364,7 +391,18 @@ main() {
   ingest_review_requests "$me" || exit 1
   [ -f "$KILL_SWITCH" ] && exit 0
   process_watched "$me"
+  find "$REPORTS" -type f -exec chmod 600 {} +
   find "$REPORTS" -type f -mtime +30 -delete 2>/dev/null
+  local artifact artifact_key
+  while IFS= read -r artifact; do
+    artifact_key="${artifact%%.launch.*}"
+    run_reserved "$artifact_key" || rm -f "$artifact"
+  done < <(find "$RUNS" -maxdepth 1 -type f -name '*.launch.*' -mtime +30)
+  while IFS= read -r artifact; do
+    artifact_key="$RUNS/${artifact##*/}"
+    artifact_key="${artifact_key%%.launch.*}"
+    run_reserved "$artifact_key" || rm -f "$artifact"
+  done < <(find "$STATE_DIR/diagnostics" -type f -mtime +30 2>/dev/null)
 }
 
 [ "${BASH_SOURCE[0]}" = "$0" ] && main "$@"
