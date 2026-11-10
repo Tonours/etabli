@@ -27,7 +27,14 @@ async function queuedCase(mode: "completion" | "prose" | "steer") {
   try {
     await writeFile(join(root, "models.json"), JSON.stringify({ providers: { fixture: { api: "openai-completions", apiKey: "public-fixture", baseUrl: `http://127.0.0.1:${server.port}/v1`, models: [{ id: "fixture", name: "fixture", contextWindow: 32768, maxTokens: 1024, reasoning: false, input: ["text"], cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } }] } } }));
     await writeFile(join(root, "settings.json"), JSON.stringify({ retry: { enabled: false, maxRetries: 0 } }));
-    const proc = Bun.spawn([pi, "--offline", "--no-extensions", "--no-mcp", "--no-skills", "--no-context-files", "--no-prompt-templates", "--no-builtin-tools", "--tools", "execute,read_file,write_file,open_page,finish_task", "-e", resolve(import.meta.dir, "../extension.ts"), "--provider", "fixture", "--model", "fixture", "--session", join(root, "session.jsonl"), "--mode", "rpc"],
+    const settledProbe = join(root, "settled-probe.ts");
+    await writeFile(settledProbe, `export default function(pi) {
+      pi.on("agent_settled", async () => {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        pi.appendEntry("fixture_settled", {});
+      });
+    }`);
+    const proc = Bun.spawn([pi, "--offline", "--no-extensions", "--no-mcp", "--no-skills", "--no-context-files", "--no-prompt-templates", "--no-builtin-tools", "--tools", "execute,read_file,write_file,open_page,finish_task", "-e", resolve(import.meta.dir, "../extension.ts"), "-e", settledProbe, "--provider", "fixture", "--model", "fixture", "--session", join(root, "session.jsonl"), "--mode", "rpc"],
       { cwd: root, env: { ...process.env, PI_CODING_AGENT_DIR: root }, stdin: "pipe", stdout: "pipe", stderr: "pipe" });
     const timeout = setTimeout(() => proc.kill(), 15000);
     proc.stdin.write('{"type":"prompt","message":"first task","id":"first"}\n');
@@ -43,7 +50,7 @@ async function queuedCase(mode: "completion" | "prose" | "steer") {
             queued = true;
             proc.stdin.write(JSON.stringify({ type: "prompt", message: "next owner input", streamingBehavior: mode === "steer" ? "steer" : "followUp", id: "second" }) + "\n");
           }
-          if (event.type === "agent_end") proc.stdin.end();
+          if (event.type === "agent_settled") proc.stdin.end();
         }
       }
     })();
@@ -52,6 +59,7 @@ async function queuedCase(mode: "completion" | "prose" | "steer") {
     expect(exit, stderr).toBe(0);expect(requests).toBe(expectedRequests);
     if (mode !== "steer") expect(output).toContain("unknown_receipt");
     const rows = (await readFile(join(root, "session.jsonl"), "utf8")).trim().split("\n").map((line) => JSON.parse(line) as { customType?: string; data?: { taskId: string; status?: string } });
+    expect(rows.some((row) => row.customType === "fixture_settled")).toBe(true);
     const completions = rows.filter((r) => r.customType === "gemma_completion");
     expect(completions).toHaveLength(mode === "completion" ? 2 : 1);
     expect(completions.at(-1)?.data?.status).toBe(mode === "steer" ? "done" : "blocked");
