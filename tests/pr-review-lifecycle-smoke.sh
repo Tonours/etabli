@@ -90,9 +90,12 @@ launch o/r 7 "$sha" url council - "$key" 1
 for ((i=0;i<100;i++)); do [ "$(cut -f3 "$key.status")" = 0 ] && break; sleep .02; done
 [ "$(wc -l <"$HOME/calls" | tr -d ' ')" = 4 ]
 launcher="$(find "$RUNS" -name '*.launch.*' -type f | head -1)"
-[ "$(stat -f '%Lp' "$launcher")" = 700 ]
-[ "$(stat -f '%Lp' "$STATE_DIR/diagnostics")" = 700 ]
-[ "$(stat -f '%Lp' "$(find "$STATE_DIR/diagnostics" -name '*.log' | head -1)")" = 600 ]
+file_mode() {
+  if stat -c %a "$1" >/dev/null 2>&1; then stat -c %a "$1"; else stat -f %Lp "$1"; fi
+}
+[ "$(file_mode "$launcher")" = 700 ]
+[ "$(file_mode "$STATE_DIR/diagnostics")" = 700 ]
+[ "$(file_mode "$(find "$STATE_DIR/diagnostics" -name '*.log' | head -1)")" = 600 ]
 # Known pre-submission Herdr failure still runs headless successfully.
 open_review_tab() { return 1; }
 key="$RUNS/o_r_8"

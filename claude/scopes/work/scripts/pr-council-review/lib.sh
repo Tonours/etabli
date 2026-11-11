@@ -145,6 +145,62 @@ reuse_patch_sha() {
   [ -n "$raw" ] || return 1
   printf '%s\n' "$raw" | shasum -a 256 | cut -d' ' -f1
 }
+# Private opt-in receipts are local to this checkout and survive archive-only commits.
+# read validates one opened snapshot and emits the legacy header + exact report bytes.
+auto_review_receipt() {
+  local root
+  root="$(git rev-parse --show-toplevel)" || return 1
+  node - "$1" "$root" "$2" "$3" "${4:-}" <<'NODE'
+const fs = require('node:fs');
+const path = require('node:path');
+const crypto = require('node:crypto');
+const [action, root, base, patch, reportFile] = process.argv.slice(2);
+let temp;
+try {
+  const repo = fs.realpathSync(root);
+  const dir = path.join(fs.realpathSync(process.env.HOME), '.pr-council-reuse');
+  if (action === 'write') {
+    try { fs.mkdirSync(dir, { mode: 0o700 }); } catch (e) { if (e.code !== 'EEXIST') throw e; }
+  }
+  const privateEntry = (stat) => stat.uid === process.getuid() && (stat.mode & 0o077) === 0;
+  const directory = fs.lstatSync(dir);
+  if (!directory.isDirectory() || !privateEntry(directory)) throw new Error('unsafe receipt directory');
+  const key = crypto.createHash('sha256').update(repo).digest('hex');
+  const file = path.join(dir, `${key}-${base}-${patch}.json`);
+  if (action === 'write') {
+    const report = fs.readFileSync(reportFile);
+    if (!report.length) throw new Error('empty review report');
+    const data = { version: 1, eligible: true, repo, base, patch, createdAt: Math.floor(Date.now() / 1000), report: report.toString('base64') };
+    temp = path.join(dir, `.record-${crypto.randomBytes(12).toString('hex')}`);
+    fs.writeFileSync(temp, JSON.stringify(data) + '\n', { mode: 0o600, flag: 'wx' });
+    fs.renameSync(temp, file);
+    temp = undefined;
+    process.stdout.write(file + '\n');
+  } else {
+    const fd = fs.openSync(file, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+    let data;
+    try {
+      const stat = fs.fstatSync(fd);
+      if (!stat.isFile() || !privateEntry(stat)) throw new Error('unsafe receipt file');
+      data = JSON.parse(fs.readFileSync(fd, 'utf8'));
+    } finally { fs.closeSync(fd); }
+    const now = Math.floor(Date.now() / 1000);
+    if (data.version !== 1 || data.eligible !== true || data.repo !== repo || data.base !== base || data.patch !== patch ||
+        !Number.isSafeInteger(data.createdAt) || data.createdAt > now || now - data.createdAt > 3600 ||
+        typeof data.report !== 'string' || !data.report.length) throw new Error('ineligible receipt');
+    const report = Buffer.from(data.report, 'base64');
+    if (!report.length || report.toString('base64') !== data.report) throw new Error('invalid report bytes');
+    process.stdout.write(`patch-sha256: ${patch}\n`);
+    process.stdout.write(report);
+  }
+} catch (e) {
+  if (temp) { try { fs.unlinkSync(temp); } catch {} }
+  if (action === 'write') console.error('no record: private receipt unavailable; use an explicit output file (' + e.message + ')');
+  process.exitCode = 1;
+}
+NODE
+}
+
 patch_id() { git diff --binary "$1" "$2" | git patch-id --verbatim | cut -d' ' -f1; }
 
 # same_patch <base ref> <old sha> <new sha>: both carry the same changes on their

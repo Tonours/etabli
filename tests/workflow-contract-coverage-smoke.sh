@@ -156,4 +156,10 @@ assert_contains "$ROOT_DIR/workflow/skills/investigation.md" 'results in private
 assert_contains "$ROOT_DIR/skills/shared/plan-implement/SKILL.md" '--record-review origin/<base> <complete-round-report> <reuse-file>'
 assert_contains "$ROOT_DIR/skills/work/pr-council-review/SKILL.md" 'Packaging certifies no review: verify eligibility/provenance before passing it.'
 
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Delegation stays optional.'
+assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'Pi keeps execution parent-only.'
+assert_contains "$ROOT_DIR/skills/shared/plan-implement/SKILL.md" 'keeps the plan gate.'
+assert_contains "$ROOT_DIR/skills/shared/plan-implement/SKILL.md" '--eligible-review'
+assert_contains "$ROOT_DIR/skills/work/pr-council-review/SKILL.md" '--no-reuse'
+
 printf 'workflow contract coverage smoke test: ok\n'

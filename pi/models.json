@@ -179,6 +179,79 @@
           "reasoning": false
         }
       ]
+    },
+    "macmini-gemma": {
+      "baseUrl": "http://100.116.135.11:8083/v1",
+      "api": "openai-completions",
+      "apiKey": "!cat \"$HOME/.config/gemma-orchestrator/network-api-key\"",
+      "models": [
+        {
+          "id": "gemma-4-e4b",
+          "name": "Mac mini Gemma 4 E4B",
+          "reasoning": true,
+          "input": [
+            "text"
+          ],
+          "contextWindow": 131056,
+          "maxTokens": 4096,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "samplingParams": {
+            "temperature": 0.2,
+            "top_p": 0.95,
+            "top_k": 64,
+            "min_p": 0,
+            "thinking_budget_tokens": 0,
+            "chat_template_kwargs": {
+              "enable_thinking": false
+            }
+          },
+          "compat": {
+            "supportsDeveloperRole": false,
+            "supportsStore": false,
+            "maxTokensField": "max_tokens",
+            "supportsUsageInStreaming": true,
+            "supportsStrictMode": false,
+            "supportsReasoningEffort": false
+          },
+          "samplingParamsByThinkingLevel": {
+            "off": {
+              "thinking_budget_tokens": 0,
+              "chat_template_kwargs": {
+                "enable_thinking": false
+              }
+            },
+            "minimal": {
+              "thinking_budget_tokens": 128,
+              "chat_template_kwargs": {
+                "enable_thinking": true
+              }
+            },
+            "low": {
+              "thinking_budget_tokens": 512,
+              "chat_template_kwargs": {
+                "enable_thinking": true
+              }
+            },
+            "medium": {
+              "thinking_budget_tokens": 1024,
+              "chat_template_kwargs": {
+                "enable_thinking": true
+              }
+            },
+            "high": {
+              "thinking_budget_tokens": 2048,
+              "chat_template_kwargs": {
+                "enable_thinking": true
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }
