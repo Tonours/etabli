@@ -10,6 +10,8 @@ gemma-orchestrate-pi --gemma-target gromarchy
 gemma-orchestrate-pi --thinking high
 ```
 
+The installed settings directory defaults to `$HOME/Library/Application Support/gemma-orchestrator/orchestration/pi`. Set `GEMMA_PROFILE_DIR` to an existing profile directory for Linux, an XDG layout or another installation location. It must contain `settings.json` and a readable `models.json`; the launcher checks both before starting Pi.
+
 `/gemma-target local` or `/gemma-target <SSH alias>` changes the target between tasks. The owner selects it; the model cannot change it. There is no persistent shell between calls. On a remote target, every `execute` uses SSH with strict host-key checking and returns framed identity and exit-status facts. SSH failure never falls back to local execution.
 
 The tools are `execute`, `read_file`, `write_file`, `open_page` and `finish_task`. File tools are local-only and stay inside the launch directory after resolving symlinks. `execute` retains normal owner shell authority: this profile is not a sandbox, and a receipt attests the outer execution target, not the semantics of arbitrary nested subprocesses. The controller waits at most60s plus250ms cancellation grace, with64KiB output. Escaped descendants can outlive their local process group; cancellation does not attest their termination. File reads/writes are bounded to64KiB. The obvious nested-SSH check is a usability guard, not shell containment.

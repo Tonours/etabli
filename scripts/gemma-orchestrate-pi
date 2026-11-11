@@ -24,7 +24,7 @@ done
 [ "$EXPECT_TARGET" -eq 0 ] || { printf '%s\n' 'invalid_target: --gemma-target needs an alias.' >&2; exit 1; }
 test -f "$PROFILE/extension.ts" && test -r "$PROFILE/system.md" || { printf '%s\n' 'Gemma profile missing; restore pi/profiles/gemma-orchestrator.' >&2; exit 1; }
 export PI_OFFLINE=1
-export PI_CODING_AGENT_DIR="$HOME/Library/Application Support/gemma-orchestrator/orchestration/pi"
+export PI_CODING_AGENT_DIR="${GEMMA_PROFILE_DIR:-$HOME/Library/Application Support/gemma-orchestrator/orchestration/pi}"
 test -f "$PI_CODING_AGENT_DIR/settings.json" && test -r "$PI_CODING_AGENT_DIR/models.json" || { printf '%s\n' 'Gemma profile is not installed; see pi/profiles/gemma-orchestrator/README.md.' >&2; exit 1; }
 exec "$PI_BIN" --offline --no-extensions --no-mcp --no-skills --no-context-files --no-prompt-templates --no-builtin-tools \
   --tools execute,read_file,write_file,open_page,finish_task --extension "$PROFILE/extension.ts" \
