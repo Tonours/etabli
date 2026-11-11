@@ -5,15 +5,20 @@ usage() {
   echo "usage: run.sh <pr-number|url> [owner/repo] [--post] [--model <alias>] [--effort <level>]" >&2
   echo "                              [--phase-a-model <alias>] [--phase-a-effort <level>]" >&2
   echo "                              [--no-codex] [--codex-model <model>] [--codex-effort <level>]" >&2
-  echo "                              [--phase-a-only | --with-validator] [--reuse-review <file>]" >&2
+  echo "                              [--phase-a-only | --with-validator] [--reuse-review <file> | --no-reuse]" >&2
   echo "       run.sh --reuse-sha <base-ref>   print the --reuse-review fingerprint of HEAD" >&2
-  echo "       run.sh --record-review <base-ref> <report-file> <output-file>   atomically package a completed eligible review" >&2
+  echo "       run.sh --record-review <base-ref> <report-file> [<output-file> | --eligible-review]   atomically package a completed eligible review" >&2
   exit 2
 }
 
 if [ "${1:-}" = --reuse-sha ] || [ "${1:-}" = --record-review ]; then
   if [ "$1" = --record-review ]; then
-    [ $# -eq 4 ] || usage
+    RECORD_ELIGIBLE=0
+    if [ $# -eq 4 ] && [ "$4" = --eligible-review ]; then
+      RECORD_ELIGIBLE=1
+    else
+      [ $# -eq 4 ] || usage
+    fi
   else
     [ $# -eq 2 ] || usage
   fi
@@ -40,6 +45,10 @@ if [ "${1:-}" = --reuse-sha ] || [ "${1:-}" = --record-review ]; then
   PATCH_SHA="$(reuse_patch_sha "$REUSE_BASE" HEAD)" || { echo "no fingerprint: git diff failed or HEAD adds nothing to $2" >&2; exit 1; }
   if [ "$1" = --record-review ]; then
     [ -f "$3" ] || { echo "no record: provide a readable nonempty review report" >&2; exit 1; }
+    if [ "$RECORD_ELIGIBLE" = 1 ]; then
+      auto_review_receipt write "$REUSE_BASE" "$PATCH_SHA" "$3"
+      exit $?
+    fi
     [ ! -d "$4" ] || { echo "no record: output must be a file, not a directory" >&2; exit 1; }
     OUTPUT="$4"
     case "$OUTPUT" in /*) ;; *) OUTPUT="./$OUTPUT" ;; esac
@@ -76,12 +85,14 @@ CODEX_EFFORT="${PR_COUNCIL_CODEX_EFFORT:-xhigh}"
 USE_CODEX="${PR_COUNCIL_USE_CODEX:-1}"
 PHASE_A_ONLY="${PR_COUNCIL_PHASE_A_ONLY:-auto}"
 REUSE_REVIEW="${PR_COUNCIL_REUSE_REVIEW:-}"
+NO_REUSE=0
+EFFORT_EXPLICIT=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --post) POST_MODE="post" ;;
     --no-watch-register) WATCH_REGISTER=0 ;;
     --model) shift; MODEL="${1:?--model needs a value}" ;;
-    --effort) shift; EFFORT="${1:?--effort needs a value}" ;;
+    --effort) shift; EFFORT="${1:?--effort needs a value}"; EFFORT_EXPLICIT=1 ;;
     --phase-a-model) shift; PHASE_A_MODEL="${1:?--phase-a-model needs a value}" ;;
     --phase-a-effort) shift; PHASE_A_EFFORT="${1:?--phase-a-effort needs a value}" ;;
     --codex-model) shift; CODEX_MODEL="${1:?--codex-model needs a value}" ;;
@@ -89,6 +100,7 @@ while [ $# -gt 0 ]; do
     --no-codex) USE_CODEX=0 ;;
     --phase-a-only) PHASE_A_ONLY=1 ;;
     --with-validator) PHASE_A_ONLY=0 ;;
+    --no-reuse) NO_REUSE=1 ;;
     --reuse-review) shift; REUSE_REVIEW="${1:?--reuse-review needs a file}" ;;
     -h|--help) usage ;;
     *)
@@ -108,6 +120,11 @@ case "$PHASE_A_ONLY" in
   *) echo "PR_COUNCIL_PHASE_A_ONLY must be auto, 0 or 1" >&2; usage ;;
 esac
 [ -n "$PHASE_A_EFFORT" ] || PHASE_A_EFFORT="$EFFORT"
+# Resolve after phase A inherits council effort; an explicit flag governs both.
+if [ "$EFFORT_EXPLICIT" = 0 ]; then
+  EFFORT="${PR_COUNCIL_VALIDATOR_EFFORT:-$EFFORT}"
+fi
+[ "$NO_REUSE" = 0 ] || REUSE_REVIEW=""
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 . "$HERE/lib.sh"
@@ -240,6 +257,14 @@ CLAUDE_ARGS=()
 PHASE_A_ARGS=("${ISOLATED_SETTINGS[@]}")
 [ -n "$PHASE_A_MODEL" ] && PHASE_A_ARGS+=(--model "$PHASE_A_MODEL")
 [ -n "$PHASE_A_EFFORT" ] && PHASE_A_ARGS+=(--effort "$PHASE_A_EFFORT")
+
+# Validate a single private snapshot before it becomes phase A's report.
+if [ "$NO_REUSE" = 0 ] && [ -z "$REUSE_REVIEW" ] && [ "$POST_MODE" = post ] && [ "$PHASE_A_ONLY" = 0 ]; then
+  PATCH_SHA="$(reuse_patch_sha "$MERGE_BASE" "$HEAD_SHA")" || PATCH_SHA=""
+  if [ -n "$PATCH_SHA" ] && auto_review_receipt read "$MERGE_BASE" "$PATCH_SHA" >"$WORK_DIR/reuse-snapshot.md"; then
+    REUSE_REVIEW="$WORK_DIR/reuse-snapshot.md"
+  fi
+fi
 
 # A recorded review of this exact patch stands in for phase A; the validator still runs.
 REUSED=0

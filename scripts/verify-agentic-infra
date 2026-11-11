@@ -74,7 +74,7 @@ run_target() {
     builtin:json-config) json_config ;;
     builtin:validate-adrs) node "$ROOT_DIR/scripts/validate-adrs" ;;
     builtin:pi-audit) bash -c "cd '$ROOT_DIR/pi' && bun audit" ;;
-    builtin:pi-tests) bash -c "cd '$ROOT_DIR/pi' && bun test ./extensions/__tests__/*.test.ts" ;;
+    builtin:pi-tests) bash -c "cd '$ROOT_DIR/pi' && bun run test" ;;
     builtin:skill-lock) bash -c "cd '$ROOT_DIR/pi' && bun run verify:skills" ;;
     builtin:pi-import-smoke) pi_import_smoke ;;
     tests/*.sh) bash "$ROOT_DIR/$target" ;;

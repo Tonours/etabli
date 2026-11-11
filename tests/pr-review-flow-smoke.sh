@@ -1954,7 +1954,96 @@ case_usage_accounting() {
 }
 
 
-if [ "${1:-}" = --usage ]; then
+case_token_rollout() {
+  local script="$SCRIPTS/pr-council-review/run.sh" record before mode cache_dir
+  reset_state
+  set_head "$HEAD1"
+  PR_COUNCIL_VALIDATOR_EFFORT=medium FAKE_VALIDATOR_TEXT="$(marker 0)" direct_council --post --no-watch-register
+  check "effort: validator opt-in medium" grep -q 'claude VALIDATOR .*--effort medium' "$FAKE_LOG"
+  check "effort: phase A stays high" grep -q 'claude QUALITY .*--effort high' "$FAKE_LOG"
+  PR_COUNCIL_VALIDATOR_EFFORT=medium FAKE_VALIDATOR_TEXT="$(marker 0)" direct_council --post --no-watch-register --effort high
+  check "effort: explicit council flag wins" grep -q 'claude VALIDATOR .*--effort high' "$FAKE_LOG"
+  FAKE_VALIDATOR_TEXT="$(marker 0)" direct_council --post --no-watch-register
+  check "effort: validator default high preserved" grep -q 'claude VALIDATOR .*--effort high' "$FAKE_LOG"
+  PR_COUNCIL_VALIDATOR_EFFORT=medium PR_COUNCIL_VALIDATOR_LOGIN='validator[bot]' FAKE_GH_REVIEWS='[{"state":"APPROVED","commit_id":"'"$HEAD1"'","user":{"login":"validator[bot]"}}]' FAKE_PHASEA_ONLY_TEXT="$(marker 0)" direct_council --post --no-watch-register
+  check "effort: phase-a-only forces high" grep -q 'claude PHASEA_ONLY .*--effort high' "$FAKE_LOG"
+
+  printf 'eligible round: two independent reviews and cross-family provenance\n' >"$TMP_DIR/eligible-report"
+  # The recorder works on a clean checkout; PR review later uses this same checkout.
+  git -C "$CLONE" checkout -q --detach "$HEAD1"
+  record="$(cd "$CLONE" && /bin/bash "$script" --record-review origin/main "$TMP_DIR/eligible-report" --eligible-review)"
+  check "auto reuse: recorder prints existing private path" test -f "$record"
+  [ -f "$record" ] || return 0
+  cache_dir="$(dirname "$record")"
+  check "auto reuse: private directory and file" node -e '
+    const fs = require("node:fs");
+    const [dir, file] = process.argv.slice(1);
+    process.exit((fs.statSync(dir).mode & 0o777) === 0o700 && (fs.statSync(file).mode & 0o777) === 0o600 ? 0 : 1);
+  ' "$cache_dir" "$record"
+  mkdir -p "$CLONE/empty-subdir"
+  before="$(cd "$CLONE/empty-subdir" && /bin/bash "$script" --record-review origin/main "$TMP_DIR/eligible-report" --eligible-review)"
+  check "auto reuse: recorder scoped to repo root" [ "$before" = "$record" ]
+  cp "$record" "$TMP_DIR/eligible-original"
+  FAKE_VALIDATOR_TEXT="$(marker 0)" direct_council --post --no-watch-register
+  check "auto reuse: phase A skipped" not_called 'claude QUALITY'
+  check "auto reuse: validator still runs" called 'claude VALIDATOR'
+  FAKE_VALIDATOR_TEXT="$(marker 0)" direct_council --post --no-watch-register --no-reuse
+  check "auto reuse: force refresh" called 'claude QUALITY'
+  FAKE_VALIDATOR_TEXT="$(marker 0)" direct_council --no-watch-register
+  check "auto reuse: no implicit dry-run reuse" called 'claude QUALITY'
+
+  mkdir -p "$CLONE/docs/plan"
+  echo archive >"$CLONE/docs/plan/token-rollout.md"
+  git -C "$CLONE" add docs/plan
+  git -C "$CLONE" commit -q -m archive
+  before="$(git -C "$CLONE" rev-parse HEAD)"
+  git -C "$CLONE" push -q origin HEAD:refs/pull/7/head
+  set_head "$before"
+  FAKE_VALIDATOR_TEXT="$(marker 0)" direct_council --post --no-watch-register
+  check "auto reuse: archive commit preserves discovery" not_called 'claude QUALITY'
+
+  for mode in expired future base repo patch unattested empty symlink; do
+    cp "$TMP_DIR/eligible-original" "$record"
+    if [ "$mode" = symlink ]; then
+      rm "$record"; ln -s "$TMP_DIR/eligible-original" "$record"
+    else
+      node - "$record" "$mode" <<'NODE'
+const fs = require('node:fs');
+const [file, mode] = process.argv.slice(2);
+const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+if (mode === 'expired') data.createdAt -= 3601;
+if (mode === 'future') data.createdAt += 60;
+if (mode === 'base') data.base = '0'.repeat(40);
+if (mode === 'repo') data.repo += '/other';
+if (mode === 'patch') data.patch = '0'.repeat(64);
+if (mode === 'unattested') data.eligible = false;
+if (mode === 'empty') data.report = '';
+fs.writeFileSync(file, JSON.stringify(data));
+NODE
+    fi
+    FAKE_VALIDATOR_TEXT="$(marker 0)" direct_council --post --no-watch-register
+    check "auto reuse: $mode refuses" called 'claude QUALITY'
+    rm "$record"
+  done
+  cp "$TMP_DIR/eligible-original" "$record"; chmod 600 "$record"
+  chmod 777 "$cache_dir"
+  FAKE_VALIDATOR_TEXT="$(marker 0)" direct_council --post --no-watch-register
+  check "auto reuse: unsafe directory refuses" called 'claude QUALITY'
+  chmod 700 "$cache_dir"
+  rm "$record"
+  # Ordinary packaging stays explicit; no attestation is inferred from report text.
+  (cd "$CLONE" && /bin/bash "$script" --record-review origin/main "$TMP_DIR/eligible-report" "$TMP_DIR/legacy-record")
+  FAKE_VALIDATOR_TEXT="$(marker 0)" direct_council --post --no-watch-register
+  check "auto reuse: legacy record never discovered" called 'claude QUALITY'
+  FAKE_VALIDATOR_TEXT="$(marker 0)" direct_council --post --no-watch-register --reuse-review "$TMP_DIR/legacy-record"
+  check "auto reuse: explicit legacy still works" not_called 'claude QUALITY'
+  FAKE_VALIDATOR_TEXT="$(marker 0)" direct_council --post --no-watch-register --reuse-review "$TMP_DIR/legacy-record" --no-reuse
+  check "auto reuse: no-reuse beats explicit file" called 'claude QUALITY'
+}
+
+if [ "${1:-}" = --token-rollout ]; then
+case_token_rollout
+elif [ "${1:-}" = --usage ]; then
 case_usage_accounting
 elif [ "${1:-}" = --d1 ]; then
 case_registration_requires_all_passes
@@ -1978,6 +2067,7 @@ case_reuse_fingerprint
 case_record_review
 case_usage_head
 else
+case_token_rollout
 case_usage_accounting
 case_clean_council_approves
 case_council_findings_wait

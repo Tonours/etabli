@@ -77,7 +77,11 @@ follow their journey in Risk tiers instead (no plan file, no plan adversary, no 
 0. Understand before planning: run a scoped local recon of the affected area
    and carry file:line findings into the plan (the task, for small).
    Recon is parent-only unless the user opts into a scout. Small tasks need a quick read.
-1. Uncovered task: run `workflow/skills/plan-loop.md`; another task's READY
+1. Choose the route before entering the plan loop: ordinary reproducible,
+   single-surface bugfixes may use the **bounded fix** journey above. Explicit
+   plan requests (including `/plan-implement`) and existing plans keep their
+   plan gates; do not silently reroute those invocations.
+   Uncovered task: run `workflow/skills/plan-loop.md`; another task's READY
    plan does not cover it.
 2. Otherwise read root `PLAN.md` and verify task coverage.
 3. Continue only when the actual root `PLAN.md` has `Status: READY`; prompt
@@ -87,6 +91,10 @@ follow their journey in Risk tiers instead (no plan file, no plan adversary, no 
 5. Run `workflow/skills/adversary.md` before editing.
 6. Fold accepted findings; reconcile criteria and Decision Log.
 7. Re-review material deltas; implement only the approved current contract.
+   At READY, an interactive user may choose a fresh `/implement` session
+   using the plan handoff to avoid carrying planning exploration into code.
+   Continue the current run by default; never automatically clear, compact,
+   restart or impose a session transition.
 8. Implement the still-`READY` plan steps (the task, for small) in order with minimal, scoped
    changes. A code behavior change ships with its tests per
    `workflow/spec.md`; a bug fix starts from a failing test that reproduces
@@ -94,8 +102,14 @@ follow their journey in Risk tiers instead (no plan file, no plan adversary, no 
    input domain and verify the decisive runtime/corpus when applicable. Repeated
    findings in one family trigger a method reassessment before another patch.
    At most one worker writes at a time: invoke it in the
-   foreground, or wait for the worker and do not write until it returns. The
-   parent remains the only `PLAN.md` writer and reads every integrated diff: a worker report locates the work,
+   foreground, or wait for the worker and do not write until it returns.
+   On Claude, prefer an existing fresh-context `worker` for a bounded slice
+   when it saves substantial intermediate reads/edits/tests: its configured
+   Sonnet/medium defaults apply. Delegation stays optional. Codex may use its
+   available native worker when authorized; Pi keeps execution parent-only.
+   Give only the slice, relevant files/invariants and proof commands; the
+   parent verifies the diff and results before updating the plan.
+   The parent remains the only `PLAN.md` writer and reads every integrated diff: a worker report locates the work,
    it does not evidence it.
 9. Record progress in task markers or nested check `last run`.
    Material plan facts require reconciliation and fresh approval; see

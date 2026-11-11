@@ -118,6 +118,29 @@ The recorder uses Node's rename primitive so a concurrent directory also refuses
 Packaging certifies no review: verify eligibility/provenance before passing it.
 The file stays private; the validator still examines its findings against code.
 
+Automatic reuse is opt-in at recording: after checking those eligibility and
+provenance requirements, run `run.sh --record-review origin/<base>
+<complete-round-report> --eligible-review`. This explicitly attests eligibility;
+it does not prove it. Only this mode writes an auto-discoverable private JSON
+record under `~/.pr-council-reuse/` (directory 0700, files 0600) and prints its
+path. Explicit legacy output files are never automatically discovered.
+With `--post` and no explicit reuse file, the script checks the same canonical
+checkout path, merge-base and patch fingerprint, with a maximum age of 3600 s;
+an archive-only commit preserves the fingerprint. Other clones/worktrees,
+expired or future-dated records, unsafe paths, and invalid/empty records run
+full phase A. The validated private snapshot supplies the exact report bytes.
+Old records remain on disk until manually removed. `--no-reuse` disables both
+automatic and explicit reuse and forces phase A; use it when requesting fresh
+`--phase-a-model` or `--phase-a-effort` passes, which discovery otherwise skips.
+Automatic reuse does not apply in dry-run or phase-a-only mode.
+
+Council effort stays `high` by default. `PR_COUNCIL_VALIDATOR_EFFORT=medium`
+is an explicit opt-in for phase B alone; phase A keeps its council effort.
+Precedence for phase B is `--effort`, then `PR_COUNCIL_VALIDATOR_EFFORT`, then
+`PR_COUNCIL_EFFORT`, then `high`. Phase-a-only mode forces `high` for both.
+Validator author/approval gates remain unchanged; a viewer comment is not
+validator proof. No quality-equivalence or token-savings claim is established.
+
 When the script exits, report: the PR, what each phase found, how many phase A
 candidates survived the skeptic gate, whether anything was posted, and the path
 to the kept reports. Do not restate the full reports; they already went to

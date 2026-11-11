@@ -13,12 +13,20 @@ a gate is in doubt.
 
 If the contract is missing in the workspace, try `~/.pi/agent/` then `~/.claude/` copies of the same relative path. If still missing, stop with `SHARED_CONTRACT_MISSING`.
 
-Run `workflow/skills/plan-loop.md` first when a task is provided. Load a
+For ordinary single-surface bugfixes without a plan, choose the bounded-fix
+route before invoking this skill. An explicit `/plan-implement` invocation
+keeps the plan gate. Run `workflow/skills/plan-loop.md` first when a task is provided. Load a
 domain suite only when the brief clearly matches one.
 
 Rules:
 - Do not ask for confirmation once the plan is `READY`.
 - Do not create `REVIEW.md`.
+- At READY, the user may choose a fresh `/implement` session with the plan
+  handoff; continue this run by default. No automatic clear or compaction.
+  For bounded implementation slices, Claude may delegate to its existing
+  fresh-context `worker` (Sonnet/medium); Codex uses its available native
+  worker when authorized, and Pi stays parent-only. Verify each diff and
+  proof; only the parent updates `PLAN.md`.
 - Council reuse file: right after the clean final review round, before the
   archive (implementation-loop step 14) deletes `PLAN.md`, when that round's
   passes match the council's phase A on the same acceptance criteria (two
@@ -32,6 +40,13 @@ Rules:
   report bytes; it does not certify the
   passes, effective-model provenance or matching criteria. Pass an eligible file
   explicitly to the council with `--reuse-review`; keep private paths out of PRs.
+  For automatic discovery, omit `<reuse-file>` and add `--eligible-review`
+  after the report path, explicitly attesting the same two fresh-context
+  reviews and cross-family effective-model provenance on matching criteria.
+  Only that mode writes a private auto-discoverable record; packaging still
+  certifies no review. `--post` discovers it for the same checkout, base and
+  patch for one hour, including a later archive-only commit. `--no-reuse`
+  forces a complete council. Legacy explicit receipt paths remain supported.
 
 ## Delivery
 
