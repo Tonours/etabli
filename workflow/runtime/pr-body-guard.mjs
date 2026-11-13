@@ -442,6 +442,7 @@ function bodyOf(command, scan, args, segment, cwd) {
 	if (name === "-") {
 		const stdin = stdinSource(command, scan, segment);
 		if (stdin?.doc) return heredocText(stdin.doc);
+		if (stdin?.literal) return { text: stdin.text };
 		if (!stdin?.file) return { unchecked: true };
 		name = stdin.file;
 	}
@@ -546,7 +547,7 @@ function stdinSource(command, scan, segment) {
 			fds.set(fd, fds.get(source) ?? null);
 			if (raw.endsWith("-") && source !== fd) fds.delete(source);
 		}
-		else if (match[2] === "<<<") fds.set(fd, { text: `${staticWord(raw) ?? literalText(raw)}\n` });
+		else if (match[2] === "<<<") fds.set(fd, { text: `${staticWord(raw) ?? literalText(raw)}\n`, literal: staticWord(raw) !== null });
 		else if (match[2] === "<") fds.set(fd, { file: staticWord(raw) });
 		else fds.set(fd, null);
 	}

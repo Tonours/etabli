@@ -48,7 +48,9 @@ describe("pr body guard", () => {
 		expect(reason(`gh pr create --body-file - 2>&1 <<'A' <<'B'\n${GOOD}A\nGenerated with Claude Code\nB`)).toContain("AI attribution");
 		expect(decide(`gh pr create --body-file - 3<<'A' <<'B'\nGenerated with Claude Code\nA\n${GOOD}B`)).toBeNull();
 		expect(decide(`gh pr create --body-file - < ${bodyFile(GOOD)}`)).toBeNull();
-		expect(decide("gh pr create --body-file - <<< 'x'")).toBeNull();
+		expect(reason("gh pr create --body-file - <<< 'Generated with Claude Code'")).toContain("missing ## What");
+		expect(decide(`gh pr create --body-file - <<< '${GOOD.replaceAll("'", "")}'`)).toBeNull();
+		expect(decide('gh pr create --body-file - <<< "$BODY"')).toBeNull();
 		expect(reason(`gh pr create --body-file - 2>&1 <<'A' 3<<'B' 0>&3\n${GOOD}A\nGenerated with Claude Code\nB`)).toContain("AI attribution");
 		expect(decide(`gh pr create --body-file - <<'A' 0<>notes.md\nbad\nA`)).toBeNull();
 		expect(decide(`gh pr create --body-file - <<'A' >/dev/null 2>&1\n${GOOD}A`)).toBeNull();

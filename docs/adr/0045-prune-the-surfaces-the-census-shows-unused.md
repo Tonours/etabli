@@ -25,6 +25,10 @@ bar, this change deletes:
   `execution-quality` and `verify` skills. Their few live rules move into
   `workflow/spec.md` golden principles or the consuming contract. All join
   `RETIRED_FILES`, so `deploy-workflow --prune` removes scaffolded copies.
+  The sections that only fed them go too: "Learning from run evidence" in
+  `investigation.md`, the run-learning step and "Long loops" in
+  `implementation-loop.md`, "Effectiveness comparison" in `review.md`, and the
+  run-incident block of the escaped-defect template.
 - Skills used 0-2 times in 28 days on both machines: `bug-check`,
   `linear-work`, `linear-project-setup`, `verify-workflow`, `spec`; vendored
   `domain-modeling`, `grill-with-docs`, `improve-codebase-architecture`,
@@ -37,7 +41,10 @@ it cannot read (built at run time, piped, missing, unreadable, or a relative
 file behind an unresolved `cd`) through for that invocation, and keeps
 checking the other invocations and commits of the line. The census found
 these refusals on bodies the agent had just written correctly, so they cost
-retries without catching a bad body. The
+retries without catching a bad body. The cost is real: a body built at run time, or a file
+written earlier in the same command, is no longer checked, so the guard is
+advisory for those cases and a body written with the edit tool first stays
+the checked path. The
 Pi Task* fact is stated once in `workflow/skills/orchestration.md`.
 
 The entry chain is now `AGENTS.md`, `workflow/spec.md` and
