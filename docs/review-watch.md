@@ -112,6 +112,10 @@ It imports no other user settings or plugins. Hooks remain disabled, MCP stays
 strict, and setting sources remain project/local after author configuration is
 reset to the trusted base. Unnamespaced and project-provided skills keep the
 existing behavior. When selecting a namespaced plugin, a malformed user settings file stops
-verification before a watermark or approval; repair that JSON and use the supported retry path.
+verification before a watermark or approval. The watcher waits in the existing
+unconfigured state without spending attempts. Repairing the JSON resumes the
+same head at its previous attempt number, including at the cap, and reuses a
+completed delta review. The log names both configuration repairs: select the
+verification skill or repair the owner settings.
 Plugin loading and provider availability are separate checks. This change does
 not turn a provider error into completed verification or bypass approval gates.

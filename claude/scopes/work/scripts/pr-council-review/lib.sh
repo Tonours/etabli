@@ -43,8 +43,9 @@ verify_settings() {
     printf '%s\n' '{"disableAllHooks":true}'
     return
   fi
-  jq -ce --arg namespace "${skill%%:*}" '
-    if type != "object" then error("settings must be an object") else . end
+  jq -cse --arg namespace "${skill%%:*}" '
+    if length != 1 then error("settings must contain one JSON object") else .[0] end
+    | if type != "object" then error("settings must be an object") else . end
     | (.enabledPlugins // {})
     | if type != "object" then error("enabledPlugins must be an object") else . end
     | with_entries(select(.value == true and (.key | split("@")[0]) == $namespace))

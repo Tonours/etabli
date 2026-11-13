@@ -1159,8 +1159,8 @@ case_next_attempt() {
 }
 
 case_verify_plugin_isolation() {
-  local scenario settings="$HOME/.claude/settings.json"
-  for scenario in target missing project unnamespaced unnamespaced-malformed malformed; do
+  local scenario attempt settings="$HOME/.claude/settings.json"
+  for scenario in target missing project unnamespaced unnamespaced-malformed malformed multi-json empty-json; do
     reset_state
     set_head "$HEAD1"
     FAKE_VALIDATOR_TEXT="Review posted. $(marker 2)" run_review council "$HEAD1" -
@@ -1168,9 +1168,11 @@ case_verify_plugin_isolation() {
     rm -f "$settings" "$FAKE_DIR/verify-settings.json"
     case "$scenario" in
       target|unnamespaced)
-        printf '%s\n' '{"enabledPlugins":{"forest@forest":true,"forest@disabled":false,"other@forest":true},"hooks":{"SessionStart":[]},"env":{"PRIVATE":"excluded"},"permissions":{"allow":["Bash(*)"]},"mcpServers":{"private":{}}}' >"$settings" ;;
+        printf '%s\n' '{"enabledPlugins":{"forest@forest":true,"forest@disabled":false,"forest@null":null,"forest@string":"true","forestry@forest":true,"other@forest":true},"disableAllHooks":false,"hooks":{"SessionStart":[]},"env":{"PRIVATE":"excluded"},"permissions":{"allow":["Bash(*)"]},"mcpServers":{"private":{}}}' >"$settings" ;;
       project) printf '%s\n' '{"enabledPlugins":{"other@forest":true}}' >"$settings" ;;
       malformed|unnamespaced-malformed) echo '{broken' >"$settings" ;;
+      multi-json) printf '{}\n{}\n' >"$settings" ;;
+      empty-json) : >"$settings" ;;
     esac
     if [[ "$scenario" = unnamespaced* ]]; then
       FAKE_VERIFY_TEXT=$'all fixed\nVERIFY_VERDICT reviewed=2 reopened=0 regressions=0 complete=true confident=true\nCONFIDENCE fixed' \
@@ -1180,12 +1182,33 @@ case_verify_plugin_isolation() {
         FAKE_VERIFY_TEXT=$'all fixed\nVERIFY_VERDICT reviewed=2 reopened=0 regressions=0 complete=true confident=true\nCONFIDENCE fixed' \
         run_review verify "$HEAD2" "$HEAD1"
     fi
-    if [ "$scenario" = malformed ]; then
-      check "malformed user settings: incomplete" [ "$RC" != 0 ]
+    if [[ "$scenario" = malformed || "$scenario" = multi-json || "$scenario" = empty-json ]]; then
+      check "malformed user settings: configuration wait exit" rc_is 5
+      check "malformed user settings: exact-head marker" [ "$(cat "$KEY.verify-unconfigured" 2>/dev/null)" = "$HEAD2" ]
       check "malformed user settings: actionable error" grep -q 'cannot read verify plugin settings' "$TMP_DIR/run.out"
       check "malformed user settings: no verify invocation" not_called 'claude VERIFY'
       check "malformed user settings: no watermark" no_file "$KEY.watermark"
       check "malformed user settings: no approval" [ "$(approvals)" = 0 ]
+      for attempt in 1 3; do
+        printf '%s\tverify\t5\t%s\n' "$HEAD2" "$attempt" >"$KEY.status"
+        check "malformed settings: attempt $attempt waits" [ "$(PR_COUNCIL_VERIFY_SKILL=forest:verify-fixes watch_fn "next_attempt '$KEY' '$HEAD2'")" = unconfigured ]
+        check "malformed settings: attempt $attempt keeps waiting" [ "$(PR_COUNCIL_VERIFY_SKILL=forest:verify-fixes watch_fn "next_attempt '$KEY' '$HEAD2'")" = unconfigured ]
+        check "malformed settings: attempt $attempt unchanged" [ "$(cut -f4 "$KEY.status")" = "$attempt" ]
+      done
+      printf '%s\n' "$HEAD1" >"$KEY.verify-unconfigured"
+      check "invalid settings: stale marker cannot wait" [ "$(PR_COUNCIL_VERIFY_SKILL=forest:verify-fixes watch_fn "next_attempt '$KEY' '$HEAD2'")" = exhausted ]
+      printf '%s\n' "$HEAD2" >"$KEY.verify-unconfigured"
+      printf '%s\n' '{"enabledPlugins":{"forest@forest":true}}' >"$settings"
+      check "repaired settings: same attempt resumes at cap" [ "$(PR_COUNCIL_VERIFY_SKILL=forest:verify-fixes watch_fn "next_attempt '$KEY' '$HEAD2'")" = 3 ]
+      PR_COUNCIL_VERIFY_SKILL=forest:verify-fixes FAKE_REQUIRE_USER_PLUGIN=1 \
+        FAKE_VERIFY_TEXT=$'all fixed\nVERIFY_VERDICT reviewed=2 reopened=0 regressions=0 complete=true confident=true\nCONFIDENCE fixed' \
+        run_review verify "$HEAD2" "$HEAD1"
+      check "repaired settings: successful same-head verify" rc_is 0
+      check "repaired settings: delta remains cached" not_called 'claude DELTA'
+      check "repaired settings: marker cleared" no_file "$KEY.verify-unconfigured"
+      check "repaired settings: attempt number preserved" [ "$(cut -f4 "$KEY.status")" = 3 ]
+      check "repaired settings: exact-head watermark" [ "$(cat "$KEY.watermark" 2>/dev/null)" = "$HEAD2" ]
+      check "repaired settings: one approval" [ "$(approvals)" = 1 ]
     else
       check "$scenario plugin: verify succeeds" rc_is 0
       check "$scenario plugin: verified head approved" [ "$(approvals)" = 1 ]
