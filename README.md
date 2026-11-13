@@ -100,7 +100,6 @@ The installer:
 
 - installs system packages through brew, apt, dnf or pacman;
 - sets `core.hooksPath=.githooks`, so the pre-push secret scan runs;
-- installs rtk 0.39.0 or later;
 - installs Pi at the version pinned in `pi/package.json` when `pi` is not
   already on your PATH, plus its packages;
 - links every managed surface with `scripts/deploy-agent-workflow --apply`
@@ -160,7 +159,6 @@ over one shared module in `workflow/runtime/`:
 - An edit-tool write that adds a code comment to a file of a known language is
   refused. Doc comments and files outside a git work tree pass. A shell write,
   or a file without a known extension, is not checked.
-- Shell output goes through rtk when compacting it is safe.
 - A `gh pr create` or `gh pr edit` body must follow the PR body contract. The
   literal text of a `git commit` message must carry no `Claude-Session:` or
   `Co-Authored-By:` trailer and no AI credit.

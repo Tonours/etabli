@@ -37,4 +37,3 @@ skip (YAGNI) → reuse codebase → stdlib → native platform → installed dep
 Never skip: validation, security, error handling.
 
 @../workflow/agent-rules.md
-@RTK.md

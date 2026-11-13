@@ -20,8 +20,8 @@
   "scripts": {
     "test": "bun test ./extensions/__tests__/*.test.ts ./profiles/gemma-orchestrator/tests/*.test.ts",
     "typecheck": "node_modules/@typescript/*/lib/tsc --noEmit",
-    "test:workflow": "bun test ./extensions/__tests__/rtk-runtime.test.ts ./extensions/__tests__/settings-consistency.test.ts",
-    "test:workflow-coverage": "bun test --coverage ./extensions/__tests__/rtk-runtime.test.ts ./extensions/__tests__/settings-consistency.test.ts",
+    "test:workflow": "bun test ./extensions/__tests__/settings-consistency.test.ts",
+    "test:workflow-coverage": "bun test --coverage ./extensions/__tests__/settings-consistency.test.ts",
     "verify:skills": "bun ./scripts/verify-skills-lock.mjs",
     "update:skills-lock": "bun ./scripts/verify-skills-lock.mjs --write"
   }

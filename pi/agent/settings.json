@@ -74,12 +74,5 @@
   ],
   "showHardwareCursor": false,
   "treeFilterMode": "default",
-  "steeringMode": "one-at-a-time",
-  "rtk": {
-    "enabled": true,
-    "maxCacheEntries": 256,
-    "maxCommandLength": 4000,
-    "mode": "always",
-    "timeoutMs": 2500
-  }
+  "steeringMode": "one-at-a-time"
 }

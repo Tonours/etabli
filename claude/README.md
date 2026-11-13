@@ -111,9 +111,6 @@ ungoverned and outside the index gate.
   lexer, not a parser: shell grammar beyond strings, heredocs and substitutions
   (a `case` pattern inside `$(...)` included) is lexed as plain code, which can
   miss or add a comment.
-- `rtk-guard.mjs` (`PreToolUse` on `Bash`) forwards a command to
-  `rtk hook claude` only when `workflow/runtime/rtk-data-flow.mjs` allows
-  compaction, and runs the rest raw.
 - `pr-body-guard.mjs` (`PreToolUse` on `Bash`) is a thin adapter over
   `workflow/runtime/pr-body-guard.mjs`, shared with the Pi `pr-body.ts`
   extension. It checks two things.
@@ -140,14 +137,13 @@ ungoverned and outside the index gate.
   at run time. A commit message built at run time (`-m "$MESSAGE"`) passes
   unchecked. It does not see `gh api` calls, a command nested
   inside `bash -c`, `eval` or a double-quoted `"$(...)"`.
-- `no-comments-guard.mjs`, `pr-body-guard.mjs` and `rtk-guard.mjs` fail open: a
-  crash lets the write or the raw command through, since none guards a
-  read-only boundary.
+- `no-comments-guard.mjs` and `pr-body-guard.mjs` fail open: a crash lets the
+  write or the command through, since neither guards a read-only boundary.
 
 `settings.workflow-hooks.json` is a merge fragment. The installer links it but
 does not merge it, because the live settings file can hold secrets. Run
 `scripts/claude-hooks-merge --dry-run`, then `scripts/claude-hooks-merge`. It
-adds the fragment's hooks, removes only hooks the repo retired (a bare
+adds the fragment's hooks, removes only hooks the repo retired (`rtk-guard.mjs` and a bare
 `rtk hook claude` included), backs up first, refuses invalid JSON, and never
 reads secrets back into the repo. Rerun it after a deploy that adds a hook,
 then verify with `scripts/claude-hooks-check`.
@@ -218,7 +214,7 @@ To inspect a final native JSON already retained privately, without another
 model call or a history scan:
 
 ```bash
-rtk proxy jq '{scope:"native-session-cumulative",restored:"possible",total_cost_usd,is_error,subtype,modelUsage}' "$private_result_json"
+jq '{scope:"native-session-cumulative",restored:"possible",total_cost_usd,is_error,subtype,modelUsage}' "$private_result_json"
 ```
 
 Missing counters stay unknown. A native final result covers what the runtime
@@ -232,8 +228,7 @@ native account/session view. Imports in `CLAUDE.md` are eager; skills load their
 body on invocation and then remain in history. Keep specialized material cold,
 read decisive files/ranges, and retain full logs privately with exit status and
 proof references. Use ToolSearch on supported MCP routes instead of loading
-all schemas; do not toggle servers or models needlessly mid-task. RTK's `proxy`
-path preserves structured data and exact evidence. The delegation choices and
+all schemas; do not toggle servers or models needlessly mid-task. The delegation choices and
 handoff rules live in `workflow/skills/orchestration.md`; no review gate changes.
 
 For remote follow-up, first identify the machine, directory and session doing
