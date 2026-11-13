@@ -104,7 +104,7 @@ case "$prompt" in
   /code-review*) role=QUALITY ;;
   *thermo-nuclear*) role=THERMO ;;
   "Incremental review"*) role=DELTA ;;
-  /test-verify-fixes*|/file-verify-fixes*) role=VERIFY ;;
+  /test-verify-fixes*|/file-verify-fixes*|/forest:verify-fixes*) role=VERIFY ;;
   "You are the automatic PR review agent"*) role=AUTOREVIEW ;;
   *) echo "fake claude: unknown prompt" >&2; exit 1 ;;
 esac
@@ -112,6 +112,17 @@ printf 'claude %s GIT_TERMINAL_PROMPT=%s %s\n' "$role" "${GIT_TERMINAL_PROMPT:-u
 [ "$role" != VALIDATOR ] || printf '%s' "$prompt" >"$FAKE_DIR/validator-prompt.txt"
 [ "$role" != VALIDATOR ] || { pwd -P; git rev-parse --show-toplevel HEAD; git remote get-url origin; cat .claude/settings.local.json; ls node_modules; } >"$FAKE_DIR/validator-cwd" 2>/dev/null
 [ "$role" != PHASEA_ONLY ] || printf '%s' "$prompt" >"$FAKE_DIR/phasea-prompt.txt"
+if [ "$role" = VERIFY ]; then
+  settings='' prev=''
+  for arg in "${flags[@]}"; do
+    [ "$prev" != --settings ] || settings="$arg"
+    prev="$arg"
+  done
+  printf '%s\n' "$settings" >"$FAKE_DIR/verify-settings.json"
+  if [[ "$prompt" = /forest:verify-fixes* ]] && [ "${FAKE_REQUIRE_USER_PLUGIN:-}" = 1 ]; then
+    jq -e '.enabledPlugins["forest@forest"] == true' <<<"$settings" >/dev/null || exit 1
+  fi
+fi
 [ "$role" != VERIFY ] || printf '%s' "$prompt" >"$FAKE_DIR/verify-prompt.txt"
 [ "$role" != DELTA ] || printf '%s' "$prompt" >"$FAKE_DIR/delta-prompt.txt"
 [ "$role" != THERMO ] || printf '%s' "$prompt" >"$FAKE_DIR/thermo-prompt.txt"
@@ -1184,6 +1195,71 @@ case_next_attempt() {
   check "attempt: an exhausted sha is logged once" [ "$(watch_fn "consider me o/r 7 '$HEAD1' url; consider me o/r 7 '$HEAD1' url" | grep -c 'giving up')" = 1 ]
 }
 
+case_verify_plugin_isolation() {
+  local scenario attempt settings="$HOME/.claude/settings.json"
+  for scenario in target missing project unnamespaced unnamespaced-malformed malformed multi-json empty-json; do
+    reset_state
+    set_head "$HEAD1"
+    FAKE_VALIDATOR_TEXT="Review posted. $(marker 2)" run_review council "$HEAD1" -
+    set_head "$HEAD2" '[{"state":"COMMENTED","author":{"login":"me"}}]'
+    rm -f "$settings" "$FAKE_DIR/verify-settings.json"
+    case "$scenario" in
+      target|unnamespaced)
+        printf '%s\n' '{"enabledPlugins":{"forest@forest":true,"forest@disabled":false,"forest@null":null,"forest@string":"true","forestry@forest":true,"other@forest":true},"disableAllHooks":false,"hooks":{"SessionStart":[]},"env":{"PRIVATE":"excluded"},"permissions":{"allow":["Bash(*)"]},"mcpServers":{"private":{}}}' >"$settings" ;;
+      project) printf '%s\n' '{"enabledPlugins":{"other@forest":true}}' >"$settings" ;;
+      malformed|unnamespaced-malformed) echo '{broken' >"$settings" ;;
+      multi-json) printf '{}\n{}\n' >"$settings" ;;
+      empty-json) : >"$settings" ;;
+    esac
+    if [[ "$scenario" = unnamespaced* ]]; then
+      FAKE_VERIFY_TEXT=$'all fixed\nVERIFY_VERDICT reviewed=2 reopened=0 regressions=0 complete=true confident=true\nCONFIDENCE fixed' \
+        run_review verify "$HEAD2" "$HEAD1"
+    else
+      PR_COUNCIL_VERIFY_SKILL=forest:verify-fixes FAKE_REQUIRE_USER_PLUGIN="$([ "$scenario" = target ] && echo 1 || echo 0)" \
+        FAKE_VERIFY_TEXT=$'all fixed\nVERIFY_VERDICT reviewed=2 reopened=0 regressions=0 complete=true confident=true\nCONFIDENCE fixed' \
+        run_review verify "$HEAD2" "$HEAD1"
+    fi
+    if [[ "$scenario" = malformed || "$scenario" = multi-json || "$scenario" = empty-json ]]; then
+      check "malformed user settings: configuration wait exit" rc_is 5
+      check "malformed user settings: exact-head marker" [ "$(cat "$KEY.verify-unconfigured" 2>/dev/null)" = "$HEAD2" ]
+      check "malformed user settings: actionable error" grep -q 'cannot read verify plugin settings' "$TMP_DIR/run.out"
+      check "malformed user settings: no verify invocation" not_called 'claude VERIFY'
+      check "malformed user settings: no watermark" no_file "$KEY.watermark"
+      check "malformed user settings: no approval" [ "$(approvals)" = 0 ]
+      for attempt in 1 3; do
+        printf '%s\tverify\t5\t%s\n' "$HEAD2" "$attempt" >"$KEY.status"
+        check "malformed settings: attempt $attempt waits" [ "$(PR_COUNCIL_VERIFY_SKILL=forest:verify-fixes watch_fn "next_attempt '$KEY' '$HEAD2'")" = unconfigured ]
+        check "malformed settings: attempt $attempt keeps waiting" [ "$(PR_COUNCIL_VERIFY_SKILL=forest:verify-fixes watch_fn "next_attempt '$KEY' '$HEAD2'")" = unconfigured ]
+        check "malformed settings: attempt $attempt unchanged" [ "$(cut -f4 "$KEY.status")" = "$attempt" ]
+      done
+      printf '%s\n' "$HEAD1" >"$KEY.verify-unconfigured"
+      check "invalid settings: stale marker cannot wait" [ "$(PR_COUNCIL_VERIFY_SKILL=forest:verify-fixes watch_fn "next_attempt '$KEY' '$HEAD2'")" = exhausted ]
+      printf '%s\n' "$HEAD2" >"$KEY.verify-unconfigured"
+      printf '%s\n' '{"enabledPlugins":{"forest@forest":true}}' >"$settings"
+      check "repaired settings: same attempt resumes at cap" [ "$(PR_COUNCIL_VERIFY_SKILL=forest:verify-fixes watch_fn "next_attempt '$KEY' '$HEAD2'")" = 3 ]
+      PR_COUNCIL_VERIFY_SKILL=forest:verify-fixes FAKE_REQUIRE_USER_PLUGIN=1 \
+        FAKE_VERIFY_TEXT=$'all fixed\nVERIFY_VERDICT reviewed=2 reopened=0 regressions=0 complete=true confident=true\nCONFIDENCE fixed' \
+        run_review verify "$HEAD2" "$HEAD1"
+      check "repaired settings: successful same-head verify" rc_is 0
+      check "repaired settings: delta remains cached" not_called 'claude DELTA'
+      check "repaired settings: marker cleared" no_file "$KEY.verify-unconfigured"
+      check "repaired settings: attempt number preserved" [ "$(cut -f4 "$KEY.status")" = 3 ]
+      check "repaired settings: exact-head watermark" [ "$(cat "$KEY.watermark" 2>/dev/null)" = "$HEAD2" ]
+      check "repaired settings: one approval" [ "$(approvals)" = 1 ]
+    else
+      check "$scenario plugin: verify succeeds" rc_is 0
+      check "$scenario plugin: verified head approved" [ "$(approvals)" = 1 ]
+      if [ "$scenario" = target ]; then
+        check "target plugin: only matching true entry and hook clamp" jq -e '. == {disableAllHooks:true,enabledPlugins:{"forest@forest":true}}' "$FAKE_DIR/verify-settings.json"
+      else
+        check "$scenario plugin: base settings only" jq -e '. == {disableAllHooks:true}' "$FAKE_DIR/verify-settings.json"
+      fi
+      check "$scenario plugin: strict MCP and project/local sources" eval 'grep "^claude VERIFY" "$FAKE_LOG" | grep -q -- "--strict-mcp-config --setting-sources project,local"'
+    fi
+  done
+  rm -f "$settings"
+}
+
 case_verify_skill_config() {
   local conf="$HOME/.config/pr-council-review/verify-skill" old=202001010000
   reset_state
@@ -2080,6 +2156,9 @@ NODE
 
 if [ "${1:-}" = --token-rollout ]; then
 case_token_rollout
+elif [ "${1:-}" = --verify-skill ]; then
+case_verify_plugin_isolation
+case_verify_skill_config
 elif [ "${1:-}" = --checkout ]; then
 case_validator_checkout
 case_validator_checkout_bare_flagged
@@ -2133,6 +2212,7 @@ case_ambiguous_marker_attacks
 case_unwatch_state
 case_approval_head_watch
 case_next_attempt
+case_verify_plugin_isolation
 case_verify_skill_config
 case_approval_post_failure_stays_pending
 case_approval_recovery
