@@ -121,7 +121,7 @@ the workflow is on without asking for it. For example:
 ```text
 > fix the typo in the install message           → answer: edited directly
 > fais un plan pour migrer les tests vers bun   → plan-loop: PLAN.md, READY
-> /plan-implement add a --json flag to prs-today → plan, build, review, push
+> /plan-implement add a --json flag to plan-cleanup → plan, build, review, push
 > /review 123                                   → findings and a verdict
 ```
 
@@ -147,7 +147,6 @@ scripts/check-fix-symlinks.sh         # managed links intact? --fix repairs
 node scripts/validate-adrs .          # ADR format
 scripts/plan-cleanup --status         # root PLAN.md status and age, as JSON
 scripts/deploy-hosts                  # deploy the pushed main to other machines
-scripts/prs-today                     # your open PRs: CI, review, stack order
 ```
 
 ## What the guards enforce
