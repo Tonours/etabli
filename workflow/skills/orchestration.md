@@ -14,9 +14,6 @@ all hosts. Missing general evidence is `unknown`, not proof that the native
 capability is unavailable. Source inspection can correct the scope of a claim
 but cannot confirm runtime support.
 
-- Pi may use Task* tools when available.
-- Task* tools are Pi-only unless another runtime explicitly exposes equivalent
-  structured task primitives.
 - Hooks only guard writes (ADR-0036); hooks and commands must not invent
   runtime primitives that the host does not expose.
 - Single writer: `workflow/skills/implementation-loop.md` step 8. The current
@@ -146,5 +143,3 @@ Claude:
   `PLAN.md`, as required by `workflow/spec.md`.
 - Hooks do not route or inject context, and they do not replace task state or
   completion evidence.
-- Claude has no Pi Task* equivalent unless the active Claude runtime exposes one
-  separately.

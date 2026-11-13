@@ -167,8 +167,7 @@ writes (ADR-0032).
 
 Use `/goal <measurable done condition, validation command, constraints, stop
 limit>` for till-done loops. Pi and Claude orchestration parity lives in
-[`../workflow/skills/orchestration.md`](../workflow/skills/orchestration.md);
-Task* state is Pi-only.
+[`../workflow/skills/orchestration.md`](../workflow/skills/orchestration.md).
 
 Sync supports optional `env.CLAUDE_CODE_SUBAGENT_MODEL` (for example `sonnet`).
 It stays unset in the shared fragment until all runtimes (including SDK/IDE CLIs) are verified.
