@@ -67,6 +67,7 @@ ingest_review_requests() {
         fi
         if [ -z "$reason" ] && [ ! -f "$KILL_SWITCH" ]; then
           [ -n "$listed" ] || printf '%s\t%s\n' "$repo" "$number" >>"$WATCHED" || continue
+          review_request_receipt "$key.requested" "$sha"$'\t'"$me" || continue
           [ -e "$key.registered" ] || printf '%s\t%s\n' "$sha" "$me" >"$key.registered" || continue
         fi
       fi

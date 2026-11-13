@@ -215,7 +215,7 @@ launch() {
   temp="$(mktemp "$key.token.XXXXXX")" || { release_execution "$key"; return 1; }
   printf '%s\n' "$token" >"$temp" && mv "$temp" "$key.token" || { release_execution "$key"; return 1; }
   write_run_status "$key" "$sha" "$mode" running "$attempt" || { release_execution "$key"; return 1; }
-  rm -f "$key.paused"
+  rm -f "$key.paused" "$key.requested"
   echo "$repo#$number@$sha" >>"$(launches_file)" || { write_run_status "$key" "$sha" "$mode" 1 "$attempt"; release_execution "$key"; return 1; }
   clone="$(ensure_clone "$repo" 2>>"$diagnostic")" || {
     write_run_status "$key" "$sha" "$mode" 1 "$attempt"
@@ -247,8 +247,17 @@ retry_pending_approval() {
     | grep -E '^=== (approved|approval)' | while IFS= read -r line; do log "$repo#$number $line"; done
 }
 
+# This marker is scheduling intent, never proof that a council completed.
+explicit_review_request() {
+  local path="$1.requested" sha="$2" me="$3"
+  [ -f "$path" ] && [ ! -L "$path" ] || return 1
+  [ "$(perl -e 'print((stat shift)[7] // 9999)' "$path")" -le 256 ] || return 1
+  [ "$(cat "$path")" = "$sha"$'\t'"$(printf '%s' "$me" | tr '[:upper:]' '[:lower:]')" ]
+}
+
 consider() {
   local me="$1" repo="$2" number="$3" sha="$4" url="$5" key attempt age size mode since
+  [ ! -f "$KILL_SWITCH" ] || return 0
   key="$(run_key "$repo" "$number")"
   run_reserved "$key" && { log "$repo#$number review still running, wait"; return; }
   if [ -f "$key.approval-pending" ]; then
@@ -273,7 +282,7 @@ consider() {
       return ;;
   esac
   age="$(seen_age "$key" "$sha")"
-  [ "${age:-0}" -ge "$SETTLE_SECONDS" ] || { log "$repo#$number @${sha:0:8} first seen ${age}s ago, settling"; return; }
+  explicit_review_request "$key" "$sha" "$me" || [ "${age:-0}" -ge "$SETTLE_SECONDS" ] || { log "$repo#$number @${sha:0:8} first seen ${age}s ago, settling"; return; }
   size="$(diff_scope "$repo" "$number" 2>/dev/null)"
   case "$size" in
     '') log "$repo#$number @${sha:0:8} size lookup failed, retry next tick"; return ;;
@@ -333,7 +342,7 @@ process_watched() {
         if ! clear_dead_execution "$key" || ! take_execution "$key"; then
           printf '%s\t%s\n' "$repo" "$number" >>"$next"; continue
         fi
-        rm -f "$key".{status,seen,watermark,council-done,council-clean,approval-pending,approval-body,registered,skipped,exhausted,delta-done,unconfigured,verify-unconfigured,token,claimed,paused}
+        rm -f "$key".{status,seen,watermark,council-done,council-clean,approval-pending,approval-body,registered,requested,skipped,exhausted,delta-done,unconfigured,verify-unconfigured,token,claimed,paused}
         release_execution "$key"
       fi
       continue
