@@ -49,9 +49,7 @@ runtimes (Claude commands are retired, ADR-0037). Pi ignores the Claude-only
 frontmatter keys (`argument-hint`, `allowed-tools`).
 `tests/workflow-contract-coverage-smoke.sh` keeps every contract referenced.
 
-`/verify-workflow` is the workflow verifier, so Claude Code's native `/verify`
-stays free for app verification. Linear skills use the Linear MCP; PR review
-uses the `gh` CLI.
+Linear skills use the Linear MCP; PR review uses the `gh` CLI.
 
 The custom agents are `scout` (read-only reconnaissance), `worker` (one step
 from a `READY` plan, the only writing agent), `reviewer` (fresh-context diff

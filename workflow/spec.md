@@ -134,16 +134,14 @@ Rows are checked top to bottom; the first matching row wins.
 | --- | --- | --- | --- |
 | Adversarial plan review without "do not edit" intent | `adversary` | updated `PLAN.md` | `READY`, `CHALLENGED`, or blocker |
 | Review request (diff, GitHub PR, plan) or adversarial review with "do not edit" intent | `review` | findings only | `GO`, `GO WITH NOTES`, or `BLOCK` |
-| Verify, retest, prove, or completion audit (interface `verify`; skill `/verify-workflow`, `/skill:verify-workflow` on Pi, leaving Claude's native `/verify` free) | `verify` | verification report | `VERIFIED`, `NOT VERIFIED`, or `INCONCLUSIVE` |
 | Existing `READY PLAN.md` covering the requested task, plus implementation request | `implement` | code/docs + archive | validated archive and root `PLAN.md` deleted |
 | "plan puis implémente", autonomous `plan-loop`, end-to-end ("A to Z") project, Linear ticket implementation, or self-improvement from run evidence | `plan-implement` | `PLAN.md` then code/docs | validated archive and root `PLAN.md` deleted, or explicit no-op/blocker |
 | Broad task, unclear implementation, or explicit plan request ("fais un plan") | `plan-loop` | `PLAN.md` | `READY` or `CHALLENGED` |
-| Question, explanation, diagnosis, compare, or forensics | `answer` | none | answer delivered; no `PLAN.md` |
+| Question, explanation, diagnosis, compare, verify or retest a claim, or forensics | `answer` | none | answer delivered; no `PLAN.md` |
 | Ordinary coding with no root `PLAN.md` (a bounded fix runs its tier's journey, below) | `answer` | code/docs | edit complete |
 
 Work commands are explicit commands (work scope), never chosen from the
-table: `/linear-work`, `/linear-ticket-create`, `/linear-project-setup`,
-`/bug-check`, `/pr-council-review`. Each runs under its own contract. Linear
+table: `/linear-ticket-create`, `/pr-council-review`. Each runs under its own contract. Linear
 commands require Linear MCP or stop with `LINEAR_MCP_UNAVAILABLE` — see
 `docs/mcp-strategy.md` § Linear MCP gap. Rationale: ADR-0027.
 

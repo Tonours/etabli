@@ -8,37 +8,23 @@
 # when pi_core=1; Claude stays scope-governed (workflow decision 3/4/5).
 # Provenance: rows with source mattpocock (Matt Pocock) are the vendored shared
 # suite — cataloged as engineering/<name> but deployed by
-# their frontmatter names (e.g. `research`, `wizard`). Suite map and
+# their frontmatter names (e.g. `research`, `grilling`). Suite map and
 # collision rules: vendor/README.md.
 shared/plan-loop	etabli	1	1
 shared/plan-implement	etabli	1	1
 shared/adversary	etabli	1	1
 shared/review	etabli	1	1
 shared/implement	etabli	1	1
-shared/verify-workflow	etabli	1	1
 shared/write-direct	etabli	1	1
 shared/pr	etabli	1	1
 shared/code-quality	etabli	1	0
 shared/thermo-nuclear-code-quality-review	etabli	1	1
 shared/adr	etabli	0	1
-shared/spec	etabli	0	1
-work/bug-check	etabli	1	1
-work/linear-project-setup	etabli	0	1
 work/linear-ticket-create	etabli	1	1
-work/linear-work	etabli	1	1
 work/employer-backend-suite	etabli	0	1
 work/employer-docs-writing	etabli	0	1
 work/pr-council-review	etabli	1	1
-react-doctor-100	extras	0	1
-coolify	extras	0	1
 engineering/codebase-design	mattpocock	0	1
-engineering/domain-modeling	mattpocock	0	1
-engineering/grill-with-docs	mattpocock	0	1
-engineering/improve-codebase-architecture	mattpocock	0	1
-engineering/prototype	mattpocock	0	1
 engineering/research	mattpocock	0	1
-engineering/wizard	mattpocock	0	1
 productivity/grilling	mattpocock	0	1
-no-ai-slop	petergyang	0	1
-typesafe-ai	typesafe-ai	0	1
 security-audit	cloudflare	0	1
