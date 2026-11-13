@@ -29,6 +29,9 @@ if (mode === "success") {
 } else if (mode === "provider-error") {
 	say("", { stopReason: "error", errorMessage: "provider rate limited" });
 	process.exit(0);
+} else if (mode === "length") {
+	say("incomplete answer", { stopReason: "length" });
+	process.exit(0);
 } else if (mode === "ignore-term") {
 	process.on("SIGTERM", () => undefined);
 	if (process.env.FAKE_PI_ARGV_FILE) writeFileSync(process.env.FAKE_PI_ARGV_FILE, JSON.stringify({ args, ready: true }));

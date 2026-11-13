@@ -110,7 +110,7 @@ export default function subagents(pi: ExtensionAPI) {
 			const message = assistantText(event.message);
 			if (!message) return;
 			if (message.text) run.output = message.text;
-			run.error = message.stop === "error" || message.stop === "aborted" ? message.error ?? `child stopped: ${message.stop}` : undefined;
+			run.error = message.stop === "error" || message.stop === "aborted" || message.stop === "length" ? message.error ?? `child stopped: ${message.stop}` : undefined;
 		};
 		let handle: ReturnType<typeof startChild>;
 		try {

@@ -214,6 +214,8 @@ describe("subagent extension", () => {
 		expect(String(failed.details.error)).toContain("child failure detail");
 		const provider = await call("subagent", { agent: "worker", task: "provider-error" });
 		expect([provider.details.state, provider.details.error]).toEqual(["failed", "provider rate limited"]);
+		const truncated = await call("subagent", { agent: "worker", task: "length" });
+		expect([truncated.details.state, truncated.details.error, truncated.isError]).toEqual(["failed", "child stopped: length", true]);
 	});
 
 	test("child writes inside the requested cwd", async () => {
