@@ -18,6 +18,9 @@ but cannot confirm runtime support.
   runtime primitives that the host does not expose.
 - Single writer: `workflow/skills/implementation-loop.md` step 8. The current
   Pi profile remains parent-only while its subagent capability is `unknown`.
+- Pi subagent capability: `pi/extensions/subagents.ts` exposes `subagent`,
+  `bg_wait` and `subagent_supervisor` (isolated `pi -p` children, whole
+  process group stopped); it does not change the parent-only rule above.
 - A Claude `scout`, `reviewer`, or `adversary` agent report whose last line is
   not `STATUS: complete` counts as truncated: rerun or narrow it, never read it
   as clean. Review hunter templates end on the same line on every runner, Pi

@@ -460,6 +460,43 @@ case_one_phase_a_pass_fails() {
 
 # The reuse fingerprint: repo-root scoped, stable across diff settings, and blind
 # only to plain additions under docs/plan/ (the plan archive).
+# A clone flagged core.bare=true keeps its files beside .git: the council still
+# builds its validator checkout and looks up reuse receipts without git errors.
+case_validator_checkout_bare_flagged() {
+  local seen="$FAKE_DIR/validator-cwd"
+  mkdir -p "$CLONE/.claude"
+  echo '{"local":1}' >"$CLONE/.claude/settings.local.json"
+  git -C "$CLONE" config core.bare true
+  rm -f "$seen"
+  reset_state
+  set_head "$HEAD1"
+  FAKE_VALIDATOR_TEXT="Review posted. $(marker 0)" run_review council "$HEAD1" -
+  check "bare-flagged clone: validator ran" called "claude VALIDATOR"
+  check "bare-flagged clone: no work-tree error" eval '! grep -q "must be run in a work tree" "$TMP_DIR/run.out"'
+  check "bare-flagged clone: at the clone's head" [ "$(sed -n 3p "$seen")" = "$(git -C "$CLONE" rev-parse HEAD)" ]
+  check "bare-flagged clone: origin carried" [ "$(sed -n 4p "$seen")" = "$(git -C "$CLONE" remote get-url origin)" ]
+  check "bare-flagged clone: local settings carried" [ "$(sed -n 5p "$seen")" = '{"local":1}' ]
+  mkdir -p "$CLONE/nested"
+  check "bare-flagged clone: root discovery from nested cwd" [ "$(cd "$CLONE/nested" && . "$SCRIPTS/pr-council-review/lib.sh" && repo_root)" = "$CLONE" ]
+  check "bare-flagged clone: flag unchanged" [ "$(git -C "$CLONE" config core.bare)" = true ]
+  git -C "$CLONE" config core.bare false
+  rm -rf "$CLONE/.claude" "$CLONE/nested"
+  git clone -q --bare "$CLONE" "$TMP_DIR/genuine.git"
+  check "true bare: root discovery retains repository path" [ "$(cd "$TMP_DIR/genuine.git" && . "$SCRIPTS/pr-council-review/lib.sh" && repo_root)" = "$TMP_DIR/genuine.git" ]
+  check "true bare: validator checkout resolves head and origin" eval '(
+    cd "$TMP_DIR/genuine.git"
+    . "$SCRIPTS/pr-council-review/lib.sh"
+    tree="$TMP_DIR/genuine-validator"
+    validator_checkout "$tree" || exit 1
+    test "$(git -C "$tree" rev-parse HEAD)" = "$(git rev-parse HEAD)" &&
+      test "$(git -C "$tree" remote get-url origin)" = "$CLONE"
+    rc=$?
+    rm -rf "$tree"
+    exit "$rc"
+  )'
+  rm -rf "$TMP_DIR/genuine.git"
+}
+
 case_reuse_fingerprint() {
   local repo="$TMP_DIR/fp" head sha_root sha_sub sha_archive sha_old sha_other
   git init -q -b main "$repo"
@@ -2122,6 +2159,9 @@ case_token_rollout
 elif [ "${1:-}" = --verify-skill ]; then
 case_verify_plugin_isolation
 case_verify_skill_config
+elif [ "${1:-}" = --checkout ]; then
+case_validator_checkout
+case_validator_checkout_bare_flagged
 elif [ "${1:-}" = --usage ]; then
 case_usage_accounting
 elif [ "${1:-}" = --d1 ]; then
@@ -2202,6 +2242,7 @@ case_launchd_plist
 case_phase_a_only
 case_linked_prs
 case_validator_checkout
+case_validator_checkout_bare_flagged
 case_stalled_pass
 case_linked_on_later_pushes
 case_council_hangup
