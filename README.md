@@ -57,12 +57,11 @@ Your agent routes every request to the smallest route that fits it
 
 | You ask for | Route | What you get |
 | --- | --- | --- |
-| A question, a diagnosis, a small fix | `answer` | The answer or the edit, no plan |
+| A question, a diagnosis, verification, a small fix | `answer` | The answer or the edit, no plan |
 | A plan ("fais un plan") | `plan-loop` | A `PLAN.md` that reaches `READY` or `CHALLENGED` |
 | Plan and build, end to end | `plan-implement` | Plan, code, checks, reviews, archive |
 | Build an existing `READY` plan | `implement` | Code, checks, reviews, archive |
 | A review of a diff, PR or plan | `review` | Findings and a `GO`, `GO WITH NOTES` or `BLOCK` verdict |
-| Proof that something works | `verify` | `VERIFIED`, `NOT VERIFIED` or `INCONCLUSIVE` |
 
 A planned run goes through these steps:
 
