@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { bypassesRtkGuard, identityOf, isRetiredHookCommand, loadFragment } from "./claude-hooks-fragment.mjs";
+import { identityOf, isRetiredHookCommand, loadFragment } from "./claude-hooks-fragment.mjs";
 import { backupFile, writeJsonAtomic } from "./surfaces.mjs";
 
 const claudeDir = process.argv[2];
@@ -70,9 +70,6 @@ for (const [event, groups] of Object.entries(live.hooks)) {
     const remaining = hooks.filter((hook) => !isRetiredHookCommand(hook.command));
     for (const hook of hooks) {
       if (isRetiredHookCommand(hook.command)) removals.push({ event, matcher: group.matcher, hook });
-      if (bypassesRtkGuard(event, group.matcher, hook.command)) {
-        console.error(`claude-hooks-merge: kept custom Bash PreToolUse hook that calls rtk outside rtk-guard: ${event}/${group.matcher ?? ""}: ${hook.command} (edit it by hand; claude-hooks-check fails until then)`);
-      }
     }
     if (hooks.length && !remaining.length) continue;
     if (remaining.length !== hooks.length) group.hooks = remaining;

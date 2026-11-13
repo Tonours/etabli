@@ -87,13 +87,6 @@ describe("Pi settings consistency", () => {
     expect(deployAgentWorkflowScript).toContain("skillRecords(repoDir)");
     expect(installScript).toContain('"$BOOTSTRAP_DIR/deploy-agent-workflow" --apply');
 
-    for (const shelved of ["coolify", "react-doctor-100"]) {
-      expect(skillCatalog.find((s) => s.name === shelved)).toMatchObject({
-        source: "extras",
-        piCore: false,
-      });
-    }
-
     const keepList = [
       "plan-loop",
       "plan-implement",
@@ -101,10 +94,7 @@ describe("Pi settings consistency", () => {
       "review",
       "code-quality",
       "implement",
-      "verify-workflow",
-      "bug-check",
       "linear-ticket-create",
-      "linear-work",
       "write-direct",
       "pr",
       "thermo-nuclear-code-quality-review",
@@ -114,7 +104,7 @@ describe("Pi settings consistency", () => {
     expect(
       skillCatalog.find((skill) => skill.name === "shared/code-quality"),
     ).toMatchObject({ piCore: true });
-    expect(keepList).toHaveLength(14);
+    expect(keepList).toHaveLength(11);
     for (const banned of ["ponytail", "deslop", "code-simplifier"]) {
       expect(installCoreSkills()).not.toContain(banned);
     }

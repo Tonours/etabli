@@ -11,7 +11,7 @@ belongs to, and stream its output unchanged. The watcher keeps its full canonica
 stream. If the harness files Bash output, `<log-file>` is that file; read phase B
 first, then relevant phase A evidence:
 `bash -c '. ~/.claude/scripts/pr-council-review/lib.sh && phase_b_output "$1"' _ "<log-file>"`.
-If output stays inline, read phase B in that stream. Never RTK-compact either.
+If output stays inline, read phase B in that stream.
 A nonzero helper exit means incomplete. Process exit zero is not approval;
 read the validator verdict, findings, denial and run markers.
 

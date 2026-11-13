@@ -19,8 +19,8 @@
 - For product work, exercise the affected flows and report the observed evidence.
 - Preserve unrelated changes and report exact checks.
 - Instruction files stay maps, not manuals.
-- A recurring agent mistake becomes a constraint in this repo's own tooling:
-  `workflow/project-constraints.md`.
+- A recurring agent mistake becomes a constraint in this repo's own tooling
+  (type, lint, test or CI), with a case that fails before the change.
 
 ## Safety
 - Never print or commit secrets.

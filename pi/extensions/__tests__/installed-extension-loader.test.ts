@@ -12,7 +12,6 @@ const repositoryExtensions = [
 	"no-comments.ts",
 	"pr-body.ts",
 	"prefer-ipv4-dns.ts",
-	"rtk.ts",
 	"workflow-tools.ts",
 ];
 
