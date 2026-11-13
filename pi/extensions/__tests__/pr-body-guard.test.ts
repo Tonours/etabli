@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { prBodyGuardDecision, scanShell, staticWord } from "../../../workflow/runtime/pr-body-guard.mjs";
@@ -48,9 +48,11 @@ describe("pr body guard", () => {
 		expect(reason(`gh pr create --body-file - 2>&1 <<'A' <<'B'\n${GOOD}A\nGenerated with Claude Code\nB`)).toContain("AI attribution");
 		expect(decide(`gh pr create --body-file - 3<<'A' <<'B'\nGenerated with Claude Code\nA\n${GOOD}B`)).toBeNull();
 		expect(decide(`gh pr create --body-file - < ${bodyFile(GOOD)}`)).toBeNull();
-		expect(reason("gh pr create --body-file - <<< 'x'")).toContain("pipe");
+		expect(reason("gh pr create --body-file - <<< 'Generated with Claude Code'")).toContain("missing ## What");
+		expect(decide(`gh pr create --body-file - <<< '${GOOD.replaceAll("'", "")}'`)).toBeNull();
+		expect(decide('gh pr create --body-file - <<< "$BODY"')).toBeNull();
 		expect(reason(`gh pr create --body-file - 2>&1 <<'A' 3<<'B' 0>&3\n${GOOD}A\nGenerated with Claude Code\nB`)).toContain("AI attribution");
-		expect(reason(`gh pr create --body-file - <<'A' 0<>notes.md\n${GOOD}A`)).toContain("pipe");
+		expect(decide(`gh pr create --body-file - <<'A' 0<>notes.md\nbad\nA`)).toBeNull();
 		expect(decide(`gh pr create --body-file - <<'A' >/dev/null 2>&1\n${GOOD}A`)).toBeNull();
 		expect(decide(`gh pr create -t x -b $'Line\\n\\n## What\\nx\\n## Why\\ny\\n## How to test\\nz'`)).toBeNull();
 	});
@@ -66,7 +68,7 @@ describe("pr body guard", () => {
 		expect(reason("gh pr create --fill")).toContain("no body given");
 		expect(reason("gh pr new --web")).toContain("no body given");
 		expect(reason("cd x && rtk gh pr create --title y")).toContain("no body given");
-		expect(reason("gh pr create --body-file nope.md")).toContain("body file nope.md not found");
+		expect(decide("gh pr create --body-file nope.md")).toBeNull();
 	});
 
 	test("refuses AI attribution and non-ASCII prose but not in code, tables or quotes", () => {
@@ -144,8 +146,8 @@ describe("pr body guard, shell and markdown edges", () => {
 	test("decodes ANSI-C bodies and keeps single-quoted backslash-n literal", () => {
 		expect(reason("gh pr create -b $'Change.\\n## What\\nx\\n## Why\\n\\303\\251\\n## How to test\\nz\\n'")).toContain("non-ASCII");
 		expect(reason("gh pr create -b 'Change.\\n## What\\nx\\n## Why\\ny\\n## How to test\\nz'")).toContain("missing ## What");
-		expect(reason('gh pr create --body "$BODY"')).toContain("body value is built at run time");
-		expect(reason("cat b.md | gh pr create -F -")).toContain("pipe");
+		expect(decide('gh pr create --body "$BODY"')).toBeNull();
+		expect(decide("cat b.md | gh pr create -F -")).toBeNull();
 	});
 
 	test("sees global flags and wrappers", () => {
@@ -268,6 +270,29 @@ describe("pr body guard, round 2 edges", () => {
 	});
 });
 
+describe("pr body guard, unreadable bodies", () => {
+	test("lets an unreadable create or edit body through", () => {
+		expect(decide('gh pr create --body "$BODY"')).toBeNull();
+		expect(decide('gh pr edit 12 --body-file "$FILE"')).toBeNull();
+		expect(decide("gh pr edit 12 --body-file nope.md")).toBeNull();
+		const locked = bodyFile("bad", "locked.md");
+		chmodSync(join(repo, locked), 0o000);
+		expect(decide(`gh pr create --body-file ${locked}`)).toBeNull();
+	});
+
+	test("still checks the other invocations and commits of the command", () => {
+		expect(reason('gh pr create --body "$BODY" && gh pr edit 12 --body bad')).toContain("gh pr edit: missing ## What");
+		expect(reason('gh pr create --body "$BODY" && git commit -m "fix: x" -m "Claude-Session: y"')).toContain("trailer");
+	});
+
+	test("checks a readable body and refuses a directory", () => {
+		expect(reason(`gh pr create --body-file ${bodyFile("bad")}`)).toContain("missing ## What");
+		expect(decide(`gh pr create --body-file ${bodyFile(GOOD)}`)).toBeNull();
+		mkdirSync(join(repo, "dir.md"));
+		expect(reason("gh pr create --body-file dir.md")).toContain("not a regular file");
+	});
+});
+
 describe("pr body guard, mutation gaps", () => {
 	test("keeps scanning after a dollar or paren inside double quotes", () => {
 		expect(reason('echo "a $b (c)"; gh pr create --fill')).toContain("no body given");
@@ -277,10 +302,22 @@ describe("pr body guard, mutation gaps", () => {
 		expect(decide("cat <<'EOF'\nx\nEOF\necho 'gh pr create --fill'")).toBeNull();
 	});
 
-	test("refuses a cd it cannot resolve", () => {
-		const file = bodyFile(GOOD);
-		expect(reason(`cd - && gh pr create -F ${file}`)).toContain("cannot be resolved");
-		expect(reason(`cd "$DIR" && gh pr create -F ${file}`)).toContain("cannot be resolved");
+	test("leaves a relative body behind an unresolved cd unchecked, not an absolute one", () => {
+		const file = bodyFile("bad");
+		expect(decide(`cd - && gh pr create -F ${file}`)).toBeNull();
+		expect(decide(`cd "$DIR" && gh pr create -F ${file}`)).toBeNull();
+		expect(reason(`cd "$DIR" && gh pr create -F ${join(repo, file)}`)).toContain("missing ## What");
+		expect(reason(`cd "$DIR" && gh pr create -F ${repo}`)).toContain("not a regular file");
+	});
+
+	test("refuses absolute special and oversized body files even after an unresolved cd", () => {
+		const large = join(repo, bodyFile("x".repeat(1024 * 1024 + 1)));
+		const good = join(repo, bodyFile(GOOD, "good.md"));
+		for (const prefix of ["", 'cd "$DIR" && ', "cd - && "]) {
+			expect(reason(`${prefix}gh pr create --body-file /dev/null`)).toContain("not a regular file");
+			expect(reason(`${prefix}gh pr create --body-file ${large}`)).toContain("over 1 MiB");
+			expect(decide(`${prefix}gh pr create --body-file ${good}`)).toBeNull();
+		}
 	});
 
 	test("takes the heredoc of its own invocation", () => {
@@ -546,7 +583,8 @@ describe("pr body and commit message sources", () => {
 
 	test("moves a descriptor with a trailing dash but copies it without", () => {
 		const doc = `${GOOD}A`;
-		expect(reason(`gh pr create --body-file - 3<<'A' 0<&3- 0<&3\n${doc}`)).toContain("pipe");
+		expect(decide(`gh pr create --body-file - 3<<'A' 0<&3- 0<&3\nbad\nA`)).toBeNull();
+		expect(reason(`gh pr create --body-file - 3<<'A' 0<&3 0<&3\nbad\nA`)).toContain("missing ## What");
 		expect(decide(`gh pr create --body-file - 3<<'A' 0<&3 0<&3\n${doc}`)).toBeNull();
 		expect(decide(`gh pr create --body-file - 0<<'A' 0<&0-\n${doc}`)).toBeNull();
 	});

@@ -48,12 +48,8 @@ _Avoid_: second opinion, cross-check
 The Pi review path where the Logic hunter is the only child and the parent runs the Spec pass itself (`workflow/skills/review.md`).
 _Avoid_: light review, quick review
 
-**Evidence pack**:
-The structured record of plan, decisions and run evidence given to Spec, adversary and lead reviewers, shaped by `workflow/evidence-pack.schema.json`.
-_Avoid_: bundle
-
 **Entry chain**:
-The files an agent reads before routing (`AGENTS.md`, `workflow/spec.md`, `workflow/agent-rules.md`, `workflow/contract-details.md`), capped by ADR-0042; `workflow/skills/` loads per route and stays outside it.
+The files an agent reads before routing (`AGENTS.md`, `workflow/spec.md`, `workflow/agent-rules.md`), capped by ADR-0042; `workflow/skills/` loads per route and stays outside it.
 _Avoid_: hot context, hot chain
 
 **PR council**:

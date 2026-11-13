@@ -51,13 +51,9 @@ never downgrade mid-run.
 
 - Before a mutable local-device or server action, name the exact target, the
   control path, and the post-check.
-- Golden principles: `workflow/contract-details.md`.
 - Phase changes load the active route; prior procedures, decisions and tasks are
   evidence, not active work. User authority, safety gates and open findings persist.
   Keep review context isolation (`workflow/skills/review.md`).
-- At the next stable checkpoint after a material unexpected failure, recovered
-  or unresolved, use `workflow/skills/investigation.md` § Learning from run evidence.
-  This adds no retry allowance, per-tool judge or change to the no-progress stop.
 - A session handoff goes in `PLAN.md` § Notes / Handoff: goal/phase, branch/SHA,
   proved checks, open findings, evidence paths, next action and do-not-redo.
   Replace stale state, never paste a transcript. Finish or hand off a started migration.
@@ -112,8 +108,7 @@ follow their journey in Risk tiers instead (no plan file, no plan adversary, no 
    The parent remains the only `PLAN.md` writer and reads every integrated diff: a worker report locates the work,
    it does not evidence it.
 9. Record progress in task markers or nested check `last run`.
-   Material plan facts require reconciliation and fresh approval; see
-   `workflow/skills/execution-quality.md`.
+   Material plan facts require reconciliation and fresh approval.
 10. If facts materially invalidate route, scope, checks, or required evidence,
     stop as `plan drift detected`; update `PLAN.md` and do not continue until it
     is refreshed to `READY`.
@@ -229,10 +224,6 @@ follow their journey in Risk tiers instead (no plan file, no plan adversary, no 
     final diff. A red group blocks push even when focused checks passed. When
     the branch has an open PR, re-read its body against the final diff first
     (`workflow/pr-body-contract.md` § Honest status).
-
-## Long loops
-
-Open-ended improvement/benchmark loops follow `workflow/skills/long-loop.md`.
 
 ## Completion Evidence
 

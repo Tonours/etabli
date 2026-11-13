@@ -54,24 +54,6 @@ converge_agent_surfaces() {
         "${NODE_CMD[@]}" "$BOOTSTRAP_DIR/deploy-agent-workflow" --apply --home "$HOME"
 }
 
-RTK_MIN_VERSION=0.39.0
-
-has_valid_rtk() {
-    local version
-
-    command -v rtk &>/dev/null && rtk gain >/dev/null 2>&1 || return 1
-    version="$(rtk --version 2>/dev/null)"
-    print_step "rtk --version: ${version:-none}"
-    [[ "$version" =~ ([0-9]+)\.([0-9]+)(\.([0-9]+))? ]] || return 1
-    awk -v major="${BASH_REMATCH[1]}" -v minor="${BASH_REMATCH[2]}" -v patch="${BASH_REMATCH[4]:-0}" -v min="$RTK_MIN_VERSION" '
-        BEGIN {
-            split(min, m, ".")
-            if (major + 0 != m[1] + 0) exit !(major + 0 > m[1] + 0)
-            if (minor + 0 != m[2] + 0) exit !(minor + 0 > m[2] + 0)
-            exit !(patch + 0 >= m[3] + 0)
-        }'
-}
-
 node_available() {
     "${NODE_CMD[@]}" -v >/dev/null 2>&1
 }
@@ -371,28 +353,6 @@ if git -C "$REPO_DIR" rev-parse --git-dir >/dev/null 2>&1; then
     print_success "Secret scan pre-push hook enabled (core.hooksPath .githooks)"
     command -v gitleaks &>/dev/null ||
         print_warning "gitleaks missing: pushes from this clone stay blocked until it is installed"
-fi
-
-# ============================================================================
-# INSTALL RTK
-# ============================================================================
-print_step "Installing RTK..."
-
-if has_valid_rtk; then
-    print_success "RTK already installed"
-else
-    if [[ "$OS" == "mac" ]] && command -v brew &>/dev/null; then
-        { brew upgrade rtk 2>/dev/null || brew install rtk; } || print_warning "RTK brew install failed"
-    else
-        curl -fsSL https://raw.githubusercontent.com/rtk-ai/rtk/4ef8730cf3a0dea11c8d64a9b90bc0616fe52100/install.sh | RTK_VERSION="v$RTK_MIN_VERSION" sh ||
-            print_warning "RTK install script failed"
-    fi
-
-    if has_valid_rtk; then
-        print_success "RTK installed"
-    else
-        record_failure "RTK not available, wrong binary or older than $RTK_MIN_VERSION; verify with: rtk --version && rtk gain"
-    fi
 fi
 
 # ============================================================================

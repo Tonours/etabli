@@ -46,3 +46,4 @@ Decisions live in this directory. Run `/adr` to record one.
 - [0042](0042-cap-the-entry-chain-and-keep-the-live-contracts.md) — Cap the entry chain and keep the live contracts [accepted]
 - [0043](0043-deploy-codex-as-a-managed-runtime.md) — Deploy Codex as a managed runtime [accepted]
 - [0044](0044-keep-local-gemma-orchestration-opt-in-and-bind-completion-to-execution.md) — Keep local Gemma orchestration opt-in and bind completion to execution receipts [accepted]
+- [0045](0045-prune-the-surfaces-the-census-shows-unused.md) — Prune the surfaces the census shows unused [accepted]
