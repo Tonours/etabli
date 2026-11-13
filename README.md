@@ -135,8 +135,7 @@ scripts/deploy-workflow /path/to/project
 On a project that already has the scaffold, `--check` reports drift first
 (`STALE` for an older etabli copy, `EDITED` for a local change). `--help`
 covers `--force`, `--refresh-tracked` and `--prune`. A mistake an agent keeps
-making becomes a rule in that project's own tooling
-([`workflow/project-constraints.md`](workflow/project-constraints.md)).
+making becomes a rule in that project's own tooling.
 
 ### Everyday commands
 
@@ -208,13 +207,11 @@ policy and how to report a leaked credential.
 
 ## Learn more
 
-- [`workflow/skills/investigation.md`](workflow/skills/investigation.md): learning
-  from recovered run incidents, with evidence and no automatic rule changes.
+- [`workflow/skills/investigation.md`](workflow/skills/investigation.md): evidence
+  ladder and verdicts for diagnosis.
 - [Research note (French)](docs/research/20261107-agent-self-improvement.md):
   source analysis of Skill Doctor, GEPA, Reflexion and ACE.
-- [`workflow/spec.md`](workflow/spec.md): workflow entry and map;
-  [`workflow/contract-details.md`](workflow/contract-details.md) has the full
-  rules.
+- [`workflow/spec.md`](workflow/spec.md): workflow entry, map and rules.
 - [`docs/symlink-layout.md`](docs/symlink-layout.md): every managed link,
   copy and merge.
 - [`claude/README.md`](claude/README.md): scopes, Claude hooks, skill

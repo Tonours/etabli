@@ -1,7 +1,6 @@
 # Workflow Spec
 
-Canonical workflow **map** for `etabli` and the single agent entry point. Long
-rules and command lists live in `workflow/contract-details.md`.
+Canonical workflow **map** for `etabli` and the single agent entry point.
 
 ## Flow
 
@@ -16,9 +15,8 @@ infer the smallest matching route from the request and repo state, unprompted.
 
 ## Agentic workflow loop
 
-Pi remains the primary user-facing tool. Thin adapters over shared contracts
-(ADR-0006). Role definitions: `workflow/contract-details.md`. Shared
-orchestration: `workflow/skills/orchestration.md`. Single writer and risk
+Claude Code, Codex and Pi are thin adapters over shared contracts
+(ADR-0006). Shared orchestration: `workflow/skills/orchestration.md`. Single writer and risk
 tiers: `workflow/skills/implementation-loop.md`; `scout` and `reviewer` stay
 read-only (Bash `PreToolUse` allowlist).
 
@@ -40,7 +38,7 @@ work follows the Routing rules below; plan status and risk tier are not routes.
 
 ## Rules (map)
 
-Full prose: `workflow/contract-details.md`. Non-negotiables:
+Non-negotiables:
 
 - Read code before planning or editing; retry from `/` with an explicit shell if
   cwd fails.
@@ -48,8 +46,8 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   slice first.
 - When asked whether a source implies repository changes, answer `no change`,
   `change`, or `blocked` against the local contract before editing.
-- Before mutable local-device or server actions, name target, control path, and
-  post-check.
+- Before mutable local-device or server actions, name target, control path,
+  post-check and rollback.
 - One execution artifact: `PLAN.md`. No `REVIEW.md` second plan.
 - Keep facts separate from assumptions; use `PLAN_TEMPLATE.md` /
   `PLAN_TEMPLATE_FULL.md` as appropriate.
@@ -65,9 +63,8 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
 - Branch-mutating runs isolate per
   `workflow/skills/worktree-isolation.md`: one run, one worktree, root `PLAN.md`
   inside it, explicit cleanup.
-- Evidence and investigations: `workflow/skills/investigation.md` and
-  `workflow/evidence-pack.schema.json`. Integrity, parent-observed execution,
-  proxy support, and blocked surfaces stay distinct.
+- Evidence and investigations: `workflow/skills/investigation.md`. Integrity,
+  parent-observed execution, proxy support, and blocked surfaces stay distinct.
 - Run evidence lives in `PLAN.md`: check results in Checks, review and adversary
   provenance (model, `shasum -a 256 PLAN.md` at dispatch, verdict) in Review
   Changes; current handoff in Notes / Handoff follows
@@ -81,9 +78,9 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   trust-boundary or public-API changes; `GO` needs a filled deciding-code table
   for runtime diffs (`workflow/review-rubric.md`). An escaped defect after `GO`
   fills `workflow/templates/escaped-defect.md`.
-- Cold contracts, opened only on their trigger: bounded re-review
+- Cold contract, opened only on its trigger: bounded re-review
   `workflow/skills/review-rounds.md` (findings, re-review, CI commits after
-  review); open-ended improvement loops `workflow/skills/long-loop.md`.
+  review).
 - No-progress stop: when the same fix hypothesis fails twice, or the same check
   stays red three times with no new diff between runs, stop as `blocked`, note
   it in the Decision Log, and list the eliminated hypotheses.
@@ -105,8 +102,11 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
 - Golden principles: every mechanical check fails with a message that names its remediation.
   Instruction files stay maps, not manuals.
   Recurring findings become reviewed recommendations, never auto-applied; no parallel harness trees.
-  Skill design: `workflow/skill-design.md`. A bug fix starts from a failing test that reproduces
-  the issue. Reviewers flag only gaps that affect correctness or stated requirements.
+  Skill design: `workflow/skill-design.md`. A code behavior change ships with tests in the suite's
+  conventions; docs and contracts are validated by smoke pins or inspection. A bug fix starts from
+  a failing test that reproduces the issue. The third occurrence of the same finding becomes a
+  mechanical check in the project's own tooling. Reviewers flag only gaps that affect correctness
+  or stated requirements.
   A started migration is finished or explicitly handed off in `PLAN.md` § Notes / Handoff.
 
 ## Minimal READY gate
@@ -178,5 +178,4 @@ remaining write gates (no-comments, read-only agents) stay authoritative code.
 Surfaces not mapped above: Claude hooks `claude/hooks/` with
 `claude/settings.workflow-hooks.json`; Linear tickets
 `workflow/linear-ticket-template.md`; scaffolded projects keep
-`docs/project-context.md`, `docs/plan/` and `docs/agent-memory/`
-(`workflow/memory.md`).
+`docs/project-context.md`, `docs/plan/` and `docs/agent-memory/`.
