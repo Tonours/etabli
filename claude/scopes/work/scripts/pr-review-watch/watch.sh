@@ -169,7 +169,7 @@ pr_snapshot() {
 }
 
 next_attempt() {
-  local key="$1" sha="$2" s_sha s_mode s_rc s_attempts
+  local key="$1" sha="$2" s_sha s_mode s_rc s_attempts skill
   IFS=$'\t' read -r s_sha s_mode s_rc s_attempts <<<"$(read_status "$key")"
   if [ "$s_sha" != "$sha" ]; then
     echo 1
@@ -189,7 +189,8 @@ next_attempt() {
     *)
       # rc 5 alone is ambiguous (a child can exit 5); only the marker run_verify writes means unconfigured.
       if [ "$s_rc" = "$VERIFY_UNCONFIGURED_RC" ] && [ "$(cat "$key.verify-unconfigured" 2>/dev/null)" = "$sha" ]; then
-        if verify_skill >/dev/null; then echo "$s_attempts"; else echo unconfigured; fi
+        if skill="$(verify_skill)" && verify_settings "$skill" >/dev/null 2>&1; then echo "$s_attempts"
+        else echo unconfigured; fi
       elif [ "$s_attempts" -ge "$MAX_ATTEMPTS" ]; then echo exhausted
       elif [ "$(status_age "$key")" -lt "$RETRY_BACKOFF_SECONDS" ]; then echo wait
       else echo $((s_attempts + 1)); fi ;;
@@ -261,7 +262,7 @@ consider() {
     unconfigured)
       if [ "$(cat "$key.unconfigured" 2>/dev/null)" != "$sha" ]; then
         echo "$sha" >"$key.unconfigured"
-        log "$repo#$number @${sha:0:8} verify skill unconfigured, waiting for PR_COUNCIL_VERIFY_SKILL or ~/.config/pr-council-review/verify-skill"
+        log "$repo#$number @${sha:0:8} verify configuration unavailable: set PR_COUNCIL_VERIFY_SKILL or ~/.config/pr-council-review/verify-skill, or repair ~/.claude/settings.json"
       fi
       return ;;
     exhausted|stopped)

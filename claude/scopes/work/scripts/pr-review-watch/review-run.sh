@@ -213,6 +213,11 @@ verify_merge_base() {
 
 run_verify_fixes() {
   local tree raw rc base
+  local -a verify_args=("${ISOLATED_SETTINGS[@]}")
+  verify_args[1]="$(verify_settings "$VERIFY_SKILL_NAME")" || {
+    echo "$SHA" >"$KEY.verify-unconfigured" || return 1
+    return "$VERIFY_UNCONFIGURED_RC"
+  }
   purge_old_dirs "${TMPDIR:-/tmp}" "pr-verify-*" 7
   tree="$(mktemp -d "${TMPDIR:-/tmp}/pr-verify-$NUMBER.XXXXXX")/tree"
   raw="${REPORT%.md}.json"
@@ -223,7 +228,7 @@ run_verify_fixes() {
   rc=0
   cd "$tree" || return 1
   claude_pass verify "$raw" read-only "$(verify_prompt)" \
-    --model "$VERIFY_MODEL" --effort "$VERIFY_EFFORT" "${ISOLATED_SETTINGS[@]}" >"$REPORT" || rc=$?
+    --model "$VERIFY_MODEL" --effort "$VERIFY_EFFORT" "${verify_args[@]}" >"$REPORT" || rc=$?
   cd "$OLDPWD" || return 1
   cat "$REPORT"
   git worktree remove --force "$tree" >/dev/null 2>&1

@@ -35,6 +35,27 @@ verify_skill() {
   printf '/%s' "$name"
 }
 
+# Enable only the configured skill's plugin namespace from trusted user settings.
+# Keep hooks disabled and never import user permissions, env or MCP configuration.
+verify_settings() {
+  local skill="${1#/}" settings="$HOME/.claude/settings.json"
+  if [[ "$skill" != *:* ]] || [ ! -e "$settings" ]; then
+    printf '%s\n' '{"disableAllHooks":true}'
+    return
+  fi
+  jq -cse --arg namespace "${skill%%:*}" '
+    if length != 1 then error("settings must contain one JSON object") else .[0] end
+    | if type != "object" then error("settings must be an object") else . end
+    | (.enabledPlugins // {})
+    | if type != "object" then error("enabledPlugins must be an object") else . end
+    | with_entries(select(.value == true and (.key | split("@")[0]) == $namespace))
+    | if length == 0 then {disableAllHooks:true}
+      else {disableAllHooks:true,enabledPlugins:.} end' "$settings" || {
+    echo "cannot read verify plugin settings from trusted user settings; repair the JSON before retrying" >&2
+    return 1
+  }
+}
+
 AUTHOR_CONFIG_PATHS=(CLAUDE.md CLAUDE.local.md AGENTS.md AGENTS.override.md .mcp.json .claude .codex ':(glob)**/CLAUDE.md' ':(glob)**/CLAUDE.local.md' ':(glob)**/AGENTS.md' ':(glob)**/AGENTS.override.md' ':(glob)**/.claude/**' ':(glob)**/.codex/**')
 
 render_template() {
