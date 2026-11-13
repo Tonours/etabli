@@ -310,6 +310,16 @@ describe("pr body guard, mutation gaps", () => {
 		expect(reason(`cd "$DIR" && gh pr create -F ${repo}`)).toContain("not a regular file");
 	});
 
+	test("refuses absolute special and oversized body files even after an unresolved cd", () => {
+		const large = join(repo, bodyFile("x".repeat(1024 * 1024 + 1)));
+		const good = join(repo, bodyFile(GOOD, "good.md"));
+		for (const prefix of ["", 'cd "$DIR" && ', "cd - && "]) {
+			expect(reason(`${prefix}gh pr create --body-file /dev/null`)).toContain("not a regular file");
+			expect(reason(`${prefix}gh pr create --body-file ${large}`)).toContain("over 1 MiB");
+			expect(decide(`${prefix}gh pr create --body-file ${good}`)).toBeNull();
+		}
+	});
+
 	test("takes the heredoc of its own invocation", () => {
 		expect(decide(`cat <<'A' > notes\nbad\nA\ngh pr create -F - <<'B'\n${GOOD}B`)).toBeNull();
 		expect(reason(`cat <<'A' > notes\n${GOOD}A\ngh pr create -F - <<'B'\nbad\nB`)).toContain("missing ## What");
