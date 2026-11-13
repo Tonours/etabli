@@ -216,7 +216,9 @@ expect "config: verify pass resets config to the merge base" "trusted|none|none|
 expect "config: verify pass keeps the PR code" "b" "$(cat "$TMP_DIR/verify-tree/app.txt")"
 verify_fn="$(sed -n '/^run_verify_fixes() {/,/^}/p' "$SCRIPTS/pr-review-watch/review-run.sh")"
 expect "verify: neutralizes author config before claude" "1" "$(printf '%s\n' "$verify_fn" | grep -c 'neutralize_author_config "\$tree"')"
-expect "verify: hooks, mcp and setting sources restricted" "1" "$(printf '%s\n' "$verify_fn" | grep -c '"\${ISOLATED_SETTINGS\[@\]}"')"
+expect "verify: isolated settings copied before targeted plugin selection" "1" "$(printf '%s\n' "$verify_fn" | grep -c '"\${ISOLATED_SETTINGS\[@\]}"')"
+expect "verify: targeted plugin settings used" "1" "$(printf '%s\n' "$verify_fn" | grep -c 'verify_settings "\$VERIFY_SKILL_NAME"')"
+expect "verify: complete isolated arguments passed" "1" "$(printf '%s\n' "$verify_fn" | grep -c '"\${verify_args\[@\]}"')"
 expect "isolation: hooks, mcp and setting sources" "1" \
   "$(grep -c "^ISOLATED_SETTINGS=(--settings '{\"disableAllHooks\":true}' --strict-mcp-config --setting-sources project,local)$" "$SCRIPTS/pr-council-review/lib.sh")"
 

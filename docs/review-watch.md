@@ -101,3 +101,17 @@ source directory directly: verify the local service is absent (or paused with no
 live runs) before editing. Pause before installing the complete watcher helper set
 on another host; update Fleet for retry-aware notifications. Older Fleet can
 report a pre-work pause as failed; it cannot infer an approval from that status.
+
+## Configured verification skill
+
+`PR_COUNCIL_VERIFY_SKILL` overrides the first line of
+`~/.config/pr-council-review/verify-skill`. For a namespaced skill such as
+`forest:verify-fixes`, the verify pass enables only matching plugin namespace
+entries set to boolean `true` in the owner's `~/.claude/settings.json`.
+It imports no other user settings or plugins. Hooks remain disabled, MCP stays
+strict, and setting sources remain project/local after author configuration is
+reset to the trusted base. Unnamespaced and project-provided skills keep the
+existing behavior. When selecting a namespaced plugin, a malformed user settings file stops
+verification before a watermark or approval; repair that JSON and use the supported retry path.
+Plugin loading and provider availability are separate checks. This change does
+not turn a provider error into completed verification or bypass approval gates.
