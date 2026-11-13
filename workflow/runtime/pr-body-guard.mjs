@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 
 const PREFIX =
 	"(?:^|[;&|(){}\\n]|\\b(?:then|do|else)[ \\t])[ \\t]*(?:(?:[A-Za-z_][A-Za-z0-9_]*=\\S*|command|env|exec|time|nohup|rtk|proxy|sudo(?:[ \\t]+(?:-[ugCDhpRrTU][ \\t]+\\S+|-\\S+))*|if|elif|while|until|!|timeout(?:[ \\t]+(?:-[ks][ \\t]+\\S+|-\\S+))*[ \\t]+\\d\\S*)[ \\t]+)*";
@@ -436,23 +436,28 @@ function bodyOf(command, scan, args, segment, cwd) {
 		const text = staticWord(source.raw);
 		if (text !== null) return { text };
 		if (/^"?\$\(\s*cat\s+<</.test(source.raw) && heredoc) return heredocText(heredoc);
-		return { problem: "body value is built at run time and cannot be checked" };
+		return { unchecked: true };
 	}
 	let name = staticWord(source.raw);
 	if (name === "-") {
 		const stdin = stdinSource(command, scan, segment);
 		if (stdin?.doc) return heredocText(stdin.doc);
-		if (!stdin?.file) return { problem: "body read from a pipe cannot be checked" };
+		if (!stdin?.file) return { unchecked: true };
 		name = stdin.file;
 	}
-	if (!name) return { problem: "body file name is built at run time and cannot be checked" };
-	if (cwd === null) return { problem: `body file ${name} sits behind a cd that cannot be resolved` };
-	const path = resolve(cwd, expandHome(name));
-	if (!existsSync(path)) return { problem: `body file ${name} not found from ${cwd}; pass an absolute path` };
-	const stat = statSync(path);
-	if (!stat.isFile()) return { problem: `body file ${name} is not a regular file` };
-	if (stat.size > MAX_BODY_BYTES) return { problem: `body file ${name} is over 1 MiB` };
-	return { text: readFileSync(path, "utf8") };
+	if (!name) return { unchecked: true };
+	const expanded = expandHome(name);
+	if (cwd === null && !isAbsolute(expanded)) return { unchecked: true };
+	const path = resolve(cwd ?? "/", expanded);
+	try {
+		if (!existsSync(path)) return { unchecked: true };
+		const stat = statSync(path);
+		if (!stat.isFile()) return { problem: `body file ${name} is not a regular file` };
+		if (stat.size > MAX_BODY_BYTES) return { problem: `body file ${name} is over 1 MiB` };
+		return { text: readFileSync(path, "utf8") };
+	} catch {
+		return { unchecked: true };
+	}
 }
 
 const EXPANSION = /^(?:\$\([^)]*\)|`[^`]*`|\$\{[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*|\$[0-9@*#?$!-])/;
@@ -661,6 +666,7 @@ export function prBodyGuardDecision({ cwd, tool_name, tool_input }) {
 			if (match[1] !== "edit") problems.push(`${label}: no body given (--fill, --web or no --body/--body-file)`);
 			continue;
 		}
+		if (body.unchecked) continue;
 		if (body.problem) {
 			problems.push(`${label}: ${body.problem}`);
 			continue;

@@ -119,8 +119,10 @@ ungoverned and outside the index gate.
     attribution, or has non-ASCII prose outside code, tables and quotes. It
     checks every `gh pr` invocation of the line with its own body: inline, a
     heredoc, a `--body-file` resolved after a `cd`, or `--body-file -` fed
-    by a heredoc, a here-string or `< file`. A body piped into
-    `--body-file -` is refused, since the guard cannot read it.
+    by a heredoc, a here-string or `< file`. A body it cannot read (built at
+    run time, piped, missing, unreadable, or a relative file behind a `cd` it
+    cannot resolve) passes that invocation unchecked; the other invocations
+    and commits of the line are still checked.
   - **Commit messages.** In every repo, it denies a `git commit` whose literal
     `-m`, `-F` or `--trailer` text carries a `Claude-Session:` or
     `Co-Authored-By:` trailer, or an AI credit such as "Generated with Claude".
@@ -131,9 +133,8 @@ ungoverned and outside the index gate.
     non-Claude model or provider name such as GPT, Codex or Gemini. A name in a
     code span or fence passes.
 
-  It masks quoted strings, heredocs and comments, and refuses a PR body built
-  at run time. A commit message built at run time (`-m "$MESSAGE"`) passes
-  unchecked. It does not see `gh api` calls, a command nested
+  It masks quoted strings, heredocs and comments. A commit message built at
+  run time (`-m "$MESSAGE"`) passes unchecked too. It does not see `gh api` calls, a command nested
   inside `bash -c`, `eval` or a double-quoted `"$(...)"`.
 - `no-comments-guard.mjs` and `pr-body-guard.mjs` fail open: a crash lets the
   write or the command through, since neither guards a read-only boundary.
