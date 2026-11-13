@@ -9,6 +9,12 @@ atomic receipt before removing the request. Receipts expire after7 days.
 
 Acceptance adds involvement only: it never replaces a council baseline,
 watermark, completed decision, stopped head, existing actor or pending approval.
+An accepted explicit request skips the120-second head-settling delay only for
+its exact SHA and account. The actual first-seen timestamp is still recorded.
+Automatic discovery and later unrequested heads keep that delay. A private
+request marker is consumed when an attempt starts and removed when the PR closes;
+it grants no review or approval proof. Pause, concurrency, daily/diff-size caps,
+attempt limits and in-flight exclusion still apply.
 The ordinary scheduler chooses full council or delta plus verify-fixes. Existing
 same-head work is joined or its completed result reused; no new model call is
 needed for a known result. The configured kill switch pauses manual requests too.

@@ -43,11 +43,11 @@ test "$(cat "$key.watermark")" = bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 test ! -e "$key.approval-pending"
 test "$(cat "$key.registered")" = "$FAKE_HEAD"$'\tme'
 run_alive() { return 1; }
-seen_age() { echo 120; }
+real_diff_scope="$(declare -f diff_scope)"
 diff_scope() { echo 1; }
 running_count() { echo 0; }
 launched_today() { echo 0; }
-launch() { printf '%s\t%s\n' "$5" "$6" >>"$TMP_DIR/launches"; }
+launch() { printf '%s\t%s\n' "$5" "$6" >>"$TMP_DIR/launches"; rm -f "$7.requested"; }
 consider me o/r 7 "$FAKE_HEAD" url
 test ! -e "$TMP_DIR/launches"
 fresh=w-00000000000000000000000000000010
@@ -55,6 +55,8 @@ request "$fresh" 10
 ingest_review_requests me
 consider me o/r 10 "$FAKE_HEAD" url
 test "$(cat "$TMP_DIR/launches")" = $'council\t-'
+test "$(cut -d' ' -f1 "$(run_key o/r 10).seen")" = "$FAKE_HEAD"
+test "$(cut -d' ' -f2 "$(run_key o/r 10).seen")" -ge "$stamp"
 key10="$(run_key o/r 10)"
 printf '%s\n' "$FAKE_HEAD" >"$key10.council-done"
 cp "$key10.council-done" "$key10.watermark"
@@ -125,6 +127,59 @@ for invalid in extra oversized symlink id-binding; do
   test ! -e "$(run_key o/r 12).registered"
   rm "$STATE_DIR/requests/$id.receipt"
 done
+# Fresh automatic, stale-head and foreign-account markers must still settle.
+launch_count="$(wc -l <"$TMP_DIR/launches")"
+for neighbor in automatic stale foreign symlink; do
+  neighbor_key="$(run_key o/r 90)"
+  rm -f "$neighbor_key.seen" "$neighbor_key.requested"
+  case "$neighbor" in
+    stale) printf '%s\tme\n' bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb >"$neighbor_key.requested" ;;
+    symlink) printf '%s\tme\n' "$FAKE_HEAD" >"$TMP_DIR/marker-target"; ln -s "$TMP_DIR/marker-target" "$neighbor_key.requested" ;;
+    foreign) printf '%s\tother\n' "$FAKE_HEAD" >"$neighbor_key.requested" ;;
+  esac
+  consider me o/r 90 "$FAKE_HEAD" url
+  test "$(wc -l <"$TMP_DIR/launches")" = "$launch_count"
+done
+# Valid request remains pending under other scheduler gates.
+blocked_key="$(run_key o/r 91)"
+request w-00000000000000000000000000000091 91
+ingest_review_requests me
+test "$(cat "$blocked_key.requested")" = "$FAKE_HEAD"$'\tme'
+touch "$KILL_SWITCH"
+consider me o/r 91 "$FAKE_HEAD" url
+rm "$KILL_SWITCH"
+test -f "$blocked_key.requested"
+test "$(wc -l <"$TMP_DIR/launches")" = "$launch_count"
+running_count() { echo "$MAX_CONCURRENT"; }
+consider me o/r 91 "$FAKE_HEAD" url
+test -f "$blocked_key.requested"
+test "$(wc -l <"$TMP_DIR/launches")" = "$launch_count"
+running_count() { echo 0; }
+launched_today() { echo "$MAX_RUNS_PER_DAY"; }
+consider me o/r 91 "$FAKE_HEAD" url
+test -f "$blocked_key.requested"
+test "$(wc -l <"$TMP_DIR/launches")" = "$launch_count"
+launched_today() { echo 0; }
+consider me o/r 91 "$FAKE_HEAD" url
+test ! -f "$blocked_key.requested"
+test "$(wc -l <"$TMP_DIR/launches")" -eq "$((launch_count + 1))"
+# Exercise the real policy gate after first-seen bookkeeping: docs never launch.
+(
+  eval "$real_diff_scope"
+  gh() { printf '%s\n' '{"author":{"login":"other","is_bot":false},"files":[{"path":"docs/guide.md","additions":1,"deletions":0}],"changedFiles":1,"additions":1,"deletions":0}'; }
+  skipped_key="$(run_key o/r 92)"
+  consider me o/r 92 "$FAKE_HEAD" url
+  # The first automatic tick settles; the next exercises policy without delay.
+  printf '%s %s\n' "$FAKE_HEAD" "$(( $(date +%s) - SETTLE_SECONDS ))" >"$skipped_key.seen"
+  consider me o/r 92 "$FAKE_HEAD" url
+  test "$(cat "$skipped_key.skipped")" = "$FAKE_HEAD"
+  test ! -e "$skipped_key.status"
+  test "$(wc -l <"$TMP_DIR/launches")" -eq "$((launch_count + 1))"
+)
+# Duplicate receipt must not re-arm the consumed marker.
+request w-00000000000000000000000000000091 91
+ingest_review_requests me
+test ! -f "$blocked_key.requested"
 for number in $(seq 100 164); do
   id="$(printf 'w-%032x' "$number")"
   request "$id" "$number"
