@@ -463,9 +463,27 @@ case_validator_checkout_bare_flagged() {
   check "bare-flagged clone: validator ran" called "claude VALIDATOR"
   check "bare-flagged clone: no work-tree error" eval '! grep -q "must be run in a work tree" "$TMP_DIR/run.out"'
   check "bare-flagged clone: at the clone's head" [ "$(sed -n 3p "$seen")" = "$(git -C "$CLONE" rev-parse HEAD)" ]
+  check "bare-flagged clone: origin carried" [ "$(sed -n 4p "$seen")" = "$(git -C "$CLONE" remote get-url origin)" ]
   check "bare-flagged clone: local settings carried" [ "$(sed -n 5p "$seen")" = '{"local":1}' ]
+  mkdir -p "$CLONE/nested"
+  check "bare-flagged clone: root discovery from nested cwd" [ "$(cd "$CLONE/nested" && . "$SCRIPTS/pr-council-review/lib.sh" && repo_root)" = "$CLONE" ]
+  check "bare-flagged clone: flag unchanged" [ "$(git -C "$CLONE" config core.bare)" = true ]
   git -C "$CLONE" config core.bare false
-  rm -rf "$CLONE/.claude"
+  rm -rf "$CLONE/.claude" "$CLONE/nested"
+  git clone -q --bare "$CLONE" "$TMP_DIR/genuine.git"
+  check "true bare: root discovery retains repository path" [ "$(cd "$TMP_DIR/genuine.git" && . "$SCRIPTS/pr-council-review/lib.sh" && repo_root)" = "$TMP_DIR/genuine.git" ]
+  check "true bare: validator checkout resolves head and origin" eval '(
+    cd "$TMP_DIR/genuine.git"
+    . "$SCRIPTS/pr-council-review/lib.sh"
+    tree="$TMP_DIR/genuine-validator"
+    validator_checkout "$tree" || exit 1
+    test "$(git -C "$tree" rev-parse HEAD)" = "$(git rev-parse HEAD)" &&
+      test "$(git -C "$tree" remote get-url origin)" = "$CLONE"
+    rc=$?
+    rm -rf "$tree"
+    exit "$rc"
+  )'
+  rm -rf "$TMP_DIR/genuine.git"
 }
 
 case_reuse_fingerprint() {
@@ -2062,6 +2080,9 @@ NODE
 
 if [ "${1:-}" = --token-rollout ]; then
 case_token_rollout
+elif [ "${1:-}" = --checkout ]; then
+case_validator_checkout
+case_validator_checkout_bare_flagged
 elif [ "${1:-}" = --usage ]; then
 case_usage_accounting
 elif [ "${1:-}" = --d1 ]; then
