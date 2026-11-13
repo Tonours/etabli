@@ -1,11 +1,12 @@
 import { afterAll, afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import subagents from "../subagents.ts";
-import { ISOLATION_FLAGS, groupAlive } from "../lib/subagent-process.ts";
+import { ISOLATION_FLAGS, groupAlive, killGroup } from "../lib/subagent-process.ts";
 
 type Details = Record<string, unknown>;
 type Outcome = { content: { text: string }[]; details: Details; isError?: boolean };
@@ -13,7 +14,7 @@ type Tool = { name: string; execute: (id: string, params: Details, signal: Abort
 
 const FAKE = join(import.meta.dir, "fixtures", "fake-pi.ts");
 const PARENT = join(import.meta.dir, "fixtures", "fake-parent.ts");
-const ENV_KEYS = ["ETABLI_SUBAGENT_PI", "ETABLI_SUBAGENT_DEFINITIONS", "ETABLI_SUBAGENT_AGENT_DIR", "ETABLI_SUBAGENT_RUNS_DIR", "ETABLI_SUBAGENT_TIMEOUT_SECONDS", "ETABLI_SUBAGENT_MAX_CONCURRENT", "FAKE_PI_ARGV_FILE"];
+const ENV_KEYS = ["ETABLI_SUBAGENT_PI", "ETABLI_SUBAGENT_DEFINITIONS", "ETABLI_SUBAGENT_AGENT_DIR", "ETABLI_SUBAGENT_TIMEOUT_SECONDS", "ETABLI_SUBAGENT_MAX_CONCURRENT", "FAKE_PI_ARGV_FILE"];
 const saved = Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]]));
 let root = "";
 const shutdowns: (() => Promise<void>)[] = [];
@@ -48,7 +49,6 @@ beforeEach(() => {
 	process.env.ETABLI_SUBAGENT_PI = FAKE;
 	process.env.ETABLI_SUBAGENT_DEFINITIONS = join(root, "agents");
 	process.env.ETABLI_SUBAGENT_AGENT_DIR = join(root, "child-agent-dir");
-	process.env.ETABLI_SUBAGENT_RUNS_DIR = join(root, "runs");
 	process.env.FAKE_PI_ARGV_FILE = join(root, "argv.json");
 	delete process.env.ETABLI_SUBAGENT_TIMEOUT_SECONDS;
 	delete process.env.ETABLI_SUBAGENT_MAX_CONCURRENT;
@@ -68,6 +68,116 @@ afterAll(() => {
 });
 
 describe("subagent extension", () => {
+	test("a missing interpreter does not crash the parent on its queued error", () => {
+		const module = pathToFileURL(join(import.meta.dir, "../lib/subagent-process.ts")).href;
+		const source = `import { startChild } from ${JSON.stringify(module)};
+		process.execPath = ${JSON.stringify(join(root, "missing", "node"))};
+		try { startChild({ command: process.execPath, args: [], cwd: process.cwd(), env: process.env, onEvent() {}, onStderr() {} }); }
+		catch (error) { console.log(error.message); }
+		setImmediate(() => console.log("parent survived"));`;
+		const result = spawnSync("node", ["--input-type=module", "-e", source], { cwd: root, encoding: "utf8" });
+		expect(result.status).toBe(0);
+		expect(result.stdout).toContain("could not start");
+		expect(result.stdout).toContain("parent survived");
+	});
+
+	test("a missing Pi command is failed with exit 127; a success neighbor still completes", async () => {
+		process.env.ETABLI_SUBAGENT_PI = join(root, "missing-pi");
+		const result = await load().call("subagent", { agent: "worker", task: "success" });
+		expect(result.details.state).toBe("failed");
+		expect(result.details.exit_code).toBe(127);
+		expect(String(result.details.error)).toContain("ENOENT");
+		expect(groupAlive(result.details.pgid as number)).toBe(false);
+		process.env.ETABLI_SUBAGENT_PI = FAKE;
+		expect((await load().call("subagent", { agent: "worker", task: "success" })).details.state).toBe("completed");
+	});
+
+	test("compiled Pi is refused instead of recursively launching a session", () => {
+		const module = pathToFileURL(join(import.meta.dir, "../lib/subagent-process.ts")).href;
+		const source = `import { startChild } from ${JSON.stringify(module)};
+		process.execPath = "/tmp/compiled-pi";
+		try { startChild({ command: "pi", args: [], cwd: process.cwd(), env: process.env, onEvent() {}, onStderr() {} }); }
+		catch (error) { console.log(error.message); }`;
+		const result = spawnSync("node", ["--input-type=module", "-e", source], { encoding: "utf8" });
+		expect(result.status).toBe(0);
+		expect(result.stdout).toContain("compiled Pi is not supported");
+	});
+
+	test("the Node launcher gives the child empty stdin despite a process.title change", async () => {
+		const source = `process.title = "pi"; let input = ""; for await (const chunk of process.stdin) input += chunk; console.log(input === "" ? "stdin-empty" : "stdin-leaked");`;
+		const child = spawn("node", [join(import.meta.dir, "../lib/subagent-launcher.mjs"), "node", "--input-type=module", "-e", source], { detached: true, stdio: ["pipe", "pipe", "pipe", "ipc"] });
+		let stdout = "";
+		let outcome: unknown;
+		child.stdout!.on("data", (chunk) => { stdout += chunk; });
+		child.on("message", (message) => { outcome = message; });
+		await new Promise((done) => child.once("close", done));
+		expect(outcome).toMatchObject({ type: "child_exit", code: 0, signal: null });
+		expect(stdout).toBe("stdin-empty\n");
+		expect(groupAlive(child.pid!)).toBe(false);
+	});
+
+	for (const mode of ["hang", "ignore-term"]) {
+		test(`closing only the lifetime pipe reaps a ${mode} child under Node`, async () => {
+			const child = spawn("node", [join(import.meta.dir, "../lib/subagent-launcher.mjs"), FAKE, `Task: ${mode}`], { cwd: root, env: process.env, detached: true, stdio: ["pipe", "pipe", "pipe", "ipc"] });
+			const closed = new Promise((done) => child.once("close", done));
+			try {
+				expect(await eventually(() => { try { return readFileSync(join(root, "argv.json"), "utf8").length > 0; } catch { return false; } })).toBe(true);
+				child.stdin!.end();
+				expect(await eventually(() => !groupAlive(child.pid!), 2000)).toBe(true);
+				await closed;
+			} finally {
+				await killGroup(child.pid!, 0);
+			}
+		});
+	}
+
+	for (const mode of ["hang", "ignore-term"]) {
+		test(`parent SIGKILL reaps its ${mode} group without a later session`, async () => {
+			const parent = spawn("bun", [PARENT], { cwd: root, env: { ...process.env, FAKE_PARENT_TASK: mode }, stdio: ["ignore", "pipe", "inherit"] });
+			let pgid: number | undefined;
+			try {
+				const line = await new Promise<string>((done) => parent.stdout.once("data", (chunk) => done(String(chunk))));
+				pgid = (JSON.parse(line) as { pgid: number }).pgid;
+				if (mode === "ignore-term") {
+					expect(await eventually(() => { try { return JSON.parse(readFileSync(join(root, "argv.json"), "utf8")).ready === true; } catch { return false; } })).toBe(true);
+					process.kill(-pgid, "SIGTERM");
+					await new Promise((done) => setTimeout(done, 50));
+				}
+				const closed = new Promise((done) => parent.once("close", done));
+				parent.kill("SIGKILL");
+				await closed;
+				expect(await eventually(() => !groupAlive(pgid!), 2000)).toBe(true);
+			} finally {
+				parent.kill("SIGKILL");
+				if (pgid) await killGroup(pgid, 0);
+			}
+		});
+	}
+
+	test("killing one parent reaps both its groups and preserves another parent and a bystander", async () => {
+		const first = spawn("bun", [PARENT], { cwd: root, env: { ...process.env, FAKE_PARENT_RUNS: "2" }, stdio: ["ignore", "pipe", "inherit"] });
+		const other = load();
+		const live = await other.call("subagent", { agent: "worker", task: "hang", background: true });
+		const livePgid = (await other.call("subagent_supervisor", { action: "status", run_id: live.details.run_id })).details.pgid as number;
+		const bystander = spawn("sleep", ["600"], { detached: true, stdio: "ignore" });
+		let groups: number[] = [];
+		try {
+			const line = await new Promise<string>((done) => first.stdout.once("data", (chunk) => done(String(chunk))));
+			groups = (JSON.parse(line) as { pgids: number[] }).pgids;
+			expect(groups).toHaveLength(2);
+			const closed = new Promise((done) => first.once("close", done));
+			first.kill("SIGKILL");
+			await closed;
+			expect(await eventually(() => groups.every((pgid) => !groupAlive(pgid)), 2000)).toBe(true);
+			expect(groupAlive(livePgid)).toBe(true);
+			expect(groupAlive(bystander.pid!)).toBe(true);
+		} finally {
+			first.kill("SIGKILL");
+			await Promise.all(groups.map((pgid) => killGroup(pgid, 0)));
+			await killGroup(bystander.pid!, 0);
+		}
+	});
+
 	test("registers the three delegation tools", () => {
 		expect([...load().tools.keys()].sort()).toEqual(["bg_wait", "subagent", "subagent_supervisor"]);
 	});
@@ -199,20 +309,6 @@ describe("subagent extension", () => {
 		expect((await call("subagent_supervisor", { action: "status", run_id: started.details.run_id as string })).details.state).toBe("stopped");
 	});
 
-	test("after a parent SIGKILL the next extension start kills the recorded group", async () => {
-		const parent = spawn("bun", [PARENT], { cwd: root, env: process.env, stdio: ["ignore", "pipe", "inherit"] });
-		const line = await new Promise<string>((done) => parent.stdout.once("data", (chunk) => done(String(chunk))));
-		const pgid = (JSON.parse(line) as { pgid: number }).pgid;
-		expect(readdirSync(join(root, "runs"))).toHaveLength(1);
-		parent.kill("SIGKILL");
-		await new Promise((done) => parent.once("close", done));
-		expect(groupAlive(pgid)).toBe(true);
-		load();
-		expect(await eventually(() => !groupAlive(pgid))).toBe(true);
-		expect(() => process.kill(-pgid, 0)).toThrow(expect.objectContaining({ code: "ESRCH" }));
-		expect(await eventually(() => readdirSync(join(root, "runs")).length === 0)).toBe(true);
-	}, 15000);
-
 	test("a descendant holding stdout does not keep a finished run running", async () => {
 		const { call } = load();
 		const before = Date.now();
@@ -238,48 +334,4 @@ describe("subagent extension", () => {
 		expect((await call("bg_wait", { timeout_seconds: 1 })).details.finished).toHaveLength(0);
 	});
 
-	test("a registry write failure is reported and never crashes the parent", async () => {
-		writeFileSync(join(root, "not-a-dir"), "");
-		process.env.ETABLI_SUBAGENT_RUNS_DIR = join(root, "not-a-dir", "runs");
-		const { call } = load();
-		const started = await call("subagent", { agent: "worker", task: "hang", background: true });
-		await new Promise((done) => setTimeout(done, 500));
-		const status = await call("subagent_supervisor", { action: "status", run_id: started.details.run_id as string });
-		expect(String(status.details.registry_error)).toContain("not-a-dir");
-		expect((await call("subagent_supervisor", { action: "stop", run_id: started.details.run_id as string })).details.state).toBe("stopped");
-	});
-
-	test("the sweep drops malformed and mismatched records without killing", async () => {
-		const runs = join(root, "runs");
-		mkdirSync(runs);
-		const dead = spawn("true");
-		await new Promise((done) => dead.once("close", done));
-		const bystander = spawn("sleep", ["600"], { detached: true, stdio: "ignore" });
-		const pgid = bystander.pid as number;
-		writeFileSync(join(runs, "sa-bad.json"), JSON.stringify({ run_id: "sa-bad", owner_pid: process.pid }));
-		writeFileSync(join(runs, "sa-junk.json"), "{not json");
-		writeFileSync(join(runs, "sa-reused.json"), JSON.stringify({ run_id: "sa-reused", pgid, child: { start: "Thu Jan  1 00:00:00 1970", argv_sha256: "0".repeat(64) }, owner_pid: dead.pid, owner: { start: "x", argv_sha256: "y" } }));
-		try {
-			const { call } = load();
-			await call("subagent_supervisor", { action: "list" });
-			await call("subagent", { agent: "nobody", task: "x" });
-			expect(readdirSync(runs)).toEqual([]);
-			expect(groupAlive(pgid)).toBe(true);
-		} finally {
-			process.kill(-pgid, "SIGKILL");
-		}
-	});
-
-	test("the sweep leaves runs of a live parent alone", async () => {
-		const first = load();
-		const started = await first.call("subagent", { agent: "worker", task: "hang", background: true });
-		const pgid = (await first.call("subagent_supervisor", { action: "status", run_id: started.details.run_id as string })).details.pgid as number;
-		await new Promise((done) => setTimeout(done, 500));
-		const second = load();
-		await second.call("subagent_supervisor", { action: "list" });
-		await second.call("subagent", { agent: "nobody", task: "x" });
-		expect(groupAlive(pgid)).toBe(true);
-		await first.shutdown();
-		expect(groupAlive(pgid)).toBe(false);
-	});
 });

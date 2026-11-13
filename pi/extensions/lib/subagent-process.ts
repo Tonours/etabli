@@ -1,5 +1,6 @@
-import { spawn, execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
+import { spawn } from "node:child_process";
+import { basename } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { AgentSpec } from "./subagent-agents.ts";
 
 /** Always appended; never read from the agent file. */
@@ -47,28 +48,41 @@ export function startChild(options: {
 	onEvent: (event: ChildEvent) => void;
 	onStderr: (chunk: string) => void;
 }): ChildHandle {
-	const child = spawn(options.command, options.args, {
+	if (!/^(?:node|bun)(?:\.exe)?$/.test(basename(process.execPath))) {
+		throw new Error("subagents require a Node.js or Bun interpreter; compiled Pi is not supported");
+	}
+	const launcher = fileURLToPath(new URL("./subagent-launcher.mjs", import.meta.url));
+	const child = spawn(process.execPath, [launcher, options.command, ...options.args], {
 		cwd: options.cwd,
 		env: options.env,
 		detached: true,
 		shell: false,
-		stdio: ["ignore", "pipe", "pipe"],
+		stdio: ["pipe", "pipe", "pipe", "ipc"],
 	});
+	child.on("error", () => {});
 	if (child.pid === undefined) throw new Error(`could not start ${options.command}`);
+	let outcome: ChildExit | undefined;
+	child.on("message", (message) => {
+		if (message && typeof message === "object" && "type" in message && message.type === "child_exit"
+			&& "code" in message && (typeof message.code === "number" || message.code === null)
+			&& "signal" in message && (typeof message.signal === "string" || message.signal === null)) {
+			outcome = { code: message.code, signal: message.signal as NodeJS.Signals | null };
+		}
+	});
 	let buffer = "";
 	const emit = (raw: string) => {
 		const event = parseEvent(raw);
 		if (event) options.onEvent(event);
 	};
-	child.stdout.setEncoding("utf8");
-	child.stdout.on("data", (chunk: string) => {
+	child.stdout!.setEncoding("utf8");
+	child.stdout!.on("data", (chunk: string) => {
 		buffer += chunk;
 		const lines = buffer.split("\n");
 		buffer = lines.pop() ?? "";
 		for (const item of lines) emit(item);
 	});
-	child.stderr.setEncoding("utf8");
-	child.stderr.on("data", (chunk: string) => options.onStderr(chunk));
+	child.stderr!.setEncoding("utf8");
+	child.stderr!.on("data", (chunk: string) => options.onStderr(chunk));
 	const exited = new Promise<ChildExit>((resolve) => {
 		let settled = false;
 		const finish = (result: ChildExit) => {
@@ -80,10 +94,11 @@ export function startChild(options: {
 		};
 		child.on("error", () => finish({ code: 1, signal: null }));
 		child.on("exit", (code, signal) => {
-			const drain = setTimeout(() => finish({ code, signal }), PIPE_DRAIN_MS);
+			const result = outcome ?? { code, signal };
+			const drain = setTimeout(() => finish(result), PIPE_DRAIN_MS);
 			child.once("close", () => {
 				clearTimeout(drain);
-				finish({ code, signal });
+				finish(result);
 			});
 		});
 	});
@@ -125,19 +140,4 @@ export async function killGroup(pgid: number, graceMs = 2000): Promise<boolean> 
 	if (await waitGone(pgid, graceMs)) return true;
 	signalGroup(pgid, "SIGKILL");
 	return waitGone(pgid, 2000);
-}
-
-export type ProcessIdentity = { start: string; argv_sha256: string };
-
-/** Start time and argv hash of a live process, read from `ps`; null when it is gone. */
-export function processIdentity(pid: number): ProcessIdentity | null {
-	if (!Number.isInteger(pid) || pid <= 1) return null;
-	try {
-		const start = execFileSync("ps", ["-o", "lstart=", "-p", String(pid)], { encoding: "utf8" }).trim();
-		const command = execFileSync("ps", ["-ww", "-o", "command=", "-p", String(pid)], { encoding: "utf8" }).trim();
-		if (!start || !command) return null;
-		return { start, argv_sha256: createHash("sha256").update(command).digest("hex") };
-	} catch {
-		return null;
-	}
 }

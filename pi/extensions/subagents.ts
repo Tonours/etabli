@@ -5,8 +5,7 @@ import { randomUUID } from "node:crypto";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { agentDefinitionsDir, childAgentDir, loadAgents } from "./lib/subagent-agents.ts";
-import { childArgs, killGroup, processIdentity, startChild, type ChildEvent } from "./lib/subagent-process.ts";
-import { forgetRun, recordRun, registryDir, sweepOrphans } from "./lib/subagent-registry.ts";
+import { childArgs, killGroup, startChild, type ChildEvent } from "./lib/subagent-process.ts";
 
 type RunState = "starting" | "running" | "completed" | "failed" | "timeout" | "stopped";
 type Run = {
@@ -22,15 +21,12 @@ type Run = {
 	pgid?: number;
 	reported: boolean;
 	exited: boolean;
-	registryError?: string;
 	terminating?: "timeout" | "stopped";
 	done: Promise<void>;
 };
 type Result = { content: { type: "text"; text: string }[]; details: Record<string, unknown>; isError?: boolean };
 
 const FINAL: RunState[] = ["completed", "failed", "timeout", "stopped"];
-/** A `#!/usr/bin/env node` launcher re-execs once; its argv is only stable after that. */
-const RECORD_AFTER_EXEC_MS = 300;
 const number = (raw: string | undefined, fallback: number) => {
 	const value = Number(raw);
 	return Number.isFinite(value) && value > 0 ? value : fallback;
@@ -63,7 +59,6 @@ function view(run: Run, outputCap: number) {
 		pgid: run.pgid ?? null,
 		seconds: Math.round(((run.ended ?? Date.now()) - run.started) / 100) / 10,
 		...(run.error ? { error: run.error } : {}),
-		...(run.registryError ? { registry_error: run.registryError } : {}),
 		...(FINAL.includes(run.state) ? { output } : {}),
 	};
 }
@@ -77,14 +72,11 @@ const reply = (details: Record<string, unknown>, isError = false): Result => ({
 export default function subagents(pi: ExtensionAPI) {
 	const env = process.env;
 	const runs = new Map<string, Run>();
-	const registry = registryDir(env);
 	const command = env.ETABLI_SUBAGENT_PI?.trim() || "pi";
 	const timeoutMs = number(env.ETABLI_SUBAGENT_TIMEOUT_SECONDS, 1800) * 1000;
 	const maxConcurrent = Math.floor(number(env.ETABLI_SUBAGENT_MAX_CONCURRENT, 4));
 	const outputCap = Math.floor(number(env.ETABLI_SUBAGENT_OUTPUT_CHARS, 50 * 1024));
-	const owner = processIdentity(process.pid);
 	let scratch: string | undefined;
-	const swept = sweepOrphans(registry).catch(() => []);
 
 	async function stop(run: Run, reason: "timeout" | "stopped") {
 		if (FINAL.includes(run.state)) return;
@@ -94,7 +86,6 @@ export default function subagents(pi: ExtensionAPI) {
 	}
 
 	async function start(agentName: string, task: string, cwd: string, background: boolean): Promise<Run | string> {
-		await swept;
 		const agents = loadAgents(agentDefinitionsDir(env));
 		const agent = agents.find((item) => item.name === agentName);
 		if (!agent) return `Unknown agent "${agentName}". Available: ${agents.map((item) => item.name).join(", ") || "none"}.`;
@@ -131,22 +122,11 @@ export default function subagents(pi: ExtensionAPI) {
 		run.pgid = handle.pgid;
 		run.state = "running";
 		runs.set(run.id, run);
-		const record = setTimeout(() => {
-			const child = FINAL.includes(run.state) || run.terminating ? null : processIdentity(handle.pgid);
-			if (!child || !owner) return;
-			try {
-				recordRun(registry, { run_id: run.id, pgid: handle.pgid, child, owner_pid: process.pid, owner });
-			} catch (error) {
-				run.registryError = (error as Error).message;
-			}
-		}, RECORD_AFTER_EXEC_MS);
 		const timer = setTimeout(() => void stop(run, "timeout"), timeoutMs);
 		run.done = handle.exited.then(async (exit) => {
 			run.exited = true;
 			clearTimeout(timer);
-			clearTimeout(record);
 			await killGroup(handle.pgid);
-			forgetRun(registry, run.id);
 			if (promptFile) rmSync(promptFile, { force: true });
 			run.exitCode = exit.code;
 			run.ended = Date.now();

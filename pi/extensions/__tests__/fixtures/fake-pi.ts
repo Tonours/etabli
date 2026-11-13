@@ -31,6 +31,7 @@ if (mode === "success") {
 	process.exit(0);
 } else if (mode === "ignore-term") {
 	process.on("SIGTERM", () => undefined);
+	if (process.env.FAKE_PI_ARGV_FILE) writeFileSync(process.env.FAKE_PI_ARGV_FILE, JSON.stringify({ args, ready: true }));
 	hang();
 } else if (mode === "slow") {
 	setTimeout(() => { say("slow done"); process.exit(0); }, Number(task.split(" ")[1] ?? 500));
