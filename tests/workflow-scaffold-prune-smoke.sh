@@ -6,12 +6,19 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 
 PRUNE_PROJECT="$TMP_DIR/prune-project"
 "$SCRIPT" "$PRUNE_PROJECT" >/dev/null
-RETIRED_SET="workflow/events.md scripts/workflow-event workflow/verification/cli-app.mjs scripts/lib/plan-status.mjs scripts/lib/hash.sh scripts/vendor/commonmark/commonmark.cjs"
+RETIRED_SET="workflow/contract-details.md workflow/skills/long-loop.md workflow/skills/linear-work.md workflow/memory.md workflow/project-constraints.md workflow/verification-report-template.md workflow/evidence-pack.schema.json workflow/templates/evidence-pack.json workflow/skills/execution-quality.md workflow/skills/verify.md workflow/skills/bug-check.md workflow/skills/linear-project-setup.md workflow/events.md scripts/workflow-event workflow/verification/cli-app.mjs scripts/lib/plan-status.mjs scripts/lib/hash.sh scripts/vendor/commonmark/commonmark.cjs"
 mkdir -p "$PRUNE_PROJECT/workflow/verification" "$PRUNE_PROJECT/scripts/lib" "$PRUNE_PROJECT/scripts/vendor/commonmark"
 for retired in scripts/lib/plan-status.mjs scripts/lib/hash.sh scripts/vendor/commonmark/commonmark.cjs; do
   shipped_copy "$retired" "$PRUNE_PROJECT/$retired"
 done
 shipped_copy workflow/events.md "$PRUNE_PROJECT/workflow/events.md"
+shipped_copy workflow/contract-details.md "$PRUNE_PROJECT/workflow/contract-details.md"
+shipped_copy workflow/skills/long-loop.md "$PRUNE_PROJECT/workflow/skills/long-loop.md"
+shipped_copy workflow/skills/linear-work.md "$PRUNE_PROJECT/workflow/skills/linear-work.md"
+for retired in workflow/memory.md workflow/project-constraints.md workflow/verification-report-template.md workflow/evidence-pack.schema.json workflow/templates/evidence-pack.json workflow/skills/execution-quality.md workflow/skills/verify.md workflow/skills/bug-check.md workflow/skills/linear-project-setup.md; do
+  mkdir -p "$PRUNE_PROJECT/$(dirname "$retired")"
+  shipped_copy "$retired" "$PRUNE_PROJECT/$retired"
+done
 shipped_copy scripts/workflow-event "$PRUNE_PROJECT/scripts/workflow-event"
 shipped_copy workflow-scaffold/templates/verification/cli-app.mjs "$PRUNE_PROJECT/workflow/verification/cli-app.mjs"
 "$SCRIPT" "$PRUNE_PROJECT" --prune --dry-run >"$TMP_DIR/prune-dry.out"
@@ -22,7 +29,7 @@ for retired in $RETIRED_SET; do
   assert_not_exists "$PRUNE_PROJECT/$retired"
   assert_no_backup "$PRUNE_PROJECT/$retired"
 done
-assert_contains "$TMP_DIR/prune.out" "6 removed"
+assert_contains "$TMP_DIR/prune.out" "18 removed"
 "$SCRIPT" "$PRUNE_PROJECT" --prune >"$TMP_DIR/prune-again.out"
 assert_contains "$TMP_DIR/prune-again.out" "0 removed"
 

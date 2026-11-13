@@ -13,9 +13,7 @@ sync copies the upstream `LICENSE` next to it.
 
 | Vendor | Upstream | Scope | Skills |
 |---|---|---|---|
-| `mattpocock` | `mattpocock/skills` | `shared` | 8: the engineering pack plus `productivity/grilling` (below) |
-| `petergyang` | `petergyang/no-ai-slop` | `shared` | 1: `no-ai-slop`, an AI-slop editing pass |
-| `typesafe-ai` | `typesafe-ai/skills` | `shared` | 1: `typesafe-ai`, build with TypeSafe System One (Jev) |
+| `mattpocock` | `mattpocock/skills` | `shared` | 3: `codebase-design`, `research` and `productivity/grilling` (below) |
 | `cloudflare` | `cloudflare/security-audit-skill` | `shared` | 1: `security-audit`, a six-phase audit with fresh verifier agents, run on GLM by `security-audit-glm` |
 
 Pi gets a vendored skill only when its `workflow/runtime/skill-surface.tsv`
@@ -27,9 +25,7 @@ everywhere, `work` and `personal` only where the machine declares that scope in
 
 ## mattpocock pack
 
-`codebase-design`, `domain-modeling`, `grill-with-docs`,
-`improve-codebase-architecture`, `prototype`, `research` and `wizard`, plus
-`productivity/grilling`, which `grill-with-docs` calls with `domain-modeling`.
+`codebase-design` and `research`, plus `productivity/grilling`.
 Catalog rows use the upstream path (`engineering/<name>`), and the skills
 deploy under their frontmatter names.
 
@@ -39,6 +35,8 @@ Skipped on purpose, so each name has one owner:
 - `engineering/implement` → etabli's `implement` route.
 - `engineering/setup-matt-pocock-skills` → configures the suite's own installer
   conventions, which etabli's vendoring replaces.
+- `domain-modeling`, `grill-with-docs`, `improve-codebase-architecture`,
+  `prototype` and `wizard` → dropped by ADR-0045 (unused in the census).
 
 Under etabli, suite references to skipped or dropped names resolve to the
 etabli equivalents, and the suite's own repo conventions fall back to Linear

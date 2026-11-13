@@ -30,10 +30,9 @@ for name in $(jq -r '.skillOverrides | to_entries[] | select(.value == "on") | .
   fi
 done
 [ "$checked" -gt 0 ] || fail "AC1a: no first-party skill is \"on\" in claude/settings.skill-overrides.json"
-grep -Eq -e "$DMI_RE" "$ROOT_DIR/extras/skills/coolify/SKILL.md" || fail "AC1a: extras/skills/coolify must keep disable-model-invocation"
 
 # --- AC2a: what+when+not-for shape on the routed workflow descriptions ---
-SHAPED="adversary bug-check code-quality implement linear-ticket-create linear-work plan-implement plan-loop review thermo-nuclear-code-quality-review verify-workflow"
+SHAPED="adversary code-quality implement linear-ticket-create plan-implement plan-loop review thermo-nuclear-code-quality-review"
 USE_RE='use\b.*(when|for)\b'
 NOT_RE='(not|never|except|don'"'"'t|pas pour)\b'
 check_shape() {

@@ -57,12 +57,11 @@ Your agent routes every request to the smallest route that fits it
 
 | You ask for | Route | What you get |
 | --- | --- | --- |
-| A question, a diagnosis, a small fix | `answer` | The answer or the edit, no plan |
+| A question, a diagnosis, verification, a small fix | `answer` | The answer or the edit, no plan |
 | A plan ("fais un plan") | `plan-loop` | A `PLAN.md` that reaches `READY` or `CHALLENGED` |
 | Plan and build, end to end | `plan-implement` | Plan, code, checks, reviews, archive |
 | Build an existing `READY` plan | `implement` | Code, checks, reviews, archive |
 | A review of a diff, PR or plan | `review` | Findings and a `GO`, `GO WITH NOTES` or `BLOCK` verdict |
-| Proof that something works | `verify` | `VERIFIED`, `NOT VERIFIED` or `INCONCLUSIVE` |
 
 A planned run goes through these steps:
 
@@ -100,7 +99,6 @@ The installer:
 
 - installs system packages through brew, apt, dnf or pacman;
 - sets `core.hooksPath=.githooks`, so the pre-push secret scan runs;
-- installs rtk 0.39.0 or later;
 - installs Pi at the version pinned in `pi/package.json` when `pi` is not
   already on your PATH, plus its packages;
 - links every managed surface with `scripts/deploy-agent-workflow --apply`
@@ -122,7 +120,7 @@ the workflow is on without asking for it. For example:
 ```text
 > fix the typo in the install message           → answer: edited directly
 > fais un plan pour migrer les tests vers bun   → plan-loop: PLAN.md, READY
-> /plan-implement add a --json flag to prs-today → plan, build, review, push
+> /plan-implement add a --json flag to plan-cleanup → plan, build, review, push
 > /review 123                                   → findings and a verdict
 ```
 
@@ -136,8 +134,7 @@ scripts/deploy-workflow /path/to/project
 On a project that already has the scaffold, `--check` reports drift first
 (`STALE` for an older etabli copy, `EDITED` for a local change). `--help`
 covers `--force`, `--refresh-tracked` and `--prune`. A mistake an agent keeps
-making becomes a rule in that project's own tooling
-([`workflow/project-constraints.md`](workflow/project-constraints.md)).
+making becomes a rule in that project's own tooling.
 
 ### Everyday commands
 
@@ -149,7 +146,6 @@ scripts/check-fix-symlinks.sh         # managed links intact? --fix repairs
 node scripts/validate-adrs .          # ADR format
 scripts/plan-cleanup --status         # root PLAN.md status and age, as JSON
 scripts/deploy-hosts                  # deploy the pushed main to other machines
-scripts/prs-today                     # your open PRs: CI, review, stack order
 ```
 
 ## What the guards enforce
@@ -160,7 +156,6 @@ over one shared module in `workflow/runtime/`:
 - An edit-tool write that adds a code comment to a file of a known language is
   refused. Doc comments and files outside a git work tree pass. A shell write,
   or a file without a known extension, is not checked.
-- Shell output goes through rtk when compacting it is safe.
 - A `gh pr create` or `gh pr edit` body must follow the PR body contract. The
   literal text of a `git commit` message must carry no `Claude-Session:` or
   `Co-Authored-By:` trailer and no AI credit.
@@ -210,13 +205,11 @@ policy and how to report a leaked credential.
 
 ## Learn more
 
-- [`workflow/skills/investigation.md`](workflow/skills/investigation.md): learning
-  from recovered run incidents, with evidence and no automatic rule changes.
+- [`workflow/skills/investigation.md`](workflow/skills/investigation.md): evidence
+  ladder and verdicts for diagnosis.
 - [Research note (French)](docs/research/20261107-agent-self-improvement.md):
   source analysis of Skill Doctor, GEPA, Reflexion and ACE.
-- [`workflow/spec.md`](workflow/spec.md): workflow entry and map;
-  [`workflow/contract-details.md`](workflow/contract-details.md) has the full
-  rules.
+- [`workflow/spec.md`](workflow/spec.md): workflow entry, map and rules.
 - [`docs/symlink-layout.md`](docs/symlink-layout.md): every managed link,
   copy and merge.
 - [`claude/README.md`](claude/README.md): scopes, Claude hooks, skill

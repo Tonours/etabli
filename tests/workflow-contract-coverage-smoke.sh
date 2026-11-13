@@ -126,8 +126,6 @@ assert_contains "$ROOT_DIR/skills/work/pr-council-review/SKILL.md" 'If the harne
 assert_contains "$ROOT_DIR/skills/work/pr-council-review/SKILL.md" 'If output stays inline, read phase B in that stream.'
 assert_contains "$ROOT_DIR/skills/work/pr-council-review/SKILL.md" 'phase_b_output "$1"'
 assert_contains "$ROOT_DIR/skills/work/pr-council-review/SKILL.md" 'Process exit zero is not approval'
-# Always-loaded guidance must stay bounded; long explanations belong in cold docs.
-ruby -e 'abort "RTK.md exceeds 1000 characters" if File.read(ARGV[0]).length > 1000' "$ROOT_DIR/claude/RTK.md"
 
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'docs-only, config-only, or a bounded single-surface edit with no'
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" 'runtime behavior change, outside contractual and AGENTS high-risk surfaces.'

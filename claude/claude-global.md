@@ -14,9 +14,7 @@ below by a path relative to this file (Pi reads the same file as
   route yourself. Claude hooks guard
   writes only; routing is the model's reading of `workflow/spec.md` (ADR-0036).
 - `/goal`: `workflow/skills/orchestration.md` (measurable condition plus a cap).
-- Use `/verify-workflow` for workflow evidence; do not shadow native `/verify`.
-- Orchestration parity: `workflow/skills/orchestration.md`; Pi Task* state is
-  Pi-only unless equivalent runtime capability is exposed.
+- Orchestration parity: `workflow/skills/orchestration.md`.
 
 ## Compact instructions
 When compacting, keep the root `PLAN.md` subject and status, files modified,
@@ -37,4 +35,3 @@ skip (YAGNI) → reuse codebase → stdlib → native platform → installed dep
 Never skip: validation, security, error handling.
 
 @../workflow/agent-rules.md
-@RTK.md

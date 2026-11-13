@@ -25,7 +25,6 @@ Full layout, scopes and managed surfaces: `docs/symlink-layout.md`.
 - Shared agent rules (code, review, git, memory, answers): `workflow/agent-rules.md`
 - Human guide + schemas: `README.md`
 - Workflow entry and canonical map (wins on conflict): `workflow/spec.md`
-- Long rules / commands: `workflow/contract-details.md`
 - Default plan: `PLAN_TEMPLATE.md`
 - Full plan for risky work: `PLAN_TEMPLATE_FULL.md`
 - Review rubric: `workflow/review-rubric.md`

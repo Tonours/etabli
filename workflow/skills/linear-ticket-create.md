@@ -31,8 +31,8 @@ shape and report the missing sources as a warning.
 Know where the ticket sits before creating it:
 
 - A whole initiative is a Project, not an Issue. If the user is really asking
-  to stand up a project with several Epics, stop and point them at
-  `linear-project-setup` instead.
+  to stand up a project with several Epics, stop and tell them to
+  create the Linear project by hand first.
 - An Epic is an Issue directly under a Project. When the ticket is an Epic,
   apply the org's Epic convention. For employer `Product`, use the `Epic` label
   and `Backlog` status so it surfaces in the Epic backlog.

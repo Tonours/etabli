@@ -11,10 +11,8 @@ const warnings = [];
 
 const PINNED_ON = new Set([
   "adversary",
-  "bug-check",
   "code-quality",
   "codebase-design",
-  "domain-modeling",
   "employer-backend-suite",
   "grilling",
   "herdr",
@@ -25,8 +23,6 @@ const PINNED_ON = new Set([
   "pr",
   "pr-council-review",
   "research",
-  "spec",
-  "verify-workflow",
   "write-direct",
 ]);
 const skillNames = JSON.parse(process.env.SKILL_NAMES);

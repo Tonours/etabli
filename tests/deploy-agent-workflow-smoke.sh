@@ -23,20 +23,20 @@ ln -s "$ROOT_DIR/claude/commands/plan.md" "$HOME_DIR/.claude/commands/plan.md"
 ln -s "$ROOT_DIR/claude/scopes/shared/commands/front-quality.md" "$HOME_DIR/.claude/commands/front-quality.md"
 ln -s "$ROOT_DIR/claude/scopes/shared/commands/plan-loop.md" "$HOME_DIR/.claude/commands/plan-loop.md"
 ln -s "$ROOT_DIR/pi/skills/retired-skill" "$HOME_DIR/.claude/skills/retired-skill"
-ln -s "$ROOT_DIR/claude/scopes/shared/skills/spec" "$HOME_DIR/.claude/skills/spec"
-ln -s "$TMP_DIR/external-skill" "$HOME_DIR/.claude/skills/verify-workflow"
+ln -s "$ROOT_DIR/claude/scopes/shared/skills/adr" "$HOME_DIR/.claude/skills/adr"
+ln -s "$TMP_DIR/external-skill" "$HOME_DIR/.claude/skills/pr"
 mkdir -p "$HOME_DIR/.pi/agent/skills"
 ln -s "$ROOT_DIR/pi/skills/verify" "$HOME_DIR/.pi/agent/skills/verify"
 # Codex home: the live layout (adapter as a relative link to a real file in
 # skills/), a personal folder on a catalog name, a hidden folder, foreign links.
-mkdir -p "$HOME_DIR/.codex/skills/personal-codex" "$HOME_DIR/.codex/skills/linear-work" "$HOME_DIR/.codex/skills/.system"
+mkdir -p "$HOME_DIR/.codex/skills/personal-codex" "$HOME_DIR/.codex/skills/linear-ticket-create" "$HOME_DIR/.codex/skills/.system"
 printf 'personal codex rules\n' >"$HOME_DIR/.codex/skills/AGENTS.md"
 ln -s skills/AGENTS.md "$HOME_DIR/.codex/AGENTS.md"
-mkdir -p "$HOME_DIR/.codex/skills/spec" && printf 'personal spec fork\n' >"$HOME_DIR/.codex/skills/spec/SKILL.md"
+mkdir -p "$HOME_DIR/.codex/skills/adr" && printf 'personal adr fork\n' >"$HOME_DIR/.codex/skills/adr/SKILL.md"
 ln -s "$TMP_DIR/external-skill" "$HOME_DIR/.codex/skills/foreign-link"
 ln -s "$TMP_DIR/elsewhere/.claude/skills/personal-only" "$HOME_DIR/.codex/skills/personal-only"
-mkdir -p "$TMP_DIR/personal/skills/work/linear-project-setup"
-ln -s "$TMP_DIR/personal/skills/work/linear-project-setup" "$HOME_DIR/.codex/skills/linear-project-setup"
+mkdir -p "$TMP_DIR/personal/skills/work/employer-docs-writing"
+ln -s "$TMP_DIR/personal/skills/work/employer-docs-writing" "$HOME_DIR/.codex/skills/employer-docs-writing"
 
 printf '%s\n' '{
   "defaultProvider": "kimi-for-coding",
@@ -142,17 +142,17 @@ assert_absent "$HOME_DIR/.claude/commands/plan-loop.md"
 assert_absent "$HOME_DIR/.claude/commands/plan.md"
 assert_absent "$HOME_DIR/.claude/commands/front-quality.md"
 assert_link "$HOME_DIR/.claude/skills/plan-loop" "$ROOT_DIR/skills/shared/plan-loop"
-assert_link "$HOME_DIR/.claude/skills/spec" "$ROOT_DIR/skills/shared/spec"
-assert_absent "$HOME_DIR/.pi/agent/skills/spec"
-assert_absent "$HOME_DIR/.claude/skills/linear-work"
-assert_absent "$HOME_DIR/.pi/agent/skills/linear-work"
+assert_link "$HOME_DIR/.claude/skills/adr" "$ROOT_DIR/skills/shared/adr"
+assert_absent "$HOME_DIR/.pi/agent/skills/adr"
+assert_absent "$HOME_DIR/.claude/skills/linear-ticket-create"
+assert_absent "$HOME_DIR/.pi/agent/skills/linear-ticket-create"
 # A foreign link on a managed name moves outside the discovery root.
-assert_link "$HOME_DIR/.claude/skills/verify-workflow" "$ROOT_DIR/skills/shared/verify-workflow"
+assert_link "$HOME_DIR/.claude/skills/pr" "$ROOT_DIR/skills/shared/pr"
 if find "$HOME_DIR/.claude/skills" -maxdepth 1 -name '*.bak.*' | grep -q .; then
   printf 'deploy left a skill backup inside the discovery root\n' >&2
   exit 1
 fi
-collision_backups=( "$HOME_DIR/.claude/skills.bak"/verify-workflow.bak.* )
+collision_backups=( "$HOME_DIR/.claude/skills.bak"/pr.bak.* )
 [ "$(readlink "${collision_backups[0]}")" = "$TMP_DIR/external-skill" ] || {
   printf 'deploy did not keep the foreign skill link in skills.bak\n' >&2
   exit 1
@@ -163,22 +163,22 @@ codex_backups=( "$HOME_DIR/.codex"/AGENTS.md.bak.* )
   printf 'deploy replaced the foreign Codex AGENTS.md without a working backup\n' >&2
   exit 1
 }
-spec_backups=( "$HOME_DIR/.codex/skills.bak"/spec.bak.* )
-grep -Fxq 'personal spec fork' "${spec_backups[0]}/SKILL.md" || {
-  printf 'deploy did not move the personal Codex spec folder to skills.bak\n' >&2
+adr_backups=( "$HOME_DIR/.codex/skills.bak"/adr.bak.* )
+grep -Fxq 'personal adr fork' "${adr_backups[0]}/SKILL.md" || {
+  printf 'deploy did not move the personal Codex adr folder to skills.bak\n' >&2
   exit 1
 }
-[ -d "$HOME_DIR/.codex/skills/.system" ] && [ -d "$HOME_DIR/.codex/skills/linear-work" ] || {
+[ -d "$HOME_DIR/.codex/skills/.system" ] && [ -d "$HOME_DIR/.codex/skills/linear-ticket-create" ] || {
   printf 'deploy touched a hidden or out-of-scope Codex folder\n' >&2
   exit 1
 }
 assert_link "$HOME_DIR/.codex/skills/personal-only" "$TMP_DIR/elsewhere/.claude/skills/personal-only"
 # A foreign link whose path only ends like an out-of-scope catalog skill stays.
-assert_link "$HOME_DIR/.codex/skills/linear-project-setup" "$TMP_DIR/personal/skills/work/linear-project-setup"
+assert_link "$HOME_DIR/.codex/skills/employer-docs-writing" "$TMP_DIR/personal/skills/work/employer-docs-writing"
 assert_link "$HOME_DIR/.codex/workflow" "$ROOT_DIR/workflow"
 assert_link "$HOME_DIR/.codex/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
 assert_link "$HOME_DIR/.codex/skills/plan-loop" "$ROOT_DIR/skills/shared/plan-loop"
-assert_link "$HOME_DIR/.codex/skills/spec" "$ROOT_DIR/skills/shared/spec"
+assert_link "$HOME_DIR/.codex/skills/adr" "$ROOT_DIR/skills/shared/adr"
 [ -d "$HOME_DIR/.codex/skills/personal-codex" ] || { printf 'deploy moved a personal Codex skill folder\n' >&2; exit 1; }
 assert_link "$HOME_DIR/.codex/skills/foreign-link" "$TMP_DIR/external-skill"
 # Codex skills stay out of every root Pi reads.
@@ -193,7 +193,7 @@ if ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --apply --home "$SHARED_HOME_DIR" 
   exit 1
 fi
 grep -Fq 'Codex links skipped' "$TMP_DIR/shared-codex.out" || { cat "$TMP_DIR/shared-codex.out" >&2; exit 1; }
-assert_absent "$SHARED_HOME_DIR/.pi/agent/skills/codex/spec"
+assert_absent "$SHARED_HOME_DIR/.pi/agent/skills/codex/adr"
 assert_link "$SHARED_HOME_DIR/.pi/agent/skills/plan-loop" "$ROOT_DIR/skills/shared/plan-loop"
 AGENTS_HOME_DIR="$TMP_DIR/agents-codex-home"
 mkdir -p "$AGENTS_HOME_DIR/.codex/skills" "$AGENTS_HOME_DIR/.agents"
@@ -202,7 +202,7 @@ if ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --apply --home "$AGENTS_HOME_DIR" 
   printf 'deploy wrote Codex skills into a root Pi reads through ~/.agents/skills\n' >&2
   exit 1
 fi
-assert_absent "$AGENTS_HOME_DIR/.codex/skills/spec"
+assert_absent "$AGENTS_HOME_DIR/.codex/skills/adr"
 PI_CODEX_HOME_DIR="$TMP_DIR/pi-codex-home"
 mkdir -p "$PI_CODEX_HOME_DIR/.pi/agent"
 ln -s .pi/agent "$PI_CODEX_HOME_DIR/.codex"
@@ -213,23 +213,23 @@ fi
 assert_link "$PI_CODEX_HOME_DIR/.pi/agent/AGENTS.md" "$ROOT_DIR/workflow/agent-rules.md"
 # A Pi root nested under a Codex destination is refused too.
 NESTED_HOME_DIR="$TMP_DIR/nested-pi-home"
-mkdir -p "$NESTED_HOME_DIR/.codex/skills/spec" "$NESTED_HOME_DIR/.agents"
-printf 'personal spec\n' >"$NESTED_HOME_DIR/.codex/skills/spec/SKILL.md"
-ln -s ../.codex/skills/spec "$NESTED_HOME_DIR/.agents/skills"
+mkdir -p "$NESTED_HOME_DIR/.codex/skills/adr" "$NESTED_HOME_DIR/.agents"
+printf 'personal adr\n' >"$NESTED_HOME_DIR/.codex/skills/adr/SKILL.md"
+ln -s ../.codex/skills/adr "$NESTED_HOME_DIR/.agents/skills"
 if ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --apply --home "$NESTED_HOME_DIR" >"$TMP_DIR/nested-pi.out" 2>&1; then
   printf 'deploy accepted a Pi root nested under ~/.codex/skills\n' >&2
   exit 1
 fi
-grep -Fxq 'personal spec' "$NESTED_HOME_DIR/.agents/skills/SKILL.md" || { printf 'deploy moved a folder Pi reads\n' >&2; exit 1; }
+grep -Fxq 'personal adr' "$NESTED_HOME_DIR/.agents/skills/SKILL.md" || { printf 'deploy moved a folder Pi reads\n' >&2; exit 1; }
 ENTRY_HOME_DIR="$TMP_DIR/entry-pi-home"
-mkdir -p "$ENTRY_HOME_DIR/.codex/skills/spec" "$ENTRY_HOME_DIR/.agents/skills"
-printf 'personal spec\n' >"$ENTRY_HOME_DIR/.codex/skills/spec/SKILL.md"
-ln -s ../../.codex/skills/spec "$ENTRY_HOME_DIR/.agents/skills/personal"
+mkdir -p "$ENTRY_HOME_DIR/.codex/skills/adr" "$ENTRY_HOME_DIR/.agents/skills"
+printf 'personal adr\n' >"$ENTRY_HOME_DIR/.codex/skills/adr/SKILL.md"
+ln -s ../../.codex/skills/adr "$ENTRY_HOME_DIR/.agents/skills/personal"
 if ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --apply --home "$ENTRY_HOME_DIR" >"$TMP_DIR/entry-pi.out" 2>&1; then
   printf 'deploy accepted a Pi skill entry inside ~/.codex/skills\n' >&2
   exit 1
 fi
-grep -Fxq 'personal spec' "$ENTRY_HOME_DIR/.agents/skills/personal/SKILL.md" || { printf 'deploy moved a skill Pi reads\n' >&2; exit 1; }
+grep -Fxq 'personal adr' "$ENTRY_HOME_DIR/.agents/skills/personal/SKILL.md" || { printf 'deploy moved a skill Pi reads\n' >&2; exit 1; }
 grep -Fq 'Codex links skipped:' "$TMP_DIR/entry-pi.out" || { cat "$TMP_DIR/entry-pi.out" >&2; exit 1; }
 LOOP_HOME_DIR="$TMP_DIR/loop-codex-home"
 mkdir -p "$LOOP_HOME_DIR"
@@ -308,7 +308,6 @@ assert_absent "$HOME_DIR/.claude/skills/frontend-css-ui-ux"
 assert_absent "$HOME_DIR/.claude/skills/css-layout-primitives"
 assert_absent "$HOME_DIR/.claude/skills/css-only-components"
 assert_absent "$HOME_DIR/.claude/skills/css-debugging"
-assert_absent "$HOME_DIR/.claude/skills/react-doctor-100"
 assert_absent "$HOME_DIR/.claude/skills/retired-skill"
 assert_absent "$HOME_DIR/.claude/skills/vercel-react-best-practices"
 assert_absent "$HOME_DIR/.claude/skills/vercel-composition-patterns"
@@ -352,15 +351,15 @@ fi
   assert_link "$WORK_HOME_DIR/.claude/scripts/pr-review-watch" "$ROOT_DIR/claude/scopes/work/scripts/pr-review-watch"
   assert_link "$WORK_HOME_DIR/.claude/skills/employer-backend-suite" "$ROOT_DIR/skills/work/employer-backend-suite"
   assert_absent "$WORK_HOME_DIR/.pi/agent/skills/employer-backend-suite"
-  assert_link "$WORK_HOME_DIR/.claude/skills/linear-work" "$ROOT_DIR/skills/work/linear-work"
-  assert_link "$WORK_HOME_DIR/.pi/agent/skills/linear-work" "$ROOT_DIR/skills/work/linear-work"
+  assert_link "$WORK_HOME_DIR/.claude/skills/linear-ticket-create" "$ROOT_DIR/skills/work/linear-ticket-create"
+  assert_link "$WORK_HOME_DIR/.pi/agent/skills/linear-ticket-create" "$ROOT_DIR/skills/work/linear-ticket-create"
   assert_link "$WORK_HOME_DIR/.claude/skills/pr-council-review" "$ROOT_DIR/skills/work/pr-council-review"
   assert_link "$WORK_HOME_DIR/.pi/agent/skills/pr-council-review" "$ROOT_DIR/skills/work/pr-council-review"
   assert_absent "$WORK_HOME_DIR/.claude/skills/adr"
   assert_absent "$WORK_HOME_DIR/.pi/agent/skills/adonisjs-suite"
   assert_absent "$WORK_HOME_DIR/.claude/skills/adonisjs-suite"
   assert_absent "$WORK_HOME_DIR/.grok"
-  assert_link "$WORK_HOME_DIR/.codex/skills/linear-work" "$ROOT_DIR/skills/work/linear-work"
+  assert_link "$WORK_HOME_DIR/.codex/skills/linear-ticket-create" "$ROOT_DIR/skills/work/linear-ticket-create"
   assert_absent "$WORK_HOME_DIR/.codex/skills/adr"
   for retired_surface in .config/devin .agents; do
     assert_absent "$WORK_HOME_DIR/$retired_surface"
@@ -378,7 +377,7 @@ assert_link "$HOME_DIR/.pi/agent/extensions" "$ROOT_DIR/pi/extensions"
 assert_absent "$HOME_DIR/.pi/agent/subagents.json"
 assert_link "$HOME_DIR/.pi/agent/agents/Explore.md" "$ROOT_DIR/pi/agents/Explore.md"
 assert_link "$HOME_DIR/.pi/agent/skills/plan-loop" "$ROOT_DIR/skills/shared/plan-loop"
-assert_link "$HOME_DIR/.pi/agent/skills/verify-workflow" "$ROOT_DIR/skills/shared/verify-workflow"
+assert_link "$HOME_DIR/.pi/agent/skills/pr" "$ROOT_DIR/skills/shared/pr"
 assert_absent "$HOME_DIR/.pi/agent/skills/verify"
 assert_absent "$HOME_DIR/.pi/agent/skills/vercel-react-best-practices"
 assert_link "$HOME_DIR/.pi/settings.json" "$ROOT_DIR/pi/settings.json"

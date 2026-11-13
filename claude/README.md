@@ -49,9 +49,7 @@ runtimes (Claude commands are retired, ADR-0037). Pi ignores the Claude-only
 frontmatter keys (`argument-hint`, `allowed-tools`).
 `tests/workflow-contract-coverage-smoke.sh` keeps every contract referenced.
 
-`/verify-workflow` is the workflow verifier, so Claude Code's native `/verify`
-stays free for app verification. Linear skills use the Linear MCP; PR review
-uses the `gh` CLI.
+Linear skills use the Linear MCP; PR review uses the `gh` CLI.
 
 The custom agents are `scout` (read-only reconnaissance), `worker` (one step
 from a `READY` plan, the only writing agent), `reviewer` (fresh-context diff
@@ -111,9 +109,6 @@ ungoverned and outside the index gate.
   lexer, not a parser: shell grammar beyond strings, heredocs and substitutions
   (a `case` pattern inside `$(...)` included) is lexed as plain code, which can
   miss or add a comment.
-- `rtk-guard.mjs` (`PreToolUse` on `Bash`) forwards a command to
-  `rtk hook claude` only when `workflow/runtime/rtk-data-flow.mjs` allows
-  compaction, and runs the rest raw.
 - `pr-body-guard.mjs` (`PreToolUse` on `Bash`) is a thin adapter over
   `workflow/runtime/pr-body-guard.mjs`, shared with the Pi `pr-body.ts`
   extension. It checks two things.
@@ -124,8 +119,10 @@ ungoverned and outside the index gate.
     attribution, or has non-ASCII prose outside code, tables and quotes. It
     checks every `gh pr` invocation of the line with its own body: inline, a
     heredoc, a `--body-file` resolved after a `cd`, or `--body-file -` fed
-    by a heredoc, a here-string or `< file`. A body piped into
-    `--body-file -` is refused, since the guard cannot read it.
+    by a heredoc, a here-string or `< file`. A body it cannot read (built at
+    run time, piped, missing, unreadable, or a relative file behind a `cd` it
+    cannot resolve) passes that invocation unchecked; the other invocations
+    and commits of the line are still checked.
   - **Commit messages.** In every repo, it denies a `git commit` whose literal
     `-m`, `-F` or `--trailer` text carries a `Claude-Session:` or
     `Co-Authored-By:` trailer, or an AI credit such as "Generated with Claude".
@@ -136,18 +133,16 @@ ungoverned and outside the index gate.
     non-Claude model or provider name such as GPT, Codex or Gemini. A name in a
     code span or fence passes.
 
-  It masks quoted strings, heredocs and comments, and refuses a PR body built
-  at run time. A commit message built at run time (`-m "$MESSAGE"`) passes
-  unchecked. It does not see `gh api` calls, a command nested
+  It masks quoted strings, heredocs and comments. A commit message built at
+  run time (`-m "$MESSAGE"`) passes unchecked too. It does not see `gh api` calls, a command nested
   inside `bash -c`, `eval` or a double-quoted `"$(...)"`.
-- `no-comments-guard.mjs`, `pr-body-guard.mjs` and `rtk-guard.mjs` fail open: a
-  crash lets the write or the raw command through, since none guards a
-  read-only boundary.
+- `no-comments-guard.mjs` and `pr-body-guard.mjs` fail open: a crash lets the
+  write or the command through, since neither guards a read-only boundary.
 
 `settings.workflow-hooks.json` is a merge fragment. The installer links it but
 does not merge it, because the live settings file can hold secrets. Run
 `scripts/claude-hooks-merge --dry-run`, then `scripts/claude-hooks-merge`. It
-adds the fragment's hooks, removes only hooks the repo retired (a bare
+adds the fragment's hooks, removes only hooks the repo retired (`rtk-guard.mjs` and a bare
 `rtk hook claude` included), backs up first, refuses invalid JSON, and never
 reads secrets back into the repo. Rerun it after a deploy that adds a hook,
 then verify with `scripts/claude-hooks-check`.
@@ -173,8 +168,7 @@ writes (ADR-0032).
 
 Use `/goal <measurable done condition, validation command, constraints, stop
 limit>` for till-done loops. Pi and Claude orchestration parity lives in
-[`../workflow/skills/orchestration.md`](../workflow/skills/orchestration.md);
-Task* state is Pi-only.
+[`../workflow/skills/orchestration.md`](../workflow/skills/orchestration.md).
 
 Sync supports optional `env.CLAUDE_CODE_SUBAGENT_MODEL` (for example `sonnet`).
 It stays unset in the shared fragment until all runtimes (including SDK/IDE CLIs) are verified.
@@ -218,7 +212,7 @@ To inspect a final native JSON already retained privately, without another
 model call or a history scan:
 
 ```bash
-rtk proxy jq '{scope:"native-session-cumulative",restored:"possible",total_cost_usd,is_error,subtype,modelUsage}' "$private_result_json"
+jq '{scope:"native-session-cumulative",restored:"possible",total_cost_usd,is_error,subtype,modelUsage}' "$private_result_json"
 ```
 
 Missing counters stay unknown. A native final result covers what the runtime
@@ -232,8 +226,7 @@ native account/session view. Imports in `CLAUDE.md` are eager; skills load their
 body on invocation and then remain in history. Keep specialized material cold,
 read decisive files/ranges, and retain full logs privately with exit status and
 proof references. Use ToolSearch on supported MCP routes instead of loading
-all schemas; do not toggle servers or models needlessly mid-task. RTK's `proxy`
-path preserves structured data and exact evidence. The delegation choices and
+all schemas; do not toggle servers or models needlessly mid-task. The delegation choices and
 handoff rules live in `workflow/skills/orchestration.md`; no review gate changes.
 
 For remote follow-up, first identify the machine, directory and session doing
