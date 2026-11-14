@@ -194,16 +194,21 @@ run_council() {
   decide_and_approve "" "$body"
 }
 
-# First JSON object after the WOULD SUBMIT heading that carries a review payload.
+# Last JSON object after the last WOULD SUBMIT heading that carries a review
+# payload; one naming another commit is ignored (text echoed from the PR).
 dryrun_payload() {
-  perl -MJSON::PP -e '
-    local $/; my $text = <STDIN>; $text =~ s/.*?^[ \t#*]*WOULD SUBMIT\b//ms or exit 1;
-    my $json = JSON::PP->new;
+  SHA="$2" perl -MJSON::PP -e '
+    local $/; my $text = <STDIN>; $text =~ s/.*^[ \t#*]*WOULD SUBMIT\b//ms or exit 1;
+    my $json = JSON::PP->new; my $found;
     while ($text =~ /^[ \t]*\{/mg) {
-      my $at = $-[0]; my ($obj) = eval { $json->decode_prefix(substr($text, $at)) };
-      if (ref $obj eq "HASH" && (exists $obj->{comments} || exists $obj->{body})) { print $json->canonical->encode($obj); exit 0 }
+      my $at = $-[0]; my ($obj, $len) = eval { $json->decode_prefix(substr($text, $at)) };
+      next unless ref $obj eq "HASH";
+      pos($text) = $at + $len;
+      next unless (exists $obj->{comments} || exists $obj->{body});
+      next if exists $obj->{commit_id} && $obj->{commit_id} ne $ENV{SHA};
+      $found = $obj;
     }
-    exit 1' <"$1"
+    $found or exit 1; print $json->canonical->encode($found)' <"$1"
 }
 
 # Own PR: run the council without --post, keep its findings, write nothing on the PR.
@@ -219,7 +224,7 @@ run_dryrun() {
     echo "=== no complete validator run marker for ${SHA:0:8}: the dry-run is incomplete" | tee -a "$REPORT"
     return "$REVIEW_INCOMPLETE_RC"
   }
-  payload="$(dryrun_payload "$REPORT")" || payload='{"body":"","comments":[]}'
+  payload="$(dryrun_payload "$REPORT" "$SHA")" || payload='{"body":"","comments":[]}'
   if [ "$findings" != 0 ] && [ "$(jq '.comments // [] | length' <<<"$payload")" = 0 ] && [ "$(jq -r '.body // ""' <<<"$payload")" = "" ]; then
     echo "=== dry-run kept $findings findings but printed no WOULD SUBMIT payload: incomplete" | tee -a "$REPORT"
     return "$REVIEW_INCOMPLETE_RC"

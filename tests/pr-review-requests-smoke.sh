@@ -267,12 +267,13 @@ printf '%s\n' "$*" >>"$COUNCIL_ARGS"
 sha="${FAKE_HEAD}"
 echo '=== phase B: /validator'
 case "$FAKE_COUNCIL" in
-  findings|nopayload)
+  findings|nopayload|stale)
     echo 'WOULD SUBMIT'
-    if [ "$FAKE_COUNCIL" = findings ]; then
+    if [ "$FAKE_COUNCIL" != nopayload ]; then
       echo 'gh api repos/o/r/pulls/21/reviews'
       jq -n --arg sha "$sha" '{commit_id:$sha,event:"COMMENT",body:"summary",comments:[{path:"a.rs",line:3,side:"RIGHT",body:"bug <!-- finding:1 -->"}]}'
     fi
+    [ "$FAKE_COUNCIL" = stale ] && jq -n '{commit_id:"0000000000000000000000000000000000000000",event:"COMMENT",body:"stale",comments:[]}'
     count=1 ;;
   *) echo 'WOULD SUBMIT: nothing'; count=0 ;;
 esac
@@ -295,10 +296,14 @@ test "$(jq -r .findings "$findings_file")" = 1
 test "$(jq -r '.comments[0].path' "$findings_file")" = a.rs
 test "$(jq -r .body "$findings_file")" = summary
 test "$(perl -e 'printf "%o",(stat shift)[2]&0777' "$findings_file")" = 600
+# A payload for another head is never taken as this head's findings.
+dryrun_run stale || { cat "$TMP_DIR/run.out" >&2; exit 1; }
+test "$(jq -r .body "$findings_file")" = summary
+test "$(jq -r '.comments[0].path' "$findings_file")" = a.rs
 dryrun_run clean || { cat "$TMP_DIR/run.out" >&2; exit 1; }
 test "$(jq -c '[.findings,.comments]' "$findings_file")" = '[0,[]]'
 if grep -q -- '--post' "$COUNCIL_ARGS"; then echo 'dry-run council got --post' >&2; exit 1; fi
-test "$(wc -l <"$COUNCIL_ARGS" | tr -d ' ')" = 3
+test "$(wc -l <"$COUNCIL_ARGS" | tr -d ' ')" = 4
 test ! -e "$dry_key.registered" && test ! -e "$dry_key.council-done" && test ! -e "$dry_key.approval-pending"
 # Assumption A5: nothing is written through gh, so nothing targets the PR.
 test ! -s "$GH_WRITES" || { echo 'gh write during dry-run:' >&2; cat "$GH_WRITES" >&2; exit 1; }

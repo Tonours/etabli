@@ -1710,6 +1710,9 @@ case_validator_profile() {
   check "validator: auto profile" eval 'argv_of VALIDATOR | grep -q -- "--permission-mode auto --permission-prompts none "'
   check "validator: only the review POST is pre-allowed" eval 'argv_of VALIDATOR | grep -qF -- "--allowedTools Bash(gh api repos/o/r/pulls/7/reviews:*) "'
   check "validator: no bypass" eval '! argv_of VALIDATOR | grep -q -- --dangerously-skip-permissions'
+  FAKE_VALIDATOR_TEXT="$(marker 0)" direct_council
+  check "validator: a dry-run validator answered" called "claude VALIDATOR"
+  check "validator: a dry-run gets no review grant" eval '! argv_of VALIDATOR | grep -qF -- "--allowedTools"'
   FAKE_VALIDATOR_ENVELOPE=denied FAKE_VALIDATOR_TEXT="$(marker 0)" run_review council "$HEAD1" -
   check "validator: a denial vetoes" rc_is 3
   check "validator: a denial does not approve" [ "$(approvals)" = 0 ]
