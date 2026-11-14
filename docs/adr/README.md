@@ -47,3 +47,4 @@ Decisions live in this directory. Run `/adr` to record one.
 - [0043](0043-deploy-codex-as-a-managed-runtime.md) — Deploy Codex as a managed runtime [accepted]
 - [0044](0044-keep-local-gemma-orchestration-opt-in-and-bind-completion-to-execution.md) — Keep local Gemma orchestration opt-in and bind completion to execution receipts [accepted]
 - [0045](0045-prune-the-surfaces-the-census-shows-unused.md) — Prune the surfaces the census shows unused [accepted]
+- [0046](0046-admit-a-durable-personal-adapter-on-gromarchy.md) — Admit a durable personal adapter on gromarchy [accepted]
