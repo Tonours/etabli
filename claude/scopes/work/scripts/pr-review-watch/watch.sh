@@ -265,8 +265,10 @@ consider() {
   key="$(run_key "$repo" "$number")"
   # An own PR is reviewed only on the head a dry-run request named, never on its own.
   if [ -e "$key.dryrun" ] || [ -L "$key.dryrun" ]; then
-    marker_holds "$key.dryrun" "$sha" "$me" || return 0
-    dry=1
+    if marker_holds "$key.dryrun" "$sha" "$me"; then dry=1
+    # Another account's dry-run intent never holds this account's posting flow.
+    elif ! marker_holds "$key.registered" "$(cut -f1 "$key.registered" 2>/dev/null)" "$me"; then return 0
+    fi
   fi
   run_reserved "$key" && { log "$repo#$number review still running, wait"; return; }
   if [ "$dry" = 0 ] && [ -f "$key.approval-pending" ]; then

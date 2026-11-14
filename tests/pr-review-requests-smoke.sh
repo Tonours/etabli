@@ -241,6 +241,30 @@ request2 "$other_dry" 24 dry-run
 ingest_review_requests me
 test "$(receipt_of "$other_dry")" = $'rejected\tmalformed'
 test ! -e "$(run_key o/r 24).dryrun"
+# A dry-run never overwrites another account's posting decision on the PR.
+export FAKE_AUTHOR=me
+held_key="$(run_key o/r 27)"
+for held in registered council-done approval-pending; do
+  printf '%s\tother\n' "$FAKE_HEAD" >"$held_key.$held"
+  request2 w-00000000000000000000000000000027 27 dry-run
+  ingest_review_requests me
+  test "$(receipt_of w-00000000000000000000000000000027)" = $'rejected\tregistered-other-account'
+  test ! -e "$held_key.dryrun" && test ! -e "$held_key.requested"
+  rm -f "$held_key.$held" "$STATE_DIR/requests/w-00000000000000000000000000000027.receipt"
+done
+export FAKE_AUTHOR=other
+# Another account's dry-run intent never holds this account's posting flow.
+flow_key="$(run_key o/r 28)"
+printf '%s\tauthor\n' "$FAKE_HEAD" >"$flow_key.dryrun"
+printf '%s\tme\n' "$FAKE_HEAD" >"$flow_key.registered"
+: >"$flow_key.approval-pending"
+( retry_pending_approval() { echo retry >>"$TMP_DIR/retries"; }; consider me o/r 28 "$FAKE_HEAD" url )
+grep -qx retry "$TMP_DIR/retries"
+rm -f "$flow_key.registered" "$flow_key.approval-pending"
+flow_launches="$(wc -l <"$TMP_DIR/launches")"
+consider me o/r 28 "$FAKE_HEAD" url
+test "$(wc -l <"$TMP_DIR/launches")" -eq "$flow_launches"
+rm -f "$flow_key.dryrun"
 for bad in bogus-mode no-mode v1-with-mode stream; do
   id=w-00000000000000000000000000000025
   case "$bad" in

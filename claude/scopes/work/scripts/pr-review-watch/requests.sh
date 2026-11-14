@@ -67,9 +67,13 @@ ingest_review_requests() {
       fi
       if [ -z "$reason" ] && [ "$mode" = dry-run ]; then
         # No registration: a dry-run grants no review or approval authority.
-        if [ ! -f "$KILL_SWITCH" ]; then
-          listed="$(awk -F'\t' -v r="$repo" -v n="$number" 'tolower($1)==r && $2==n {print $1;exit}' "$WATCHED")"
-          repo="${listed:-$repo}"; key="$(run_key "$repo" "$number")"
+        listed="$(awk -F'\t' -v r="$repo" -v n="$number" 'tolower($1)==r && $2==n {print $1;exit}' "$WATCHED")"
+        repo="${listed:-$repo}"; key="$(run_key "$repo" "$number")"
+        # A posting decision of another account on this PR is never overwritten by a dry-run.
+        for held in registered council-done approval-pending; do
+          if [ -e "$key.$held" ] || [ -L "$key.$held" ]; then reason=registered-other-account; break; fi
+        done
+        if [ -z "$reason" ] && [ ! -f "$KILL_SWITCH" ]; then
           [ -n "$listed" ] || printf '%s\t%s\n' "$repo" "$number" >>"$WATCHED" || continue
           review_request_receipt "$key.dryrun" "$sha"$'\t'"$me" || continue
           review_request_receipt "$key.requested" "$sha"$'\t'"$me" || continue

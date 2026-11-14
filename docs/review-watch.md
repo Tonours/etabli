@@ -120,15 +120,24 @@ keys; v1 files (no `mode`) keep working as `post`. Rules:
 - `dry-run` on another author's PR is `rejected malformed`.
 - `mode`, `version` and the key set are strict: a v1 file with `mode`, a v2 file
   without it or any other value is `rejected malformed`.
+- A request file holds exactly one JSON object; a stream of several is
+  `rejected malformed`.
+- `dry-run` on a PR that already holds a posting decision (`.registered`,
+  `.council-done` or `.approval-pending`) is `rejected registered-other-account`.
 
 An accepted dry-run records `<key>.dryrun` and `<key>.requested` (head SHA and
 account) and watches the PR. It registers nothing, so it grants no review or
 approval authority. The PR is considered only on the requested head, with no
 settling delay; any other head is ignored until a new dry-run request names it.
+A dry-run keeps its outcome apart from posting: its status never counts as a
+posting decision, a stopped dry-run writes `.dryrun-exhausted`, an accepted
+posting request or registration retires `.dryrun`, and another account's
+`.dryrun` never holds the registered account's posting flow.
 The run (`review-run.sh dryrun`) calls the council without `--post`, then writes
 `reports/<owner>_<repo>-<number>-<sha8>-findings.json`: `version`, `repo`,
 `number`, `sha`, `findings` (count from the validator run marker), `body` and
-`comments` (the `WOULD SUBMIT` payload). A run marker that keeps findings
+`comments` (the last top-level `WOULD SUBMIT` object whose `commit_id` is the head,
+with string `body`, `path` and comment `body`; a broken value fails the parse). A run marker that keeps findings
 without a payload, a degraded council or a missing marker is incomplete and
 writes no file. The run never posts, approves or registers; approval still
 refuses an own PR (`gates.sh`, `cannot approve own PR`).
