@@ -260,7 +260,7 @@ marker_holds() {
 explicit_review_request() { marker_holds "$1.requested" "$2" "$3"; }
 
 consider() {
-  local me="$1" repo="$2" number="$3" sha="$4" url="$5" key attempt age size mode since dry=0
+  local me="$1" repo="$2" number="$3" sha="$4" url="$5" key attempt age size mode since stop dry=0
   [ ! -f "$KILL_SWITCH" ] || return 0
   key="$(run_key "$repo" "$number")"
   # An own PR is reviewed only on the head a dry-run request named, never on its own.
@@ -269,7 +269,7 @@ consider() {
     dry=1
   fi
   run_reserved "$key" && { log "$repo#$number review still running, wait"; return; }
-  if [ -f "$key.approval-pending" ]; then
+  if [ "$dry" = 0 ] && [ -f "$key.approval-pending" ]; then
     retry_pending_approval "$repo" "$number" "$sha" "$url" "$key"
     return
   fi
@@ -283,8 +283,10 @@ consider() {
       fi
       return ;;
     exhausted|stopped)
-      if [ "$(cat "$key.exhausted" 2>/dev/null)" != "$sha" ]; then
-        echo "$sha" >"$key.exhausted"
+      # A stopped dry-run is kept apart: it never stands for a stopped posting review.
+      stop="$key.exhausted"; [ "$dry" = 0 ] || stop="$key.dryrun-exhausted"
+      if [ "$(cat "$stop" 2>/dev/null)" != "$sha" ]; then
+        echo "$sha" >"$stop"
         if [ "$attempt" = stopped ]; then log "$repo#$number @${sha:0:8} vetoed or incomplete, not retried on this sha"
         else log "$repo#$number @${sha:0:8} failed $MAX_ATTEMPTS times, giving up on this sha"; fi
       fi
@@ -340,7 +342,8 @@ process_watched() {
     [ "$state" != OPEN ] || [ ! -f "$key.dryrun" ] || involved=true
     if [ "$state" = OPEN ] && [ -f "$key.registered" ]; then
       IFS=$'\t' read -r registered_sha registered_login <"$key.registered" || registered_login=''
-      if [ "$registered_login" != "$(printf '%s' "$me" | tr '[:upper:]' '[:lower:]')" ]; then
+      # A dry-run this account requested on this head needs no posting registration.
+      if [ "$registered_login" != "$(printf '%s' "$me" | tr '[:upper:]' '[:lower:]')" ] && ! marker_holds "$key.dryrun" "$sha" "$me"; then
         log "$repo#$number registered account changed; not reviewing or approving"
         printf '%s\t%s\n' "$repo" "$number" >>"$next"
         continue
@@ -354,7 +357,7 @@ process_watched() {
         if ! clear_dead_execution "$key" || ! take_execution "$key"; then
           printf '%s\t%s\n' "$repo" "$number" >>"$next"; continue
         fi
-        rm -f "$key".{status,seen,watermark,council-done,council-clean,approval-pending,approval-body,registered,requested,dryrun,skipped,exhausted,delta-done,unconfigured,verify-unconfigured,token,claimed,paused}
+        rm -f "$key".{status,seen,watermark,council-done,council-clean,approval-pending,approval-body,registered,requested,dryrun,dryrun-exhausted,skipped,exhausted,delta-done,unconfigured,verify-unconfigured,token,claimed,paused}
         release_execution "$key"
       fi
       continue

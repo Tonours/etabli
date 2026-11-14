@@ -277,6 +277,18 @@ case "$FAKE_COUNCIL" in
     [ "$FAKE_COUNCIL" = stale ] && jq -n '{commit_id:"0000000000000000000000000000000000000000",event:"COMMENT",body:"stale",comments:[]}'
     [ "$FAKE_COUNCIL" = trailing ] && jq -n '{path:"b.rs",line:1,side:"RIGHT",body:"loose"}'
     count=1 ;;
+  typed)
+    echo 'WOULD SUBMIT'
+    jq -n --arg sha "$sha" '{commit_id:$sha,event:"COMMENT",body:42,comments:[{path:17,line:3,body:23}]}'
+    count=1 ;;
+  wrapped)
+    echo 'WOULD SUBMIT'
+    printf '[\n  {"commit_id": "%s", "body": "inner", "comments": []}\n]\n' "$sha"
+    count=1 ;;
+  unicode)
+    echo 'WOULD SUBMIT'
+    printf '{"commit_id": "%s", "body": "caf\\u00e9", "comments": [{"path": "caf\\u00e9.rs", "line": 1, "body": "x"}]}\n' "$sha"
+    count=1 ;;
   broken)
     echo 'WOULD SUBMIT'
     printf '{\n  "commit_id": "%s",\n  "comments": [\n    {"path": "a.rs", "line": 3, "body": "nested"}\n  ],\n' "$sha"
@@ -313,14 +325,34 @@ test "$(jq -c '[.comments[].path]' "$findings_file")" = '["a.rs"]'
 cp "$findings_file" "$TMP_DIR/findings.kept"
 dryrun_run broken && { echo 'broken dry-run payload passed' >&2; exit 1; }
 cmp "$findings_file" "$TMP_DIR/findings.kept"
+# Text fields must be JSON strings, and a value nested in an array is never the payload.
+for bad in typed wrapped; do
+  dryrun_run "$bad" && { echo "$bad dry-run payload passed" >&2; exit 1; }
+  cmp "$findings_file" "$TMP_DIR/findings.kept"
+done
+# Escaped Unicode survives the round trip.
+dryrun_run unicode || { cat "$TMP_DIR/run.out" >&2; exit 1; }
+test "$(jq -r .body "$findings_file")" = 'café'
+test "$(jq -r '.comments[0].path' "$findings_file")" = 'café.rs'
 dryrun_run clean || { cat "$TMP_DIR/run.out" >&2; exit 1; }
 test "$(jq -c '[.findings,.comments]' "$findings_file")" = '[0,[]]'
 if grep -q -- '--post' "$COUNCIL_ARGS"; then echo 'dry-run council got --post' >&2; exit 1; fi
-test "$(wc -l <"$COUNCIL_ARGS" | tr -d ' ')" = 6
+test "$(wc -l <"$COUNCIL_ARGS" | tr -d ' ')" = 9
 test ! -e "$dry_key.registered" && test ! -e "$dry_key.council-done" && test ! -e "$dry_key.approval-pending"
 # Assumption A5: nothing is written through gh, so nothing targets the PR.
 test ! -s "$GH_WRITES" || { echo 'gh write during dry-run:' >&2; cat "$GH_WRITES" >&2; exit 1; }
 if grep -Eq 'pulls/21|pr (review|comment) 21' "$GH_WRITES"; then echo 'gh write targets the PR' >&2; exit 1; fi
+# A dry-run of this account is not held by another account's registration or pending approval.
+printf '%s\tother\n' "$FAKE_HEAD" >"$dry_key.registered"
+printf '%s\tme\n' "$FAKE_HEAD" >"$dry_key.dryrun"
+cp "$dry_key.dryrun" "$dry_key.requested"
+: >"$dry_key.approval-pending"
+rm -f "$dry_key.status"
+held_launches="$(wc -l <"$TMP_DIR/launches")"
+consider me o/r 21 "$FAKE_HEAD" url
+test "$(wc -l <"$TMP_DIR/launches")" -eq "$((held_launches + 1))"
+test "$(tail -1 "$TMP_DIR/launches")" = $'dryrun\t-'
+rm -f "$dry_key.registered" "$dry_key.approval-pending"
 # A posting request from another account retires the dry-run state of the same head.
 printf '%s\tdryrun\t0\t1\n' "$FAKE_HEAD" >"$dry_key.status"
 post_after=w-00000000000000000000000000000026

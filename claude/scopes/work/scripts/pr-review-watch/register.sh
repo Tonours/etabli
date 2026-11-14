@@ -83,6 +83,8 @@ ingest_council_registrations() {
     status_sha='' status_mode='' status_rc='' status_attempt=''
     status_before="$(cat "$key.status" 2>/dev/null || true)"
     IFS=$'\t' read -r status_sha status_mode status_rc status_attempt <<<"$status_before" || true
+    # A dry-run outcome is no posting decision: it never blocks this registration.
+    [ "$status_mode" != dryrun ] || { status_sha='' status_mode='' status_rc='' status_attempt=''; }
     if run_reserved "$key"; then continue; fi
     snapshot="$(gh pr view "$number" --repo "$repo" --json author,state,headRefOid 2>/dev/null)" || continue
     if ! printf '%s' "$snapshot" | jq -e --arg sha "$sha" '.state == "OPEN" and .headRefOid == $sha' >/dev/null; then
@@ -122,7 +124,7 @@ ingest_council_registrations() {
     if run_reserved "$key" || [ "$(cat "$key.status" 2>/dev/null)" != "$status_before" ]; then
       release_execution "$key"; rm -f "$temp"; continue
     fi
-    rm -f "$key.token" "$key.claimed" "$key.paused"
+    rm -f "$key.token" "$key.claimed" "$key.paused" "$key.dryrun"
     if ! mv "$temp" "$report"; then
       log "registration deferred: $repo#$number cannot store its report"
       release_execution "$key"; rm -f "$temp"; continue
