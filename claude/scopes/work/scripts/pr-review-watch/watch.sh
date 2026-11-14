@@ -169,9 +169,11 @@ pr_snapshot() {
 }
 
 next_attempt() {
-  local key="$1" sha="$2" s_sha s_mode s_rc s_attempts skill
+  local key="$1" sha="$2" want="${3:-post}" had=post s_sha s_mode s_rc s_attempts skill
   IFS=$'\t' read -r s_sha s_mode s_rc s_attempts <<<"$(read_status "$key")"
-  if [ "$s_sha" != "$sha" ]; then
+  [ "$s_mode" != dryrun ] || had=dryrun
+  # A dry-run's outcome never stands for a posting review of the same head, nor the reverse.
+  if [ "$s_sha" != "$sha" ] || [ "$had" != "$want" ]; then
     echo 1
     return
   fi
@@ -249,23 +251,31 @@ retry_pending_approval() {
 }
 
 # This marker is scheduling intent, never proof that a council completed.
-explicit_review_request() {
-  local path="$1.requested" sha="$2" me="$3"
+marker_holds() {
+  local path="$1" sha="$2" me="$3"
   [ -f "$path" ] && [ ! -L "$path" ] || return 1
   [ "$(perl -e 'print((stat shift)[7] // 9999)' "$path")" -le 256 ] || return 1
   [ "$(cat "$path")" = "$sha"$'\t'"$(printf '%s' "$me" | tr '[:upper:]' '[:lower:]')" ]
 }
+explicit_review_request() { marker_holds "$1.requested" "$2" "$3"; }
 
 consider() {
-  local me="$1" repo="$2" number="$3" sha="$4" url="$5" key attempt age size mode since
+  local me="$1" repo="$2" number="$3" sha="$4" url="$5" key attempt age size mode since stop dry=0
   [ ! -f "$KILL_SWITCH" ] || return 0
   key="$(run_key "$repo" "$number")"
+  # An own PR is reviewed only on the head a dry-run request named, never on its own.
+  if [ -e "$key.dryrun" ] || [ -L "$key.dryrun" ]; then
+    if marker_holds "$key.dryrun" "$sha" "$me"; then dry=1
+    # Another account's dry-run intent never holds this account's posting flow.
+    elif ! marker_holds "$key.registered" "$(cut -f1 "$key.registered" 2>/dev/null)" "$me"; then return 0
+    fi
+  fi
   run_reserved "$key" && { log "$repo#$number review still running, wait"; return; }
-  if [ -f "$key.approval-pending" ]; then
+  if [ "$dry" = 0 ] && [ -f "$key.approval-pending" ]; then
     retry_pending_approval "$repo" "$number" "$sha" "$url" "$key"
     return
   fi
-  attempt="$(next_attempt "$key" "$sha")"
+  if [ "$dry" = 1 ]; then attempt="$(next_attempt "$key" "$sha" dryrun)"; else attempt="$(next_attempt "$key" "$sha")"; fi
   case "$attempt" in
     done|wait) return ;;
     unconfigured)
@@ -275,8 +285,10 @@ consider() {
       fi
       return ;;
     exhausted|stopped)
-      if [ "$(cat "$key.exhausted" 2>/dev/null)" != "$sha" ]; then
-        echo "$sha" >"$key.exhausted"
+      # A stopped dry-run is kept apart: it never stands for a stopped posting review.
+      stop="$key.exhausted"; [ "$dry" = 0 ] || stop="$key.dryrun-exhausted"
+      if [ "$(cat "$stop" 2>/dev/null)" != "$sha" ]; then
+        echo "$sha" >"$stop"
         if [ "$attempt" = stopped ]; then log "$repo#$number @${sha:0:8} vetoed or incomplete, not retried on this sha"
         else log "$repo#$number @${sha:0:8} failed $MAX_ATTEMPTS times, giving up on this sha"; fi
       fi
@@ -306,7 +318,9 @@ consider() {
   [ "$(launched_today)" -lt "$MAX_RUNS_PER_DAY" ] || { log "$repo#$number queued: daily cap $MAX_RUNS_PER_DAY reached"; return; }
   mode=council
   since="-"
-  if [ -f "$key.council-done" ]; then
+  if [ "$dry" = 1 ]; then
+    mode=dryrun
+  elif [ -f "$key.council-done" ]; then
     mode=verify
     since="$(cat "$key.watermark" 2>/dev/null)"
     [ -n "$since" ] || since="$(last_review_sha "$repo" "$number" "$me" 2>/dev/null)"
@@ -327,9 +341,11 @@ process_watched() {
       continue
     fi
     key="$(run_key "$repo" "$number")"
+    [ "$state" != OPEN ] || [ ! -f "$key.dryrun" ] || involved=true
     if [ "$state" = OPEN ] && [ -f "$key.registered" ]; then
       IFS=$'\t' read -r registered_sha registered_login <"$key.registered" || registered_login=''
-      if [ "$registered_login" != "$(printf '%s' "$me" | tr '[:upper:]' '[:lower:]')" ]; then
+      # A dry-run this account requested on this head needs no posting registration.
+      if [ "$registered_login" != "$(printf '%s' "$me" | tr '[:upper:]' '[:lower:]')" ] && ! marker_holds "$key.dryrun" "$sha" "$me"; then
         log "$repo#$number registered account changed; not reviewing or approving"
         printf '%s\t%s\n' "$repo" "$number" >>"$next"
         continue
@@ -343,7 +359,7 @@ process_watched() {
         if ! clear_dead_execution "$key" || ! take_execution "$key"; then
           printf '%s\t%s\n' "$repo" "$number" >>"$next"; continue
         fi
-        rm -f "$key".{status,seen,watermark,council-done,council-clean,approval-pending,approval-body,registered,requested,skipped,exhausted,delta-done,unconfigured,verify-unconfigured,token,claimed,paused}
+        rm -f "$key".{status,seen,watermark,council-done,council-clean,approval-pending,approval-body,registered,requested,dryrun,dryrun-exhausted,skipped,exhausted,delta-done,unconfigured,verify-unconfigured,token,claimed,paused}
         release_execution "$key"
       fi
       continue

@@ -4,7 +4,7 @@ Fleet can submit a manual review through `requests/` when this watcher advertise
 its version1 `requests/ready` marker for the same GitHub login. Requests contain
 only a generated id, repository, PR number, full head SHA and actor. They contain
 no Slack text or credentials. The existing watcher lock ingests at most64 per
-tick, rechecks the actual open non-draft non-own PR and account, then writes an
+tick, rechecks the actual open non-draft PR (non-own unless a v2 dry-run) and account, then writes an
 atomic receipt before removing the request. Receipts expire after7 days.
 
 Acceptance adds involvement only: it never replaces a council baseline,
@@ -107,6 +107,47 @@ source directory directly: verify the local service is absent (or paused with no
 live runs) before editing. Pause before installing the complete watcher helper set
 on another host; update Fleet for retry-aware notifications. Older Fleet can
 report a pre-work pause as failed; it cannot infer an approval from that status.
+
+## Request protocol v2: dry-run for own PRs
+
+`requests/ready` keeps the v1 first line (`1<TAB>login<TAB>epoch`, what Fleet
+parses today) and adds a second line `v2`. A producer writes v2 requests only
+when it sees that line. A v2 request adds `mode` (`post` or `dry-run`) to the v1
+keys; v1 files (no `mode`) keep working as `post`. Rules:
+
+- An own PR (author is the watcher account) is accepted only with
+  `mode: dry-run`; `mode: post` or a v1 file gets the `rejected own` receipt.
+- `dry-run` on another author's PR is `rejected malformed`.
+- `mode`, `version` and the key set are strict: a v1 file with `mode`, a v2 file
+  without it or any other value is `rejected malformed`.
+- A request file holds exactly one JSON object; a stream of several is
+  `rejected malformed`.
+- `dry-run` on a PR that already holds a posting decision (`.registered`,
+  `.council-done` or `.approval-pending`) is `rejected registered-other-account`.
+
+An accepted dry-run records `<key>.dryrun` and `<key>.requested` (head SHA and
+account) and watches the PR. It registers nothing, so it grants no review or
+approval authority. The PR is considered only on the requested head, with no
+settling delay; any other head is ignored until a new dry-run request names it.
+A dry-run keeps its outcome apart from posting: its status never counts as a
+posting decision, a stopped dry-run writes `.dryrun-exhausted`, an accepted
+posting request or registration retires `.dryrun`, and another account's
+`.dryrun` never holds the registered account's posting flow.
+The run (`review-run.sh dryrun`) calls the council without `--post`, then writes
+`reports/<owner>_<repo>-<number>-<sha8>-findings.json`: `version`, `repo`,
+`number`, `sha`, `findings` (count from the validator run marker), `body` and
+`comments` (the last top-level `WOULD SUBMIT` object whose `commit_id` is the head,
+with string `body`, `path` and comment `body`; a broken value fails the parse). A run marker that keeps findings
+without a payload, a degraded council or a missing marker is incomplete and
+removes any earlier findings file of that head. The run never posts, approves or registers; approval still
+refuses an own PR (`gates.sh`, `cannot approve own PR`).
+
+The watcher itself makes no `gh` write for a dry-run (the smoke test records
+every `gh` write and asserts none). What the validator skill does inside the
+council is outside this repo: its `--dry-run` contract withholds the PR POST,
+the owner-item filing and the step 8 record on the `runs` issue, but a real
+dry-run has not been observed here, so check the validator's own journal issue
+for a run marker after the first live dry-run.
 
 ## Configured verification skill
 

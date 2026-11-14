@@ -386,9 +386,12 @@ if [ -n "$ME" ] && { [ "$PHASE_A_ONLY" = 1 ] || { [ "$WATCH_REGISTER" = 1 ] && [
   read -r _ _ OWN_BEFORE <<< "$COUNTS"
 fi
 validator_checkout "$VALIDATOR_REPO" || { echo "cannot create the validator checkout" >&2; exit 1; }
+# Only a posting run may write the review: a dry-run gets no grant, whatever the prompt.
+REVIEW_GRANT=()
+[ "$POST_MODE" = post ] && REVIEW_GRANT=(--allowedTools "Bash(gh api repos/$REPO/pulls/$PR_NUMBER/reviews:*)")
 (
   cd "$VALIDATOR_REPO" || exit 1
-  claude_pass validator "$RAW_VALIDATOR" auto "$PROMPT" --allowedTools "Bash(gh api repos/$REPO/pulls/$PR_NUMBER/reviews:*)" \
+  claude_pass validator "$RAW_VALIDATOR" auto "$PROMPT" ${REVIEW_GRANT[@]+"${REVIEW_GRANT[@]}"} \
     "${CLAUDE_ARGS[@]}"
 ) | tee "$WORK_DIR/phase-b.md" &
 wait "$!" || RC_VALIDATOR=$?
