@@ -241,12 +241,13 @@ request2 "$other_dry" 24 dry-run
 ingest_review_requests me
 test "$(receipt_of "$other_dry")" = $'rejected\tmalformed'
 test ! -e "$(run_key o/r 24).dryrun"
-for bad in bogus-mode no-mode v1-with-mode; do
+for bad in bogus-mode no-mode v1-with-mode stream; do
   id=w-00000000000000000000000000000025
   case "$bad" in
     bogus-mode) request2 "$id" 25 later ;;
     no-mode) request2 "$id" 25 post; jq 'del(.mode)' "$STATE_DIR/requests/$id.json" >"$TMP_DIR/change"; mv "$TMP_DIR/change" "$STATE_DIR/requests/$id.json" ;;
     v1-with-mode) request2 "$id" 25 post; jq '.version=1' "$STATE_DIR/requests/$id.json" >"$TMP_DIR/change"; mv "$TMP_DIR/change" "$STATE_DIR/requests/$id.json" ;;
+    stream) request2 "$id" 25 post; { jq -cn --arg id "$id" '{version:2,id:$id,mode:"bogus"}'; cat "$STATE_DIR/requests/$id.json"; } >"$TMP_DIR/change"; mv "$TMP_DIR/change" "$STATE_DIR/requests/$id.json" ;;
   esac
   ingest_review_requests me
   test "$(receipt_of "$id")" = $'rejected\tmalformed'
@@ -267,13 +268,18 @@ printf '%s\n' "$*" >>"$COUNCIL_ARGS"
 sha="${FAKE_HEAD}"
 echo '=== phase B: /validator'
 case "$FAKE_COUNCIL" in
-  findings|nopayload|stale)
+  findings|nopayload|stale|trailing)
     echo 'WOULD SUBMIT'
     if [ "$FAKE_COUNCIL" != nopayload ]; then
       echo 'gh api repos/o/r/pulls/21/reviews'
       jq -n --arg sha "$sha" '{commit_id:$sha,event:"COMMENT",body:"summary",comments:[{path:"a.rs",line:3,side:"RIGHT",body:"bug <!-- finding:1 -->"}]}'
     fi
     [ "$FAKE_COUNCIL" = stale ] && jq -n '{commit_id:"0000000000000000000000000000000000000000",event:"COMMENT",body:"stale",comments:[]}'
+    [ "$FAKE_COUNCIL" = trailing ] && jq -n '{path:"b.rs",line:1,side:"RIGHT",body:"loose"}'
+    count=1 ;;
+  broken)
+    echo 'WOULD SUBMIT'
+    printf '{\n  "commit_id": "%s",\n  "comments": [\n    {"path": "a.rs", "line": 3, "body": "nested"}\n  ],\n' "$sha"
     count=1 ;;
   *) echo 'WOULD SUBMIT: nothing'; count=0 ;;
 esac
@@ -300,14 +306,32 @@ test "$(perl -e 'printf "%o",(stat shift)[2]&0777' "$findings_file")" = 600
 dryrun_run stale || { cat "$TMP_DIR/run.out" >&2; exit 1; }
 test "$(jq -r .body "$findings_file")" = summary
 test "$(jq -r '.comments[0].path' "$findings_file")" = a.rs
+# A loose object after the payload does not replace it; a broken payload is no payload.
+dryrun_run trailing || { cat "$TMP_DIR/run.out" >&2; exit 1; }
+test "$(jq -r .body "$findings_file")" = summary
+test "$(jq -c '[.comments[].path]' "$findings_file")" = '["a.rs"]'
+cp "$findings_file" "$TMP_DIR/findings.kept"
+dryrun_run broken && { echo 'broken dry-run payload passed' >&2; exit 1; }
+cmp "$findings_file" "$TMP_DIR/findings.kept"
 dryrun_run clean || { cat "$TMP_DIR/run.out" >&2; exit 1; }
 test "$(jq -c '[.findings,.comments]' "$findings_file")" = '[0,[]]'
 if grep -q -- '--post' "$COUNCIL_ARGS"; then echo 'dry-run council got --post' >&2; exit 1; fi
-test "$(wc -l <"$COUNCIL_ARGS" | tr -d ' ')" = 4
+test "$(wc -l <"$COUNCIL_ARGS" | tr -d ' ')" = 6
 test ! -e "$dry_key.registered" && test ! -e "$dry_key.council-done" && test ! -e "$dry_key.approval-pending"
 # Assumption A5: nothing is written through gh, so nothing targets the PR.
 test ! -s "$GH_WRITES" || { echo 'gh write during dry-run:' >&2; cat "$GH_WRITES" >&2; exit 1; }
 if grep -Eq 'pulls/21|pr (review|comment) 21' "$GH_WRITES"; then echo 'gh write targets the PR' >&2; exit 1; fi
+# A posting request from another account retires the dry-run state of the same head.
+printf '%s\tdryrun\t0\t1\n' "$FAKE_HEAD" >"$dry_key.status"
+post_after=w-00000000000000000000000000000026
+jq -cn --arg id "$post_after" --arg sha "$FAKE_HEAD" '{version:2,id:$id,repo:"o/r",number:21,sha:$sha,login:"reviewer",mode:"post"}' >"$STATE_DIR/requests/$post_after.json"
+ingest_review_requests reviewer
+test "$(receipt_of "$post_after")" = $'accepted\t'"$FAKE_HEAD"
+test ! -e "$dry_key.dryrun"
+post_launches="$(wc -l <"$TMP_DIR/launches")"
+consider reviewer o/r 21 "$FAKE_HEAD" url
+test "$(wc -l <"$TMP_DIR/launches")" -eq "$((post_launches + 1))"
+test "$(tail -1 "$TMP_DIR/launches")" = $'council\t-'
 # Private capabilities must not traverse a pre-existing inbox or receipt symlink.
 (
   STATE_DIR="$TMP_DIR/linked-state"

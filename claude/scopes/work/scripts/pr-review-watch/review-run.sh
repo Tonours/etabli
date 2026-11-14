@@ -197,15 +197,24 @@ run_council() {
 # Last JSON object after the last WOULD SUBMIT heading that carries a review
 # payload; one naming another commit is ignored (text echoed from the PR).
 dryrun_payload() {
+  # The payload is the last review object after the last WOULD SUBMIT heading, bound to this
+  # head by commit_id. A broken top-level object fails the parse rather than letting its
+  # children stand in for it.
   SHA="$2" perl -MJSON::PP -e '
     local $/; my $text = <STDIN>; $text =~ s/.*^[ \t#*]*WOULD SUBMIT\b//ms or exit 1;
     my $json = JSON::PP->new; my $found;
     while ($text =~ /^[ \t]*\{/mg) {
       my $at = $-[0]; my ($obj, $len) = eval { $json->decode_prefix(substr($text, $at)) };
-      next unless ref $obj eq "HASH";
+      defined $len or exit 1;
       pos($text) = $at + $len;
-      next unless (exists $obj->{comments} || exists $obj->{body});
-      next if exists $obj->{commit_id} && $obj->{commit_id} ne $ENV{SHA};
+      next unless ref $obj eq "HASH" && exists $obj->{commit_id};
+      next if $obj->{commit_id} ne $ENV{SHA};
+      exit 1 if exists $obj->{body} && ref $obj->{body};
+      my $comments = $obj->{comments} // [];
+      exit 1 unless ref $comments eq "ARRAY";
+      for my $c (@$comments) {
+        exit 1 unless ref $c eq "HASH" && defined $c->{path} && !ref $c->{path} && defined $c->{body} && !ref $c->{body};
+      }
       $found = $obj;
     }
     $found or exit 1; print $json->canonical->encode($found)' <"$1"

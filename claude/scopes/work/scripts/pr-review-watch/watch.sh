@@ -169,9 +169,11 @@ pr_snapshot() {
 }
 
 next_attempt() {
-  local key="$1" sha="$2" s_sha s_mode s_rc s_attempts skill
+  local key="$1" sha="$2" want="${3:-post}" had=post s_sha s_mode s_rc s_attempts skill
   IFS=$'\t' read -r s_sha s_mode s_rc s_attempts <<<"$(read_status "$key")"
-  if [ "$s_sha" != "$sha" ]; then
+  [ "$s_mode" != dryrun ] || had=dryrun
+  # A dry-run's outcome never stands for a posting review of the same head, nor the reverse.
+  if [ "$s_sha" != "$sha" ] || [ "$had" != "$want" ]; then
     echo 1
     return
   fi
@@ -271,7 +273,7 @@ consider() {
     retry_pending_approval "$repo" "$number" "$sha" "$url" "$key"
     return
   fi
-  attempt="$(next_attempt "$key" "$sha")"
+  if [ "$dry" = 1 ]; then attempt="$(next_attempt "$key" "$sha" dryrun)"; else attempt="$(next_attempt "$key" "$sha")"; fi
   case "$attempt" in
     done|wait) return ;;
     unconfigured)
