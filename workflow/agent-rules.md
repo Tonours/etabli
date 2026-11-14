@@ -19,7 +19,7 @@
   Never invent a tool named after a skill; never claim bash cannot be used.
   Read-only `pi -p --no-session` review hunters are not writer subagents.
 - For routes with a plan, use only root `PLAN.md` and implement only from `Status: READY`;
-  archive implemented/validated plans in `docs/plan/`; discard unrelated/
+  archive implemented/validated plans in `docs/plan/` (both storage paths: durable exception in `workflow/spec.md`); discard unrelated/
   abandoned root plans with `scripts/plan-cleanup --discard <reason-slug>`
   instead of staying blocked.
 - Answers/handoffs follow `workflow/answer-quality.md` and its live final gate.

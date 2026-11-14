@@ -6,6 +6,7 @@ Repo-specific instructions for this agent workflow repo.
 
 - `claude/` — Claude Code instructions, agents, hooks, scripts and settings fragments
 - `codex/` — Codex adapter, linked as `~/.codex/AGENTS.md` (ADR-0043)
+- `durable/` — planned personal gromarchy adapter (ADR-0046); runtime ships separately
 - `mcp/` — sanitized shared MCP server template (see `docs/mcp-strategy.md`); repo `.mcp.json` is empty
 - `vendor/` — vendored upstream skills (`vendor/sources.tsv`; update with `scripts/update-vendor-skills`)
 - `skills/<scope>/` — first-party skills served to Claude, Pi and Codex (`workflow/runtime/skill-surface.tsv`)
@@ -53,6 +54,7 @@ Full layout, scopes and managed surfaces: `docs/symlink-layout.md`.
   subsystem is built.
 - A new subsystem's ADR records a review date; still unused at that date, it is
   deleted.
+- ADR-0046 exempts only `durable/` from prior measurement and review-date deletion.
 - When deleting and adding both fix a problem, delete.
 
 ## Code

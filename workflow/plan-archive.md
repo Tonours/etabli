@@ -2,6 +2,24 @@
 
 Canonical convention for implemented plan memory.
 
+## Durable storage exception (ADR-0046)
+
+Only personal `durable/` runs on gromarchy use an `EtabliPlanDoc` in the daemon's
+SQLite store as their single active execution artifact. Every file-based plan
+instruction maps to that document: the same sections, statuses, READY gate,
+review snapshot hashes, checks and handoff evidence apply. The planned
+`etabli-durable plan <run>` command prints the document for inspection.
+
+After implementation and validation, retain an immutable final plan snapshot
+and its evidence in the store, then end the active plan. Do not create a
+`PLAN.md` projection or a `docs/plan/` file, and do not call file-based
+`plan-cleanup` commands for these runs. Backup and restore cover the store:
+daily local SQLite snapshots, 14 retained. This changes storage only; unfinished
+or blocked work never becomes an implemented archive.
+
+Interactive Claude, Codex and Pi runs, including implementation of the durable
+adapter itself, continue to use the file convention below.
+
 ## Location
 
 Use `docs/plan/`. Store one implemented plan per Markdown file, named:

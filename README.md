@@ -20,12 +20,14 @@ Setting up a second machine means copying config by hand.
 
 Etabli fixes that with:
 
-- **One contract, three harnesses.** The rules live once, in
+- **One contract, shared adapters.** The rules live once, in
   [`workflow/`](workflow/). Pi, Claude and Codex reach them through thin adapters, so
   you never maintain two prompt files.
 - **Plans before risky work.** Broad or risky work gets a root `PLAN.md`.
   Nothing is implemented until that plan is `READY`, and a finished plan is
   archived in [`docs/plan/`](docs/plan/) as project memory.
+  ADR-0046 admits a separate personal gromarchy daemon whose plan and final
+  snapshots stay in SQLite; its runtime and clients ship in later slices.
 - **Reviews from a fresh context.** Before a code change ships, a reviewer
   that never saw the conversation and a second model family both try to break
   it. A small docs or config edit gets a self-review instead.
@@ -172,6 +174,7 @@ has the details and the known blind spots.
 | `workflow/` | Routing, plans, guards, loops, validation contracts |
 | `pi/`, `claude/` | Runtime adapters: settings, extensions, hooks, agents |
 | `codex/` | Codex adapter, linked as `~/.codex/AGENTS.md` |
+| `durable/` (planned) | Personal gromarchy daemon; ADR-0046 admits it before runtime implementation |
 | `skills/` | First-party skills, one tree for every runtime |
 | `vendor/`, `skills-lock.json` | Vendored skills, pinned by `UPSTREAM_SHA` and locked |
 | `extras/` | Skills tracked but not deployed |
