@@ -5,11 +5,23 @@ TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/pr-review-requests.XXXXXX")"
 trap 'rm -rf "$TMP_DIR"' EXIT
 export HOME="$TMP_DIR/home" PR_REVIEW_WATCH_STATE_DIR="$TMP_DIR/state"
 mkdir -p "$HOME/.local/bin"
+export GH_CALLS="$TMP_DIR/gh.calls" GH_WRITES="$TMP_DIR/gh.writes"
+: >"$GH_CALLS"; : >"$GH_WRITES"
 export FAKE_HEAD=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa FAKE_AUTHOR=other FAKE_STATE=OPEN FAKE_DRAFT=false
 cat >"$HOME/.local/bin/gh" <<'GH'
 #!/bin/bash
-[ "$1 $2" = 'pr view' ] || exit 1
-jq -cn --arg head "$FAKE_HEAD" --arg author "$FAKE_AUTHOR" --arg state "$FAKE_STATE" --argjson draft "$FAKE_DRAFT" '{headRefOid:$head,author:{login:$author},state:$state,isDraft:$draft}'
+# Every call is recorded; every write (assumption A5) goes to gh.writes too.
+printf '%s\n' "$*" >>"$GH_CALLS"
+case "$1 $2" in
+  'pr review'|'pr comment'|'pr edit'|'pr merge'|'pr close'|'pr ready'|'issue '*) printf '%s\n' "$*" >>"$GH_WRITES" ;;
+  *) for arg in "$@"; do case "$arg" in -f|-F|--input|-X|--method|--field|--raw-field) printf '%s\n' "$*" >>"$GH_WRITES"; break ;; esac; done ;;
+esac
+case "$1 $2" in
+  'api user') echo me ;;
+  'pr view')
+    jq -cn --arg head "$FAKE_HEAD" --arg author "$FAKE_AUTHOR" --arg state "$FAKE_STATE" --argjson draft "$FAKE_DRAFT" '{headRefOid:$head,author:{login:$author},state:$state,isDraft:$draft}' ;;
+  *) exit 1 ;;
+esac
 GH
 chmod +x "$HOME/.local/bin/gh"
 . "$ROOT_DIR/claude/scopes/work/scripts/pr-review-watch/watch.sh" || true
@@ -17,10 +29,14 @@ mkdir -p "$RUNS" "$REPORTS"
 : >"$WATCHED"
 log() { printf '%s\n' "$*" >>"$TMP_DIR/log"; }
 write_review_request_ready Me
-test "$(cut -f1-2 "$STATE_DIR/requests/ready")" = $'1\tme'
+# Line 1 stays what Fleet v1 parses; line 2 announces protocol v2.
+test "$(head -1 "$STATE_DIR/requests/ready" | cut -f1-2)" = $'1\tme'
+test "$(sed -n 2p "$STATE_DIR/requests/ready")" = v2
+test "$(wc -l <"$STATE_DIR/requests/ready" | tr -d ' ')" = 2
+test "$(wc -c <"$STATE_DIR/requests/ready" | tr -d ' ')" -le 64
 test "$(perl -e 'printf "%o",(stat shift)[2]&0777' "$STATE_DIR/requests/ready")" = 600
 test "$(perl -e 'printf "%o",(stat shift)[2]&0777' "$STATE_DIR/requests")" = 700
-stamp="$(cut -f3 "$STATE_DIR/requests/ready")"
+stamp="$(head -1 "$STATE_DIR/requests/ready" | cut -f3)"
 test "$stamp" -le "$(date +%s)"
 test "$(($(date +%s) - stamp))" -lt 5
 request() {
@@ -188,6 +204,105 @@ ingest_review_requests me
 test "$(find "$STATE_DIR/requests" -name '*.json' | wc -l | tr -d ' ')" = 1
 ingest_review_requests me
 test "$(find "$STATE_DIR/requests" -name '*.json' | wc -l | tr -d ' ')" = 0
+# Protocol v2: mode post|dry-run. An own PR is accepted only as a dry-run.
+request2() {
+  jq -cn --arg id "$1" --argjson number "$2" --arg sha "$FAKE_HEAD" --arg mode "$3" '{version:2,id:$id,repo:"o/r",number:$number,sha:$sha,login:"me",mode:$mode}' >"$STATE_DIR/requests/$1.json"
+}
+receipt_of() { cat "$STATE_DIR/requests/$1.receipt"; }
+v2_post=w-00000000000000000000000000000020
+request2 "$v2_post" 20 post
+ingest_review_requests me
+test "$(receipt_of "$v2_post")" = $'accepted\t'"$FAKE_HEAD"
+test -f "$(run_key o/r 20).registered"
+test ! -e "$(run_key o/r 20).dryrun"
+export FAKE_AUTHOR=me
+own_post=w-00000000000000000000000000000022
+request2 "$own_post" 22 post
+ingest_review_requests me
+test "$(receipt_of "$own_post")" = $'rejected\town'
+test ! -e "$(run_key o/r 22).dryrun" && test ! -e "$(run_key o/r 22).registered" && test ! -e "$(run_key o/r 22).requested"
+if awk -F'\t' '$2==22 {f=1} END {exit !f}' "$WATCHED"; then echo 'own post request was watched' >&2; exit 1; fi
+own_v1=w-00000000000000000000000000000023
+request "$own_v1" 23
+ingest_review_requests me
+test "$(receipt_of "$own_v1")" = $'rejected\town'
+dry=w-00000000000000000000000000000021
+request2 "$dry" 21 dry-run
+ingest_review_requests me
+test "$(receipt_of "$dry")" = $'accepted\t'"$FAKE_HEAD"
+dry_key="$(run_key o/r 21)"
+test "$(cat "$dry_key.dryrun")" = "$FAKE_HEAD"$'\tme'
+test "$(cat "$dry_key.requested")" = "$FAKE_HEAD"$'\tme'
+test ! -e "$dry_key.registered"
+awk -F'\t' '$2==21 {f=1} END {exit !f}' "$WATCHED"
+export FAKE_AUTHOR=other
+other_dry=w-00000000000000000000000000000024
+request2 "$other_dry" 24 dry-run
+ingest_review_requests me
+test "$(receipt_of "$other_dry")" = $'rejected\tmalformed'
+test ! -e "$(run_key o/r 24).dryrun"
+for bad in bogus-mode no-mode v1-with-mode; do
+  id=w-00000000000000000000000000000025
+  case "$bad" in
+    bogus-mode) request2 "$id" 25 later ;;
+    no-mode) request2 "$id" 25 post; jq 'del(.mode)' "$STATE_DIR/requests/$id.json" >"$TMP_DIR/change"; mv "$TMP_DIR/change" "$STATE_DIR/requests/$id.json" ;;
+    v1-with-mode) request2 "$id" 25 post; jq '.version=1' "$STATE_DIR/requests/$id.json" >"$TMP_DIR/change"; mv "$TMP_DIR/change" "$STATE_DIR/requests/$id.json" ;;
+  esac
+  ingest_review_requests me
+  test "$(receipt_of "$id")" = $'rejected\tmalformed'
+  rm "$STATE_DIR/requests/$id.receipt"
+done
+# Only the requested head of a dry-run PR is considered, with no settling delay.
+dry_launches="$(wc -l <"$TMP_DIR/launches")"
+consider me o/r 21 bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb url
+test "$(wc -l <"$TMP_DIR/launches")" -eq "$dry_launches"
+test ! -e "$dry_key.status"
+consider me o/r 21 "$FAKE_HEAD" url
+test "$(tail -1 "$TMP_DIR/launches")" = $'dryrun\t-'
+test "$(wc -l <"$TMP_DIR/launches")" -eq "$((dry_launches + 1))"
+# The run: findings file, no post, no approval, and no gh write at all.
+cat >"$TMP_DIR/council" <<'COUNCIL'
+#!/bin/bash
+printf '%s\n' "$*" >>"$COUNCIL_ARGS"
+sha="${FAKE_HEAD}"
+echo '=== phase B: /validator'
+case "$FAKE_COUNCIL" in
+  findings|nopayload)
+    echo 'WOULD SUBMIT'
+    if [ "$FAKE_COUNCIL" = findings ]; then
+      echo 'gh api repos/o/r/pulls/21/reviews'
+      jq -n --arg sha "$sha" '{commit_id:$sha,event:"COMMENT",body:"summary",comments:[{path:"a.rs",line:3,side:"RIGHT",body:"bug <!-- finding:1 -->"}]}'
+    fi
+    count=1 ;;
+  *) echo 'WOULD SUBMIT: nothing'; count=0 ;;
+esac
+printf '<!-- claudine:v1 {"kind":"run","run":"r1","sha":"%s","findings":%s,"floor":"should-fix","suppressed":0,"security":"clean","lenses":["done"]} -->\n' "$sha" "$count"
+echo '=== done (validator exit 0)'
+COUNCIL
+chmod +x "$TMP_DIR/council"
+export PR_REVIEW_WATCH_COUNCIL="$TMP_DIR/council" COUNCIL_ARGS="$TMP_DIR/council.args" FAKE_HEAD
+runner="$ROOT_DIR/claude/scopes/work/scripts/pr-review-watch/review-run.sh"
+findings_file="$REPORTS/o_r-21-${FAKE_HEAD:0:8}-findings.json"
+dryrun_run() {
+  FAKE_COUNCIL="$1" "$runner" dryrun o/r 21 "$FAKE_HEAD" - url "$REPORTS/o_r-21-${FAKE_HEAD:0:8}-dryrun.md" "$dry_key" >"$TMP_DIR/run.out" 2>&1
+}
+: >"$COUNCIL_ARGS"
+dryrun_run nopayload && { echo 'dry-run with findings but no payload passed' >&2; exit 1; }
+test ! -e "$findings_file"
+dryrun_run findings || { cat "$TMP_DIR/run.out" >&2; exit 1; }
+test "$(jq -r .sha "$findings_file")" = "$FAKE_HEAD"
+test "$(jq -r .findings "$findings_file")" = 1
+test "$(jq -r '.comments[0].path' "$findings_file")" = a.rs
+test "$(jq -r .body "$findings_file")" = summary
+test "$(perl -e 'printf "%o",(stat shift)[2]&0777' "$findings_file")" = 600
+dryrun_run clean || { cat "$TMP_DIR/run.out" >&2; exit 1; }
+test "$(jq -c '[.findings,.comments]' "$findings_file")" = '[0,[]]'
+if grep -q -- '--post' "$COUNCIL_ARGS"; then echo 'dry-run council got --post' >&2; exit 1; fi
+test "$(wc -l <"$COUNCIL_ARGS" | tr -d ' ')" = 3
+test ! -e "$dry_key.registered" && test ! -e "$dry_key.council-done" && test ! -e "$dry_key.approval-pending"
+# Assumption A5: nothing is written through gh, so nothing targets the PR.
+test ! -s "$GH_WRITES" || { echo 'gh write during dry-run:' >&2; cat "$GH_WRITES" >&2; exit 1; }
+if grep -Eq 'pulls/21|pr (review|comment) 21' "$GH_WRITES"; then echo 'gh write targets the PR' >&2; exit 1; fi
 # Private capabilities must not traverse a pre-existing inbox or receipt symlink.
 (
   STATE_DIR="$TMP_DIR/linked-state"

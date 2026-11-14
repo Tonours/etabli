@@ -249,17 +249,23 @@ retry_pending_approval() {
 }
 
 # This marker is scheduling intent, never proof that a council completed.
-explicit_review_request() {
-  local path="$1.requested" sha="$2" me="$3"
+marker_holds() {
+  local path="$1" sha="$2" me="$3"
   [ -f "$path" ] && [ ! -L "$path" ] || return 1
   [ "$(perl -e 'print((stat shift)[7] // 9999)' "$path")" -le 256 ] || return 1
   [ "$(cat "$path")" = "$sha"$'\t'"$(printf '%s' "$me" | tr '[:upper:]' '[:lower:]')" ]
 }
+explicit_review_request() { marker_holds "$1.requested" "$2" "$3"; }
 
 consider() {
-  local me="$1" repo="$2" number="$3" sha="$4" url="$5" key attempt age size mode since
+  local me="$1" repo="$2" number="$3" sha="$4" url="$5" key attempt age size mode since dry=0
   [ ! -f "$KILL_SWITCH" ] || return 0
   key="$(run_key "$repo" "$number")"
+  # An own PR is reviewed only on the head a dry-run request named, never on its own.
+  if [ -e "$key.dryrun" ] || [ -L "$key.dryrun" ]; then
+    marker_holds "$key.dryrun" "$sha" "$me" || return 0
+    dry=1
+  fi
   run_reserved "$key" && { log "$repo#$number review still running, wait"; return; }
   if [ -f "$key.approval-pending" ]; then
     retry_pending_approval "$repo" "$number" "$sha" "$url" "$key"
@@ -306,7 +312,9 @@ consider() {
   [ "$(launched_today)" -lt "$MAX_RUNS_PER_DAY" ] || { log "$repo#$number queued: daily cap $MAX_RUNS_PER_DAY reached"; return; }
   mode=council
   since="-"
-  if [ -f "$key.council-done" ]; then
+  if [ "$dry" = 1 ]; then
+    mode=dryrun
+  elif [ -f "$key.council-done" ]; then
     mode=verify
     since="$(cat "$key.watermark" 2>/dev/null)"
     [ -n "$since" ] || since="$(last_review_sha "$repo" "$number" "$me" 2>/dev/null)"
@@ -327,6 +335,7 @@ process_watched() {
       continue
     fi
     key="$(run_key "$repo" "$number")"
+    [ "$state" != OPEN ] || [ ! -f "$key.dryrun" ] || involved=true
     if [ "$state" = OPEN ] && [ -f "$key.registered" ]; then
       IFS=$'\t' read -r registered_sha registered_login <"$key.registered" || registered_login=''
       if [ "$registered_login" != "$(printf '%s' "$me" | tr '[:upper:]' '[:lower:]')" ]; then
@@ -343,7 +352,7 @@ process_watched() {
         if ! clear_dead_execution "$key" || ! take_execution "$key"; then
           printf '%s\t%s\n' "$repo" "$number" >>"$next"; continue
         fi
-        rm -f "$key".{status,seen,watermark,council-done,council-clean,approval-pending,approval-body,registered,requested,skipped,exhausted,delta-done,unconfigured,verify-unconfigured,token,claimed,paused}
+        rm -f "$key".{status,seen,watermark,council-done,council-clean,approval-pending,approval-body,registered,requested,dryrun,skipped,exhausted,delta-done,unconfigured,verify-unconfigured,token,claimed,paused}
         release_execution "$key"
       fi
       continue

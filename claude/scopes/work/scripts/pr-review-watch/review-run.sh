@@ -2,7 +2,7 @@
 set -uo pipefail
 umask 077
 
-MODE="${1:?usage: review-run.sh <council|verify|approve> <owner/repo> <number> <sha> <since> <url> <report> <state-key>}"
+MODE="${1:?usage: review-run.sh <council|dryrun|verify|approve> <owner/repo> <number> <sha> <since> <url> <report> <state-key>}"
 REPO="${2:?}"
 NUMBER="${3:?}"
 SHA="${4:?}"
@@ -194,6 +194,43 @@ run_council() {
   decide_and_approve "" "$body"
 }
 
+# First JSON object after the WOULD SUBMIT heading that carries a review payload.
+dryrun_payload() {
+  perl -MJSON::PP -e '
+    local $/; my $text = <STDIN>; $text =~ s/.*?^[ \t#*]*WOULD SUBMIT\b//ms or exit 1;
+    my $json = JSON::PP->new;
+    while ($text =~ /^[ \t]*\{/mg) {
+      my $at = $-[0]; my ($obj) = eval { $json->decode_prefix(substr($text, $at)) };
+      if (ref $obj eq "HASH" && (exists $obj->{comments} || exists $obj->{body})) { print $json->canonical->encode($obj); exit 0 }
+    }
+    exit 1' <"$1"
+}
+
+# Own PR: run the council without --post, keep its findings, write nothing on the PR.
+run_dryrun() {
+  local findings payload out="$(dirname "$REPORT")/${REPO//\//_}-$NUMBER-${SHA:0:8}-findings.json" temp
+  run_shown "$REPORT" "$COUNCIL" "$NUMBER" "$REPO" --no-watch-register || return
+  if grep -q '^=== council degraded:' "$REPORT"; then
+    echo '=== incomplete council: a required independent pass did not complete'
+    return "$REVIEW_INCOMPLETE_RC"
+  fi
+  findings="$(validator_run_findings "$REPORT" "$SHA" 2>>"$REPORT")"
+  [ -n "$findings" ] || {
+    echo "=== no complete validator run marker for ${SHA:0:8}: the dry-run is incomplete" | tee -a "$REPORT"
+    return "$REVIEW_INCOMPLETE_RC"
+  }
+  payload="$(dryrun_payload "$REPORT")" || payload='{"body":"","comments":[]}'
+  if [ "$findings" != 0 ] && [ "$(jq '.comments // [] | length' <<<"$payload")" = 0 ] && [ "$(jq -r '.body // ""' <<<"$payload")" = "" ]; then
+    echo "=== dry-run kept $findings findings but printed no WOULD SUBMIT payload: incomplete" | tee -a "$REPORT"
+    return "$REVIEW_INCOMPLETE_RC"
+  fi
+  temp="$(mktemp "$out.XXXXXX")" || return 1
+  jq -n --arg repo "$REPO" --argjson number "$NUMBER" --arg sha "$SHA" --argjson findings "$findings" --argjson payload "$payload" \
+    '{version: 1, repo: $repo, number: $number, sha: $sha, findings: $findings, body: ($payload.body // ""), comments: ($payload.comments // [])}' >"$temp" \
+    && mv "$temp" "$out" || { rm -f "$temp"; return 1; }
+  echo "=== dry-run: $findings findings written to $out; nothing posted, no approval"
+}
+
 run_delta() {
   local log="$1" rc
   linked_once
@@ -319,6 +356,7 @@ ME="$(gh api user --jq .login)" || exit 1
 echo "=== $MODE $REPO#$NUMBER @${SHA:0:8} — $URL"
 case "$MODE" in
   council) run_council ;;
+  dryrun) run_dryrun ;;
   verify) run_verify ;;
   approve) run_pending_approval ;;
   *) echo "unknown mode $MODE" >&2; exit 2 ;;
