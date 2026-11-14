@@ -225,6 +225,8 @@ dryrun_payload() {
 # Own PR: run the council without --post, keep its findings, write nothing on the PR.
 run_dryrun() {
   local findings payload out="$(dirname "$REPORT")/${REPO//\//_}-$NUMBER-${SHA:0:8}-findings.json" temp
+  # A run that does not complete leaves no findings file, never an older one for this head.
+  rm -f "$out" || return 1
   run_shown "$REPORT" "$COUNCIL" "$NUMBER" "$REPO" --no-watch-register || return
   if grep -q '^=== council degraded:' "$REPORT"; then
     echo '=== incomplete council: a required independent pass did not complete'

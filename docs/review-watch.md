@@ -139,7 +139,7 @@ The run (`review-run.sh dryrun`) calls the council without `--post`, then writes
 `comments` (the last top-level `WOULD SUBMIT` object whose `commit_id` is the head,
 with string `body`, `path` and comment `body`; a broken value fails the parse). A run marker that keeps findings
 without a payload, a degraded council or a missing marker is incomplete and
-writes no file. The run never posts, approves or registers; approval still
+removes any earlier findings file of that head. The run never posts, approves or registers; approval still
 refuses an own PR (`gates.sh`, `cannot approve own PR`).
 
 The watcher itself makes no `gh` write for a dry-run (the smoke test records

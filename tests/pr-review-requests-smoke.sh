@@ -346,13 +346,12 @@ test "$(jq -r '.comments[0].path' "$findings_file")" = a.rs
 dryrun_run trailing || { cat "$TMP_DIR/run.out" >&2; exit 1; }
 test "$(jq -r .body "$findings_file")" = summary
 test "$(jq -c '[.comments[].path]' "$findings_file")" = '["a.rs"]'
-cp "$findings_file" "$TMP_DIR/findings.kept"
 dryrun_run broken && { echo 'broken dry-run payload passed' >&2; exit 1; }
-cmp "$findings_file" "$TMP_DIR/findings.kept"
+test ! -e "$findings_file"
 # Text fields must be JSON strings, and a value nested in an array is never the payload.
 for bad in typed wrapped; do
   dryrun_run "$bad" && { echo "$bad dry-run payload passed" >&2; exit 1; }
-  cmp "$findings_file" "$TMP_DIR/findings.kept"
+  test ! -e "$findings_file"
 done
 # Escaped Unicode survives the round trip.
 dryrun_run unicode || { cat "$TMP_DIR/run.out" >&2; exit 1; }
