@@ -177,5 +177,29 @@
       "escalation": [],
       "counts_as_cross_family": false
     }
+  },
+  "durable": {
+    "planner": "sol",
+    "planner_escalation": [
+      "astra"
+    ],
+    "implementer": "glm",
+    "native_routes": {
+      "sol": {
+        "provider": "openai-codex"
+      },
+      "astra": {
+        "provider": "openai-codex"
+      },
+      "glm": {
+        "provider": "zai"
+      }
+    },
+    "review": {
+      "eligibility": "author_family_routes",
+      "exclude_all_author_families": true,
+      "prefer_native": true,
+      "cli_fallback": "opus"
+    }
   }
 }

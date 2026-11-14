@@ -15,7 +15,7 @@ infer the smallest matching route from the request and repo state, unprompted.
 
 ## Agentic workflow loop
 
-Claude Code, Codex and Pi are thin adapters over shared contracts
+Claude Code, Codex, interactive Pi and the planned durable adapter are thin adapters over shared contracts
 (ADR-0006). Shared orchestration: `workflow/skills/orchestration.md`. Single writer and risk
 tiers: `workflow/skills/implementation-loop.md`; `scout` and `reviewer` stay
 read-only (Bash `PreToolUse` allowlist).
@@ -48,7 +48,7 @@ Non-negotiables:
   `change`, or `blocked` against the local contract before editing.
 - Before mutable local-device or server actions, name target, control path,
   post-check and rollback.
-- One execution artifact: `PLAN.md`. No `REVIEW.md` second plan.
+- One execution artifact: `PLAN.md` (durable exception below). No `REVIEW.md` second plan.
 - Keep facts separate from assumptions; use `PLAN_TEMPLATE.md` /
   `PLAN_TEMPLATE_FULL.md` as appropriate.
 - Answers/handoffs: `workflow/answer-quality.md`.
@@ -101,13 +101,22 @@ Non-negotiables:
   escalation (`workflow/skills/review-rounds.md`) is unchanged.
 - Golden principles: every mechanical check fails with a message that names its remediation.
   Instruction files stay maps, not manuals.
-  Recurring findings become reviewed recommendations, never auto-applied; no parallel harness trees.
+  Recurring findings become reviewed recommendations, never auto-applied; no parallel harness trees (durable adapter exception: ADR-0046).
   Skill design: `workflow/skill-design.md`. A code behavior change ships with tests in the suite's
   conventions; docs and contracts are validated by smoke pins or inspection. A bug fix starts from
   a failing test that reproduces the issue. The third occurrence of the same finding becomes a
   mechanical check in the project's own tooling. Reviewers flag only gaps that affect correctness
   or stated requirements.
   A started migration is finished or explicitly handed off in `PLAN.md` § Notes / Handoff.
+
+## Durable runs (ADR-0046)
+
+Only personal runs hosted by `durable/` on gromarchy replace every `PLAN.md`
+reference with their SQLite `EtabliPlanDoc`, including snapshot hashes, reviews,
+handoffs and the READY gate. Immutable final store snapshots replace `docs/plan/`
+archives; no plan projection or archive file is written. See `workflow/plan-archive.md`.
+Shared contracts remain authoritative; this exception changes storage, not gates.
+The daemon stops at `blocked` or after push, PR creation and notification; it never merges.
 
 ## Minimal READY gate
 
