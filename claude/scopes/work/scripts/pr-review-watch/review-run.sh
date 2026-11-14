@@ -2,7 +2,7 @@
 set -uo pipefail
 umask 077
 
-MODE="${1:?usage: review-run.sh <council|verify|approve> <owner/repo> <number> <sha> <since> <url> <report> <state-key>}"
+MODE="${1:?usage: review-run.sh <council|dryrun|verify|approve> <owner/repo> <number> <sha> <since> <url> <report> <state-key>}"
 REPO="${2:?}"
 NUMBER="${3:?}"
 SHA="${4:?}"
@@ -194,6 +194,61 @@ run_council() {
   decide_and_approve "" "$body"
 }
 
+# Last JSON object after the last WOULD SUBMIT heading that carries a review
+# payload; one naming another commit is ignored (text echoed from the PR).
+dryrun_payload() {
+  # The payload is the last top-level review object after the last WOULD SUBMIT heading,
+  # bound to this head by commit_id. Each top-level JSON value is skipped whole, so nothing
+  # nested in an object or an array stands in for it, and a broken value fails the parse.
+  SHA="$2" perl -MJSON::PP -MB -e '
+    sub is_text { my $v = shift; defined $v && !ref $v
+      && (B::svref_2object(\$v)->FLAGS & B::SVp_POK) && !(B::svref_2object(\$v)->FLAGS & (B::SVp_IOK | B::SVp_NOK)) }
+    local $/; my $text = <STDIN>; $text =~ s/.*^[ \t#*]*WOULD SUBMIT\b//ms or exit 1;
+    my $json = JSON::PP->new->utf8; my $found;
+    while ($text =~ /^[ \t]*[\{\[]/mg) {
+      my $at = $-[0]; my ($obj, $len) = eval { $json->decode_prefix(substr($text, $at)) };
+      defined $len or exit 1;
+      pos($text) = $at + $len;
+      next unless ref $obj eq "HASH" && exists $obj->{commit_id};
+      next unless is_text($obj->{commit_id}) && $obj->{commit_id} eq $ENV{SHA};
+      exit 1 if exists $obj->{body} && !is_text($obj->{body});
+      my $comments = $obj->{comments} // [];
+      exit 1 unless ref $comments eq "ARRAY";
+      for my $c (@$comments) {
+        exit 1 unless ref $c eq "HASH" && is_text($c->{path}) && is_text($c->{body});
+      }
+      $found = $obj;
+    }
+    $found or exit 1; print $json->canonical->encode($found)' <"$1"
+}
+
+# Own PR: run the council without --post, keep its findings, write nothing on the PR.
+run_dryrun() {
+  local findings payload out="$(dirname "$REPORT")/${REPO//\//_}-$NUMBER-${SHA:0:8}-findings.json" temp
+  # A run that does not complete leaves no findings file, never an older one for this head.
+  rm -f "$out" || return 1
+  run_shown "$REPORT" "$COUNCIL" "$NUMBER" "$REPO" --no-watch-register || return
+  if grep -q '^=== council degraded:' "$REPORT"; then
+    echo '=== incomplete council: a required independent pass did not complete'
+    return "$REVIEW_INCOMPLETE_RC"
+  fi
+  findings="$(validator_run_findings "$REPORT" "$SHA" 2>>"$REPORT")"
+  [ -n "$findings" ] || {
+    echo "=== no complete validator run marker for ${SHA:0:8}: the dry-run is incomplete" | tee -a "$REPORT"
+    return "$REVIEW_INCOMPLETE_RC"
+  }
+  payload="$(dryrun_payload "$REPORT" "$SHA")" || payload='{"body":"","comments":[]}'
+  if [ "$findings" != 0 ] && [ "$(jq '.comments // [] | length' <<<"$payload")" = 0 ] && [ "$(jq -r '.body // ""' <<<"$payload")" = "" ]; then
+    echo "=== dry-run kept $findings findings but printed no WOULD SUBMIT payload: incomplete" | tee -a "$REPORT"
+    return "$REVIEW_INCOMPLETE_RC"
+  fi
+  temp="$(mktemp "$out.XXXXXX")" || return 1
+  jq -n --arg repo "$REPO" --argjson number "$NUMBER" --arg sha "$SHA" --argjson findings "$findings" --argjson payload "$payload" \
+    '{version: 1, repo: $repo, number: $number, sha: $sha, findings: $findings, body: ($payload.body // ""), comments: ($payload.comments // [])}' >"$temp" \
+    && mv "$temp" "$out" || { rm -f "$temp"; return 1; }
+  echo "=== dry-run: $findings findings written to $out; nothing posted, no approval"
+}
+
 run_delta() {
   local log="$1" rc
   linked_once
@@ -319,6 +374,7 @@ ME="$(gh api user --jq .login)" || exit 1
 echo "=== $MODE $REPO#$NUMBER @${SHA:0:8} — $URL"
 case "$MODE" in
   council) run_council ;;
+  dryrun) run_dryrun ;;
   verify) run_verify ;;
   approve) run_pending_approval ;;
   *) echo "unknown mode $MODE" >&2; exit 2 ;;

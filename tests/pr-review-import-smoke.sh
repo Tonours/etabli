@@ -121,4 +121,15 @@ TEST_STATUS_AGE=600 ingest_council_registrations me
 check test "$(records)" = 1
 TEST_STATUS_AGE=600 ingest_council_registrations me
 check test "$(records)" = 0
+
+# A dry-run outcome is no posting decision: a posting registration of the same head lands
+# and retires the dry-run intent.
+key="$(run_key o/r 40)"
+sed "s/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/$FAKE_HEAD/" "$report" >"$TMP_DIR/report-dry"
+printf '%s\tdryrun\t0\t1\n' "$FAKE_HEAD" >"$key.status"
+printf '%s\tauthor\n' "$FAKE_HEAD" >"$key.dryrun"
+submit_council_registration o/r 40 "$FAKE_HEAD" me "$TMP_DIR/report-dry" follow >/dev/null
+TEST_STATUS_AGE=600 ingest_council_registrations me
+check test -e "$key.registered"
+check test ! -e "$key.dryrun"
 test "$failures" = 0
