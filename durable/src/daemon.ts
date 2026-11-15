@@ -22,6 +22,7 @@ import { createReviewExtension } from "./review.ts";
 import { createPublishExtension, type Command } from "./publish.ts";
 import { createSubagentsExtension, type SubagentRole } from "./subagents.ts";
 import { openMcp, mcpConfig } from "./mcp.ts";
+import { Push } from "./push.ts";
 import type { runCliReview } from "./review-cli.ts";
 
 import { serve, serveRemote, type ApiServer } from "./api.ts";
@@ -36,7 +37,7 @@ export async function defaultModel(): Promise<ModelRef> {
   return phaseModel(checkout, "implementer");
 }
 
-export async function openCore(options: { state: string; policy: OwnerPolicy; models: Models; model?: () => Promise<ModelRef>; workflow?: boolean; subagentModel?: (role: SubagentRole) => Promise<ModelRef>; mcpServers?: Record<string, unknown>; phaseModel?: (role: ModelRole) => Promise<ModelRef>; reviewCli?: typeof runCliReview; publishCommand?: Command; ciCommand?: Command; repositories?: Repositories; now?: () => number; wallMs?: number; maxTurns?: number; notifyArgv?: readonly string[]; restartLimit?: number; retry?: Partial<ConversationRetryPolicy>; fatal?: () => void }) {
+export async function openCore(options: { state: string; policy: OwnerPolicy; models: Models; model?: () => Promise<ModelRef>; workflow?: boolean; subagentModel?: (role: SubagentRole) => Promise<ModelRef>; mcpServers?: Record<string, unknown>; phaseModel?: (role: ModelRole) => Promise<ModelRef>; reviewCli?: typeof runCliReview; publishCommand?: Command; ciCommand?: Command; repositories?: Repositories; now?: () => number; wallMs?: number; maxTurns?: number; notifyArgv?: readonly string[]; restartLimit?: number; retry?: Partial<ConversationRetryPolicy>; fatal?: () => void; web?: { origin: string; identities: readonly string[] } }) {
   process.umask(0o077);
   await mkdir(options.state, { recursive: true, mode: 0o700 });
   await chmod(options.state, 0o700);
@@ -66,7 +67,8 @@ export async function openCore(options: { state: string; policy: OwnerPolicy; mo
       onReport: (report) => { if (report.kind === "storage_failed") options.fatal?.(); },
     }, context);
     opened = harness;
-    const runs = new Runs({ ...options, workflow: options.workflow ? checkout : undefined, guard, harness, repositories: options.repositories ?? new Repositories(options.state, options.policy), model: options.model ?? defaultModel });
+    const push = options.web ? await Push.open(harness, options.state, options.web.origin, options.web.identities) : undefined;
+    const runs = new Runs({ ...options, pushNotify: push ? () => push.notify() : undefined, workflow: options.workflow ? checkout : undefined, guard, harness, repositories: options.repositories ?? new Repositories(options.state, options.policy), model: options.model ?? defaultModel });
     const schedules = new Schedules(runs);
     const ci = new Ci(runs, options.ciCommand);
     let closing = false;
@@ -89,7 +91,7 @@ export async function openCore(options: { state: string; policy: OwnerPolicy; mo
       await harness.close(context);
       throw error;
     }
-    return { harness, runs, schedules, ci, tickTriggers, close: async () => { closing = true; await triggers; clearInterval(limits); await enforcing; await runs.drainStops(); await harness.close(context); await mcp?.close(); await unlock(); } };
+    return { harness, runs, push, schedules, ci, tickTriggers, close: async () => { closing = true; await triggers; clearInterval(limits); await enforcing; await runs.drainStops(); await runs.drainNotifications(); await harness.close(context); await mcp?.close(); await unlock(); } };
   } catch (error) {
     await opened?.close(context).catch(() => undefined);
     await mcp?.close();
@@ -103,6 +105,7 @@ export type Core = Awaited<ReturnType<typeof openCore>>;
 export function daemonConfig(raw: unknown) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Invalid durable configuration");
   const config = raw as Record<string, unknown>;
+  if ("webOrigin" in config || "web" in config) throw new Error("Configure webOrigin inside api, never at top level");
   const notifyArgv = config.notifyArgv ?? [];
   if (!Array.isArray(notifyArgv) || notifyArgv.some((part) => typeof part !== "string") || notifyArgv.length > 32) throw new Error("notifyArgv must be an argument array");
   const maxTurns = config.maxTurns ?? 64;
@@ -120,12 +123,12 @@ export async function daemon(state = defaultState(), configPath = defaultConfig(
   const models = createModels({ credentials: new SharedCredentialStore(join(homedir(), ".pi/agent/auth.json")) });
   models.setProvider(zaiProvider());
   models.setProvider(openaiCodexProvider());
-  const core = await openCore({ state, policy, models, workflow: true, ...config, fatal: () => process.exit(1) });
+  const core = await openCore({ state, policy, models, workflow: true, ...config, web: config.api?.webOrigin ? { origin: config.api.webOrigin, identities: config.api.identities } : undefined, fatal: () => process.exit(1) });
   const servers: ApiServer[] = [];
   try {
     const token = await loadToken(join(state, "api.token"));
     servers.push(await serve(core, state));
-    if (config.api) servers.push(await serveRemote(core, config.api.port, token, config.api.identities));
+    if (config.api) servers.push(await serveRemote(core, config.api.port, token, config.api.identities, config.api.webOrigin ? { origin: config.api.webOrigin, push: core.push } : undefined));
   } catch (error) {
     await Promise.all(servers.map((server) => server.shutdown()));
     await core.close();
