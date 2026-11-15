@@ -15,7 +15,7 @@ type Kind = "plan" | "code";
 
 export function reviewVerdict(body: string, kind: Kind, axis: string): string {
   if (!/STATUS: complete\s*$/.test(body)) throw new Error("Review is incomplete");
-  if ((body.match(/^Verdict:[^\r\n]*\r?\n(?:[ \t]*\r?\n)*STATUS: complete\s*$/gm)?.length ?? 0) > 1) throw new Error("Review verdict is ambiguous");
+  if ((body.match(/^Verdict:/gm)?.length ?? 0) > 1) throw new Error("Review verdict is ambiguous");
   const verdict = /(?:^|\n)Verdict:[ \t]*(GO WITH NOTES|GO|BLOCK|READY|CHALLENGED)[ \t]*\r?\n(?:[ \t]*\r?\n)*STATUS: complete\s*$/.exec(body)?.[1];
   if (!verdict && kind === "code" && axis === "spec" && !/^Verdict:/m.test(body)) {
     const findings = body.replace(/\n?STATUS: complete\s*$/, "").trim();
@@ -23,7 +23,12 @@ export function reviewVerdict(body: string, kind: Kind, axis: string): string {
     if (/^Findings\s*\n\S/.test(findings)) return "BLOCK";
   }
   if (!verdict || !(kind === "plan" ? ["READY", "CHALLENGED"] : ["GO", "GO WITH NOTES", "BLOCK"]).includes(verdict)) throw new Error("Review verdict is missing");
-  const section = (heading: string) => body.split(`### ${heading}\n`)[1]?.split(/^(?:### |Verdict:|STATUS:)/m)[0]?.trim() ?? "";
+  const section = (heading: string) => {
+    const matches = [...body.matchAll(new RegExp(`^### ${heading}[ \\t]*\\r?$`, "gm"))];
+    if (matches.length > 1) throw new Error("Review section is ambiguous");
+    const match = matches[0];
+    return match ? body.slice(match.index + match[0].length).split(/^(?:### |Verdict:|STATUS:)/m)[0].trim() : "";
+  };
   const rows = (heading: string) => section(heading).split("\n").filter((line) => /^\|/.test(line) && !/^\|[\s:|-]+$/.test(line)).length;
   if (axis === "logic" && (rows("Lens table") < 2 || rows("Deciding-code table") < 2 || ["Lens table", "Deciding-code table"].some((heading) => /\|\s*not run(?:\s|:|\|)/i.test(section(heading))))) throw new Error("Logic review lacks deciding-code coverage");
   if (axis === "logic" && section("Open questions") && !/^(?:[-*]\s*)?None\.?$/i.test(section("Open questions"))) throw new Error("Logic review has unresolved candidates");
