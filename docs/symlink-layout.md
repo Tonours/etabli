@@ -154,12 +154,31 @@ and `bun.lock`. Install its dependencies with `cd durable && bun install
 the checkout's shared workflow contracts, guard implementations and model
 registry at runtime. Updating those files therefore changes subsequent requests.
 
-Slice 2 accepts small tasks that need no plan. Its native GLM conversation can
-read, write, edit and run Bash in a separate worktree; `done` means that the
-conversation answered. Plan documents, phase routing, review tools, publication,
-HTTP access, schedules and MCP arrive in later slices. Direct merge and
-default-branch pushes are already blocked. These command guards are invocation
-controls; arbitrary Bash and indirect API access remain unconfined.
+New runs start on GLM, or on Sol with `run --plan`. Plan tools keep an
+`EtabliPlanDoc` in SQLite, with no `PLAN.md` or `docs/plan/` projection. A current
+independent plan review gates READY and the next request switches to GLM;
+`plan_escalate` records the reason for Astra. Reviews create fresh task-owned
+children with read tools only and exclude every author family through the
+shared registry. Mixed OpenAI/Z.ai authors use the bounded read-only Opus CLI;
+unavailable eligible reviewers block the run. Three BLOCK rounds on the same
+change also block it. All four axes must finish with valid coverage; the final
+independent adversary arbitrates the round, while raw hunter verdicts remain
+in the store. BLOCK counting uses that final verdict. A section edit after
+READY reopens CHALLENGED and returns to the planner.
+
+The `publish` tool requires complete reviews of the exact committed change,
+checks the shared PR body contract and scans commits for secrets, pushes only
+the run branch, reconciles an existing PR, records its URL and ends `done`.
+Direct push and PR creation in workflow runs must use this tool. Direct merge
+and default-branch pushes stay blocked. These invocation controls leave
+arbitrary Bash and indirect API access unconfined. An answer without publication
+ends `blocked`. Migrated Slice 2 runs retain their answer-only behavior and
+terminal runs are never queued for publication. A stopped run with a persisted
+publication intent and no URL performs one bounded read-only existing-PR lookup
+before notification and archive. The outcome is stored, including lookup failure;
+this recovery never pushes or creates a PR, and keeps the stop reason.
+HTTP access, schedules and MCP
+arrive in later slices.
 
 Startup requires host `gromarchy`, an explicit `personal` value in
 `~/.etabli-scope`, and a readable, nonempty `~/.config/etabli/work-orgs` with one
@@ -167,6 +186,10 @@ valid organization per line. Missing or invalid scope/deny-list configuration
 refuses startup. Admission permits only `Tonours` and `tonours-dev` outside the
 work deny list. Admission resolves the canonical owner through `gh repo view`
 and checks existing cache fetch/push remotes before creating a run. No scope file or service is installed automatically.
+
+Each new workflow run also gets a final SQLite snapshot under
+`STATE/final/RUN_ID.sqlite` after notification is claimed. It is read-only and
+never replaced; daily backups remain separate and retain fourteen snapshots.
 
 The launcher is `scripts/etabli-durable`. The user units under `durable/systemd/`
 expect this checkout at `%h/work/etabli` and Node 26 on the systemd user manager's
@@ -188,7 +211,7 @@ Optional `~/.config/etabli/durable.json`:
 ```
 
 A terminal notification appends four arguments: run id, status, reason, PR URL
-(empty in Slice 2). No shell evaluates this array. Delivery is claimed in SQLite
+(empty when no PR was opened). No shell evaluates this array. Delivery is claimed in SQLite
 before invocation, so it is attempted at most once; a crash after the claim or a
 failed command is not retried. Prompts and credentials are never notification
 arguments. Limits can be lowered up to a maximum of 256 turns and four hours;
@@ -201,6 +224,8 @@ simple command segments for supported invocations.
 
 ```bash
 scripts/etabli-durable run --repo Tonours/etabli --request-id my-fixture 'small fixture task'
+scripts/etabli-durable run --plan --repo Tonours/etabli 'plan-route task'
+scripts/etabli-durable plan RUN_ID
 scripts/etabli-durable ls
 scripts/etabli-durable show RUN_ID
 scripts/etabli-durable steer RUN_ID 'additional instruction'
