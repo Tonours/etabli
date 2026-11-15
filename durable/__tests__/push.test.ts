@@ -147,3 +147,38 @@ test("done/blocked push shares terminal claim, aborted skips push; hung delivery
     await f.reopen(); await f.core.runs.tick(); expect(calls).toBe(2);
   } finally { release(); await f.cleanup(); }
 });
+
+test("each fresh terminal generation of the same run may push once, with no permanent run-id deduplication", async () => {
+  const f = await fixture();
+  let sends = 0;
+  try {
+    const key = await loadVapid(join(f.state, "vapid.pem"));
+    const attach = () => {
+      const push = new Push(f.core.harness, key, origin, [identity], async () => { sends++; return 201; });
+      Object.assign(f.core.runs, { pushNotify: () => push.notify() });
+      return push;
+    };
+    await attach().subscribe(identity, endpoint);
+    f.faux.setResponses([fauxAssistantMessage("done")]);
+    const run = await f.core.runs.submit("Tonours/fixture", "terminal generation fixture", "terminal-generation");
+    await f.core.runs.tick(); await f.core.harness.waitForIdle(context);
+    await f.core.runs.tick(); await f.core.runs.drainNotifications();
+    expect(sends).toBe(1);
+    const { RunsDoc } = await import("../src/runs-doc.ts");
+    for (const [terminalGeneration, status] of [["ci-1", "done"], ["ci-exhausted", "blocked"]] as const) {
+      // Reproduce S6's notification boundary without implementing or borrowing its CI trigger.
+      await f.core.harness.commit(async (tx) => {
+        const row = (await tx.doc(RunsDoc)).runs.find((row) => row.id === run.id)!;
+        Object.assign(row, { terminalGeneration, status, notified: false });
+      }, context);
+      const previous = sends;
+      await f.core.runs.tick(); await f.core.runs.drainNotifications();
+      expect(sends).toBe(previous + 1);
+      await f.core.runs.tick(); await f.core.runs.tick(); await f.core.runs.drainNotifications();
+      expect(sends).toBe(previous + 1);
+    }
+    await f.reopen(); attach();
+    await f.core.runs.tick(); await f.core.runs.drainNotifications();
+    expect(sends).toBe(3);
+  } finally { await f.cleanup(); }
+});
