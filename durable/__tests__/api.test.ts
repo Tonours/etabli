@@ -67,7 +67,7 @@ test("TCP never inherits local trust: both auth factors gate every HTTP request 
   } finally { await server.shutdown(); await f.cleanup(); }
 });
 
-test("Unix HTTP API serves the existing CLI and validates routes, input and schedules stub", async () => {
+test("Unix HTTP API serves the existing CLI and validates routes, input and schedules", async () => {
   const f = await fixture();
   const local = await serve(f.core, f.state);
   const token = randomBytes(32).toString("base64url");
@@ -81,7 +81,7 @@ test("Unix HTTP API serves the existing CLI and validates routes, input and sche
     expect(await request(f.state, { op: "plan", id: run.id })).toBeNull();
     expect((await request(f.state, { op: "show", id: run.id }) as { run: { id: string } }).run.id).toBe(run.id);
     expect(await request(f.state, { op: "abort", id: run.id })).toEqual({ aborted: true });
-    expect((await http(port, headers, "/v1/schedules")).status).toBe(501);
+    expect((await http(port, headers, "/v1/schedules")).status).toBe(200);
     expect((await http(port, headers, "/v1/runs", "DELETE")).status).toBe(405);
     expect((await http(port, headers, "/v1/runs?token=not-accepted")).status).toBe(400);
     expect((await http(port, headers, "/v1/runs", "POST", "[]")).status).toBe(400);

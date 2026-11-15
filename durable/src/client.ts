@@ -6,11 +6,14 @@ import { createConnection } from "node:net";
 import type { ConversationView } from "@earendil-works/pi-durable";
 import { join } from "node:path";
 
-export type ApiRequest = { op: string; id?: string; repo?: string; prompt?: string; requestId?: string; content?: string; route?: string };
+export type ApiRequest = { op: string; id?: string; repo?: string; prompt?: string; requestId?: string; content?: string; route?: string; cron?: string };
 
 export function operationPath(body: ApiRequest): { method: string; path: string } {
   const id = encodeURIComponent(body.id ?? "");
   switch (body.op) {
+    case "schedule-create": return { method: "POST", path: "/v1/schedules" };
+    case "schedule-list": return { method: "GET", path: "/v1/schedules" };
+    case "schedule-delete": return { method: "DELETE", path: `/v1/schedules/${id}` };
     case "run": return { method: "POST", path: "/v1/runs" };
     case "ls": return { method: "GET", path: "/v1/runs" };
     case "show": return { method: "GET", path: `/v1/runs/${id}` };

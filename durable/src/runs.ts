@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
-import { LiveDoc, configure, type Harness, type Extension, type ModelRef } from "@earendil-works/pi-durable";
+import { LiveDoc, configure, type Tx, type Harness, type Extension, type ModelRef } from "@earendil-works/pi-durable";
 import { Repositories } from "./repositories.ts";
 import { guardedAgent } from "./guards.ts";
 import { notify } from "./notify.ts";
@@ -9,6 +9,7 @@ import { finalSnapshot } from "./backup.ts";
 import { reconcilePublication, type Command } from "./publish.ts";
 
 import { active, activeStatuses, RunsDoc, type Run } from "./runs-doc.ts";
+import { SchedulesDoc, nextDue } from "./schedule.ts";
 export { RunsDoc, type Run } from "./runs-doc.ts";
 
 export class Runs {
@@ -66,14 +67,46 @@ export class Runs {
         return existing;
       }
       await this.repositories.admit(repo);
-      const id = randomUUID();
-      return this.harness.commit(async (tx) => {
-        const conversation = await tx.createConversation({ ownership: { kind: "ownerless" } });
-        const run: Run = { id, requestId, repo, prompt, conversationId: conversation.id, branch: `feat/durable-${id.replaceAll("-", "")}`, worktree: this.repositories.path(id), route: this.workflow ? route : "legacy", status: "queued", reason: "", url: "", createdAt: this.now(), startedAt: 0, deadline: 0, maxTurns: this.maxTurns, submissionId: "", notified: false };
-        (await tx.doc(RunsDoc)).runs.push(run);
-        return run;
-      }, context);
+      return this.harness.commit((tx) => this.create(tx, repo, prompt, requestId, route), context);
     });
+  }
+
+  private async create(tx: Tx, repo: string, prompt: string, requestId: string, route: "answer" | "plan"): Promise<Run> {
+    const id = randomUUID();
+    const conversation = await tx.createConversation({ ownership: { kind: "ownerless" } });
+    const run: Run = { id, requestId, repo, prompt, conversationId: conversation.id, branch: `feat/durable-${id.replaceAll("-", "")}`, worktree: this.repositories.path(id), route: this.workflow ? route : "legacy", status: "queued", reason: "", url: "", createdAt: this.now(), startedAt: 0, deadline: 0, maxTurns: this.maxTurns, submissionId: "", notified: false };
+    (await tx.doc(RunsDoc)).runs.push(run);
+    return run;
+  }
+
+  async submitOccurrence(scheduleId: string, due: number): Promise<void> {
+    const row = (await this.harness.snapshot(SchedulesDoc, context))?.schedules.find((row) => row.value.id === scheduleId);
+    if (!row || row.deleted || row.occurrence?.due !== due || row.occurrence.status !== "pending") return;
+    try { this.repositories.policy.allow(row.value.repo); }
+    catch {
+      await this.harness.commit(async (tx) => {
+        const stored = (await tx.doc(SchedulesDoc)).schedules.find((row) => row.value.id === scheduleId);
+        if (stored && !stored.deleted && stored.occurrence?.due === due && stored.occurrence.status === "pending") {
+          stored.occurrence.status = "failed"; stored.occurrence.error = "policy_denied";
+          stored.value.nextDue = nextDue(stored.value.cron, Math.max(due, this.now()));
+        }
+      }, context);
+      return;
+    }
+    await this.repositories.admit(row.value.repo);
+    await this.harness.commit(async (tx) => {
+      const stored = (await tx.doc(SchedulesDoc)).schedules.find((row) => row.value.id === scheduleId);
+      if (!stored || stored.deleted || stored.occurrence?.due !== due || stored.occurrence.status !== "pending") return;
+      const occurrence = stored.occurrence;
+      const existing = (await tx.doc(RunsDoc)).runs.find((run) => run.requestId === occurrence.requestId);
+      if (existing) {
+        occurrence.status = "failed"; occurrence.error = "request_identity_conflict";
+      } else {
+        const run = await this.create(tx, stored.value.repo, stored.value.prompt, occurrence.requestId, "plan");
+        occurrence.runId = run.id; occurrence.status = "acknowledged"; occurrence.error = "";
+      }
+      stored.value.nextDue = nextDue(stored.value.cron, Math.max(due, this.now()));
+    }, context);
   }
 
   private async finish(id: string, status: Run["status"], reason: string, expected: readonly Run["status"][] = activeStatuses): Promise<boolean> {
