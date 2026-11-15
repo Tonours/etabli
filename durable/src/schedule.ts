@@ -24,7 +24,7 @@ function field(source: string, min: number, max: number): number[] {
   return [...values].sort((a, b) => a - b);
 }
 
-export function nextDue(cron: string, after: number): number {
+export function nextDue(cron: string, after: number, years: 8 | 400 = 8): number {
   if (!cron.trim() || cron.length > 200 || !Number.isSafeInteger(after) || !Number.isFinite(new Date(after).valueOf())) throw new Error("Provide bounded cron and timestamp");
   const fields = cron.trim().split(/\s+/);
   if (fields.length !== 5) throw new Error("Cron needs five fields in UTC");
@@ -32,7 +32,7 @@ export function nextDue(cron: string, after: number): number {
   const weekdaysSet = new Set(weekdays.map((day) => day % 7));
   const start = new Date(after);
   start.setUTCHours(0, 0, 0, 0);
-  for (let offset = 0; offset <= 366 * 8; offset++) {
+  for (let offset = 0; offset <= 366 * years; offset++) {
     const date = new Date(start.valueOf() + offset * 86_400_000);
     if (!months.includes(date.getUTCMonth() + 1)) continue;
     const day = days.includes(date.getUTCDate()), weekday = weekdaysSet.has(date.getUTCDay());

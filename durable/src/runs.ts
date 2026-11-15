@@ -90,7 +90,7 @@ export class Runs {
         const stored = (await tx.doc(SchedulesDoc)).schedules.find((row) => row.value.id === scheduleId);
         if (stored && !stored.deleted && stored.occurrence?.due === due && stored.occurrence.status === "pending") {
           stored.occurrence.status = "failed"; stored.occurrence.error = "policy_denied";
-          stored.value.nextDue = nextDue(stored.value.cron, Math.max(due, this.now()));
+          stored.value.nextDue = nextDue(stored.value.cron, Math.max(due, this.now()), 400);
         }
       }, context);
       return;
@@ -107,7 +107,7 @@ export class Runs {
         const run = await this.create(tx, stored.value.repo, stored.value.prompt, occurrence.requestId, "plan");
         occurrence.runId = run.id; occurrence.status = "acknowledged"; occurrence.error = "";
       }
-      stored.value.nextDue = nextDue(stored.value.cron, Math.max(due, this.now()));
+      stored.value.nextDue = nextDue(stored.value.cron, Math.max(due, this.now()), 400);
     }, context);
   }
 
