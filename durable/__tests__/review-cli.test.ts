@@ -30,8 +30,8 @@ test("CLI deadline survives its daemon process being killed", async () => {
   try {
     const script = join(root, "fake.cjs"), marker = join(root, "pid");
     await writeFile(script, `require('node:fs').writeFileSync(${JSON.stringify(marker)},String(process.pid));setInterval(()=>{},1000);process.stdin.resume();`);
-    const source = `import {runCliReview} from ${JSON.stringify(new URL("../src/review-cli.ts", import.meta.url).href)}; await runCliReview({cwd:${JSON.stringify(root)},prompt:'read-only fixture',modelId:'claude-opus-5-5'},{command:['/usr/bin/node',${JSON.stringify(script)}],timeoutMs:500});`;
-    const parent = spawn("/usr/bin/node", ["--input-type=module", "-e", source], { stdio: "ignore" });
+    const source = `import {runCliReview} from ${JSON.stringify(new URL("../src/review-cli.ts", import.meta.url).href)}; await runCliReview({cwd:${JSON.stringify(root)},prompt:'read-only fixture',modelId:'claude-opus-5-5'},{command:['node',${JSON.stringify(script)}],timeoutMs:500});`;
+    const parent = spawn("node", ["--input-type=module", "-e", source], { stdio: "ignore" });
     const ended = new Promise((resolve) => parent.once("exit", resolve));
     await until(async () => { pid = Number(await readFile(marker, "utf8").catch(() => "0")); return pid > 0; }, 2000);
     parent.kill("SIGKILL");
@@ -51,14 +51,14 @@ test("CLI review fixes read-only argv and interrupts a bounded subprocess", asyn
     const argv = join(root, "argv.json");
     await writeFile(script, `require('node:fs').writeFileSync(${JSON.stringify(argv)},JSON.stringify(process.argv.slice(2)));process.stdin.resume();process.stdin.on('end',()=>console.log(${JSON.stringify(stream())}));`);
     const input = { cwd: root, prompt: "review fixture", modelId: model };
-    expect((await runCliReview(input, { command: ["/usr/bin/node", script] })).modelId).toBe(model);
+    expect((await runCliReview(input, { command: ["node", script] })).modelId).toBe(model);
     const actual = JSON.parse(await readFile(argv, "utf8")) as string[];
     expect(actual[actual.indexOf("--tools") + 1]).toBe("Read,Grep,Glob");
     expect(actual).not.toContain("--dangerously-skip-permissions");
     await writeFile(script, "setInterval(()=>{},1000);process.stdin.resume();");
-    await expect(runCliReview(input, { command: ["/usr/bin/node", script], timeoutMs: 50 })).rejects.toThrow("timed out");
+    await expect(runCliReview(input, { command: ["node", script], timeoutMs: 50 })).rejects.toThrow("timed out");
     const abort = new AbortController();
-    const pending = runCliReview(input, { command: ["/usr/bin/node", script], signal: abort.signal });
+    const pending = runCliReview(input, { command: ["node", script], signal: abort.signal });
     setTimeout(() => abort.abort(), 50);
     await expect(pending).rejects.toThrow("aborted");
   } finally { await rm(root, { recursive: true, force: true }); }
