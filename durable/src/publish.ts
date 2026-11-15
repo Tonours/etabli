@@ -84,9 +84,9 @@ export async function publishBranch(run: Readonly<Run>, intent: Readonly<Publish
     await execute(run.worktree, "gitleaks", ["git", "--no-banner", "--redact", "--log-opts", `${(await change(run.worktree)).base}..${intent.head}`]);
     await execute(run.worktree, "git", ["push", "origin", `${intent.head}:refs/heads/${run.branch}`]);
     if (update) {
-      const updated = await existing();
-      if (updated !== update.url) throw new Error("Updated pull request could not be reconciled");
-      return updated;
+      const updated = JSON.parse(await execute(run.worktree, "gh", ["pr", "view", update.url, "--repo", repo, "--json", "url,headRefOid,headRefName,baseRefName,state,headRepositoryOwner"])) as Pull;
+      if (updated.url !== update.url || updated.headRefOid !== intent.head || updated.headRefName !== run.branch || updated.baseRefName !== intent.base || updated.state !== "OPEN" || updated.headRepositoryOwner.login.toLowerCase() !== repo.split("/")[0].toLowerCase()) throw new Error("Updated pull request could not be reconciled");
+      return update.url;
     }
     try { await execute(run.worktree, "gh", args); } catch (error) { const reconciled = await existing(); if (reconciled) return reconciled; throw error; }
     const created = await existing();
