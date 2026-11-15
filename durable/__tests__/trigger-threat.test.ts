@@ -78,5 +78,10 @@ test("owned PR update refuses a third head before push and accepts the recorded 
     const withDuplicate: typeof f.execute = (cwd, program, args) => program === "gh" && args[1] === "list" ? Promise.resolve(JSON.stringify([f.pull, { ...f.pull, url: "https://github.com/Tonours/fixture/pull/99", baseRefName: "other" }])) : f.execute(cwd, program, args);
     expect(await publishBranch(current, intent, f.policy, withDuplicate, update)).toBe(current.url);
     expect(f.counts.pushes).toBe(pushes + 1); expect(f.counts.creates).toBe(1);
+    for (const changed of [{ headRefOid: "attacker-head" }, { state: "CLOSED" }, { headRepositoryOwner: { login: "Foreign" } }]) {
+      f.pull!.headRefOid = previous.head; const before = f.counts.pushes;
+      const raced: typeof f.execute = async (cwd, program, args) => { const result = await f.execute(cwd, program, args); return program === "gh" && args[1] === "view" && f.counts.pushes > before ? JSON.stringify({ ...JSON.parse(result), ...changed }) : result; };
+      await expect(publishBranch(current, intent, f.policy, raced, update)).rejects.toThrow("Updated pull request could not be reconciled");
+    }
   } finally { await f.cleanup(); }
 }, 20_000);
