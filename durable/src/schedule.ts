@@ -52,7 +52,6 @@ export class Schedules {
   async create(repo: string, prompt: string, cron: string, requestId: string): Promise<Schedule> {
     repo = this.runs.repositories.policy.allow(repo);
     if (!prompt.trim() || prompt.length > 64_000 || !requestId || requestId.length > 200) throw new Error("Provide a bounded prompt and request id");
-    const due = nextDue(cron, this.runs.now());
     await this.runs.repositories.admit(repo);
     return this.runs.harness.commit(async (tx) => {
       const rows = (await tx.doc(SchedulesDoc)).schedules;
@@ -62,7 +61,7 @@ export class Schedules {
         if (old.value.repo !== repo || old.value.prompt !== prompt || old.value.cron !== cron) throw new Error("Request id already belongs to a different schedule");
         return { ...old.value };
       }
-      const value: Schedule = { id: randomUUID(), requestId, repo, prompt, cron, nextDue: due, createdAt: this.runs.now() };
+      const value: Schedule = { id: randomUUID(), requestId, repo, prompt, cron, nextDue: nextDue(cron, this.runs.now()), createdAt: this.runs.now() };
       rows.push({ value, deleted: false });
       return value;
     }, context);

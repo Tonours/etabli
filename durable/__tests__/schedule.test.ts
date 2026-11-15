@@ -140,6 +140,7 @@ test("sparse accepted recurrence commits its due occurrence before a distant nex
       const row = (await f.core.harness.snapshot(SchedulesDoc, context))!.schedules[0];
       expect(row.occurrence?.status).toBe(denied ? "failed" : "acknowledged");
       expect(row.value.nextDue).toBe(Date.UTC(2060, 1, 29));
+      if (!denied) expect(await f.core.schedules.create(schedule.repo, schedule.prompt, schedule.cron, schedule.requestId)).toEqual(row.value);
       expect(await f.core.runs.list()).toHaveLength(denied ? 0 : 1);
     } finally { await f.cleanup(); }
   }
