@@ -167,6 +167,31 @@ over one shared module in `workflow/runtime/`:
 Nothing else stops for approval. [`claude/README.md`](claude/README.md) § Hooks
 has the details and the known blind spots.
 
+## Durable delegation and MCP
+
+The personal daemon exposes native `scout` and `worker` tools. Scout uses the
+canonical cheap native model and only `read`; worker uses the configured
+implementer with guarded `read`, `write`, `edit` and `bash`. Children belong to
+the calling task, return their answer as its tool result, and stop with it.
+An enabled parent plan must be READY for worker admission and child mutations.
+Children cannot delegate again or use plan, review, publication or MCP tools.
+
+Merge the `mcpServers` object from [`durable/config.example.json`](durable/config.example.json)
+into the daemon's private configuration, preserving existing settings. The
+example uses personal alambic-obvault and an isolated headless chrome-devtools
+server. Nothing is copied from the shared inventory automatically. Configured
+stdio servers connect before runs resume; failed servers report only their name
+and skipped status. Tools stay deferred until native `tool_search` loads them.
+The bridge pins `@earendil-works/pi-mcp` to 1.5.2, closes transports with the
+core, and leaves interrupted MCP calls unsafe to replay.
+
+At most 16 servers are accepted. `timeout` is 1–120 seconds (default 10),
+bounding each parallel startup and request. A server can be disabled with
+`enabled: false`; `{ "mcpServers": {} }` removes all connections. Only
+`${HOME}` expands in command, args, cwd and env values. Servers inherit exactly
+`PATH` and `HOME`, plus explicitly configured environment entries; stderr and
+raw failures are kept out of daemon diagnostics. HTTP/OAuth servers are skipped.
+
 ## Repository map
 
 | Path | Holds |

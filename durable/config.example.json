@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "alambic-obvault": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${HOME}/work/alambic/_meta/mcp/server.mjs"],
+      "env": {
+        "ALAMBIC_ROOT": "${HOME}/work/obvault",
+        "ALAMBIC_STATE_DIR": "${HOME}/.local/state/alambic-obvault"
+      }
+    },
+    "chrome-devtools": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["--yes", "chrome-devtools-mcp@1.7.0", "--isolated", "--headless"]
+    }
+  }
+}
