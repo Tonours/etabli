@@ -29,8 +29,10 @@ export class Runs {
   private line: Promise<unknown> = Promise.resolve();
   private stopping = new Map<string, Promise<boolean>>();
   private validated = false;
+  private notifications = new Set<Promise<void>>();
+  readonly pushNotify: (() => Promise<void>) | undefined;
 
-  constructor(options: { guard: Extension; harness: Harness; repositories: Repositories; model: () => Promise<ModelRef>; workflow?: string; phaseModel?: (role: ModelRole) => Promise<ModelRef>; publishCommand?: Command; now?: () => number; wallMs?: number; maxTurns?: number; notifyArgv?: readonly string[] }) {
+  constructor(options: { guard: Extension; harness: Harness; repositories: Repositories; model: () => Promise<ModelRef>; workflow?: string; phaseModel?: (role: ModelRole) => Promise<ModelRef>; publishCommand?: Command; now?: () => number; wallMs?: number; maxTurns?: number; notifyArgv?: readonly string[]; pushNotify?: () => Promise<void> }) {
     this.harness = options.harness;
     this.guard = options.guard;
     this.repositories = options.repositories;
@@ -39,6 +41,7 @@ export class Runs {
     this.wallMs = options.wallMs ?? 4 * 60 * 60 * 1000;
     this.maxTurns = options.maxTurns ?? 64;
     this.notifyArgv = options.notifyArgv ?? [];
+    this.pushNotify = options.pushNotify;
     this.workflow = options.workflow;
     this.phaseModel = options.phaseModel ?? ((role) => phaseModel(options.workflow!, role));
     this.publishCommand = options.publishCommand;
@@ -50,6 +53,8 @@ export class Runs {
     this.line = next.catch(() => undefined);
     return next;
   }
+
+  async drainNotifications(): Promise<void> { await Promise.all(this.notifications); }
 
   async list(): Promise<readonly Run[]> { return (await this.harness.snapshot(RunsDoc, context))?.runs ?? []; }
 
@@ -237,6 +242,10 @@ export class Runs {
         await this.harness.commit(async (tx) => {
           (await tx.doc(RunsDoc)).runs.find((candidate) => candidate.id === run.id)!.notified = true;
         }, context);
+        if (["done", "blocked"].includes(run.status) && this.pushNotify) {
+          const pending = this.pushNotify().catch(() => undefined).finally(() => this.notifications.delete(pending));
+          this.notifications.add(pending);
+        }
         await notify(this.notifyArgv, run).catch(() => undefined);
       }
       for (const run of await this.list()) if (run.route !== "legacy" && ["done", "blocked", "aborted"].includes(run.status) && run.notified && !this.stopping.has(run.id)) await finalSnapshot(this.repositories.root, run.id, terminalGeneration(run, (await this.harness.snapshot(CiDoc, context))?.runs.find((row) => row.runId === run.id))).catch(() => console.error("Final snapshot unavailable; check sqlite3 and state permissions; retrying", run.id));
