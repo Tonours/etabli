@@ -174,7 +174,7 @@ has the details and the known blind spots.
 | `workflow/` | Routing, plans, guards, loops, validation contracts |
 | `pi/`, `claude/` | Runtime adapters: settings, extensions, hooks, agents |
 | `codex/` | Codex adapter, linked as `~/.codex/AGENTS.md` |
-| `durable/` | Personal gromarchy daemon with native plans, reviews, PR publication and authenticated tailnet API (ADR-0046) |
+| `durable/` | Personal gromarchy daemon with native plans, reviews, PR publication, authenticated tailnet API and terminal client (ADR-0046) |
 | `skills/` | First-party skills, one tree for every runtime |
 | `vendor/`, `skills-lock.json` | Vendored skills, pinned by `UPSTREAM_SHA` and locked |
 | `extras/` | Skills tracked but not deployed |
