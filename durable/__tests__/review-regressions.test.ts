@@ -97,7 +97,7 @@ test("a changed busy worktree blocks only its run during restart", async () => {
     execFileSync("git", ["-C", bad.worktree, "switch", "-c", "other"], { stdio: "ignore" });
     await f.reopen();
     expect(await f.core.runs.show(bad.id)).toMatchObject({ status: "blocked", reason: "run_setup_failed" });
-    expect((await f.core.runs.show(good.id)).status).toBe("busy");
+    expect((await f.core.runs.show(good.id)).status).toBe("implementing");
     release();
     await f.core.harness.waitForIdle(context);
   } finally { release(); await f.cleanup(); }
