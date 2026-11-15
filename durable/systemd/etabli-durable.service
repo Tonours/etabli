@@ -1,0 +1,17 @@
+[Unit]
+Description=Etabli durable personal run daemon
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+WorkingDirectory=%h/work/etabli
+ExecStart=%h/work/etabli/scripts/etabli-durable daemon
+Restart=always
+RestartSec=2
+TimeoutStopSec=30
+UMask=0077
+
+[Install]
+WantedBy=default.target

@@ -26,7 +26,7 @@ done
 checkout_count="$(grep -Ec 'uses:[[:space:]]+actions/checkout@' "$WORKFLOW")"
 annotated_uses_count="$(grep -Ec 'uses:[[:space:]]+[^[:space:]]+@[0-9a-f]{40}[[:space:]]+# v[0-9]' "$WORKFLOW")"
 persist_credentials_count="$(grep -Ec '^[[:space:]]+persist-credentials:[[:space:]]+false$' "$WORKFLOW")"
-[ "$checkout_count" -eq 2 ] || fail "expected exactly two checkout steps"
+[ "$checkout_count" -eq 3 ] || fail "expected exactly three checkout steps"
 [ "$annotated_uses_count" -eq "$(grep -Ec 'uses:[[:space:]]' "$WORKFLOW")" ] ||
   fail "every pinned action needs its version tag comment"
 [ "$persist_credentials_count" -eq "$checkout_count" ] ||
@@ -56,13 +56,13 @@ grep -Eq 'uses:[[:space:]]+actions/setup-node@[0-9a-f]{40}[[:space:]]+# v[0-9]' 
   fail "CI needs a SHA-pinned actions/setup-node step"
 
 setup_bun_count="$(grep -Ec 'uses:[[:space:]]+oven-sh/setup-bun@' "$WORKFLOW")"
-[ "$setup_bun_count" -eq 2 ] &&
+[ "$setup_bun_count" -eq 3 ] &&
   [ "$(grep -Ec '^[[:space:]]+bun-version:[[:space:]]+"[0-9]+[.][0-9]+[.][0-9]+"$' "$WORKFLOW")" -eq "$setup_bun_count" ] ||
-  fail "both CI jobs must pin an exact bun version"
-[ "$(grep -Ec '^[[:space:]]+node-version:[[:space:]]+"[0-9]+[.][0-9]+[.][0-9]+"$' "$WORKFLOW")" -eq 2 ] ||
-  fail "both CI jobs must pin an exact Node version"
-[ "$(grep -Ec 'run:[[:space:]]+bun --version && node --version$' "$WORKFLOW")" -eq 2 ] ||
-  fail "both CI jobs must print the bun and node versions"
+  fail "all three CI jobs must pin an exact bun version"
+[ "$(grep -Ec '^[[:space:]]+node-version:[[:space:]]+"[0-9]+[.][0-9]+[.][0-9]+"$' "$WORKFLOW")" -eq 3 ] ||
+  fail "all three CI jobs must pin an exact Node version"
+[ "$(grep -Ec 'run:[[:space:]]+bun --version && node --version$' "$WORKFLOW")" -eq 3 ] ||
+  fail "all three CI jobs must print the bun and node versions"
 
 while IFS= read -r -d '' entry; do
   case "$entry" in

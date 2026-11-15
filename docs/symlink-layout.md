@@ -145,3 +145,95 @@ Scopes has the rules.
 
 [`claude/README.md`](../claude/README.md) covers what the Claude links carry:
 hooks, agents and skill governance.
+
+## Durable daemon (gromarchy, personal scope)
+
+`durable/` is an independent Node 26 adapter with its own exact dependency pins
+and `bun.lock`. Install its dependencies with `cd durable && bun install
+--frozen-lockfile`; verify with `scripts/verify-agentic-infra durable`. It reads
+the checkout's shared workflow contracts, guard implementations and model
+registry at runtime. Updating those files therefore changes subsequent requests.
+
+Slice 2 accepts small tasks that need no plan. Its native GLM conversation can
+read, write, edit and run Bash in a separate worktree; `done` means that the
+conversation answered. Plan documents, phase routing, review tools, publication,
+HTTP access, schedules and MCP arrive in later slices. Direct merge and
+default-branch pushes are already blocked. These command guards are invocation
+controls; arbitrary Bash and indirect API access remain unconfined.
+
+Startup requires host `gromarchy`, an explicit `personal` value in
+`~/.etabli-scope`, and a readable, nonempty `~/.config/etabli/work-orgs` with one
+valid organization per line. Missing or invalid scope/deny-list configuration
+refuses startup. Admission permits only `Tonours` and `tonours-dev` outside the
+work deny list. Admission resolves the canonical owner through `gh repo view`
+and checks existing cache fetch/push remotes before creating a run. No scope file or service is installed automatically.
+
+The launcher is `scripts/etabli-durable`. The user units under `durable/systemd/`
+expect this checkout at `%h/work/etabli` and Node 26 on the systemd user manager's
+`PATH`. If the installation lives elsewhere, adapt both units' `WorkingDirectory`
+and `ExecStart` before linking them into `~/.config/systemd/user/`. Then reload
+user units and enable `etabli-durable.service` and
+`etabli-durable-backup.timer`. The daemon uses `Restart=always`; the daily timer
+uses `sqlite3 .backup` against the live WAL store.
+
+Optional `~/.config/etabli/durable.json`:
+
+```json
+{
+  "maxTurns": 64,
+  "wallMs": 14400000,
+  "restartLimit": 5,
+  "notifyArgv": ["/absolute/path/to/notify-program"]
+}
+```
+
+A terminal notification appends four arguments: run id, status, reason, PR URL
+(empty in Slice 2). No shell evaluates this array. Delivery is claimed in SQLite
+before invocation, so it is attempted at most once; a crash after the claim or a
+failed command is not retried. Prompts and credentials are never notification
+arguments. Limits can be lowered up to a maximum of 256 turns and four hours;
+start times and deadlines survive restarts. A third run remains queued behind
+two busy conversations.
+`restartLimit` bounds recovery attempts per native task (1 to 32, default 5).
+The ten-cut qualification uses 12. Direct git/gh commands with unresolved shell
+expansions or multiline comments fail closed; quote literal arguments and use
+simple command segments for supported invocations.
+
+```bash
+scripts/etabli-durable run --repo Tonours/etabli --request-id my-fixture 'small fixture task'
+scripts/etabli-durable ls
+scripts/etabli-durable show RUN_ID
+scripts/etabli-durable steer RUN_ID 'additional instruction'
+scripts/etabli-durable abort RUN_ID
+```
+
+CLI requests use only the private `0600` Unix socket in
+`~/.local/state/etabli-durable/` (`0700`). Only the daemon writes the store.
+`flock` enforces process exclusivity and releases after SIGKILL; losing its lock
+helper stops the daemon. A daemon-owned bare cache avoids altering the original
+checkout. Each run has an ownerless native conversation, `feat/durable-<compact-run-id>` branch
+and isolated worktree. Retrying a `--request-id` returns the same run; different
+content under an existing id is refused.
+
+The credential adapter shares Pi 1.5.2's `~/.pi/agent/auth.json` lock protocol:
+canonical realpath, `proper-lockfile`, 30-second stale threshold, five-second
+heartbeat and bounded cancellable acquisition. Reads take the lock too because
+Pi writes non-atomically. Daemon mutations reread under that lock and replace the
+file atomically at `0600`, preserving other providers. Credential values never
+enter conversation documents. Before a real run, qualify the compiled CLI using
+`node durable/__tests__/qualify-credentials.ts`; it uses synthetic OAuth and
+temporary `HOME`/`PI_CODING_AGENT_DIR` paths exclusively. `PI_CLI` can name the
+compiled 1.5.2 binary. `node durable/__tests__/qualify-kills.ts` performs ten
+synthetic process kills (three during an unsafe tool, seven during generation),
+with a test-only restart limit of twelve.
+
+Backups are private snapshots in `STATE/backups/`, atomically renamed after
+SQLite completes. Only adapter-named snapshots are pruned, retaining fourteen.
+To restore, stop the daemon, copy a completed snapshot to `store.sqlite` in a
+separate empty `0700` state directory and set the copy to `0600`. Start
+`scripts/etabli-durable --state /absolute/restore-state daemon`, then use the same
+`--state` for `ls` and `show`. Run metadata retains its original worktree paths;
+a restore into another state directory refuses to start active runs, so restore
+drills should use completed runs. Active recovery requires the original state
+path and its corresponding worktrees. Never replace a live store or copy its
+WAL files independently.
