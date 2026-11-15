@@ -15,6 +15,7 @@ import { OwnerPolicy } from "./policy.ts";
 import { Repositories } from "./repositories.ts";
 import { Runs } from "./runs.ts";
 import { Schedules } from "./schedule.ts";
+import { Ci } from "./ci.ts";
 import { writerLock } from "./lock.ts";
 import { authorFamilies, createPlanExtension, phaseModel, type ModelRole } from "./plan-doc.ts";
 import { createReviewExtension } from "./review.ts";
@@ -33,7 +34,7 @@ export async function defaultModel(): Promise<ModelRef> {
   return phaseModel(checkout, "implementer");
 }
 
-export async function openCore(options: { state: string; policy: OwnerPolicy; models: Models; model?: () => Promise<ModelRef>; workflow?: boolean; phaseModel?: (role: ModelRole) => Promise<ModelRef>; reviewCli?: typeof runCliReview; publishCommand?: Command; repositories?: Repositories; now?: () => number; wallMs?: number; maxTurns?: number; notifyArgv?: readonly string[]; restartLimit?: number; retry?: Partial<ConversationRetryPolicy>; fatal?: () => void }) {
+export async function openCore(options: { state: string; policy: OwnerPolicy; models: Models; model?: () => Promise<ModelRef>; workflow?: boolean; phaseModel?: (role: ModelRole) => Promise<ModelRef>; reviewCli?: typeof runCliReview; publishCommand?: Command; ciCommand?: Command; repositories?: Repositories; now?: () => number; wallMs?: number; maxTurns?: number; notifyArgv?: readonly string[]; restartLimit?: number; retry?: Partial<ConversationRetryPolicy>; fatal?: () => void }) {
   process.umask(0o077);
   await mkdir(options.state, { recursive: true, mode: 0o700 });
   await chmod(options.state, 0o700);
@@ -61,11 +62,12 @@ export async function openCore(options: { state: string; policy: OwnerPolicy; mo
     opened = harness;
     const runs = new Runs({ ...options, workflow: options.workflow ? checkout : undefined, guard, harness, repositories: options.repositories ?? new Repositories(options.state, options.policy), model: options.model ?? defaultModel });
     const schedules = new Schedules(runs);
+    const ci = new Ci(runs, options.ciCommand);
     let closing = false;
     let triggers: Promise<void> | undefined;
     const tickTriggers = () => {
       if (closing) return Promise.resolve();
-      triggers ??= (async () => { await schedules.tick(); })().catch(() => { console.error("Trigger tick unavailable; retrying"); }).finally(() => { triggers = undefined; });
+      triggers ??= (async () => { await schedules.tick(); await ci.tick(); })().catch(() => { console.error("Trigger tick unavailable; retrying"); }).finally(() => { triggers = undefined; });
       return triggers;
     };
     let enforcing: Promise<void> | undefined;
@@ -81,7 +83,7 @@ export async function openCore(options: { state: string; policy: OwnerPolicy; mo
       await harness.close(context);
       throw error;
     }
-    return { harness, runs, schedules, tickTriggers, close: async () => { closing = true; await triggers; clearInterval(limits); await enforcing; await runs.drainStops(); await harness.close(context); await unlock(); } };
+    return { harness, runs, schedules, ci, tickTriggers, close: async () => { closing = true; await triggers; clearInterval(limits); await enforcing; await runs.drainStops(); await harness.close(context); await unlock(); } };
   } catch (error) {
     await opened?.close(context).catch(() => undefined);
     await unlock();

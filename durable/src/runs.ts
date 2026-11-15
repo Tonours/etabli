@@ -1,15 +1,17 @@
 import { randomUUID } from "node:crypto";
 import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
-import { LiveDoc, configure, type Tx, type Harness, type Extension, type ModelRef } from "@earendil-works/pi-durable";
+import { LiveDoc, InboxDoc, configure, type Tx, type Harness, type Extension, type ModelRef } from "@earendil-works/pi-durable";
 import { Repositories } from "./repositories.ts";
 import { guardedAgent } from "./guards.ts";
 import { notify } from "./notify.ts";
-import { phaseModel, startPlan, templateSections, type ModelRole } from "./plan-doc.ts";
+import { EtabliPlanDoc, phaseModel, startPlan, templateSections, type ModelRole } from "./plan-doc.ts";
 import { finalSnapshot } from "./backup.ts";
-import { reconcilePublication, type Command } from "./publish.ts";
+import { PublishDoc, reconcilePublication, type Command } from "./publish.ts";
 
 import { active, activeStatuses, RunsDoc, type Run } from "./runs-doc.ts";
 import { SchedulesDoc, nextDue } from "./schedule.ts";
+import { CiDoc, terminalGeneration } from "./ci-doc.ts";
+import { git } from "./change.ts";
 export { RunsDoc, type Run } from "./runs-doc.ts";
 
 export class Runs {
@@ -109,6 +111,54 @@ export class Runs {
     }, context);
   }
 
+  async reactivateCi(id: string, number: number): Promise<boolean> {
+    const run = await this.show(id);
+    const ci = (await this.harness.snapshot(CiDoc, context))?.runs.find((row) => row.runId === id);
+    if (!ci || run.status !== "done") return false;
+    await this.repositories.prepare(run.id, run.repo, run.branch);
+    if (await git(run.worktree, ["status", "--porcelain"]) || await git(run.worktree, ["rev-parse", "HEAD"]) !== ci.head) {
+      await this.harness.commit(async (tx) => {
+        const record = (await tx.doc(CiDoc)).runs.find((row) => row.runId === id)!;
+        const attempt = record.attempts.find((attempt) => attempt.number === number);
+        if (attempt?.state === "reserved") { attempt.state = "cancelled"; record.retired = "worktree_changed"; }
+      }, context);
+      return false;
+    }
+    const model = this.workflow ? await this.phaseModel("implementer") : await this.model();
+    const conversation = await this.harness.conversation(run.conversationId, context);
+    if (!conversation) throw new Error("Stored run conversation is missing");
+    return this.serialized(() => this.harness.commit(async (tx) => {
+      const runs = (await tx.doc(RunsDoc)).runs;
+      const stored = runs.find((row) => row.id === id)!;
+      const record = (await tx.doc(CiDoc)).runs.find((row) => row.runId === id)!;
+      const attempt = record.attempts.find((attempt) => attempt.number === number);
+      const publication = await tx.doc(PublishDoc, run.conversationId);
+      const plan = await tx.doc(EtabliPlanDoc, run.conversationId);
+      const live = await tx.doc(LiveDoc, run.conversationId);
+      const inbox = await tx.doc(InboxDoc, run.conversationId);
+      if (!attempt || attempt.state !== "reserved" || record.retired || stored.status !== "done" || stored.reason !== "published" || !stored.notified || stored.url !== record.url || publication.head !== record.head || attempt.triggerHead !== record.head) return false;
+      if (runs.filter((row) => active(row) || this.stopping.has(row.id)).length >= 2 || live.run || inbox.items.length || this.stopping.has(id)) return false;
+      if (plan.enabled && plan.status !== "READY") return false;
+      await configure(tx, run.conversationId, guardedAgent({ cwd: run.worktree, model, maxTurns: this.maxTurns }, this.guard));
+      plan.reviews = plan.reviews.filter((review) => review.kind !== "code");
+      Object.assign(publication, PublishDoc.definition.initial());
+      stored.submissionId = await conversation.submit(tx, { type: "input", content: attempt.input, requestId: attempt.requestId, whenBusy: "reject" });
+      attempt.state = "submitted";
+      stored.status = "implementing"; stored.reason = ""; stored.notified = false;
+      stored.startedAt = this.now(); stored.deadline = stored.startedAt + this.wallMs; stored.maxTurns = this.maxTurns;
+      return true;
+    }, context));
+  }
+
+  async exhaustCi(id: string, head: string): Promise<void> {
+    await this.serialized(() => this.harness.commit(async (tx) => {
+      const run = (await tx.doc(RunsDoc)).runs.find((run) => run.id === id)!;
+      const ci = (await tx.doc(CiDoc)).runs.find((row) => row.runId === id)!;
+      if (run.status !== "done" || ci.head !== head || ci.attempts.filter((attempt) => attempt.state === "submitted").length < 2) return;
+      run.status = "blocked"; run.reason = "ci_attempts_exhausted"; run.notified = false; ci.retired = "attempts_exhausted";
+    }, context));
+  }
+
   private async finish(id: string, status: Run["status"], reason: string, expected: readonly Run["status"][] = activeStatuses): Promise<boolean> {
     return this.harness.commit(async (tx) => {
       const run = (await tx.doc(RunsDoc)).runs.find((run) => run.id === id)!;
@@ -189,7 +239,7 @@ export class Runs {
         }, context);
         await notify(this.notifyArgv, run).catch(() => undefined);
       }
-      for (const run of await this.list()) if (run.route !== "legacy" && ["done", "blocked", "aborted"].includes(run.status) && run.notified && !this.stopping.has(run.id)) await finalSnapshot(this.repositories.root, run.id).catch(() => console.error("Final snapshot unavailable; check sqlite3 and state permissions; retrying", run.id));
+      for (const run of await this.list()) if (run.route !== "legacy" && ["done", "blocked", "aborted"].includes(run.status) && run.notified && !this.stopping.has(run.id)) await finalSnapshot(this.repositories.root, run.id, terminalGeneration(run, (await this.harness.snapshot(CiDoc, context))?.runs.find((row) => row.runId === run.id))).catch(() => console.error("Final snapshot unavailable; check sqlite3 and state permissions; retrying", run.id));
     });
   }
 

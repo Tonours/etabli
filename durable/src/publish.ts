@@ -10,6 +10,7 @@ import { prBodyGuardDecision } from "../../workflow/runtime/pr-body-guard.mjs";
 import { authorFamilies, codeRoundVerdict, EtabliPlanDoc, planHash, type ReviewReceipt } from "./plan-doc.ts";
 import { active, RunsDoc, type Run } from "./runs-doc.ts";
 import { change, git } from "./change.ts";
+import { CiDoc } from "./ci-doc.ts";
 import { OwnerPolicy } from "./policy.ts";
 
 export const PublishDoc = defineDoc<PublishIntent & { reconciled: boolean; reconcileError: string }>({ kind: "etabli.publish", version: 1, scope: "conversation", history: "latest", fork: "initial", initial: () => ({ title: "", body: "", head: "", base: "", sourceHash: "", reconciled: false, reconcileError: "" }), checkpointWhen: () => true });
@@ -21,7 +22,7 @@ export function approvedChange(reviews: readonly ReviewReceipt[], sourceHash: st
 }
 
 export type PublishIntent = { title: string; body: string; head: string; base: string; sourceHash: string };
-type Pull = { url: string; headRefOid: string; baseRefName: string; state: string; headRepositoryOwner: { login: string } };
+type Pull = { url: string; headRefOid: string; baseRefName: string; state: string; headRepositoryOwner: { login: string }; headRefName?: string };
 export type Command = (cwd: string, command: string, args: readonly string[]) => Promise<string>;
 const command: Command = async (cwd, program, args) => (await promisify(execFile)(program, [...args], { cwd, encoding: "utf8", timeout: 120_000, maxBuffer: 4_000_000 })).stdout.trim();
 
@@ -52,7 +53,7 @@ export async function reconcilePublication(harness: Pick<Harness, "snapshot" | "
   }, context);
 }
 
-export async function publishBranch(run: Readonly<Run>, intent: Readonly<PublishIntent>, policy: OwnerPolicy, execute: Command = command): Promise<string> {
+export async function publishBranch(run: Readonly<Run>, intent: Readonly<PublishIntent>, policy: OwnerPolicy, execute: Command = command, update?: { url: string; previousHead: string }): Promise<string> {
   const repositoryGit = (args: readonly string[]) => execute(run.worktree, "git", args);
   const repo = policy.allow(run.repo);
   if (run.route === "legacy" || run.branch !== `feat/durable-${run.id.replaceAll("-", "")}` || await repositoryGit(["branch", "--show-current"]) !== run.branch) throw new Error("Publication requires this workflow run's branch");
@@ -72,10 +73,21 @@ export async function publishBranch(run: Readonly<Run>, intent: Readonly<Publish
     const refused = prBodyGuardDecision({ cwd: run.worktree, tool_name: "bash", tool_input: { command: quoted } });
     if (refused) throw new Error(refused.hookSpecificOutput.permissionDecisionReason);
     const existing = () => existingPull(run, intent, policy, execute);
-    const found = await existing();
-    if (found) return found;
+    if (update) {
+      const pull = JSON.parse(await execute(run.worktree, "gh", ["pr", "view", update.url, "--repo", repo, "--json", "url,headRefOid,headRefName,baseRefName,state,headRepositoryOwner"])) as Pull;
+      if (pull.url !== update.url || pull.url !== run.url || pull.headRefName !== run.branch || pull.baseRefName !== intent.base || pull.state !== "OPEN" || pull.headRepositoryOwner.login.toLowerCase() !== repo.split("/")[0].toLowerCase() || ![update.previousHead, intent.head].includes(pull.headRefOid)) throw new Error("CI pull request differs from recorded publication");
+      if (pull.headRefOid === intent.head) return update.url;
+    } else {
+      const found = await existing();
+      if (found) return found;
+    }
     await execute(run.worktree, "gitleaks", ["git", "--no-banner", "--redact", "--log-opts", `${(await change(run.worktree)).base}..${intent.head}`]);
     await execute(run.worktree, "git", ["push", "origin", `${intent.head}:refs/heads/${run.branch}`]);
+    if (update) {
+      const updated = await existing();
+      if (updated !== update.url) throw new Error("Updated pull request could not be reconciled");
+      return updated;
+    }
     try { await execute(run.worktree, "gh", args); } catch (error) { const reconciled = await existing(); if (reconciled) return reconciled; throw error; }
     const created = await existing();
     if (!created) throw new Error("Created pull request could not be reconciled");
@@ -102,11 +114,17 @@ export function createPublishExtension(checkout: string, policy: OwnerPolicy, ho
       const intent = previous?.head ? previous : { ...args, sourceHash: source.hash, head: await git(run.worktree, ["rev-parse", "HEAD"]), base: (await git(run.worktree, ["symbolic-ref", "refs/remotes/origin/HEAD"])).replace("refs/remotes/origin/", "") };
       if (intent.title !== args.title || intent.body !== args.body || intent.sourceHash !== source.hash) throw new Error("Publication intent already belongs to different content");
       await api.commit(async (tx) => { Object.assign(await tx.doc(PublishDoc, api.conversationId), intent); const stored = (await tx.doc(RunsDoc)).runs.find((row) => row.id === run.id)!; if (!active(stored)) throw new Error("Run ended before publication"); stored.status = "publishing"; }, context);
-      const url = await publishBranch(run, intent, policy, execute);
+      const ci = (await api.snapshot(CiDoc, context))?.runs.find((row) => row.runId === run.id);
+      const attempt = ci?.attempts.filter((attempt) => attempt.state === "submitted").at(-1);
+      const url = await publishBranch(run, intent, policy, execute, attempt && ci ? { url: ci.url, previousHead: attempt.triggerHead } : undefined);
       await api.commit(async (tx) => {
         const stored = (await tx.doc(RunsDoc)).runs.find((row) => row.id === run.id)!;
         if (!active(stored)) throw new Error("Run ended before publication completed");
         stored.url = url; stored.status = "done"; stored.reason = "published";
+        const records = (await tx.doc(CiDoc)).runs;
+        const record = records.find((row) => row.runId === run.id);
+        if (record) { record.head = intent.head; record.url = url; record.retired = ""; record.nextPollAt = 0; record.backoff = 60_000; }
+        else records.push({ runId: run.id, url, head: intent.head, originalStartedAt: stored.startedAt, nextPollAt: 0, backoff: 60_000, retired: "", attempts: [] });
       }, context);
       return { output: [{ type: "text", text: url }], control: { terminate: true } };
     },
