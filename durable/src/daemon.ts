@@ -1,12 +1,11 @@
-import { chmod, mkdir, readFile, unlink } from "node:fs/promises";
+import { chmod, mkdir, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { hostname, homedir } from "node:os";
-import { createServer, type Server } from "node:net";
 import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
 import { createModels, type Models } from "@earendil-works/pi-ai";
 import { zaiProvider } from "@earendil-works/pi-ai/providers/zai";
 import { openaiCodexProvider } from "@earendil-works/pi-ai/providers/openai-codex";
-import { Harness, AgentDoc, LiveDoc, createRegistry, type ModelRef, type ConversationRetryPolicy } from "@earendil-works/pi-durable";
+import { Harness, createRegistry, type ModelRef, type ConversationRetryPolicy } from "@earendil-works/pi-durable";
 import { CodingTools } from "@earendil-works/pi-durable/tools";
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
@@ -16,10 +15,14 @@ import { OwnerPolicy } from "./policy.ts";
 import { Repositories } from "./repositories.ts";
 import { Runs } from "./runs.ts";
 import { writerLock } from "./lock.ts";
-import { authorFamilies, createPlanExtension, EtabliPlanDoc, phaseModel, type ModelRole } from "./plan-doc.ts";
+import { authorFamilies, createPlanExtension, phaseModel, type ModelRole } from "./plan-doc.ts";
 import { createReviewExtension } from "./review.ts";
 import { createPublishExtension, type Command } from "./publish.ts";
 import type { runCliReview } from "./review-cli.ts";
+
+import { serve, serveRemote, type ApiServer } from "./api.ts";
+import { apiConfig, loadToken } from "./auth.ts";
+export { dispatch, serve } from "./api.ts";
 
 export const defaultState = () => join(homedir(), ".local/state/etabli-durable");
 export const defaultConfig = () => join(homedir(), ".config/etabli/durable.json");
@@ -79,65 +82,6 @@ export async function openCore(options: { state: string; policy: OwnerPolicy; mo
 
 export type Core = Awaited<ReturnType<typeof openCore>>;
 
-type Request = { op: string; id?: string; repo?: string; prompt?: string; requestId?: string; content?: string; route?: string };
-
-function requiredText(value: unknown): string {
-  if (typeof value !== "string") throw new Error("Request fields must be strings");
-  return value;
-}
-
-export async function dispatch(core: Core, request: Request): Promise<unknown> {
-  switch (request.op) {
-    case "run": {
-      if (request.route !== undefined && !["answer", "plan"].includes(request.route)) throw new Error("Run route must be answer or plan");
-      return core.runs.submit(requiredText(request.repo), requiredText(request.prompt), requiredText(request.requestId), request.route as "answer" | "plan" | undefined);
-    }
-    case "plan": return core.harness.snapshot(EtabliPlanDoc, (await core.runs.show(requiredText(request.id))).conversationId, context);
-    case "ls": return core.runs.list();
-    case "show": {
-      const run = await core.runs.show(requiredText(request.id));
-      const conversation = await core.harness.conversation(run.conversationId, context);
-      return { run, agent: await core.harness.snapshot(AgentDoc, run.conversationId, context), live: await core.harness.snapshot(LiveDoc, run.conversationId, context), entries: (await conversation?.entries({ order: "ascending" }, 1000, undefined, context))?.items ?? [] };
-    }
-    case "steer": return core.runs.steer(requiredText(request.id), requiredText(request.content), requiredText(request.requestId));
-    case "abort": return { aborted: await core.runs.abort(requiredText(request.id)) };
-    default: throw new Error("Unknown operation; use run, ls, show, plan, steer or abort");
-  }
-}
-
-export async function serve(core: Core, state: string): Promise<Server> {
-  const path = join(state, "daemon.sock");
-  await unlink(path).catch((error: NodeJS.ErrnoException) => { if (error.code !== "ENOENT") throw error; });
-  const server = createServer((socket) => {
-    let body = "";
-    socket.setEncoding("utf8");
-    socket.setTimeout(30_000, () => socket.destroy());
-    socket.on("data", (chunk: string) => {
-      body += chunk;
-      if (body.length > 128_000) { socket.destroy(); return; }
-      const end = body.indexOf("\n");
-      if (end === -1) return;
-      socket.removeAllListeners("data");
-      void (async () => {
-        try {
-          const parsed: unknown = JSON.parse(body.slice(0, end));
-          if (!parsed || typeof parsed !== "object" || !("op" in parsed) || typeof parsed.op !== "string") throw new Error("Invalid request");
-          const fields = parsed as Record<string, unknown>;
-          if (["id", "repo", "prompt", "requestId", "content", "route"].some((key) => key in fields && typeof fields[key] !== "string")) throw new Error("Request fields must be strings");
-          const value = await dispatch(core, parsed as Request);
-          socket.end(`${JSON.stringify({ ok: true, value })}\n`);
-        } catch (error) {
-          socket.end(`${JSON.stringify({ ok: false, error: error instanceof Error ? error.message : "Request refused" })}\n`);
-        }
-      })();
-    });
-    socket.on("error", () => undefined);
-  });
-  await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(path, resolve); });
-  await chmod(path, 0o600);
-  return server;
-}
-
 export function daemonConfig(raw: unknown) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("Invalid durable configuration");
   const config = raw as Record<string, unknown>;
@@ -148,7 +92,7 @@ export function daemonConfig(raw: unknown) {
   const restartLimit = config.restartLimit ?? 5;
   if (typeof maxTurns !== "number" || !Number.isSafeInteger(maxTurns) || maxTurns < 1 || maxTurns > 256 || typeof wallMs !== "number" || !Number.isSafeInteger(wallMs) || wallMs < 1 || wallMs > 14_400_000) throw new Error("Run limits must be positive and within 256 turns / four hours");
   if (typeof restartLimit !== "number" || !Number.isSafeInteger(restartLimit) || restartLimit < 1 || restartLimit > 32) throw new Error("restartLimit must be an integer from 1 to 32");
-  return { notifyArgv, maxTurns, wallMs, restartLimit };
+  return { notifyArgv, maxTurns, wallMs, restartLimit, api: apiConfig(config.api) };
 }
 
 export async function daemon(state = defaultState(), configPath = defaultConfig()): Promise<void> {
@@ -159,7 +103,16 @@ export async function daemon(state = defaultState(), configPath = defaultConfig(
   models.setProvider(zaiProvider());
   models.setProvider(openaiCodexProvider());
   const core = await openCore({ state, policy, models, workflow: true, ...config, fatal: () => process.exit(1) });
-  const server = await serve(core, state);
+  const servers: ApiServer[] = [];
+  try {
+    const token = await loadToken(join(state, "api.token"));
+    servers.push(await serve(core, state));
+    if (config.api) servers.push(await serveRemote(core, config.api.port, token, config.api.identities));
+  } catch (error) {
+    await Promise.all(servers.map((server) => server.shutdown()));
+    await core.close();
+    throw error;
+  }
   let ticking = false;
   const timer = setInterval(() => {
     if (ticking) return;
@@ -168,7 +121,7 @@ export async function daemon(state = defaultState(), configPath = defaultConfig(
   }, 250);
   const stop = async () => {
     clearInterval(timer);
-    server.close();
+    await Promise.all(servers.map((server) => server.shutdown()));
     await core.close();
     process.exit(0);
   };
