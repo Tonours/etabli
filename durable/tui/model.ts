@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { replaceControlCharacters, stripTerminalSequences } from "@earendil-works/pi-tui";
 import type { ConversationView, EntryRecord } from "@earendil-works/pi-durable";
 import type { Message } from "@earendil-works/pi-ai";
-import type { Run } from "../src/runs-doc.ts";
+import { active, type Run } from "../src/runs-doc.ts";
 import { request, watchRun, type Remote } from "../src/client.ts";
 
 export function safe(text: string): string {
@@ -136,7 +136,7 @@ export class TuiModel {
   }
 
   begin(mode: "steer" | "abort"): void {
-    if (this.pending || !this.mutable) return;
+    if (this.pending || !this.mutable || (mode === "steer" && (!this.selected || !active(this.selected)))) return;
     this.targetId = this.selectedId;
     this.mode = mode;
     this.actionError = "";

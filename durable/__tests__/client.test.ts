@@ -17,7 +17,7 @@ test("retry keeps the same steer identity and captured target despite a refreshe
   const second = await f.core.runs.submit("Tonours/fixture", "second", "second");
   const received: { requestId: string; content: string; path: string }[] = [];
   const server = createServer(async (req, res) => {
-    if (req.method === "GET") { res.end(JSON.stringify({ ok: true, value: [first, second] })); return; }
+    if (req.method === "GET") { res.end(JSON.stringify({ ok: true, value: [first, second].map(run => ({ ...run, status: "implementing" })) })); return; }
     let body = "";
     for await (const chunk of req) body += String(chunk);
     received.push({ ...JSON.parse(body), path: req.url });

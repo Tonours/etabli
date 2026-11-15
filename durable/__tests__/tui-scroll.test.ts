@@ -37,7 +37,14 @@ test("app enters a live tail from a long list but preserves manual scroll during
   const done = tui("unused-scroll-test");
   try {
     expect(viewport.scrollTop).toBe(0);
+    model.selectedId = model.runs[25].id;
+    model.changed();
+    const listViewport = viewport;
+    expect(listViewport.scrollTop).toBe(15);
     key("\r");
+    const runViewport = viewport;
+    expect(runViewport).not.toBe(listViewport);
+    expect(listViewport.scrollTop).toBe(15);
     expect(viewport.scrollTop).toBe(180);
     expect(viewport.isFollowingEnd).toBe(true);
     viewport.scrollBy(-30);
@@ -47,13 +54,15 @@ test("app enters a live tail from a long list but preserves manual scroll during
     key("s");
     model.cancel();
     expect(viewport.scrollTop).toBe(150);
-    transcriptLines = 2;
-    model.changed();
     key("\u001b");
-    expect(viewport.scrollTop).toBe(0);
+    expect(viewport).toBe(listViewport);
+    expect(viewport.scrollTop).toBe(15);
+    expect(runViewport.scrollTop).toBe(150);
     transcriptLines = 200;
     key("\r");
+    expect(viewport).toBe(runViewport);
     expect(viewport.scrollTop).toBe(180);
+    expect(listViewport.scrollTop).toBe(15);
   } finally {
     key("q");
     await done;

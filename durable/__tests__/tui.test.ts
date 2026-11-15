@@ -53,6 +53,7 @@ test("list polling cannot erase an action failure or turn a refresh failure into
     const run = await f.core.runs.submit("Tonours/fixture", "action errors", "action-errors");
     await model.refresh();
     model.selectedId = run.id;
+    model.runs = model.runs.map(row => ({ ...row, status: "implementing" }));
     model.begin("steer");
     model.targetId = "00000000-0000-0000-0000-000000000000";
     model.draft = "keep the unsent draft";
@@ -64,6 +65,7 @@ test("list polling cannot erase an action failure or turn a refresh failure into
     expect(model.draft).toBe("keep the unsent draft");
     model.cancel();
     expect(model.error).toBe("");
+    model.runs = model.runs.map(row => ({ ...row, status: "implementing" }));
     model.begin("steer");
     await server.shutdown();
     await model.refresh();
@@ -153,6 +155,11 @@ test("empty and disconnected list, selection races, terminal state and quit do n
     model.select(second.id);
     await until(async () => model.status === "Live");
     expect(model.selectedId).toBe(second.id);
+    model.begin("steer");
+    expect(model.mode).toBe("run");
+    model.begin("abort");
+    expect(model.mode).toBe("abort");
+    model.cancel();
     await server.shutdown();
     await until(async () => model.status.startsWith("Disconnected"));
     await model.refresh();
