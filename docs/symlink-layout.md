@@ -152,7 +152,8 @@ hooks, agents and skill governance.
 and `bun.lock`. Install its dependencies with `cd durable && bun install
 --frozen-lockfile`; verify with `scripts/verify-agentic-infra durable`. It reads
 the checkout's shared workflow contracts, guard implementations and model
-registry at runtime. Updating those files therefore changes subsequent requests.
+registry at runtime. Routes, templates and contract text are read for subsequent
+requests; imported guard implementations take effect after a daemon restart.
 
 New runs start on GLM, or on Sol with `run --plan`. Plan tools keep an
 `EtabliPlanDoc` in SQLite, with no `PLAN.md` or `docs/plan/` projection. A current
@@ -177,8 +178,7 @@ terminal runs are never queued for publication. A stopped run with a persisted
 publication intent and no URL performs one bounded read-only existing-PR lookup
 before notification and archive. The outcome is stored, including lookup failure;
 this recovery never pushes or creates a PR, and keeps the stop reason.
-HTTP access, schedules and MCP
-arrive in later slices.
+Schedules and MCP arrive in later slices.
 
 Startup requires host `gromarchy`, an explicit `personal` value in
 `~/.etabli-scope`, and a readable, nonempty `~/.config/etabli/work-orgs` with one
@@ -232,7 +232,61 @@ scripts/etabli-durable steer RUN_ID 'additional instruction'
 scripts/etabli-durable abort RUN_ID
 ```
 
-CLI requests use only the private `0600` Unix socket in
+Remote access is disabled until `durable.json` contains an `api` object:
+
+```json
+{"api": {"port": 4318, "identities": ["owner@example.invalid"]}}
+```
+
+The login strings must exactly match Tailscale's `Tailscale-User-Login` values.
+Restart the daemon after changing configuration. The remote listener binds only
+`127.0.0.1`; publish it with `tailscale serve --bg http://127.0.0.1:4318`.
+Serve supplies TLS and replaces identity headers. Tagged clients have no user
+login and are refused. Every TCP HTTP request and WebSocket upgrade requires
+both the bearer token and an allowlisted login, including direct loopback calls.
+The separate local Unix listener requires filesystem access instead. These
+controls do not isolate other processes running under the same user.
+Only Tailscale Serve is supported as the publishing proxy. Do not expose this
+port directly or through a proxy that preserves client-supplied identity headers.
+
+First daemon startup creates `STATE/api.token` as an owned `0600` regular file.
+It survives restarts; malformed, symlinked or unsafe existing files stop startup.
+Never print the token or put it in a URL, command argument, notification or log.
+Provision a private `0600` token file on a client through a secure channel, then:
+
+```bash
+scripts/etabli-durable --host https://gromarchy.YOUR-TAILNET.ts.net --token-file /private/path/api.token ls
+```
+
+The client requires `--token-file` with `--host`; no implicit token path is used.
+It accepts only an HTTPS origin, sends no identity override, and follows
+no redirects. Removing the remote config and disabling Serve returns to local
+CLI access. `tailscale serve --https=443 off` removes this proxy; preserve any
+unrelated Serve configuration when operating a shared installation.
+
+The API uses `GET/POST /v1/runs`, `GET /v1/runs/ID`, `GET /v1/runs/ID/plan`,
+and `POST /v1/runs/ID/steer` or `/abort`. Creation takes `repo`, `prompt`,
+`requestId`, and optional `route` (`answer` or `plan`); steering takes `content`
+and `requestId`. Responses wrap results as `{ "ok": true, "value": ... }`.
+`/v1/schedules` returns 501 until scheduling ships. HTTP bodies are bounded to
+128000 UTF-16 units (at most 384000 UTF-8 bytes), preserving the former socket
+input domain. Prompt and steering content remain limited to 64000 units.
+An absent plan returns JSON `null`; the in-process dispatch still returns
+`undefined`. Mutations use the existing native admission, steering and abort
+semantics; abort resolves only after the conversation's tasks are idle.
+
+A Node WebSocket client may open `/v1/runs/ID/watch` with an Authorization bearer
+header through Serve. Each `{ "kind": "value", "value": ... }` message is the
+current native conversation view, including live generation/tool state and a
+bounded entry window. Reconnect with `?from=ENTRY_ID` to resume from that entry;
+`before` identifies history outside the window. Consumers merge immutable entry
+IDs and retain gaps rather than assuming a complete replay. Disconnects stop
+the watch; quiet sockets use ping/pong instead of the HTTP idle timeout. Clients
+with more than 4 MB of buffered view data are disconnected and can reconnect.
+The stream is read-only; steering and abort use HTTP. Browser login and UI arrive
+in later slices.
+
+Local CLI requests use HTTP over the private `0600` Unix socket in
 `~/.local/state/etabli-durable/` (`0700`). Only the daemon writes the store.
 `flock` enforces process exclusivity and releases after SIGKILL; losing its lock
 helper stops the daemon. A daemon-owned bare cache avoids altering the original
