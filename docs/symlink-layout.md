@@ -316,3 +316,28 @@ a restore into another state directory refuses to start active runs, so restore
 drills should use completed runs. Active recovery requires the original state
 path and its corresponding worktrees. Never replace a live store or copy its
 WAL files independently.
+
+### Durable terminal client
+
+Run `scripts/etabli-durable tui` in an interactive terminal. It uses the private
+Unix socket locally. Remote use accepts the same HTTPS origin and explicitly
+named private token file as other CLI commands:
+
+```bash
+scripts/etabli-durable --host https://gromarchy.example.ts.net --token-file /private/api.token tui
+```
+
+Use Up/Down to select a run and Enter to follow its stream. `s` opens the steer
+input; Enter sends it and Escape keeps the draft while returning to the run.
+`a` asks to abort the selected run; `y` confirms and Escape cancels. Escape from
+the run returns to the list. `q` outside the input, or Ctrl-C anywhere, closes
+the client without aborting a run. Page Up/Down scrolls the stream. `r` refreshes
+the run list outside the steer input and abort confirmation.
+
+The client polls run status and follows native WebSocket views. It retains at
+most 100 recent entries, resumes after a disconnect, and labels omitted or
+missed history. It shows text and tool progress; thinking and system messages
+are hidden. Untrusted text and pasted drafts cannot emit terminal controls.
+Plan editing, run creation and history paging are not part of this TUI.
+The alternate screen and terminal input mode are restored on exit. A real
+interactive terminal is required; other CLI commands remain usable headlessly.

@@ -8,8 +8,8 @@ import { AgentDoc, LiveDoc, type ConversationWatch, type EntryId } from "@earend
 import { EtabliPlanDoc } from "./plan-doc.ts";
 import type { Core } from "./daemon.ts";
 import { remoteAuth } from "./auth.ts";
-
-export type ApiRequest = { op: string; id?: string; repo?: string; prompt?: string; requestId?: string; content?: string; route?: string };
+import type { ApiRequest } from "./client.ts";
+export { operationPath, type ApiRequest } from "./client.ts";
 
 function requiredText(value: unknown): string {
   if (typeof value !== "string") throw new Error("Request fields must be strings");
@@ -32,18 +32,6 @@ export async function dispatch(core: Core, request: ApiRequest): Promise<unknown
     case "steer": return core.runs.steer(requiredText(request.id), requiredText(request.content), requiredText(request.requestId));
     case "abort": return { aborted: await core.runs.abort(requiredText(request.id)) };
     default: throw new Error("Unknown operation; use run, ls, show, plan, steer or abort");
-  }
-}
-
-export function operationPath(body: ApiRequest): { method: string; path: string } {
-  const id = encodeURIComponent(body.id ?? "");
-  switch (body.op) {
-    case "run": return { method: "POST", path: "/v1/runs" };
-    case "ls": return { method: "GET", path: "/v1/runs" };
-    case "show": return { method: "GET", path: `/v1/runs/${id}` };
-    case "plan": return { method: "GET", path: `/v1/runs/${id}/plan` };
-    case "steer": case "abort": return { method: "POST", path: `/v1/runs/${id}/${body.op}` };
-    default: throw new Error("Unknown API operation");
   }
 }
 
