@@ -7,6 +7,7 @@ import { LiveDoc, AgentDoc, InboxDoc } from "@earendil-works/pi-durable";
 import { fauxAssistantMessage } from "@earendil-works/pi-ai/providers/faux";
 import { CiDoc } from "../src/ci-doc.ts";
 import { RunsDoc } from "../src/runs-doc.ts";
+import { inspectChecks } from "../src/ci.ts";
 import { PublishDoc } from "../src/publish.ts";
 import { EtabliPlanDoc } from "../src/plan-doc.ts";
 import { ciFixture } from "./fixtures/ci-fixture.ts";
@@ -20,7 +21,7 @@ test("two red CI fixes reuse the native conversation, refresh reviews/caps/notif
   const f = await ciFixture({ now: () => now, wallMs: 20_000, maxTurns: 4, notifyArgv });
   notifyArgv.push("node", "-e", "require('node:fs').appendFileSync(process.argv[1],process.argv.slice(2).join('|')+'\\n')", join(f.root, "notifications"));
   try {
-    const run = await f.core.runs.submit("Tonours/fixture", "publish fixture", "ci-parent");
+    const run = await f.core.runs.submit("tonours/fixture", "publish fixture", "ci-parent");
     await f.core.runs.tick(); await f.core.harness.waitForIdle(context); await f.core.runs.tick();
     expect(await f.core.runs.show(run.id)).toMatchObject({ status: "done", reason: "published", notified: true });
     const initial = join(f.state, "final", `${run.id}.sqlite`);
@@ -149,7 +150,7 @@ test("reserved attempts wait for native capacity/idle, retain exact input and ca
   } finally { release(); await f.cleanup(); }
 }, 20_000);
 
-test("a stale reserved head cancels once and refunds the two-submission budget", async () => {
+test("a stale reserved head cancels once and retires the publication", async () => {
   let now = Date.now();
   const f = await ciFixture({ now: () => now });
   try {
@@ -179,5 +180,51 @@ test("a CI attempt keeps native hard turn limits and a blocked attempt never rea
     expect(row.attempts.filter((attempt) => attempt.state === "submitted")).toHaveLength(1);
     const polls = f.counts.polls; await f.core.ci.tick(); await f.reopen(); await f.core.ci.tick();
     expect(f.counts.polls).toBe(polls);
+  } finally { await f.cleanup(); }
+}, 20_000);
+
+test("settled matrix failures survive cancelled/stale siblings while cancellation alone remains inconclusive", async () => {
+  const f = await ciFixture();
+  try {
+    const run = await f.core.runs.submit("Tonours/fixture", "matrix fixture", "matrix");
+    await f.core.runs.tick(); await f.core.harness.waitForIdle(context); await f.core.runs.tick();
+    const current = await f.core.runs.show(run.id);
+    const ci = (await f.core.harness.snapshot(CiDoc, context))!.runs[0];
+    for (const sibling of ["CANCELLED", "STALE"]) {
+      f.pull!.statusCheckRollup = ["FAILURE", sibling].map((conclusion) => ({ name: conclusion, status: "COMPLETED", conclusion }));
+      expect(inspectChecks(JSON.stringify(f.pull), current, ci).state).toBe("red");
+      f.pull!.statusCheckRollup = [{ name: sibling, status: "COMPLETED", conclusion: sibling }];
+      expect(inspectChecks(JSON.stringify(f.pull), current, ci).state).toBe("pending");
+    }
+    f.pull!.statusCheckRollup = [{ name: "red", status: "COMPLETED", conclusion: "FAILURE" }, { name: "busy", status: "IN_PROGRESS", conclusion: null }];
+    expect(inspectChecks(JSON.stringify(f.pull), current, ci).state).toBe("pending");
+  } finally { await f.cleanup(); }
+}, 20_000);
+
+test("pending cancellation refunds the submitted-attempt cap and keeps unique identities across restart", async () => {
+  let now = Date.now();
+  const f = await ciFixture({ now: () => now });
+  try {
+    const run = await f.core.runs.submit("Tonours/fixture", "refund fixture", "refund");
+    await f.core.runs.tick(); await f.core.harness.waitForIdle(context); await f.core.runs.tick();
+    Object.assign(f.core.runs, { reactivateCi: async () => false });
+    await f.core.ci.tick();
+    expect((await f.core.harness.snapshot(CiDoc, context))!.runs[0].attempts[0].state).toBe("reserved");
+    await f.reopen();
+    f.pull!.statusCheckRollup = [{ name: "busy", status: "IN_PROGRESS", conclusion: null }];
+    now += 60_000; await f.core.ci.tick();
+    expect((await f.core.harness.snapshot(CiDoc, context))!.runs[0]).toMatchObject({ retired: "", attempts: [{ number: 1, state: "cancelled" }] });
+    f.pull!.statusCheckRollup = [{ name: "red", status: "COMPLETED", conclusion: "FAILURE" }];
+    for (const number of [2, 3]) {
+      now += 60_000; await f.core.ci.tick();
+      const attempt = (await f.core.harness.snapshot(CiDoc, context))!.runs[0].attempts.at(-1)!;
+      expect(attempt).toMatchObject({ number, state: "submitted", requestId: `ci:${run.id}:${number}` });
+      expect(attempt.input).toContain(`CI remediation attempt ${number - 1}/2`);
+      await f.core.harness.waitForIdle(context); await f.core.runs.tick();
+      expect((await f.core.runs.show(run.id)).status).toBe("done");
+    }
+    now += 60_000; await f.core.ci.tick(); await f.core.runs.tick();
+    expect(await f.core.runs.show(run.id)).toMatchObject({ status: "blocked", reason: "ci_attempts_exhausted" });
+    expect((await f.core.harness.snapshot(CiDoc, context))!.runs[0].attempts.map((attempt) => attempt.state)).toEqual(["cancelled", "submitted", "submitted"]);
   } finally { await f.cleanup(); }
 }, 20_000);

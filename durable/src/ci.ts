@@ -20,21 +20,23 @@ function text(value: unknown, max: number): string {
 export function inspectChecks(raw: string, run: Readonly<Run>, ci: Readonly<CiRun>): { state: "red" | "green" | "pending" | "foreign" | "closed"; checks: Check[] } {
   const pull = object(JSON.parse(raw));
   const owner = object(pull.headRepositoryOwner);
-  if (pull.url !== ci.url || pull.url !== run.url || owner.login !== run.repo.split("/")[0] || pull.headRefName !== run.branch || pull.headRefOid !== ci.head) return { state: "foreign", checks: [] };
+  if (pull.url !== ci.url || pull.url !== run.url || text(owner.login, 39).toLowerCase() !== run.repo.split("/")[0].toLowerCase() || pull.headRefName !== run.branch || pull.headRefOid !== ci.head) return { state: "foreign", checks: [] };
   if (pull.state !== "OPEN") return { state: "closed", checks: [] };
   if (!Array.isArray(pull.statusCheckRollup) || pull.statusCheckRollup.length > 100) throw new Error("Invalid check collection");
   const checks: Check[] = [];
   let pending = !pull.statusCheckRollup.length;
+  let inconclusive = false;
   for (const value of pull.statusCheckRollup) {
     const check = object(value);
     const statusContext = check.__typename === "StatusContext";
     const conclusion = statusContext ? check.state === "ERROR" ? "FAILURE" : check.state : check.conclusion;
-    if ((statusContext ? !["SUCCESS", "FAILURE", "ERROR"].includes(String(check.state)) : check.status !== "COMPLETED") || !["SUCCESS", "NEUTRAL", "SKIPPED", ...failures].includes(String(conclusion))) pending = true;
+    if ((statusContext ? !["SUCCESS", "FAILURE", "ERROR"].includes(String(check.state)) : check.status !== "COMPLETED") || !["SUCCESS", "NEUTRAL", "SKIPPED", "CANCELLED", "STALE", ...failures].includes(String(conclusion))) pending = true;
+    if (["CANCELLED", "STALE"].includes(String(conclusion))) inconclusive = true;
     const name = text(statusContext ? check.context : check.name, 200);
     const url = text((statusContext ? check.targetUrl : check.detailsUrl) ?? "", 1000);
     checks.push({ name, conclusion: typeof conclusion === "string" ? conclusion.slice(0, 40) : "", url });
   }
-  return { state: pending ? "pending" : checks.some((check) => failures.has(check.conclusion)) ? "red" : "green", checks };
+  return { state: pending ? "pending" : checks.some((check) => failures.has(check.conclusion)) ? "red" : inconclusive ? "pending" : "green", checks };
 }
 
 export class Ci {
