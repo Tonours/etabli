@@ -70,6 +70,8 @@ run_target() {
     builtin:shell-syntax) shell_syntax ;;
     builtin:json-config) json_config ;;
     builtin:validate-adrs) node "$ROOT_DIR/scripts/validate-adrs" ;;
+    builtin:durable-typecheck) bun run --cwd "$ROOT_DIR/durable" typecheck ;;
+    builtin:durable-tests) bun run --cwd "$ROOT_DIR/durable" test ;;
     builtin:pi-audit) bash -c "cd '$ROOT_DIR/pi' && bun audit" ;;
     builtin:pi-tests) bash -c "cd '$ROOT_DIR/pi' && bun run test" ;;
     builtin:skill-lock) bash -c "cd '$ROOT_DIR/pi' && bun run verify:skills" ;;
@@ -159,6 +161,6 @@ run_selection() {
 case "${1:-all}" in
   core) run_selection profile core ;;
   full|all) run_selection profile full ;;
-  shell-docs|pi) run_selection group "$1" ;;
-  *) printf 'Usage: verify-agentic-infra [core|full|shell-docs|pi|all]\n' >&2; exit 2 ;;
+  shell-docs|pi|durable) run_selection group "$1" ;;
+  *) printf 'Usage: verify-agentic-infra [core|full|shell-docs|pi|durable|all]\n' >&2; exit 2 ;;
 esac
