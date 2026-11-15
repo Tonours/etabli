@@ -11,6 +11,11 @@ import { nextDue, SchedulesDoc, type Schedule } from "../src/schedule.ts";
 const epoch = Date.UTC(2026, 0, 1);
 test("UTC numeric cron validates bounded fields, calendar impossibilities, leap days, OR and steps", () => {
   expect(nextDue("* * * * *", epoch)).toBe(epoch + 60_000);
+  expect(nextDue("0 0 */2 * *", epoch + 3_600_000)).toBe(Date.UTC(2026, 0, 3));
+  expect(nextDue("0 0 * * */2", epoch + 3_600_000)).toBe(Date.UTC(2026, 0, 3));
+  expect(nextDue("0 0 */2 * 1", Date.UTC(2026, 0, 5, 1))).toBe(Date.UTC(2026, 0, 19));
+  expect(nextDue("0 0 1 * */2", Date.UTC(2026, 2, 1, 1))).toBe(Date.UTC(2026, 7, 1));
+  expect(nextDue("0 0 1 * 1", epoch + 3_600_000)).toBe(Date.UTC(2026, 0, 5));
   expect(nextDue("*/15 9-10 * * 1-5", epoch)).toBe(Date.UTC(2026, 0, 1, 9));
   expect(nextDue("0 0 29 2 *", epoch)).toBe(Date.UTC(2028, 1, 29));
   expect(nextDue("0 0 1 * 0,7", epoch)).toBe(Date.UTC(2026, 0, 4));

@@ -36,7 +36,7 @@ export function nextDue(cron: string, after: number): number {
     const date = new Date(start.valueOf() + offset * 86_400_000);
     if (!months.includes(date.getUTCMonth() + 1)) continue;
     const day = days.includes(date.getUTCDate()), weekday = weekdaysSet.has(date.getUTCDay());
-    if (!(fields[2].startsWith("*") ? weekday : fields[4].startsWith("*") ? day : day || weekday)) continue;
+    if (!(fields[2].startsWith("*") || fields[4].startsWith("*") ? day && weekday : day || weekday)) continue;
     for (const hour of hours) for (const minute of minutes) {
       const due = date.valueOf() + hour * 3_600_000 + minute * 60_000;
       if (due > after) return due;
