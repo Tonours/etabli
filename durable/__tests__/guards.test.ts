@@ -51,6 +51,8 @@ test("direct publication invocations resolve cwd, flags, URLs, refspecs and ambi
       "git push https://github.com/ForestAdmin/fixture.git HEAD:feature", "git push unknown HEAD:feature", "gh pr merge 1", "gh --repo Tonours/fixture pr merge 1", "gh pr view -R ForestAdmin/fixture", "gh pr view --repo=ForestAdmin/fixture", "gh pr view https://github.com/ForestAdmin/fixture/pull/1", "GH_REPO=ForestAdmin/fixture gh pr view", "env GH_REPO=ForestAdmin/fixture gh pr view", "gh api repos/ForestAdmin/fixture/issues", "gh api user", `cd '${foreign}' && gh pr view 1`, `git -C '${foreign}' push origin HEAD:feature`, `cd '${safe}' || gh pr view 1`, "gh pr view --repo '$TARGET'",
       "GIT_CONFIG_GLOBAL=/tmp/other git push origin HEAD:feature", "GH_HOST=work.example gh pr create", "gh api --hostname work.example repos/Tonours/fixture/issues", "gh repo create ForestAdmin/new", "gh auth token", "git remote set-url origin https://github.com/ForestAdmin/fixture.git",
     ]) expect(check(command), command).toContain("guard");
+    expect(invocationGuard("git push origin HEAD:feature", safe, policy, () => "main", true)).toContain("publish tool");
+    expect(invocationGuard("gh pr create --repo Tonours/fixture", safe, policy, () => "main", true)).toContain("publish tool");
     run(safe, ["config", "--add", "remote.origin.pushurl", "https://github.com/Tonours/fixture.git"]);
     run(safe, ["config", "--add", "remote.origin.pushurl", "https://github.com/ForestAdmin/fixture.git"]);
     expect(check("git push origin HEAD:feature")).toContain("guard");

@@ -43,12 +43,12 @@ test("two native runs busy, third queued across reopen, abort releases a slot", 
   try {
     const runs = await Promise.all([0, 1, 2].map((n) => f.core.runs.submit("Tonours/fixture", `fixture ${n}`, `request-${n}`)));
     await f.core.runs.tick();
-    expect((await f.core.runs.list()).map((run) => run.status)).toEqual(["busy", "busy", "queued"]);
+    expect((await f.core.runs.list()).map((run) => run.status)).toEqual(["implementing", "implementing", "queued"]);
     await f.reopen();
-    expect((await f.core.runs.list()).map((run) => run.status)).toEqual(["busy", "busy", "queued"]);
+    expect((await f.core.runs.list()).map((run) => run.status)).toEqual(["implementing", "implementing", "queued"]);
     await f.core.runs.abort(runs[0].id);
     await f.core.runs.tick();
-    expect((await f.core.runs.list()).map((run) => run.status)).toEqual(["aborted", "busy", "busy"]);
+    expect((await f.core.runs.list()).map((run) => run.status)).toEqual(["aborted", "implementing", "implementing"]);
     const record = await f.core.harness.conversation(runs[0].conversationId, context);
     await record?.waitForIdle(context);
     release();
@@ -151,6 +151,6 @@ test("abort bypasses slow preparation and cannot revive the cancelled queued run
     await preparing;
     await aborting;
     expect((await f.core.runs.show(second.id)).status).toBe("aborted");
-    expect((await f.core.runs.show(first.id)).status).toBe("busy");
+    expect((await f.core.runs.show(first.id)).status).toBe("implementing");
   } finally { release(); await preparing; await aborting; await f.cleanup(); }
 });

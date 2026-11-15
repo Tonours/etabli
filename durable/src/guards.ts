@@ -5,6 +5,7 @@ import { AgentDoc, ToolTask, configure, defineExtension, hook, section, type Ext
 import { noCommentsGuardDecision } from "../../workflow/runtime/no-comments-guard.mjs";
 import { prBodyGuardDecision } from "../../workflow/runtime/pr-body-guard.mjs";
 import { git, OwnerPolicy } from "./policy.ts";
+import { active, RunsDoc } from "./runs-doc.ts";
 
 type Decision = { hookSpecificOutput: { permissionDecisionReason: string } } | null;
 
@@ -24,7 +25,7 @@ export function remoteDefaultBranch(cwd: string, remote: string): string {
   return branch;
 }
 
-export function invocationGuard(command: string, cwd: string, policy: OwnerPolicy, defaultBranch = remoteDefaultBranch): string | undefined {
+export function invocationGuard(command: string, cwd: string, policy: OwnerPolicy, defaultBranch = remoteDefaultBranch, publicationTool = false): string | undefined {
   try {
     const shell = command.replaceAll("\\\n", "");
     if (/\b(?:git|gh)\b/.test(shell) && /`|\$\(|[<>]\(/.test(shell)) throw new Error("Command substitution is unresolved");
@@ -76,6 +77,7 @@ export function invocationGuard(command: string, cwd: string, policy: OwnerPolic
           }
         }
         const action = values.shift();
+        if (publicationTool && action === "push") throw new Error("Use the reviewed publish tool for publication");
         if (action && !["status", "reset", "reflog", "ls-files", "cat-file", "rev-list", "for-each-ref", "symbolic-ref", "log", "diff", "show", "add", "commit", "checkout", "switch", "branch", "restore", "stash", "tag", "rm", "mv", "apply", "blame", "grep", "describe", "shortlog", "cherry-pick", "revert", "rebase", "merge", "fetch", "pull", "clone", "init", "worktree", "var", "version", "config", "remote", "rev-parse", "ls-remote", "push"].includes(action)) throw new Error("Git operation is unresolved");
         if (action === "remote" && ["add", "set-url"].includes(values[0])) {
           if (overridden || values.length !== 3 || values.some((arg) => arg.startsWith("-"))) throw new Error("Remote edit is unresolved");
@@ -123,6 +125,7 @@ export function invocationGuard(command: string, cwd: string, policy: OwnerPolic
       }
       if (args.some((arg) => arg === "--hostname" || arg.startsWith("--hostname="))) throw new Error("GitHub host override is unresolved");
       if (args[0] === "pr" && args[1] === "merge") throw new Error("PR merge is forbidden");
+      if (publicationTool && args[0] === "pr" && args[1] === "create") throw new Error("Use the reviewed publish tool for publication");
       if (args[0] === "api") {
         const request = args.slice(1).filter((arg, index, values) => !["-XGET", "--method=GET", "-X", "--method"].includes(arg) && !(arg === "GET" && ["-X", "--method"].includes(values[index - 1])));
         if (request.length !== 1) throw new Error("Only simple GET GitHub API calls are supported");
@@ -195,6 +198,8 @@ export function createGuards(checkout: string, policy: OwnerPolicy): Extension {
     hooks: [hook(ToolTask, {
       async beforeTool(call, api: HookApi, context) {
         const state = await api.snapshot(AgentDoc, api.conversationId, context);
+        const run = (await api.snapshot(RunsDoc, context))?.runs.find((run) => run.conversationId === api.conversationId);
+        if (run && run.route !== "legacy" && !active(run)) return { block: "durable guard: run is terminal" };
         const cwd = state?.cwd;
         if (!cwd) return { block: "durable guard: conversation directory is missing" };
         const input = call.name === "edit" && Array.isArray(call.arguments.edits)
@@ -204,7 +209,7 @@ export function createGuards(checkout: string, policy: OwnerPolicy): Extension {
         const decision = (noCommentsGuardDecision(event) ?? prBodyGuardDecision(event)) as Decision;
         if (decision) return { block: decision.hookSpecificOutput.permissionDecisionReason };
         if (call.name === "bash") {
-          const reason = invocationGuard(String(call.arguments.command ?? ""), cwd, policy);
+          const reason = invocationGuard(String(call.arguments.command ?? ""), cwd, policy, remoteDefaultBranch, !!run && run.route !== "legacy");
           if (reason) return { block: reason };
         }
       },

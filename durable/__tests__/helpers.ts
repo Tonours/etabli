@@ -7,6 +7,8 @@ import { fauxProvider } from "@earendil-works/pi-ai/providers/faux";
 import { openCore } from "../src/daemon.ts";
 import { OwnerPolicy } from "../src/policy.ts";
 import { Repositories } from "../src/repositories.ts";
+import type { runCliReview } from "../src/review-cli.ts";
+import type { Command } from "../src/publish.ts";
 
 export async function localRepo(root: string): Promise<string> {
   const path = join(root, "source");
@@ -21,17 +23,19 @@ export async function localRepo(root: string): Promise<string> {
   return path;
 }
 
-export async function fixture(options: { wallMs?: number; maxTurns?: number; now?: () => number; notifyArgv?: string[]; credentials?: CredentialStore } = {}) {
+export async function fixture(options: { wallMs?: number; maxTurns?: number; now?: () => number; notifyArgv?: string[]; credentials?: CredentialStore; workflow?: boolean; reviewCli?: typeof runCliReview; publishCommand?: Command } = {}) {
   const root = await mkdtemp(join(tmpdir(), "etabli-durable-test-"));
   const source = await localRepo(root);
   const state = join(root, "state");
   const policy = new OwnerPolicy(["ForestAdmin", "Galaxies-dev"]);
-  const faux = fauxProvider({ provider: "fixture", models: [{ id: "fixture" }] });
+  const faux = fauxProvider({ provider: options.workflow ? "zai" : "fixture", models: [{ id: options.workflow ? "glm-5.3" : "fixture" }] });
+  const planner = fauxProvider({ provider: "openai-codex", models: [{ id: "gpt-6.1-sol" }, { id: "gpt-6-astra" }] });
   const models = createModels({ credentials: options.credentials });
   models.setProvider(faux.provider);
-  const create = () => openCore({ state, policy, models, model: async () => ({ provider: "fixture", modelId: "fixture" }), repositories: new Repositories(state, policy, () => source, async (repo) => repo), ...options });
+  if (options.workflow) models.setProvider(planner.provider);
+  const create = () => openCore({ state, policy, models, model: async () => ({ provider: faux.getModel().provider, modelId: faux.getModel().id }), repositories: new Repositories(state, policy, () => source, async (repo) => repo), ...options });
   let core = await create();
-  return { root, source, state, policy, models, faux, get core() { return core; }, async reopen() { await core.close(); core = await create(); return core; }, async cleanup() { await core.close(); await rm(root, { recursive: true, force: true }); } };
+  return { root, source, state, policy, models, faux, planner, get core() { return core; }, async reopen() { await core.close(); core = await create(); return core; }, async cleanup() { await core.close(); await rm(root, { recursive: true, force: true }); } };
 }
 
 export async function until(fn: () => Promise<boolean>, timeout = 10_000): Promise<void> {

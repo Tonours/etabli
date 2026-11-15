@@ -5,6 +5,7 @@ import { createServer, type Server } from "node:net";
 import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
 import { createModels, type Models } from "@earendil-works/pi-ai";
 import { zaiProvider } from "@earendil-works/pi-ai/providers/zai";
+import { openaiCodexProvider } from "@earendil-works/pi-ai/providers/openai-codex";
 import { Harness, AgentDoc, LiveDoc, createRegistry, type ModelRef, type ConversationRetryPolicy } from "@earendil-works/pi-durable";
 import { CodingTools } from "@earendil-works/pi-durable/tools";
 import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
@@ -15,19 +16,20 @@ import { OwnerPolicy } from "./policy.ts";
 import { Repositories } from "./repositories.ts";
 import { Runs } from "./runs.ts";
 import { writerLock } from "./lock.ts";
+import { authorFamilies, createPlanExtension, EtabliPlanDoc, phaseModel, type ModelRole } from "./plan-doc.ts";
+import { createReviewExtension } from "./review.ts";
+import { createPublishExtension, type Command } from "./publish.ts";
+import type { runCliReview } from "./review-cli.ts";
 
 export const defaultState = () => join(homedir(), ".local/state/etabli-durable");
 export const defaultConfig = () => join(homedir(), ".config/etabli/durable.json");
 export const checkout = resolve(import.meta.dirname, "../..");
 
 export async function defaultModel(): Promise<ModelRef> {
-  const routes = JSON.parse(await readFile(join(checkout, "workflow/runtime/model-routing.json"), "utf8")) as { durable: { implementer: string; native_routes: Record<string, { provider: string }> }; models: Record<string, { model: string }> };
-  const alias = routes.durable.implementer;
-  if (alias !== "glm" || routes.durable.native_routes[alias]?.provider !== "zai" || !routes.models[alias]?.model) throw new Error("Slice 2 requires the shared GLM implementation route");
-  return { provider: routes.durable.native_routes[alias].provider, modelId: routes.models[alias].model };
+  return phaseModel(checkout, "implementer");
 }
 
-export async function openCore(options: { state: string; policy: OwnerPolicy; models: Models; model?: () => Promise<ModelRef>; repositories?: Repositories; now?: () => number; wallMs?: number; maxTurns?: number; notifyArgv?: readonly string[]; restartLimit?: number; retry?: Partial<ConversationRetryPolicy>; fatal?: () => void }) {
+export async function openCore(options: { state: string; policy: OwnerPolicy; models: Models; model?: () => Promise<ModelRef>; workflow?: boolean; phaseModel?: (role: ModelRole) => Promise<ModelRef>; reviewCli?: typeof runCliReview; publishCommand?: Command; repositories?: Repositories; now?: () => number; wallMs?: number; maxTurns?: number; notifyArgv?: readonly string[]; restartLimit?: number; retry?: Partial<ConversationRetryPolicy>; fatal?: () => void }) {
   process.umask(0o077);
   await mkdir(options.state, { recursive: true, mode: 0o700 });
   await chmod(options.state, 0o700);
@@ -40,17 +42,20 @@ export async function openCore(options: { state: string; policy: OwnerPolicy; mo
     const guard = createGuards(checkout, options.policy);
     registry.install(CodingTools);
     registry.install(guard);
+    const host = { async conversation(id: Parameters<Harness["conversation"]>[0], ctx: Parameters<Harness["conversation"]>[1]) { if (!opened) throw new Error("Harness is not ready"); return opened.conversation(id, ctx); } };
+    const workflow = options.workflow ? [createPlanExtension(checkout, async (id, ctx) => { const conversation = await host.conversation(id, ctx); if (!conversation) throw new Error("Author conversation missing"); return authorFamilies(checkout, conversation, ctx); }, options.phaseModel), createReviewExtension(checkout, host, options.reviewCli), createPublishExtension(checkout, options.policy, host, options.publishCommand)] : [];
+    for (const extension of workflow) registry.install(extension);
     const harness = await Harness.open(storage, {
       models: options.models,
       registry,
-      settings: { extensions: [CodingTools, guard], toolExecution: "sequential", restartLimit: options.restartLimit ?? 5, retry: options.retry, compaction: { enabled: false } },
+      settings: { extensions: [CodingTools, guard, ...workflow], toolExecution: "sequential", restartLimit: options.restartLimit ?? 5, retry: options.retry, compaction: { enabled: false } },
       env: ({ cwd }) => cwd ? new NodeExecutionEnv({ cwd, shellPath: "/bin/bash" }) : undefined,
       conversationCreated: (tx, conversation) => configureGuard(tx, conversation, guard),
       now: options.now,
       onReport: (report) => { if (report.kind === "storage_failed") options.fatal?.(); },
     }, context);
     opened = harness;
-    const runs = new Runs({ ...options, guard, harness, repositories: options.repositories ?? new Repositories(options.state, options.policy), model: options.model ?? defaultModel });
+    const runs = new Runs({ ...options, workflow: options.workflow ? checkout : undefined, guard, harness, repositories: options.repositories ?? new Repositories(options.state, options.policy), model: options.model ?? defaultModel });
     let enforcing: Promise<void> | undefined;
     const limits = setInterval(() => {
       if (enforcing) return;
@@ -74,7 +79,7 @@ export async function openCore(options: { state: string; policy: OwnerPolicy; mo
 
 export type Core = Awaited<ReturnType<typeof openCore>>;
 
-type Request = { op: string; id?: string; repo?: string; prompt?: string; requestId?: string; content?: string };
+type Request = { op: string; id?: string; repo?: string; prompt?: string; requestId?: string; content?: string; route?: string };
 
 function requiredText(value: unknown): string {
   if (typeof value !== "string") throw new Error("Request fields must be strings");
@@ -83,7 +88,11 @@ function requiredText(value: unknown): string {
 
 export async function dispatch(core: Core, request: Request): Promise<unknown> {
   switch (request.op) {
-    case "run": return core.runs.submit(requiredText(request.repo), requiredText(request.prompt), requiredText(request.requestId));
+    case "run": {
+      if (request.route !== undefined && !["answer", "plan"].includes(request.route)) throw new Error("Run route must be answer or plan");
+      return core.runs.submit(requiredText(request.repo), requiredText(request.prompt), requiredText(request.requestId), request.route as "answer" | "plan" | undefined);
+    }
+    case "plan": return core.harness.snapshot(EtabliPlanDoc, (await core.runs.show(requiredText(request.id))).conversationId, context);
     case "ls": return core.runs.list();
     case "show": {
       const run = await core.runs.show(requiredText(request.id));
@@ -92,7 +101,7 @@ export async function dispatch(core: Core, request: Request): Promise<unknown> {
     }
     case "steer": return core.runs.steer(requiredText(request.id), requiredText(request.content), requiredText(request.requestId));
     case "abort": return { aborted: await core.runs.abort(requiredText(request.id)) };
-    default: throw new Error("Unknown operation; use run, ls, show, steer or abort");
+    default: throw new Error("Unknown operation; use run, ls, show, plan, steer or abort");
   }
 }
 
@@ -114,7 +123,7 @@ export async function serve(core: Core, state: string): Promise<Server> {
           const parsed: unknown = JSON.parse(body.slice(0, end));
           if (!parsed || typeof parsed !== "object" || !("op" in parsed) || typeof parsed.op !== "string") throw new Error("Invalid request");
           const fields = parsed as Record<string, unknown>;
-          if (["id", "repo", "prompt", "requestId", "content"].some((key) => key in fields && typeof fields[key] !== "string")) throw new Error("Request fields must be strings");
+          if (["id", "repo", "prompt", "requestId", "content", "route"].some((key) => key in fields && typeof fields[key] !== "string")) throw new Error("Request fields must be strings");
           const value = await dispatch(core, parsed as Request);
           socket.end(`${JSON.stringify({ ok: true, value })}\n`);
         } catch (error) {
@@ -148,7 +157,8 @@ export async function daemon(state = defaultState(), configPath = defaultConfig(
   const config = daemonConfig(JSON.parse(await readFile(configPath, "utf8").catch((error: NodeJS.ErrnoException) => { if (error.code === "ENOENT") return "{}"; throw error; })));
   const models = createModels({ credentials: new SharedCredentialStore(join(homedir(), ".pi/agent/auth.json")) });
   models.setProvider(zaiProvider());
-  const core = await openCore({ state, policy, models, ...config, fatal: () => process.exit(1) });
+  models.setProvider(openaiCodexProvider());
+  const core = await openCore({ state, policy, models, workflow: true, ...config, fatal: () => process.exit(1) });
   const server = await serve(core, state);
   let ticking = false;
   const timer = setInterval(() => {
