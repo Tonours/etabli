@@ -1,0 +1,13 @@
+[Unit]
+Description=Daily Etabli durable operational analysis
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/work/etabli
+ExecStart=%h/work/etabli/scripts/etabli-durable-monitor
+TimeoutStartSec=120
+TimeoutStopSec=5
+KillMode=control-group
+UMask=0077
+Nice=10
+NoNewPrivileges=yes
