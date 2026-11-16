@@ -23,7 +23,7 @@ export async function localRepo(root: string): Promise<string> {
   return path;
 }
 
-export async function fixture(options: { wallMs?: number; maxTurns?: number; now?: () => number; notifyArgv?: string[]; credentials?: CredentialStore; workflow?: boolean; subagentModel?: Parameters<typeof openCore>[0]["subagentModel"]; mcpServers?: Record<string, unknown>; reviewCli?: typeof runCliReview; publishCommand?: Command; ciCommand?: Command } = {}) {
+export async function fixture(options: { wallMs?: number; maxTurns?: number; now?: () => number; notifyArgv?: string[]; credentials?: CredentialStore; workflow?: boolean; subagentModel?: Parameters<typeof openCore>[0]["subagentModel"]; mcpServers?: Record<string, unknown>; reviewCli?: typeof runCliReview; publishCommand?: Command; ciCommand?: Command; web?: Parameters<typeof openCore>[0]["web"] } = {}) {
   const root = await mkdtemp(join(tmpdir(), "etabli-durable-test-"));
   const source = await localRepo(root);
   const state = join(root, "state");
