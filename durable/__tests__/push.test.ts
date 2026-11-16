@@ -9,6 +9,7 @@ import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
 import { fauxAssistantMessage } from "@earendil-works/pi-ai/providers/faux";
 import { loadVapid, Push, PushDoc, pushEndpoint, pushHeaders, sendPush } from "../src/push.ts";
 import { fixture } from "./helpers.ts";
+import { acceptedPush } from "./fixtures/push-peer.ts";
 import { ciFixture } from "./fixtures/ci-fixture.ts";
 import { CiDoc, terminalGeneration } from "../src/ci-doc.ts";
 
@@ -51,7 +52,7 @@ test("native push transport sends an empty signed POST, refuses redirects and en
     const transport: Parameters<typeof sendPush>[2] = (url, options, cb) => { expect(url).toBe(endpoint); return request(`https://127.0.0.1:${port}/`, { ...options, ca: cert }, cb); };
     expect(await sendPush(endpoint, headers, transport)).toBe(201);
     redirect = true; expect(await sendPush(endpoint, headers, transport)).toBe(307); expect(calls).toBe(2);
-    hanging = true; await expect(sendPush(endpoint, headers, transport, 50)).rejects.toThrow("Push delivery failed"); expect(calls).toBe(3);
+    hanging = true; await expect(sendPush(endpoint, headers, transport, 50)).rejects.toThrow("Push delivery unconfirmed"); expect(calls).toBe(3);
   } finally { server.closeAllConnections(); await new Promise<void>((resolve) => server.close(() => resolve())); await f.cleanup(); }
 });
 
@@ -85,21 +86,21 @@ test("push endpoints reject SSRF/alternate transport and support the bounded pho
 });
 
 test("native SQLite subscriptions survive reopen, deduplicate, enforce identity/cap and prune only rejected/removed identities", async () => {
-  const f = await fixture();
+  const f = await fixture(); let push: Push | undefined;
   try {
     const key = await loadVapid(join(f.state, "vapid.pem"));
     let calls: string[] = [];
     const send = async (url: string) => { calls.push(url); return url.endsWith("gone") ? 410 : url.endsWith("missing") ? 404 : 503; };
-    let push = new Push(f.core.harness, key, origin, [identity, "removed@example.invalid"], send);
+    push = new Push(f.core.harness, key, origin, [identity, "removed@example.invalid"], send);
     await push.subscribe(identity, endpoint); await push.subscribe(identity, endpoint);
     await push.subscribe(identity, `${endpoint}-gone`); await push.subscribe(identity, `${endpoint}-missing`);
     await push.subscribe("removed@example.invalid", `${endpoint}-removed`);
     await expect(push.subscribe("removed@example.invalid", endpoint)).rejects.toThrow("another identity");
     expect(await push.unsubscribe("removed@example.invalid", endpoint)).toEqual({ deleted: false });
-    await f.reopen();
+    await push.close(); await f.reopen();
     push = new Push(f.core.harness, key, origin, [identity], send);
     expect((await f.core.harness.snapshot(PushDoc, context))?.subscriptions).toHaveLength(4);
-    await push.notify();
+    await acceptedPush(push.notify());
     expect(calls).toHaveLength(3); expect(calls).not.toContain(`${endpoint}-removed`);
     expect((await f.core.harness.snapshot(PushDoc, context))?.subscriptions.map((row) => row.endpoint)).toEqual([endpoint]);
     for (let i = 1; i < 64; i++) await push.subscribe(identity, `${endpoint}-${i}`);
@@ -107,23 +108,23 @@ test("native SQLite subscriptions survive reopen, deduplicate, enforce identity/
     expect(await push.unsubscribe(identity, endpoint)).toEqual({ deleted: true });
     expect(await push.unsubscribe(identity, endpoint)).toEqual({ deleted: false });
     await push.subscribe(identity, `${endpoint}-overflow`);
-  } finally { await f.cleanup(); }
+  } finally { await push?.close(); await f.cleanup(); }
 });
 
 test("push fanout is concurrent, stale prune cannot delete a replacement subscription", async () => {
-  const f = await fixture();
+  const f = await fixture(); let push: Push | undefined, release: (() => void) | undefined;
   try {
     const key = await loadVapid(join(f.state, "vapid.pem"));
-    let release!: () => void, started = 0;
+    let started = 0;
     const gate = new Promise<void>((resolve) => { release = resolve; });
-    const push = new Push(f.core.harness, key, origin, [identity], async () => { started++; await gate; return 410; });
+    push = new Push(f.core.harness, key, origin, [identity], async () => { started++; await gate; return 410; });
     await push.subscribe(identity, endpoint); await push.subscribe(identity, `${endpoint}-other`);
-    const pending = push.notify();
+    const pending = acceptedPush(push.notify());
     const { until } = await import("./helpers.ts"); await until(async () => started === 2);
     await push.unsubscribe(identity, endpoint); await push.subscribe(identity, endpoint);
-    release(); await pending;
+    release!(); await pending;
     expect((await f.core.harness.snapshot(PushDoc, context))?.subscriptions.map((row) => row.endpoint)).toEqual([endpoint]);
-  } finally { await f.cleanup(); }
+  } finally { release?.(); await push?.close(); await f.cleanup(); }
 });
 
 test("done/blocked push shares terminal claim, aborted skips push; hung delivery never holds the run line and close drains", async () => {
@@ -144,10 +145,10 @@ test("done/blocked push shares terminal claim, aborted skips push; hung delivery
     const blocked = await f.core.runs.submit("Tonours/fixture", "blocked fixture", "blocked");
     const { RunsDoc } = await import("../src/runs-doc.ts");
     await f.core.harness.commit(async (tx) => { const row = (await tx.doc(RunsDoc)).runs.find((row) => row.id === blocked.id)!; row.status = "blocked"; }, context);
-    await f.core.runs.tick(); expect(calls).toBe(2);
+    await f.core.runs.tick(); expect(calls).toBe(1);
     let drained = false; const drain = f.core.runs.drainNotifications().then(() => { drained = true; });
     await Promise.resolve(); expect(drained).toBe(false);
-    release(); await drain;
+    release(); await drain; expect(calls).toBe(2);
     await f.reopen(); Object.assign(f.core.push!, { send: async () => { calls++; return 201; } });
     await f.core.runs.tick(); await f.core.runs.drainNotifications(); expect(calls).toBe(2);
   } finally { release(); await f.cleanup(); }
@@ -156,11 +157,11 @@ test("done/blocked push shares terminal claim, aborted skips push; hung delivery
 test("actual S6 CI reactivation and exhaustion each push once for the same run across restart", async () => {
   let now = Date.now();
   const f = await ciFixture({ now: () => now, wallMs: 20_000, maxTurns: 4 });
-  let sends = 0;
+  let sends = 0, attached: Push | undefined;
   try {
     const key = await loadVapid(join(f.state, "vapid.pem"));
     const attach = () => {
-      const push = new Push(f.core.harness, key, origin, [identity], async () => { sends++; return 201; });
+      const push = attached = new Push(f.core.harness, key, origin, [identity], async () => { sends++; return 201; });
       Object.assign(f.core.runs, { pushNotify: () => push.notify() });
       return push;
     };
@@ -170,7 +171,7 @@ test("actual S6 CI reactivation and exhaustion each push once for the same run a
     await f.core.runs.tick(); await f.core.runs.drainNotifications();
     expect(sends).toBe(1);
     for (const ordinal of [1, 2]) {
-      await f.reopen(); attach(); now += 60_000;
+      await attached?.close(); await f.reopen(); attach(); now += 60_000;
       await f.core.ci.tick();
       expect(await f.core.runs.show(run.id)).toMatchObject({ status: "implementing", notified: false, conversationId: run.conversationId });
       await f.core.harness.waitForIdle(context);
@@ -187,11 +188,11 @@ test("actual S6 CI reactivation and exhaustion each push once for the same run a
     now += 60_000; await f.core.ci.tick(); await f.core.runs.tick(); await f.core.runs.drainNotifications();
     expect(await f.core.runs.show(run.id)).toMatchObject({ status: "blocked", reason: "ci_attempts_exhausted", notified: true });
     expect(sends).toBe(4);
-    await f.reopen(); attach();
+    await attached?.close(); await f.reopen(); attach();
     await f.core.runs.tick(); await f.core.runs.drainNotifications();
     expect(sends).toBe(4);
     expect(f.counts).toMatchObject({ creates: 1, pushes: 3 });
-  } finally { await f.cleanup(); }
+  } finally { await attached?.close(); await f.cleanup(); }
 }, 30_000);
 
 test("core shutdown drains the current run tick before closing its native harness", async () => {

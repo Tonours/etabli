@@ -4,6 +4,7 @@ import { LiveDoc, InboxDoc, configure, type Tx, type Harness, type Extension, ty
 import { Repositories } from "./repositories.ts";
 import { guardedAgent } from "./guards.ts";
 import { notify } from "./notify.ts";
+import type { PushAdmission, PushSummary } from "./push.ts";
 import { EtabliPlanDoc, phaseModel, startPlan, templateSections, type ModelRole } from "./plan-doc.ts";
 import { finalSnapshot } from "./backup.ts";
 import { PublishDoc, reconcilePublication, type Command } from "./publish.ts";
@@ -29,10 +30,11 @@ export class Runs {
   private line: Promise<unknown> = Promise.resolve();
   private stopping = new Map<string, Promise<boolean>>();
   private validated = false;
-  private notifications = new Set<Promise<void>>();
-  readonly pushNotify: (() => Promise<void>) | undefined;
+  private notifications = new Set<Promise<PushSummary>>();
+  private pushClosedNoticed = false;
+  readonly pushNotify: (() => PushAdmission) | undefined;
 
-  constructor(options: { guard: Extension; harness: Harness; repositories: Repositories; model: () => Promise<ModelRef>; workflow?: string; phaseModel?: (role: ModelRole) => Promise<ModelRef>; publishCommand?: Command; now?: () => number; wallMs?: number; maxTurns?: number; notifyArgv?: readonly string[]; pushNotify?: () => Promise<void> }) {
+  constructor(options: { guard: Extension; harness: Harness; repositories: Repositories; model: () => Promise<ModelRef>; workflow?: string; phaseModel?: (role: ModelRole) => Promise<ModelRef>; publishCommand?: Command; now?: () => number; wallMs?: number; maxTurns?: number; notifyArgv?: readonly string[]; pushNotify?: () => PushAdmission }) {
     this.harness = options.harness;
     this.guard = options.guard;
     this.repositories = options.repositories;
@@ -245,8 +247,17 @@ export class Runs {
           (await tx.doc(RunsDoc)).runs.find((candidate) => candidate.id === run.id)!.notified = true;
         }, context);
         if (["done", "blocked"].includes(run.status) && this.pushNotify) {
-          const pending = this.pushNotify().catch(() => undefined).finally(() => this.notifications.delete(pending));
-          this.notifications.add(pending);
+          const admission = this.pushNotify();
+          if (admission.kind === "accepted") {
+            const pending = admission.done;
+            this.notifications.add(pending);
+            void pending.then((result) => {
+              this.notifications.delete(pending);
+              if (result.outcome !== "complete" || result.failed || result.coalesced) console.error("Web Push attempt summary (not device delivery)", result);
+            }, () => { this.notifications.delete(pending); console.error("Web Push attempt unconfirmed"); });
+          } else if (admission.kind === "skipped" && !this.pushClosedNoticed) {
+            this.pushClosedNoticed = true; console.error("Web Push attempt skipped: dispatcher closed");
+          }
         }
         await notify(this.notifyArgv, run).catch(() => undefined);
       }
