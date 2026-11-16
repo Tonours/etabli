@@ -54,6 +54,8 @@ export class Runs {
     return next;
   }
 
+  async drainTicks(): Promise<void> { await this.line; }
+
   async drainNotifications(): Promise<void> { await Promise.all(this.notifications); }
 
   async list(): Promise<readonly Run[]> { return (await this.harness.snapshot(RunsDoc, context))?.runs ?? []; }

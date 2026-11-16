@@ -91,7 +91,7 @@ export async function openCore(options: { state: string; policy: OwnerPolicy; mo
       await harness.close(context);
       throw error;
     }
-    return { harness, runs, push, schedules, ci, tickTriggers, close: async () => { closing = true; await triggers; clearInterval(limits); await enforcing; await runs.drainStops(); await runs.drainNotifications(); await harness.close(context); await mcp?.close(); await unlock(); } };
+    return { harness, runs, push, schedules, ci, tickTriggers, close: async () => { closing = true; await triggers; clearInterval(limits); await enforcing; await runs.drainTicks(); await runs.drainStops(); await runs.drainNotifications(); await harness.close(context); await mcp?.close(); await unlock(); } };
   } catch (error) {
     await opened?.close(context).catch(() => undefined);
     await mcp?.close();

@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { createPublicKey, verify } from "node:crypto";
-import { chmod, readFile, stat, symlink, writeFile } from "node:fs/promises";
+import { chmod, readFile, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { createServer, request } from "node:https";
@@ -190,3 +190,28 @@ test("actual S6 CI reactivation and exhaustion each push once for the same run a
     expect(f.counts).toMatchObject({ creates: 1, pushes: 3 });
   } finally { await f.cleanup(); }
 }, 30_000);
+
+test("core shutdown drains the current run tick before closing its native harness", async () => {
+  const f = await fixture();
+  const prepare = f.core.runs.repositories.prepare.bind(f.core.runs.repositories);
+  let release!: () => void, entered!: () => void, closing: Promise<void> | undefined, tick: Promise<void> | undefined, harnessClosing = false;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const started = new Promise<void>((resolve) => { entered = resolve; });
+  Object.assign(f.core.runs.repositories, { prepare: async (...args: Parameters<typeof prepare>) => { entered(); await gate; return prepare(...args); } });
+  const close = f.core.harness.close.bind(f.core.harness);
+  Object.assign(f.core.harness, { close: async (...args: Parameters<typeof close>) => { harnessClosing = true; return close(...args); } });
+  try {
+    f.faux.setResponses([fauxAssistantMessage("done")]);
+    await f.core.runs.submit("Tonours/fixture", "shutdown tick fixture", "shutdown-tick");
+    tick = f.core.runs.tick(); await started;
+    closing = f.core.close();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(harnessClosing).toBe(false);
+    release(); await tick; await closing;
+    expect(harnessClosing).toBe(true);
+  } finally {
+    release(); await tick?.catch(() => undefined);
+    if (closing) { await closing; await rm(f.root, { recursive: true, force: true }); }
+    else await f.cleanup();
+  }
+});
