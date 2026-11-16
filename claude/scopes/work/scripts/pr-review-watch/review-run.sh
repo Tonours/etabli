@@ -223,7 +223,7 @@ dryrun_payload() {
 }
 
 # Own PR: run the council without --post, keep its findings, write nothing on the PR.
-run_dryrun() {
+run_full_dryrun() {
   local findings payload out="$(dirname "$REPORT")/${REPO//\//_}-$NUMBER-${SHA:0:8}-findings.json" temp
   # A run that does not complete leaves no findings file, never an older one for this head.
   rm -f "$out" || return 1
@@ -244,9 +244,37 @@ run_dryrun() {
   fi
   temp="$(mktemp "$out.XXXXXX")" || return 1
   jq -n --arg repo "$REPO" --argjson number "$NUMBER" --arg sha "$SHA" --argjson findings "$findings" --argjson payload "$payload" \
-    '{version: 1, repo: $repo, number: $number, sha: $sha, findings: $findings, body: ($payload.body // ""), comments: ($payload.comments // [])}' >"$temp" \
+    '{version: 1, repo: $repo, number: $number, sha: $sha, basis: "full", findings: $findings, body: ($payload.body // ""), comments: ($payload.comments // [])}' >"$temp" \
     && mv "$temp" "$out" || { rm -f "$temp"; return 1; }
   echo "=== dry-run: $findings findings written to $out; nothing posted, no approval"
+}
+
+run_dryrun() {
+  local helper="$HERE/dryrun-followup.sh" rc=2
+  local out="$(dirname "$REPORT")/${REPO//\//_}-$NUMBER-${SHA:0:8}-findings.json"
+  rm -f "$out" || return 1
+  if [ -e "$KEY.dryrun-last" ] || [ -L "$KEY.dryrun-last" ]; then
+    rc=0
+    run_shown "$REPORT" /bin/bash "$helper" "$REPO" "$NUMBER" "$SHA" "$ME" "$KEY" "$out" || rc=$?
+  fi
+  case "$rc" in
+    0) ;;
+    2|6)
+      rm -f "$KEY.dryrun-last" || return 1
+      echo '=== private follow-up unavailable or uncertain: run one full council'
+      run_full_dryrun || return ;;
+    "$REVIEW_VETO_RC"|"$REVIEW_INCOMPLETE_RC")
+      rm -f "$KEY.dryrun-last"
+      return "$rc" ;;
+    *) return "$rc" ;;
+  esac
+  # Baselines are an optimization, never posting/approval authority. A failed
+  # receipt write must not discard a completed review or reuse older findings.
+  /bin/bash "$helper" record "$REPO" "$NUMBER" "$SHA" "$ME" "$KEY" "$out" "$REPORT" || {
+    rm -f "$KEY.dryrun-last"
+    echo '=== private baseline unavailable: cannot record completed result'
+  }
+  return 0
 }
 
 run_delta() {
