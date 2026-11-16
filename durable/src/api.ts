@@ -7,6 +7,8 @@ import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
 import { AgentDoc, LiveDoc, type ConversationWatch, type EntryId } from "@earendil-works/pi-durable";
 import { EtabliPlanDoc } from "./plan-doc.ts";
 import type { Core } from "./daemon.ts";
+import { Browser } from "./browser.ts";
+import type { Push } from "./push.ts";
 import { remoteAuth } from "./auth.ts";
 import type { ApiRequest } from "./client.ts";
 export { operationPath, type ApiRequest } from "./client.ts";
@@ -61,15 +63,16 @@ async function bodyOf(request: IncomingMessage): Promise<Record<string, unknown>
 
 export type ApiServer = Server & { shutdown(): Promise<void> };
 
-function createApi(core: Core, authorize?: ReturnType<typeof remoteAuth>): ApiServer {
+function createApi(core: Core, authorize?: ReturnType<typeof remoteAuth>, browser?: Browser): ApiServer {
   const sockets = new WebSocketServer({ noServer: true, maxPayload: 1024, perMessageDeflate: false });
   const watches = new Map<WebSocket, ConversationWatch>();
   let closing = false;
   const server = createServer({ maxHeaderSize: 8192 }, (request, response) => {
-    const status = authorize?.(request);
-    if (status) { respond(response, status, { error: status === 401 ? "Bearer token required" : "Identity refused" }); request.resume(); return; }
     void (async () => {
       try {
+        if (await browser?.handle(request, response)) return;
+        const status = browser ? browser.authorize(request) : authorize?.(request);
+        if (status) { respond(response, status, { error: browser && request.headers.authorization === undefined ? "Authorization refused" : status === 401 ? "Bearer token required" : "Identity refused" }); request.resume(); return; }
         const url = new URL(request.url!, "http://local");
         if (url.search) { respond(response, 400, { error: "Unexpected query" }); return; }
         const schedule = url.pathname.match(/^\/v1\/schedules(?:\/([a-f0-9-]{36}))?$/);
@@ -106,7 +109,7 @@ function createApi(core: Core, authorize?: ReturnType<typeof remoteAuth>): ApiSe
       if (!socket.writable || socket.destroyed) { socket.destroy(); return; }
       socket.end(`HTTP/1.1 ${status} Refused\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
     };
-    const status = authorize?.(request);
+    const status = browser ? browser.authorize(request, true) : authorize?.(request);
     if (status) { refuse(status); return; }
     void (async () => {
       try {
@@ -126,14 +129,16 @@ function createApi(core: Core, authorize?: ReturnType<typeof remoteAuth>): ApiSe
           sockets.handleUpgrade(request, socket, head, (client) => {
             accepted = true;
             watches.set(client, watch);
+            const untrack = browser?.track(request, () => client.terminate());
             let alive = true;
             client.on("error", () => client.terminate());
             client.on("pong", () => { alive = true; });
             client.on("message", () => client.close(1008, "Watch is read-only"));
-            const keepalive = setInterval(() => { if (!alive) client.terminate(); else { alive = false; client.ping(); } }, 20_000);
+            const keepalive = setInterval(() => { if (!alive || browser?.authorize(request, true)) client.terminate(); else { alive = false; client.ping(); } }, 20_000);
             keepalive.unref();
-            client.once("close", () => { clearInterval(keepalive); watches.delete(client); void watch.stop(); });
+            client.once("close", () => { untrack?.(); clearInterval(keepalive); watches.delete(client); void watch.stop(); });
             const send = (value: unknown) => {
+              if (browser?.authorize(request, true)) { client.terminate(); return; }
               const text = JSON.stringify({ kind: "value", value });
               if (client.readyState !== WebSocket.OPEN) return;
               if (Buffer.byteLength(text) + client.bufferedAmount > 4_000_000) { client.terminate(); return; }
@@ -149,6 +154,7 @@ function createApi(core: Core, authorize?: ReturnType<typeof remoteAuth>): ApiSe
   });
   const release = async () => {
     closing = true;
+    browser?.close();
     for (const client of sockets.clients) client.terminate();
     await Promise.all([...watches.values()].map((watch) => watch.stop()));
     sockets.close();
@@ -170,8 +176,8 @@ export async function serve(core: Core, state: string): Promise<ApiServer> {
   return server;
 }
 
-export async function serveRemote(core: Core, port: number, token: string, identities: readonly string[]): Promise<ApiServer> {
-  const server = createApi(core, remoteAuth(token, identities));
+export async function serveRemote(core: Core, port: number, token: string, identities: readonly string[], web?: { origin: string; push?: Push }): Promise<ApiServer> {
+  const server = createApi(core, remoteAuth(token, identities), web ? new Browser(token, identities, web.origin, web.push) : undefined);
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, "127.0.0.1", resolve); });
   return server;
 }

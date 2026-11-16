@@ -27,18 +27,30 @@ export async function loadToken(path: string): Promise<string> {
   return readToken(path);
 }
 
-export function apiConfig(raw: unknown): { port: number; identities: string[] } | undefined {
-  if (raw === undefined) return undefined;
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("api must contain port and identities");
-  const { port, identities } = raw as Record<string, unknown>;
-  if (!Number.isInteger(port) || typeof port !== "number" || port < 1 || port > 65535 || !Array.isArray(identities) || identities.length < 1 || identities.length > 32 || identities.some((value) => typeof value !== "string" || !/^[\x21-\x7e]{1,254}$/.test(value) || value.includes(","))) throw new Error("api requires a valid port and nonempty exact-login identities");
-  return { port, identities };
+export function webOrigin(raw: unknown): string {
+  if (typeof raw !== "string") throw new Error("webOrigin must be an exact HTTPS origin");
+  const url = new URL(raw);
+  if (url.protocol !== "https:" || url.origin !== raw || url.username || url.password) throw new Error("webOrigin must be an exact HTTPS origin");
+  return raw;
 }
 
-function singleHeader(request: IncomingMessage, name: string): string | undefined {
+export function apiConfig(raw: unknown): { port: number; identities: string[]; webOrigin?: string } | undefined {
+  if (raw === undefined) return undefined;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("api must contain port and identities");
+  const { port, identities, webOrigin: origin } = raw as Record<string, unknown>;
+  if (!Number.isInteger(port) || typeof port !== "number" || port < 1 || port > 65535 || !Array.isArray(identities) || identities.length < 1 || identities.length > 32 || identities.some((value) => typeof value !== "string" || !/^[\x21-\x7e]{1,254}$/.test(value) || value.includes(","))) throw new Error("api requires a valid port and nonempty exact-login identities");
+  return { port, identities, ...(origin === undefined ? {} : { webOrigin: webOrigin(origin) }) };
+}
+
+export function singleHeader(request: IncomingMessage, name: string): string | undefined {
   const values: string[] = [];
   for (let i = 0; i < request.rawHeaders.length; i += 2) if (request.rawHeaders[i].toLowerCase() === name) values.push(request.rawHeaders[i + 1]);
   return values.length === 1 ? values[0] : undefined;
+}
+
+export function remoteIdentity(request: IncomingMessage, identities: readonly string[]): string | undefined {
+  const identity = singleHeader(request, "tailscale-user-login");
+  return identity && identities.includes(identity) ? identity : undefined;
 }
 
 export function remoteAuth(token: string, identities: readonly string[]): (request: IncomingMessage) => 401 | 403 | undefined {
@@ -47,8 +59,7 @@ export function remoteAuth(token: string, identities: readonly string[]): (reque
   return (request) => {
     const supplied = singleHeader(request, "authorization")?.match(/^Bearer ([A-Za-z0-9_-]{43})$/)?.[1] ?? "";
     if (!timingSafeEqual(createHash("sha256").update(supplied).digest(), expected)) return 401;
-    const identity = singleHeader(request, "tailscale-user-login");
-    if (!identity || !identities.includes(identity)) return 403;
+    if (!remoteIdentity(request, identities)) return 403;
     return undefined;
   };
 }
