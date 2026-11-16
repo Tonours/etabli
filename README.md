@@ -186,7 +186,8 @@ The bridge pins `@earendil-works/pi-mcp` to 1.5.2, closes transports with the
 core, and leaves interrupted MCP calls unsafe to replay.
 
 At most 16 servers are accepted. `timeout` is 1–120 seconds (default 10),
-bounding each parallel startup and request. A server can be disabled with
+bounding each parallel startup and request; an out-of-range value skips that
+server. A server can be disabled with
 `enabled: false`; `{ "mcpServers": {} }` removes all connections. Only
 `${HOME}` expands in command, args, cwd and env values. Servers inherit exactly
 `PATH` and `HOME`, plus explicitly configured environment entries; stderr and
@@ -201,7 +202,8 @@ upstream names or a collision in the final native names closes and skips that
 whole server, with a redacted diagnostic. Healthy servers remain available.
 With unchanged configuration and upstream inventory, a loaded tool keeps its
 server and upstream name across listing order, timeout, outage and recovery.
-Changing configured names or advertised tools requires rediscovery.
+Changing configured names or advertised tools can reassign aliases. Start a
+new conversation and discover tools again after those changes.
 
 ## Repository map
 

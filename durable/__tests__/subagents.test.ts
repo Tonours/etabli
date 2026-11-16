@@ -88,7 +88,7 @@ test("worker actual write/edit/bash paths inherit guards and reviewed publicatio
   } finally { await f.cleanup(); }
 });
 
-for (const failure of ["DRAFT", "CHALLENGED", "terminal", "missing", "cycle", "unresolved"] as const) test(`worker mutation rechecks parent authority: ${failure}`, async () => {
+for (const failure of ["DRAFT", "CHALLENGED", "terminal", "missing", "cycle", "two-hop-cycle", "unresolved"] as const) test(`worker mutation rechecks parent authority: ${failure}`, async () => {
   const f = await fixture({ subagentModel: model });
   try {
     const child = provider(f);
@@ -99,6 +99,11 @@ for (const failure of ["DRAFT", "CHALLENGED", "terminal", "missing", "cycle", "u
         if (failure === "terminal") (await tx.doc(RunsDoc)).runs.find((row) => row.id === run.id)!.status = "blocked";
         else if (failure === "missing") await tx.retireDoc(ChildOwnerDoc, owned[0]!.id);
         else if (failure === "cycle") (await tx.doc(ChildOwnerDoc, owned[0]!.id)).parentId = owned[0]!.id;
+        else if (failure === "two-hop-cycle") {
+          const other = await tx.createConversation({ ownership: { kind: "ownerless" } });
+          (await tx.doc(ChildOwnerDoc, owned[0]!.id)).parentId = other.id;
+          (await tx.doc(ChildOwnerDoc, other.id)).parentId = owned[0]!.id;
+        }
         else if (failure === "unresolved") {
           const ownerless = await tx.createConversation({ ownership: { kind: "ownerless" } });
           (await tx.doc(ChildOwnerDoc, owned[0]!.id)).parentId = ownerless.id;
@@ -210,5 +215,19 @@ test("explicit ownerless sentinel permits a native bash control without a run", 
     const results = (await conversation.entries({}, 100, undefined, context)).items.flatMap((entry) => (entry.model ?? []).filter((message) => message.role === "toolResult"));
     expect(results).toHaveLength(1);
     expect(results[0]!.isError).toBe(false);
+  } finally { await f.cleanup(); }
+});
+
+test("persisted legacy run root resolves without an owner marker", async () => {
+  const f = await fixture();
+  try {
+    const run = await f.core.runs.submit("Tonours/fixture", "legacy root", "legacy-no-marker");
+    await f.core.harness.commit((tx) => tx.retireDoc(ChildOwnerDoc, run.conversationId), context);
+    f.faux.setResponses([call("bash", { command: "true" }), fauxAssistantMessage("legacy root works")]);
+    await f.reopen(); await f.core.harness.waitForIdle(context);
+    expect(await f.core.harness.snapshot(ChildOwnerDoc, run.conversationId, context)).toBeUndefined();
+    const conversation = (await f.core.harness.conversation(run.conversationId, context))!;
+    const entries = (await conversation.entries({}, 100, undefined, context)).items;
+    expect(entries.flatMap((entry) => (entry.model ?? []).flatMap((message) => message.role === "toolResult" && message.toolName === "bash" ? [message.isError] : []))).toEqual([false]);
   } finally { await f.cleanup(); }
 });
