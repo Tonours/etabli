@@ -359,7 +359,7 @@ process_watched() {
         if ! clear_dead_execution "$key" || ! take_execution "$key"; then
           printf '%s\t%s\n' "$repo" "$number" >>"$next"; continue
         fi
-        rm -f "$key".{status,seen,watermark,council-done,council-clean,approval-pending,approval-body,registered,requested,dryrun,dryrun-exhausted,skipped,exhausted,delta-done,unconfigured,verify-unconfigured,token,claimed,paused}
+        rm -f "$key".{status,seen,watermark,council-done,council-clean,approval-pending,approval-body,registered,requested,dryrun,dryrun-last,dryrun-exhausted,skipped,exhausted,delta-done,unconfigured,verify-unconfigured,token,claimed,paused}
         release_execution "$key"
       fi
       continue

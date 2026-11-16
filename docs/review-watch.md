@@ -149,6 +149,87 @@ the owner-item filing and the step 8 record on the `runs` issue, but a real
 dry-run has not been observed here, so check the validator's own journal issue
 for a run marker after the first live dry-run.
 
+### Private follow-up after an own-PR council
+
+The first requested head still runs the complete council. A successful result
+can establish a private `.dryrun-last` receipt bound to the repository, PR,
+authenticated account, full head SHA and SHA256 of the exact findings bytes.
+It also binds the base ref and merge base the full council actually reviewed,
+from its `COUNCIL_BASE` header. Retargeting the PR or changing that merge base
+requires another full council. Base and head object IDs are pinned and checked
+again before publishing a private result, so a base change during verification
+cannot silently widen its coverage.
+This is an optimization for later private reviews, never a council registration,
+posting watermark or approval authority. Old installations without a receipt
+perform a complete council before they can reuse private findings.
+
+A complete initial result is reusable only when its comments represent at least
+the number of findings the validator announced. A zero-finding result must have
+an empty body and no comments. Body-only or partially represented findings remain
+valid full-council results for Fleet, but establish no private baseline. The
+body and every comment are presented to the follow-up reviewer; comment count
+does not have to equal the initial finding count.
+
+On a requested descendant head without intervening merge commits, the watcher
+runs one private verifier using the existing verification model and effort
+(`PR_REVIEW_WATCH_VERIFY_MODEL`, default `opus`, and effort default `low`). It
+reviews the staged delta and checks every previous body/comment item against
+the immutable target code and nearby callers/types. This is a targeted private
+verifier, not another complete council or an invocation of the external
+`verify-fixes` skill, whose finding source and writes live on GitHub. Its model
+tools are restricted to `Read,Grep,Glob`; there is no Bash, delegation, skill
+invocation, permission grant or MCP server. It cannot execute tests itself and
+must not claim execution evidence from reading code.
+
+Each source item needs exactly one structured verdict with concrete non-empty
+evidence. Unsettled items stay in the result; a settled verdict removes them.
+The body is one opaque item, so every actionable finding in it must be settled
+before it can disappear. New findings are comments only. Retained comments name
+their original full SHA because their line numbers have not been remapped.
+Successful private per-head reports retain the structured verdicts and evidence.
+
+The result keeps Fleet's version1 shape and adds `basis: "incremental"` (the
+initial result says `"full"`). An incremental `findings: 0` attests to the delta
+and settlement of the private source set following a complete council; it is
+not a fresh run of all council lenses. Incremental counts cover remaining
+body/comment units plus new confirmed findings. Fleet ignores the extra basis
+field and retains its own two-pass autofix limit.
+
+Missing, malformed, oversized, symlinked, changed-account or altered baseline
+evidence, rewritten history, and deltas containing merges fall back to a full
+council. A same-patch rebase also takes that safe full path. Receipt reads are
+bounded to 4096 bytes; source and output findings to 256 KiB, matching Fleet's
+reader. Paths still use the existing SHA8 filename, but contents and receipts
+must agree on the complete SHA. Source bytes are snapshotted and hashed once.
+The target is checked before model work and again before atomic publication.
+
+Valid uncertainty (incomplete coverage, low confidence or an unverified new
+candidate) retires the receipt and escalates once to the complete council in
+that invocation. It never loops through another private pass. Malformed output,
+missing/duplicate source verdicts, missing evidence, a stale SHA or an oversized
+result fails with code4, publishes no fresh findings and retires the receipt.
+That head is stopped under existing scheduler rules; the next requested changed
+head recovers with a full council. Unavailable or moved GitHub targets/base refs,
+transport failures/code1 and timeout/code124 retain the previous receipt for the
+existing bounded retry. Existing
+`claude_pass` refusal/code3 and incomplete-session/code4 semantics remain:
+those stop the head and retire proof rather than being called transport errors.
+If an escalated full council fails, subsequent retries are full councils.
+
+Concurrency, attempts, daily caps, request settling, posting reviews and approval
+behavior are unchanged. No process is cancelled by this optimization: work on
+obsolete heads can still run until the existing timeout, and Fleet can abandon
+a request after its progress deadline. The fake-harness regression demonstrates
+one full council followed by two private passes and a technical retry; it does
+not measure real token or quota savings. Historical rebases, body-only results
+and incomplete proof may require full councils instead.
+
+Deploy the complete watcher directory while paused and preserve state; remove
+the new receipt to disable reuse for one PR. Closed PR cleanup removes it, and
+expired/missing source reports safely force a full review. The existing scripts
+directory symlink installs these helpers without a new service or installer.
+The isolated source checkout does not activate them on macbook-work.
+
 ## Configured verification skill
 
 `PR_COUNCIL_VERIFY_SKILL` overrides the first line of
