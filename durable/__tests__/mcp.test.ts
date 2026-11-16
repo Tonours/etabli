@@ -196,10 +196,10 @@ test("colliding normalized server names fail before any connection; distinct nam
 
 test("tool bindings survive reversed startup/config order and preoccupied native hash suffixes", async () => {
   const suffix = createHash("sha256").update("a__b\0echo").digest("hex").slice(0, 8);
-  for (const [secondName, toolNames] of [["a__b", ["b__echo"]], ["a_", ["_x"]], ["a__b", ["b__echo", `b__echo_${suffix}`]]] as const) {
+  for (const [secondName, toolNames] of [["a__b", ["b__echo"]], ["a_", ["_x"]], ["a__b", ["b__echo", `b__echo_${suffix}`]], ["a__b", ["b--echo", "b__echo"]]] as const) {
     const targets: string[] = [];
     for (const reverse of [false, true]) {
-      const first = await memoryServer(undefined, [...toolNames], reverse ? 40 : 0);
+      const first = await memoryServer(undefined, reverse ? [...toolNames].reverse() : [...toolNames], reverse ? 40 : 0);
       const second = await memoryServer(undefined, [secondName === "a_" ? "x" : "echo"], reverse ? 0 : 40);
       const servers = reverse ? { [secondName]: { command: "second" }, a: { command: "first" } } : { a: { command: "first" }, [secondName]: { command: "second" } };
       const bridge = await openMcp(servers, { transport: (config) => config.command === "first" ? first.transport : second.transport, report: () => {} });
@@ -211,9 +211,10 @@ test("tool bindings survive reversed startup/config order and preoccupied native
         n.faux.setResponses([call("tool_search", { query: tool }), call(tool, { text: "binding" }), fauxAssistantMessage("done")]);
         await (await n.root.submit({ type: "input", content: "binding", requestId: "binding" }, context)).wait(context);
         expect(first.calls.length + second.calls.length).toBe(1);
-        targets.push(first.calls.length ? "first" : "second");
+        expect(first.calls).toHaveLength(1);
+        targets.push(first.calls[0]!);
       } finally { await n.harness.close(context); await bridge.close(); }
     }
-    expect(targets).toEqual(["first", "first"]);
+    expect(targets[1]).toBe(targets[0]);
   }
 });
