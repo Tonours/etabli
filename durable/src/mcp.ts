@@ -31,7 +31,7 @@ export async function openMcp(servers: Record<string, unknown> = {}, options: {
   const clients: McpClient[] = [];
   const report = options.report ?? ((event) => console.error(`MCP ${event.server}: ${event.status}`));
   const names = new Set<string>();
-  const connected = await Promise.all(Object.entries(mcpConfig(servers)).map(async ([server, raw]) => {
+  const connected = await Promise.all(Object.entries(mcpConfig(servers)).sort(([a], [b]) => a.localeCompare(b)).map(async ([server, raw]) => {
     const validated = validateMcpServerConfig(server, raw);
     if (validated.kind !== "stdio" || !Number.isFinite(validated.config.timeout ?? 10) || (validated.config.timeout ?? 10) > 120 || (validated.config.timeout ?? 10) < 1) {
       report({ server, status: "skipped" });
@@ -47,8 +47,9 @@ export async function openMcp(servers: Record<string, unknown> = {}, options: {
         (async () => { await client.connect((options.transport ?? mcpStdio)(config)); return client.listTools(); })(),
         new Promise<never>((_resolve, reject) => { timer = setTimeout(() => reject(new Error("MCP startup timeout")), (config.timeout ?? 10) * 1000); }),
       ]);
-      const registered = tools.map((tool) => {
+      const registered = tools.toSorted((a, b) => a.name.localeCompare(b.name)).map((tool) => () => {
         const name = createMcpToolName(server, tool.name, (value) => names.has(value));
+        if (names.has(name)) return undefined;
         names.add(name);
         return defineTool({
           name, description: tool.description ?? tool.name,
@@ -73,5 +74,6 @@ export async function openMcp(servers: Record<string, unknown> = {}, options: {
       return [];
     } finally { clearTimeout(timer); }
   }));
-  return { extension: defineExtension({ name: "etabli-mcp", tools: [createToolSearchTool(), ...connected.flat()] }), close: async () => { await Promise.all(clients.map((client) => client.close())); } };
+  // Assign names after parallel discovery, in stable server/tool order.
+  return { extension: defineExtension({ name: "etabli-mcp", tools: [createToolSearchTool(), ...connected.flat().map((register) => register()).filter((tool) => tool !== undefined)] }), close: async () => { await Promise.all(clients.map((client) => client.close())); } };
 }

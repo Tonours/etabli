@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -23,7 +24,7 @@ async function native(extension: Extension) {
   await root.configure({ model: { provider: "fixture", modelId: "fixture" } }, context);
   return { harness, faux, root };
 }
-async function memoryServer(handler?: (message: JsonRpcMessage) => boolean) {
+async function memoryServer(handler?: (message: JsonRpcMessage) => boolean, toolNames = ["echo"], listDelay = 0) {
   const pair = createInMemoryTransportPair();
   const calls: string[] = [];
   let closed = false;
@@ -32,10 +33,10 @@ async function memoryServer(handler?: (message: JsonRpcMessage) => boolean) {
     if (handler?.(message)) return;
     if (!("method" in message) || !("id" in message)) return;
     const result = message.method === "initialize" ? { protocolVersion: "2025-11-25", capabilities: { tools: {} }, serverInfo: { name: "fixture", version: "1" } }
-      : message.method === "tools/list" ? { tools: [{ name: "echo", description: "Echo fixture", inputSchema: { type: "object", properties: { text: { type: "string" } }, required: ["text"], additionalProperties: false } }] }
+      : message.method === "tools/list" ? { tools: toolNames.map((name) => ({ name, description: "Echo fixture", inputSchema: { type: "object", properties: { text: { type: "string" } }, required: ["text"], additionalProperties: false } })) }
       : { content: [{ type: "text", text: "native MCP answer" }] };
     if (message.method === "tools/call") calls.push(String((message.params as { name?: string } | undefined)?.name));
-    void pair.server.send({ jsonrpc: "2.0", id: message.id, result });
+    setTimeout(() => { void pair.server.send({ jsonrpc: "2.0", id: message.id, result }); }, message.method === "tools/list" ? listDelay : 0);
   });
   await pair.server.start();
   return { transport: pair.client, calls, get closed() { return closed; } };
@@ -190,4 +191,29 @@ test("colliding normalized server names fail before any connection; distinct nam
   const bridge = await openMcp({ "a-b": { command: "first" }, a_c: { command: "second" } }, { transport: (config) => config.command === "first" ? first.transport : second.transport, report: () => {} });
   try { expect(bridge.extension.tools?.map((tool) => tool.name).sort()).toEqual(["mcp__a_b__echo", "mcp__a_c__echo", "tool_search"]); }
   finally { await bridge.close(); }
+});
+
+
+test("tool bindings survive reversed startup/config order and preoccupied native hash suffixes", async () => {
+  const suffix = createHash("sha256").update("a__b\0echo").digest("hex").slice(0, 8);
+  for (const [secondName, toolNames] of [["a__b", ["b__echo"]], ["a_", ["_x"]], ["a__b", ["b__echo", `b__echo_${suffix}`]]] as const) {
+    const targets: string[] = [];
+    for (const reverse of [false, true]) {
+      const first = await memoryServer(undefined, [...toolNames], reverse ? 40 : 0);
+      const second = await memoryServer(undefined, [secondName === "a_" ? "x" : "echo"], reverse ? 0 : 40);
+      const servers = reverse ? { [secondName]: { command: "second" }, a: { command: "first" } } : { a: { command: "first" }, [secondName]: { command: "second" } };
+      const bridge = await openMcp(servers, { transport: (config) => config.command === "first" ? first.transport : second.transport, report: () => {} });
+      const names = bridge.extension.tools!.map((tool) => tool.name);
+      const n = await native(bridge.extension);
+      try {
+        expect(new Set(names).size).toBe(names.length);
+        const tool = secondName === "a_" ? "mcp__a___x" : "mcp__a__b__echo";
+        n.faux.setResponses([call("tool_search", { query: tool }), call(tool, { text: "binding" }), fauxAssistantMessage("done")]);
+        await (await n.root.submit({ type: "input", content: "binding", requestId: "binding" }, context)).wait(context);
+        expect(first.calls.length + second.calls.length).toBe(1);
+        targets.push(first.calls.length ? "first" : "second");
+      } finally { await n.harness.close(context); await bridge.close(); }
+    }
+    expect(targets).toEqual(["first", "first"]);
+  }
 });
