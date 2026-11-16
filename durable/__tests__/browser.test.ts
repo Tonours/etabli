@@ -8,6 +8,7 @@ import { Browser } from "../src/browser.ts";
 import { daemonConfig } from "../src/daemon.ts";
 import { Push } from "../src/push.ts";
 import { fixture } from "./helpers.ts";
+import { acceptedPush } from "./fixtures/push-peer.ts";
 
 const identity = "owner@example.invalid", origin = "https://app.fixture.ts.net";
 type Reply = { status: number; text: string; headers: import("node:http").IncomingHttpHeaders };
@@ -209,8 +210,8 @@ test("documented generic notifications survive control-session logout until expl
     expect((await http(port, "/v1/push/subscriptions", "POST", headers, subscription)).status).toBe(200);
     expect((await http(port, "/v1/browser/session", "DELETE", headers)).status).toBe(200);
     expect((await http(port, "/v1/push/subscriptions", "DELETE", headers, subscription)).status).toBe(401);
-    await push.notify(); expect(sent).toBe(1);
+    await acceptedPush(push.notify()); expect(sent).toBe(1);
     expect((await http(port, "/v1/push/subscriptions", "DELETE", auth, subscription)).status).toBe(200);
-    await push.notify(); expect(sent).toBe(1);
+    await acceptedPush(push.notify()); expect(sent).toBe(1);
   } finally { await server.shutdown(); await f.cleanup(); }
 });

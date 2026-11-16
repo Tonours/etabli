@@ -55,14 +55,29 @@ remote revoke control for a lost device. If the daemon's VAPID key changes,
 the app removes its obsolete subscription and asks you to enable notifications
 again so it cannot report a stale subscription as working.
 
-Done and blocked runs send an empty signed Web Push request with a one-hour
-TTL and high urgency. The worker displays generic text, with no task, result,
-plan, token or identity in the notification. Tap it to open the app. Invalid
-404/410 subscriptions and removed identities are pruned. Transient provider
-failures retain the subscription. Delivery uses the existing at-most-once
-notification claim: a crash after claiming can lose the attempt; delivery is
-not retried for the same terminal event. The command notification is still
-attempted independently. Aborted runs do not send Web Push.
+Done and blocked runs request an empty signed Web Push attempt with a one-hour
+TTL and high urgency. One daemon runs at most two HTTPS requests globally,
+with one active batch and one waiting batch. Waiting is limited to 15 seconds;
+an active batch has a 10-second network budget. Additional terminal events
+coalesce into the waiting generic attempt instead of creating more jobs.
+Coalescence does not promise a separate notification or device delivery.
+
+The worker displays generic text, with no task, result, plan, token or identity.
+Requests use `Connection: close` and fresh TLS connections; retries and redirects
+are disabled. Provider 404/410 responses and removed identities are pruned.
+Transient failures retain subscriptions. A failed or timed-out request is
+unconfirmed: the provider may already have accepted or delivered it. Provider
+acceptance alone is not proof of device delivery.
+
+The existing persisted at-most-once claim is kept before admission. A waiting
+attempt that expires or is closed before starting makes no request; an active
+execution timeout may leave partial or unconfirmed delivery. These outcomes and
+coalesced counts are reported without subscription endpoints or credentials.
+Claims are never reset or retried for overflow, expiry, shutdown or a crash.
+The command notifier remains independent. Aborted runs do not send Web Push.
+Shutdown closes admission, cancels the waiting attempt and drains the active
+attempt under its remaining network budget before closing the native store.
+Native store operations remain awaited rather than abandoned by timeout.
 
 ## Qualification recipe
 

@@ -44,6 +44,7 @@ export async function openCore(options: { state: string; policy: OwnerPolicy; mo
   const unlock = await writerLock(join(options.state, "daemon.lock"));
   let opened: Harness | undefined;
   let mcp: Awaited<ReturnType<typeof openMcp>> | undefined;
+  let closePush: (() => Promise<void>) | undefined;
   try {
     const storage = await openNodeSqliteStorage(join(options.state, "store.sqlite"));
     await chmod(join(options.state, "store.sqlite"), 0o600);
@@ -68,7 +69,9 @@ export async function openCore(options: { state: string; policy: OwnerPolicy; mo
     }, context);
     opened = harness;
     const push = options.web ? await Push.open(harness, options.state, options.web.origin, options.web.identities) : undefined;
+    closePush = async () => { await push?.close(); };
     const runs = new Runs({ ...options, pushNotify: push ? () => push.notify() : undefined, workflow: options.workflow ? checkout : undefined, guard, harness, repositories: options.repositories ?? new Repositories(options.state, options.policy), model: options.model ?? defaultModel });
+    closePush = async () => { await push?.close(); await runs.drainNotifications(); };
     const schedules = new Schedules(runs);
     const ci = new Ci(runs, options.ciCommand);
     let closing = false;
@@ -88,11 +91,13 @@ export async function openCore(options: { state: string; policy: OwnerPolicy; mo
       clearInterval(limits);
       await enforcing;
       await runs.drainStops();
+      await closePush();
       await harness.close(context);
       throw error;
     }
-    return { harness, runs, push, schedules, ci, tickTriggers, close: async () => { closing = true; await triggers; clearInterval(limits); await enforcing; await runs.drainTicks(); await runs.drainStops(); await runs.drainNotifications(); await harness.close(context); await mcp?.close(); await unlock(); } };
+    return { harness, runs, push, schedules, ci, tickTriggers, close: async () => { closing = true; await triggers; clearInterval(limits); await enforcing; await runs.drainTicks(); await runs.drainStops(); await closePush!(); await harness.close(context); await mcp?.close(); await unlock(); } };
   } catch (error) {
+    await closePush?.().catch(() => undefined);
     await opened?.close(context).catch(() => undefined);
     await mcp?.close();
     await unlock();

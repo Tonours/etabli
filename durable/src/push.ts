@@ -3,6 +3,7 @@ import { constants } from "node:fs";
 import { link, open, unlink } from "node:fs/promises";
 import { request } from "node:https";
 import type { ClientRequest, IncomingMessage, RequestOptions } from "node:http";
+import type { Socket } from "node:net";
 import { join } from "node:path";
 import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
 import { defineDoc, type Harness } from "@earendil-works/pi-durable";
@@ -56,21 +57,41 @@ export function pushHeaders(key: VapidKey, endpoint: string, origin: string, now
 }
 
 type PushTransport = (url: string, options: RequestOptions, callback: (response: IncomingMessage) => void) => ClientRequest;
-export function sendPush(endpoint: string, headers: Record<string, string>, transport: PushTransport = request, deadlineMs = 10_000): Promise<number> {
+export function sendPush(endpoint: string, headers: Record<string, string>, transport: PushTransport = request, deadlineMs = 10_000, signal?: AbortSignal): Promise<number> {
   const url = pushEndpoint(endpoint);
   return new Promise((resolve, reject) => {
-    // Native HTTPS does not follow redirects or inherit proxy environment variables.
-    const outgoing = transport(url, { method: "POST", headers }, (response) => {
-      const status = response.statusCode ?? 0;
+    if (signal?.aborted) { reject(new Error("Push delivery unconfirmed")); return; }
+    let status = 0, failed = false, requestClosed = false, socket: Socket | undefined;
+    const outgoing = transport(url, { method: "POST", headers, agent: false }, (response) => {
+      status = response.statusCode ?? 0;
       response.destroy();
-      resolve(status);
     });
-    const timer = setTimeout(() => outgoing.destroy(new Error("Push deadline exceeded")), deadlineMs);
-    outgoing.once("close", () => clearTimeout(timer));
-    outgoing.once("error", () => reject(new Error("Push delivery failed")));
+    const finish = () => {
+      if (!requestClosed || socket && !socket.destroyed) return;
+      clearTimeout(timer); signal?.removeEventListener("abort", abort);
+      socket?.removeListener("close", finish);
+      if (failed || !status) reject(new Error("Push delivery unconfirmed")); else resolve(status);
+    };
+    const abort = () => { failed = true; outgoing.destroy(new Error("Push deadline exceeded")); };
+    const timer = setTimeout(abort, deadlineMs);
+    outgoing.once("socket", (assigned) => { socket = assigned; if (!assigned.destroyed) assigned.once("close", finish); });
+    outgoing.once("close", () => { requestClosed = true; finish(); });
+    outgoing.once("error", () => { failed = true; });
+    signal?.addEventListener("abort", abort, { once: true });
+    if (signal?.aborted) abort();
     outgoing.end();
   });
 }
+
+export const PUSH_LIMITS = Object.freeze({ concurrency: 2, waitMs: 15_000, executionMs: 10_000 });
+export type PushSummary = {
+  outcome: "complete" | "wait_expired" | "execution_expired" | "closed" | "failed";
+  attempted: number; providerAccepted: number; failed: number; coalesced: number; unattempted?: number;
+};
+export type PushAdmission = { kind: "accepted"; done: Promise<PushSummary> } | { kind: "coalesced" } | { kind: "skipped"; reason: "closed" };
+const coalesced = Object.freeze({ kind: "coalesced" } as const), closed = Object.freeze({ kind: "skipped", reason: "closed" } as const);
+type Batch = { done: Promise<PushSummary>; resolve: (summary: PushSummary) => void; coalesced: number; timer?: ReturnType<typeof setTimeout> };
+const summary = (outcome: PushSummary["outcome"], batch: Batch): PushSummary => ({ outcome, attempted: 0, providerAccepted: 0, failed: 0, coalesced: batch.coalesced });
 
 export class Push {
   readonly harness: Harness;
@@ -78,8 +99,15 @@ export class Push {
   readonly origin: string;
   readonly identities: readonly string[];
   private readonly send: typeof sendPush;
-  constructor(harness: Harness, key: VapidKey, origin: string, identities: readonly string[], send = sendPush) {
+  private readonly timing: { waitMs: number; executionMs: number };
+  private active: Batch | undefined;
+  private waiting: Batch | undefined;
+  private closing = false;
+  private closed: Promise<void> | undefined;
+  constructor(harness: Harness, key: VapidKey, origin: string, identities: readonly string[], send = sendPush, timing: { waitMs: number; executionMs: number } = PUSH_LIMITS) {
     this.harness = harness; this.key = key; this.origin = origin; this.identities = identities; this.send = send;
+    if (!Number.isSafeInteger(timing.waitMs) || timing.waitMs < 1 || timing.waitMs > PUSH_LIMITS.waitMs || !Number.isSafeInteger(timing.executionMs) || timing.executionMs < 1 || timing.executionMs > PUSH_LIMITS.executionMs) throw new Error("Invalid Push test timing");
+    this.timing = timing;
   }
 
   static async open(harness: Harness, state: string, origin: string, identities: readonly string[]): Promise<Push> {
@@ -111,19 +139,67 @@ export class Push {
     }, context);
   }
 
-  async notify(): Promise<void> {
-    const rows = (await this.harness.snapshot(PushDoc, context))?.subscriptions ?? [];
+  notify(): PushAdmission {
+    if (this.closing) return closed;
+    if (this.waiting) { this.waiting.coalesced = Math.min(Number.MAX_SAFE_INTEGER, this.waiting.coalesced + 1); return coalesced; }
+    const { promise, resolve } = Promise.withResolvers<PushSummary>();
+    const batch: Batch = { done: promise, resolve, coalesced: 0 };
+    if (this.active) {
+      this.waiting = batch;
+      batch.timer = setTimeout(() => {
+        if (this.waiting !== batch) return;
+        this.waiting = undefined; batch.resolve(summary("wait_expired", batch));
+      }, this.timing.waitMs);
+    } else this.start(batch);
+    return { kind: "accepted", done: batch.done };
+  }
+
+  close(): Promise<void> {
+    if (this.closed) return this.closed;
+    this.closing = true;
+    if (this.waiting) { clearTimeout(this.waiting.timer); this.waiting.resolve(summary("closed", this.waiting)); this.waiting = undefined; }
+    return this.closed = this.active?.done.then(() => undefined) ?? Promise.resolve();
+  }
+
+  private start(batch: Batch): void {
+    this.active = batch;
+    void this.dispatch(batch).then((result) => {
+      this.active = undefined;
+      if (this.waiting && !this.closing) {
+        const next = this.waiting; this.waiting = undefined; clearTimeout(next.timer); this.start(next);
+      }
+      batch.resolve(result);
+    });
+  }
+
+  private async dispatch(batch: Batch): Promise<PushSummary> {
+    const result = summary("complete", batch), controller = new AbortController();
+    const deadline = Date.now() + this.timing.executionMs;
+    const timer = setTimeout(() => controller.abort(), this.timing.executionMs);
     const rejected = new Set<string>();
-    await Promise.all(rows.map(async (row) => {
-      if (!this.identities.includes(row.identity)) { rejected.add(row.id); return; }
-      try {
-        const status = await this.send(row.endpoint, pushHeaders(this.key, row.endpoint, this.origin));
-        if (status === 404 || status === 410) rejected.add(row.id);
-      } catch { /* Existing notification claim is at most once; retain transient failures. */ }
-    }));
-    if (rejected.size) await this.harness.commit(async (tx) => {
-      const doc = await tx.doc(PushDoc);
-      doc.subscriptions = doc.subscriptions.filter((row) => !rejected.has(row.id));
-    }, context);
+    try {
+      const rows = (await this.harness.snapshot(PushDoc, context))?.subscriptions ?? [];
+      let index = 0;
+      await Promise.all(Array.from({ length: Math.min(PUSH_LIMITS.concurrency, rows.length) }, async () => {
+        while (index < rows.length && !controller.signal.aborted) {
+          const row = rows[index++];
+          if (!this.identities.includes(row.identity)) { rejected.add(row.id); continue; }
+          result.attempted++;
+          try {
+            const status = await this.send(row.endpoint, pushHeaders(this.key, row.endpoint, this.origin), undefined, Math.max(1, deadline - Date.now()), controller.signal);
+            if (status >= 200 && status < 300) result.providerAccepted++; else result.failed++;
+            if (status === 404 || status === 410) rejected.add(row.id);
+          } catch { result.failed++; }
+        }
+      }));
+      result.unattempted = rows.filter((row) => this.identities.includes(row.identity)).length - result.attempted;
+      if (controller.signal.aborted) result.outcome = "execution_expired";
+      if (rejected.size) await this.harness.commit(async (tx) => {
+        const doc = await tx.doc(PushDoc);
+        doc.subscriptions = doc.subscriptions.filter((row) => !rejected.has(row.id));
+      }, context);
+    } catch { result.outcome = "failed"; }
+    finally { clearTimeout(timer); }
+    return result;
   }
 }
