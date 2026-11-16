@@ -78,6 +78,7 @@ test("browser assets and session preserve bearer/identity while denying sibling-
     for (const extra of [{ p256dh: "unexpected" }, { identity: "other@example.invalid" }]) expect((await http(port, "/v1/push/subscriptions", "POST", [...browser, "Origin", origin], { ...subscription, ...extra })).status).toBe(400);
     expect((await http(port, "/v1/runs", "GET", [...owner, "Cookie", cookie])).status).toBe(403);
     expect((await http(port, "/v1/runs", "GET", [...browser, "Authorization", "Bearer invalid"])).status).toBe(401);
+    expect(await http(port, "/v1/runs", "GET", [...browser, "Authorization", ""])).toMatchObject({ status: 401, text: '{"error":"Bearer token required"}' });
     expect((await http(port, "/v1/runs", "GET", [...browser, "Authorization", `Bearer ${"A".repeat(43)}`])).status).toBe(401);
     expect((await http(port, "/v1/runs", "GET", [...browser, "Cookie", cookie])).status).toBe(401);
     expect((await http(port, "/v1/runs", "GET", [...browser, "Tailscale-User-Login", identity])).status).toBe(403);
@@ -186,6 +187,7 @@ for (const web of [undefined, { origin }]) test(`remote CLI keeps original refus
   const port = (server.address() as { port: number }).port;
   try {
     if (!web) expect(await http(port, "/v1/runs", "GET", ["Tailscale-User-Login", identity])).toMatchObject({ status: 401, text: '{"error":"Bearer token required"}' });
+    if (web) expect(await http(port, "/v1/runs", "GET", ["Tailscale-User-Login", identity])).toMatchObject({ status: 403, text: '{"error":"Authorization refused"}' });
     expect(await http(port, "/v1/runs", "GET", ["Tailscale-User-Login", identity, "Authorization", `Bearer ${"A".repeat(43)}`])).toMatchObject({ status: 401, text: '{"error":"Bearer token required"}' });
     expect(await http(port, "/v1/runs", "GET", ["Authorization", `Bearer ${token}`])).toMatchObject({ status: 403, text: '{"error":"Identity refused"}' });
     expect((await http(port, "/v1/runs", "GET", ["Tailscale-User-Login", identity, "Authorization", `Bearer ${token}`])).status).toBe(200);
