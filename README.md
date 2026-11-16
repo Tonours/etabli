@@ -167,6 +167,44 @@ over one shared module in `workflow/runtime/`:
 Nothing else stops for approval. [`claude/README.md`](claude/README.md) § Hooks
 has the details and the known blind spots.
 
+## Durable delegation and MCP
+
+The personal daemon exposes native `scout` and `worker` tools. Scout uses the
+canonical cheap native model and only `read`; worker uses the configured
+implementer with guarded `read`, `write`, `edit` and `bash`. Children belong to
+the calling task, return their answer as its tool result, and stop with it.
+An enabled parent plan must be READY for worker admission and child mutations.
+Children cannot delegate again or use plan, review, publication or MCP tools.
+
+Merge the `mcpServers` object from [`durable/config.example.json`](durable/config.example.json)
+into the daemon's private configuration, preserving existing settings. The
+example uses personal alambic-obvault and an isolated headless chrome-devtools
+server. Nothing is copied from the shared inventory automatically. Configured
+stdio servers connect before runs resume; failed servers report only their name
+and skipped status. Tools stay deferred until native `tool_search` loads them.
+The bridge pins `@earendil-works/pi-mcp` to 1.5.2, closes transports with the
+core, and leaves interrupted MCP calls unsafe to replay.
+
+At most 16 servers are accepted. `timeout` is 1–120 seconds (default 10),
+bounding each parallel startup and request; an out-of-range value skips that
+server. A server can be disabled with
+`enabled: false`; `{ "mcpServers": {} }` removes all connections. Only
+`${HOME}` expands in command, args, cwd and env values. Servers inherit exactly
+`PATH` and `HOME`, plus explicitly configured environment entries; stderr and
+raw failures are kept out of daemon diagnostics. HTTP/OAuth servers are skipped.
+
+Server names must have disjoint native tool prefixes, including the prefix kept
+when pi-mcp shortens a long name. Ambiguous configurations fail before any
+server starts: rename overlapping keys and rediscover their tools. For example,
+`a` with `a__b` or `a_`, and `a-b` with `a_b`, are refused; `a` with `a_b` is
+valid. The example server names keep their native names. A listing with duplicate
+upstream names or a collision in the final native names closes and skips that
+whole server, with a redacted diagnostic. Healthy servers remain available.
+With unchanged configuration and upstream inventory, a loaded tool keeps its
+server and upstream name across listing order, timeout, outage and recovery.
+Changing configured names or advertised tools can reassign aliases. Start a
+new conversation and discover tools again after those changes.
+
 ## Repository map
 
 | Path | Holds |

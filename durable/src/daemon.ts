@@ -20,6 +20,8 @@ import { writerLock } from "./lock.ts";
 import { authorFamilies, createPlanExtension, phaseModel, type ModelRole } from "./plan-doc.ts";
 import { createReviewExtension } from "./review.ts";
 import { createPublishExtension, type Command } from "./publish.ts";
+import { createSubagentsExtension, type SubagentRole } from "./subagents.ts";
+import { openMcp, mcpConfig } from "./mcp.ts";
 import type { runCliReview } from "./review-cli.ts";
 
 import { serve, serveRemote, type ApiServer } from "./api.ts";
@@ -34,12 +36,13 @@ export async function defaultModel(): Promise<ModelRef> {
   return phaseModel(checkout, "implementer");
 }
 
-export async function openCore(options: { state: string; policy: OwnerPolicy; models: Models; model?: () => Promise<ModelRef>; workflow?: boolean; phaseModel?: (role: ModelRole) => Promise<ModelRef>; reviewCli?: typeof runCliReview; publishCommand?: Command; ciCommand?: Command; repositories?: Repositories; now?: () => number; wallMs?: number; maxTurns?: number; notifyArgv?: readonly string[]; restartLimit?: number; retry?: Partial<ConversationRetryPolicy>; fatal?: () => void }) {
+export async function openCore(options: { state: string; policy: OwnerPolicy; models: Models; model?: () => Promise<ModelRef>; workflow?: boolean; subagentModel?: (role: SubagentRole) => Promise<ModelRef>; mcpServers?: Record<string, unknown>; phaseModel?: (role: ModelRole) => Promise<ModelRef>; reviewCli?: typeof runCliReview; publishCommand?: Command; ciCommand?: Command; repositories?: Repositories; now?: () => number; wallMs?: number; maxTurns?: number; notifyArgv?: readonly string[]; restartLimit?: number; retry?: Partial<ConversationRetryPolicy>; fatal?: () => void }) {
   process.umask(0o077);
   await mkdir(options.state, { recursive: true, mode: 0o700 });
   await chmod(options.state, 0o700);
   const unlock = await writerLock(join(options.state, "daemon.lock"));
   let opened: Harness | undefined;
+  let mcp: Awaited<ReturnType<typeof openMcp>> | undefined;
   try {
     const storage = await openNodeSqliteStorage(join(options.state, "store.sqlite"));
     await chmod(join(options.state, "store.sqlite"), 0o600);
@@ -47,13 +50,16 @@ export async function openCore(options: { state: string; policy: OwnerPolicy; mo
     const guard = createGuards(checkout, options.policy);
     registry.install(CodingTools);
     registry.install(guard);
+    mcp = await openMcp(options.mcpServers);
+    const extensions = [createSubagentsExtension(checkout, guard, options.subagentModel), mcp.extension];
+    for (const extension of extensions) registry.install(extension);
     const host = { async conversation(id: Parameters<Harness["conversation"]>[0], ctx: Parameters<Harness["conversation"]>[1]) { if (!opened) throw new Error("Harness is not ready"); return opened.conversation(id, ctx); } };
     const workflow = options.workflow ? [createPlanExtension(checkout, async (id, ctx) => { const conversation = await host.conversation(id, ctx); if (!conversation) throw new Error("Author conversation missing"); return authorFamilies(checkout, conversation, ctx); }, options.phaseModel), createReviewExtension(checkout, host, options.reviewCli), createPublishExtension(checkout, options.policy, host, options.publishCommand)] : [];
     for (const extension of workflow) registry.install(extension);
     const harness = await Harness.open(storage, {
       models: options.models,
       registry,
-      settings: { extensions: [CodingTools, guard, ...workflow], toolExecution: "sequential", restartLimit: options.restartLimit ?? 5, retry: options.retry, compaction: { enabled: false } },
+      settings: { extensions: [CodingTools, guard, ...workflow, ...extensions], toolExecution: "sequential", restartLimit: options.restartLimit ?? 5, retry: options.retry, compaction: { enabled: false } },
       env: ({ cwd }) => cwd ? new NodeExecutionEnv({ cwd, shellPath: "/bin/bash" }) : undefined,
       conversationCreated: (tx, conversation) => configureGuard(tx, conversation, guard),
       now: options.now,
@@ -83,9 +89,10 @@ export async function openCore(options: { state: string; policy: OwnerPolicy; mo
       await harness.close(context);
       throw error;
     }
-    return { harness, runs, schedules, ci, tickTriggers, close: async () => { closing = true; await triggers; clearInterval(limits); await enforcing; await runs.drainStops(); await harness.close(context); await unlock(); } };
+    return { harness, runs, schedules, ci, tickTriggers, close: async () => { closing = true; await triggers; clearInterval(limits); await enforcing; await runs.drainStops(); await harness.close(context); await mcp?.close(); await unlock(); } };
   } catch (error) {
     await opened?.close(context).catch(() => undefined);
+    await mcp?.close();
     await unlock();
     throw error;
   }
@@ -103,7 +110,7 @@ export function daemonConfig(raw: unknown) {
   const restartLimit = config.restartLimit ?? 5;
   if (typeof maxTurns !== "number" || !Number.isSafeInteger(maxTurns) || maxTurns < 1 || maxTurns > 256 || typeof wallMs !== "number" || !Number.isSafeInteger(wallMs) || wallMs < 1 || wallMs > 14_400_000) throw new Error("Run limits must be positive and within 256 turns / four hours");
   if (typeof restartLimit !== "number" || !Number.isSafeInteger(restartLimit) || restartLimit < 1 || restartLimit > 32) throw new Error("restartLimit must be an integer from 1 to 32");
-  return { notifyArgv, maxTurns, wallMs, restartLimit, api: apiConfig(config.api) };
+  return { notifyArgv, maxTurns, wallMs, restartLimit, mcpServers: mcpConfig(config.mcpServers), api: apiConfig(config.api) };
 }
 
 export async function daemon(state = defaultState(), configPath = defaultConfig()): Promise<void> {
