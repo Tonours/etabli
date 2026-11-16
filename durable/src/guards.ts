@@ -1,10 +1,12 @@
 import { resolve } from "node:path";
 import { readFile } from "node:fs/promises";
 import { parse } from "shell-quote";
-import { AgentDoc, ToolTask, configure, defineExtension, hook, section, type Extension, type Tx, type ConversationRecord, type AgentChange, type HookApi } from "@earendil-works/pi-durable";
+import type { Context } from "@earendil-works/chord/context";
+import { AgentDoc, ToolTask, configure, defineDoc, defineExtension, hook, section, type ConversationId, type Extension, type Tx, type ConversationRecord, type AgentChange, type HookApi } from "@earendil-works/pi-durable";
 import { noCommentsGuardDecision } from "../../workflow/runtime/no-comments-guard.mjs";
 import { prBodyGuardDecision } from "../../workflow/runtime/pr-body-guard.mjs";
 import { git, OwnerPolicy } from "./policy.ts";
+import { EtabliPlanDoc } from "./plan-doc.ts";
 import { active, RunsDoc } from "./runs-doc.ts";
 
 type Decision = { hookSpecificOutput: { permissionDecisionReason: string } } | null;
@@ -180,7 +182,30 @@ export function guardedAgent(change: AgentChange, guard: Extension): AgentChange
   return { ...change, extensions: { add: [guard] } };
 }
 
+export const ChildOwnerDoc = defineDoc<{ parentId: ConversationId | null }>({
+  kind: "etabli.child-owner", version: 1, scope: "conversation", history: "latest", fork: "initial",
+  initial: () => ({ parentId: null }), checkpointWhen: () => true,
+});
+
+async function guardRun(api: Pick<HookApi, "snapshot">, id: ConversationId, context: Context) {
+  const runs = (await api.snapshot(RunsDoc, context))?.runs ?? [];
+  let current = id;
+  const seen = new Set<ConversationId>();
+  for (let depth = 0; depth < 16; depth++) {
+    if (seen.has(current)) break;
+    seen.add(current);
+    const run = runs.find((row) => row.conversationId === current);
+    if (run) return { run, child: current !== id, unresolved: false };
+    const owner = await api.snapshot(ChildOwnerDoc, current, context);
+    if (!owner) break;
+    if (owner.parentId === null) return { run: undefined, child: current !== id, unresolved: current !== id };
+    current = owner.parentId;
+  }
+  return { run: undefined, child: true, unresolved: true };
+}
+
 export async function configureGuard(tx: Tx, conversation: ConversationRecord, guard: Extension): Promise<void> {
+  (await tx.doc(ChildOwnerDoc, conversation.id)).parentId = conversation.owner?.conversationId ?? null;
   const current = await tx.doc(AgentDoc, conversation.id);
   const extensions = current.extensions;
   const names = Array.isArray(extensions) ? extensions : undefined;
@@ -198,8 +223,15 @@ export function createGuards(checkout: string, policy: OwnerPolicy): Extension {
     hooks: [hook(ToolTask, {
       async beforeTool(call, api: HookApi, context) {
         const state = await api.snapshot(AgentDoc, api.conversationId, context);
-        const run = (await api.snapshot(RunsDoc, context))?.runs.find((run) => run.conversationId === api.conversationId);
-        if (run && run.route !== "legacy" && !active(run)) return { block: "durable guard: run is terminal" };
+        const { run, child, unresolved } = await guardRun(api, api.conversationId, context);
+        if (run && (child || run.route !== "legacy") && !active(run)) return { block: "durable guard: run is terminal" };
+        if (["write", "edit", "bash"].includes(call.name)) {
+          if (unresolved) return { block: "durable guard: parent run is unresolved" };
+          if (child && run) {
+            const plan = await api.snapshot(EtabliPlanDoc, run.conversationId, context);
+            if (plan?.enabled && plan.status !== "READY") return { block: "durable guard: parent plan requires READY" };
+          }
+        }
         const cwd = state?.cwd;
         if (!cwd) return { block: "durable guard: conversation directory is missing" };
         const input = call.name === "edit" && Array.isArray(call.arguments.edits)
@@ -209,7 +241,7 @@ export function createGuards(checkout: string, policy: OwnerPolicy): Extension {
         const decision = (noCommentsGuardDecision(event) ?? prBodyGuardDecision(event)) as Decision;
         if (decision) return { block: decision.hookSpecificOutput.permissionDecisionReason };
         if (call.name === "bash") {
-          const reason = invocationGuard(String(call.arguments.command ?? ""), cwd, policy, remoteDefaultBranch, !!run && run.route !== "legacy");
+          const reason = invocationGuard(String(call.arguments.command ?? ""), cwd, policy, remoteDefaultBranch, !!run && (child || run.route !== "legacy"));
           if (reason) return { block: reason };
         }
       },
