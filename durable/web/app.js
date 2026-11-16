@@ -11,13 +11,18 @@ let steerRequest;
 const terminal = (run) => ["done", "blocked", "aborted"].includes(run.status);
 const message = (text = "") => { $("message").textContent = text; };
 
+function stopWatch() {
+  const previous = socket; socket = undefined;
+  clearTimeout(retry); retry = undefined;
+  previous?.close();
+}
+
 function clearSession() {
   signedIn = false;
   generation++;
   selected = undefined;
   scheduleRequest = undefined; steerRequest = undefined; publicKey = undefined;
-  socket?.close(); socket = undefined;
-  clearTimeout(retry);
+  stopWatch();
   $("token").value = "";
   $("instruction").value = "";
   $("prompt").value = "";
@@ -37,10 +42,11 @@ async function api(path, method = "GET", value, authorization) {
       ...(value ? { body: JSON.stringify(value) } : {}),
     });
   } catch { throw new Error("Connection lost. Check your network and reconnect."); }
-  const body = await response.json();
+  const body = await response.json().catch(() => null);
   if (version !== generation) throw new Error("Session changed. Reconnect to continue.");
   if (response.status === 401 || response.status === 403) { clearSession(); throw new Error("Session unavailable. Reconnect with your daemon token."); }
-  if (!response.ok) throw new Error(body.error || "Request refused.");
+  if (!response.ok) throw new Error(body?.error || (response.status >= 500 ? "Daemon unavailable. Check your connection and retry." : "Request refused."));
+  if (!body || body.ok !== true) throw new Error("Invalid daemon response. Reconnect to retry.");
   return body.value;
 }
 
@@ -108,7 +114,7 @@ function renderPlan(plan) {
 }
 
 async function openRun(id) {
-  selected = id; socket?.close(); clearTimeout(retry);
+  selected = id; stopWatch();
   $("abort-confirm").hidden = true;
   const value = await api(`/v1/runs/${id}`);
   if (selected !== id) return;
@@ -123,6 +129,7 @@ async function openRun(id) {
 
 function watch(id) {
   if (!signedIn || selected !== id) return;
+  stopWatch();
   const current = new WebSocket(`${location.origin.replace(/^http/, "ws")}/v1/runs/${id}/watch`);
   socket = current; $("connection").textContent = "Connecting to live stream…";
   current.addEventListener("open", () => { if (socket === current) $("connection").textContent = "Live stream connected"; });
@@ -137,7 +144,7 @@ function watch(id) {
     if (socket !== current || !signedIn || selected !== id) return;
     $("connection").textContent = "Stream disconnected. Reconnecting…";
     retry = setTimeout(async () => {
-      try { const value = await api(`/v1/runs/${id}`); if (selected === id) { updateRun(value.run); watch(id); } }
+      try { const value = await api(`/v1/runs/${id}`); if (socket === current && selected === id) { updateRun(value.run); watch(id); } }
       catch (error) { message(error.message); }
     }, 2000);
   });
@@ -156,6 +163,10 @@ async function schedules() {
   }
 }
 
+function applicationKey(value) {
+  return Uint8Array.from(atob(value.replace(/-/g, "+").replace(/_/g, "/")), (char) => char.charCodeAt(0));
+}
+
 async function setupPush() {
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
     $("push-state").textContent = "Push is unavailable here. On iPhone or iPad, add Etabli to the Home Screen and open it there first.";
@@ -164,7 +175,16 @@ async function setupPush() {
   registration = await navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" });
   await navigator.serviceWorker.ready;
   publicKey = (await api("/v1/push/key")).publicKey;
-  const subscription = await registration.pushManager.getSubscription();
+  let subscription = await registration.pushManager.getSubscription();
+  if (subscription) {
+    const actual = new Uint8Array(subscription.options.applicationServerKey ?? []), expected = applicationKey(publicKey);
+    if (actual.length !== expected.length || !actual.every((byte, index) => byte === expected[index])) {
+      await subscription.unsubscribe();
+      await api("/v1/push/subscriptions", "DELETE", { endpoint: subscription.endpoint });
+      subscription = null;
+      $("push-state").textContent = "The daemon notification key changed. Enable notifications again for this device.";
+    }
+  }
   $("subscribe").hidden = !!subscription; $("unsubscribe").hidden = !subscription;
   if (subscription) {
     await api("/v1/push/subscriptions", "POST", { endpoint: subscription.endpoint });
@@ -208,7 +228,7 @@ action("subscribe", async () => {
   if (!registration || !publicKey) throw new Error("Notification setup is unavailable. Reconnect to retry.");
   // Request permission directly in the click gesture, before any network/worker await.
   if (await Notification.requestPermission() !== "granted") throw new Error("Notifications were not allowed. Change the browser permission to enable them.");
-  const key = Uint8Array.from(atob(publicKey.replace(/-/g, "+").replace(/_/g, "/")), (char) => char.charCodeAt(0));
+  const key = applicationKey(publicKey);
   const subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
   await api("/v1/push/subscriptions", "POST", { endpoint: subscription.endpoint });
   $("subscribe").hidden = true; $("unsubscribe").hidden = false; $("push-state").textContent = "Notifications enabled for this device.";
@@ -220,7 +240,7 @@ action("unsubscribe", async () => {
 });
 window.addEventListener("offline", () => message("You are offline. Reconnect to watch and control runs."));
 window.addEventListener("online", () => { if (signedIn && selected) openRun(selected).catch((error) => message(error.message)); });
-window.addEventListener("pagehide", () => { const previous = socket; socket = undefined; previous?.close(); clearTimeout(retry); });
+window.addEventListener("pagehide", stopWatch);
 window.addEventListener("pageshow", (event) => { if (event.persisted) { clearSession(); connected().catch((error) => message(error.message)); } });
 let refreshing = false;
 setInterval(async () => {

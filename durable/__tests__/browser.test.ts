@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import { randomBytes } from "node:crypto";
 import { request } from "node:http";
 import { WebSocket } from "ws";
+import { fauxAssistantMessage } from "@earendil-works/pi-ai/providers/faux";
 import { serveRemote } from "../src/api.ts";
 import { Browser } from "../src/browser.ts";
 import { daemonConfig } from "../src/daemon.ts";
@@ -43,28 +44,40 @@ test("browser assets and session preserve bearer/identity while denying sibling-
       expect(asset.headers["content-security-policy"]).toContain("wss://app.fixture.ts.net");
       expect(asset.text).not.toContain(token);
     }
-    for (const path of ["/api.token", "/../src/auth.ts", "/%2e%2e/src/auth.ts", "/app.js?token=wrong", "/app.js/"]) expect((await http(port, path, "GET", owner)).status).not.toBe(200);
+    for (const path of ["/api.token", "/../src/auth.ts", "/%2e%2e/src/auth.ts", "/app.js?token=wrong", "/app.js/", "//app.js"]) expect((await http(port, path, "GET", owner)).status).not.toBe(200);
+    expect((await http(port, "/app.js", "GET", ["Tailscale-User-Login", "foreign@example.invalid"])).status).toBe(403);
     expect((await http(port, "/", "POST", owner)).status).toBe(405);
     expect((await http(port, "/v1/runs", "GET", owner)).status).toBe(403);
     expect((await http(port, "/v1/runs", "GET", [...owner, ...auth])).status).toBe(200);
     expect((await http(port, "/v1/browser/session", "POST", [...owner, ...auth, ...marker])).status).toBe(403);
+    expect((await http(port, "/v1/browser/session", "POST", [...owner, ...marker, "Origin", origin])).status).toBe(401);
+    expect((await http(port, "/v1/browser/session", "POST", [...owner, ...auth, ...marker, "Origin", "https://evil.fixture.ts.net"])).status).toBe(403);
     const login = await http(port, "/v1/browser/session", "POST", [...owner, ...auth, ...marker, "Origin", origin]);
     expect(login.status).toBe(200);
     const set = login.headers["set-cookie"]![0];
     for (const attribute of ["HttpOnly", "Secure", "SameSite=Strict", "Path=/", "Max-Age=43200"]) expect(set).toContain(attribute);
     const cookie = set.split(";")[0], browser = [...owner, ...marker, "Cookie", cookie];
     expect((await http(port, "/v1/runs", "GET", browser)).status).toBe(200);
+    expect((await http(port, "/v1/runs", "GET", [...marker, "Cookie", cookie])).status).toBe(403);
+    expect((await http(port, "/v1/runs", "GET", ["Tailscale-User-Login", "foreign@example.invalid", ...marker, "Cookie", cookie])).status).toBe(403);
     const key = await http(port, "/v1/push/key", "GET", browser);
     expect(key.status).toBe(200); expect(key.text).not.toContain("PRIVATE");
     expect(JSON.parse(key.text).value.publicKey).toBe(push.key.publicKey);
     const subscription = { endpoint: "https://fcm.googleapis.com/fcm/send/browser-fixture" };
     expect((await http(port, "/v1/push/subscriptions", "POST", [...browser, "Origin", origin], subscription)).status).toBe(200);
+    const alternate = await http(port, "/v1/browser/session", "POST", ["Tailscale-User-Login", "other@example.invalid", ...auth, ...marker, "Origin", origin]);
+    const alternateHeaders = ["Tailscale-User-Login", "other@example.invalid", ...marker, "Origin", origin, "Cookie", alternate.headers["set-cookie"]![0].split(";")[0]];
+    expect((await http(port, "/v1/push/subscriptions", "POST", alternateHeaders, subscription)).status).toBe(400);
+    expect((await http(port, "/v1/push/subscriptions", "DELETE", alternateHeaders, subscription)).text).toContain('"deleted":false');
     expect((await http(port, "/v1/push/subscriptions", "POST", [...browser, "Origin", "https://evil.fixture.ts.net"], subscription)).status).toBe(403);
     expect((await http(port, "/v1/push/subscriptions", "DELETE", [...browser, "Origin", origin], subscription)).text).toContain('"deleted":true');
     expect((await http(port, "/v1/push/subscriptions", "DELETE", [...browser, "Origin", origin], subscription)).text).toContain('"deleted":false');
     expect((await http(port, "/v1/push/subscriptions", "POST", [...browser, "Origin", origin], { endpoint: "https://127.0.0.1/ssrf" })).status).toBe(400);
+    for (const endpoint of ["https://fcm.googleapis.com:8443/x", "https://fcm.googleapis.com./x", "https://u:p@fcm.googleapis.com/x"]) expect((await http(port, "/v1/push/subscriptions", "POST", [...browser, "Origin", origin], { endpoint })).status).toBe(400);
+    expect((await http(port, "/v1/push/subscriptions", "POST", [...browser, "Origin", origin], { ...subscription, p256dh: "unexpected" })).status).toBe(400);
     expect((await http(port, "/v1/runs", "GET", [...owner, "Cookie", cookie])).status).toBe(403);
     expect((await http(port, "/v1/runs", "GET", [...browser, "Authorization", "Bearer invalid"])).status).toBe(401);
+    expect((await http(port, "/v1/runs", "GET", [...browser, "Authorization", `Bearer ${"A".repeat(43)}`])).status).toBe(401);
     expect((await http(port, "/v1/runs", "GET", [...browser, "Cookie", cookie])).status).toBe(401);
     expect((await http(port, "/v1/runs", "GET", [...browser, "Tailscale-User-Login", identity])).status).toBe(403);
     expect((await http(port, "/v1/runs", "GET", ["Tailscale-User-Login", "other@example.invalid", ...marker, "Cookie", cookie])).status).toBe(401);
@@ -74,13 +87,28 @@ test("browser assets and session preserve bearer/identity while denying sibling-
       expect((await http(port, path, method, [...browser, "Sec-Fetch-Site", "same-site", "Origin", origin])).status).toBe(403);
       expect((await http(port, path, method, [...browser, "Origin", origin, "Origin", origin])).status).toBe(403);
     }
+    const preflight = await http(port, "/v1/runs", "OPTIONS", [...owner, "Origin", "https://evil.fixture.ts.net", "Access-Control-Request-Method", "POST", "Access-Control-Request-Headers", "X-Etabli-Client"]);
+    expect(preflight.status).toBe(403); expect(preflight.headers["access-control-allow-origin"]).toBeUndefined();
+    f.faux.setResponses([async (_input, options) => {
+      await new Promise<void>((resolve) => { if (options?.signal?.aborted) resolve(); else options?.signal?.addEventListener("abort", () => resolve(), { once: true }); });
+      return fauxAssistantMessage("Stopped");
+    }]);
     const run = await f.core.runs.submit("Tonours/fixture", "browser fixture", "browser");
+    await f.core.runs.tick();
     const path = `/v1/runs/${run.id}/watch`;
+    const controlWs = { "Tailscale-User-Login": identity, Cookie: cookie, Origin: origin };
+    expect(await upgrade(port, `${path}?from=0`, controlWs)).toBe(400);
+    expect(await upgrade(port, `${path}?from=1&from=2`, controlWs)).toBe(400);
+    expect((await http(port, `/v1/runs/${run.id}/abort`, "POST", [...browser, "Origin", "https://evil.fixture.ts.net"])).status).toBe(403);
+    const steer = { content: "authorized steering control", requestId: "authorized-steer" };
+    expect((await http(port, `/v1/runs/${run.id}/steer`, "POST", [...browser, "Origin", origin, "Cookie", cookie], steer)).status).toBe(401);
+    expect((await http(port, `/v1/runs/${run.id}/steer`, "POST", [...browser, "Origin", origin], steer)).status).toBe(200);
     expect(await upgrade(port, path, { "Tailscale-User-Login": identity, Cookie: cookie, Origin: "https://evil.fixture.ts.net" })).toBe(403);
     expect(await upgrade(port, path, { "Tailscale-User-Login": identity, Cookie: cookie })).toBe(403);
     expect(await upgrade(port, `${path}?token=${token}`, { "Tailscale-User-Login": identity, Cookie: cookie, Origin: origin })).toBe(400);
     const client = new WebSocket(`ws://127.0.0.1:${port}${path}`, { headers: { "Tailscale-User-Login": identity, Cookie: cookie, Origin: origin } });
     await new Promise<void>((resolve, reject) => { client.once("open", resolve); client.once("error", reject); });
+    expect((await http(port, `/v1/runs/${run.id}/abort`, "POST", [...browser, "Origin", origin])).status).toBe(200);
     const closed = new Promise<void>((resolve) => client.once("close", () => resolve()));
     expect((await http(port, "/v1/browser/session", "DELETE", [...browser, "Origin", origin])).status).toBe(200);
     await closed; expect(client.readyState).toBe(WebSocket.CLOSED);
@@ -136,6 +164,7 @@ test("browser cookies use the actual S6 schedule contract with UTC due times, de
     expect(JSON.parse((await http(port, "/v1/schedules", "POST", headers, input)).text).value.id).toBe(schedule.id);
     expect((await http(port, "/v1/schedules", "POST", headers, { ...input, prompt: "conflicting retry" })).status).toBe(400);
     expect((await http(port, "/v1/schedules", "POST", headers, { ...input, requestId: "invalid-cron", cron: "impossible" })).status).toBe(400);
+    expect((await http(port, "/v1/schedules", "POST", headers.slice(0, -2), input)).status).toBe(403);
     const foreign = headers.map((value) => value === origin ? "https://evil.fixture.ts.net" : value);
     for (const method of ["GET", "POST", "DELETE"]) {
       const path = method === "DELETE" ? `/v1/schedules/${schedule.id}` : "/v1/schedules";
@@ -146,5 +175,37 @@ test("browser cookies use the actual S6 schedule contract with UTC due times, de
     expect((await http(port, "/v1/schedules", "POST", headers, input)).status).toBe(400);
     expect(JSON.parse((await http(port, "/v1/schedules", "GET", headers)).text).value).toEqual([]);
     expect((await http(port, "/v1/schedules", "PUT", headers)).status).toBe(405);
+  } finally { await server.shutdown(); await f.cleanup(); }
+});
+
+test("bearer-only remote CLI keeps its original refusal messages", async () => {
+  const f = await fixture(), token = randomBytes(32).toString("base64url");
+  const server = await serveRemote(f.core, 0, token, [identity]);
+  const port = (server.address() as { port: number }).port;
+  try {
+    expect(await http(port, "/v1/runs", "GET", ["Tailscale-User-Login", identity])).toMatchObject({ status: 401, text: '{"error":"Bearer token required"}' });
+    expect(await http(port, "/v1/runs", "GET", ["Authorization", `Bearer ${token}`])).toMatchObject({ status: 403, text: '{"error":"Identity refused"}' });
+    expect((await http(port, "/v1/runs", "GET", ["Tailscale-User-Login", identity, "Authorization", `Bearer ${token}`])).status).toBe(200);
+  } finally { await server.shutdown(); await f.cleanup(); }
+});
+
+test("documented generic notifications survive control-session logout until explicitly disabled", async () => {
+  const f = await fixture(), token = randomBytes(32).toString("base64url");
+  let sent = 0;
+  const original = await Push.open(f.core.harness, f.state, origin, [identity]);
+  const push = new Push(f.core.harness, original.key, origin, [identity], async () => { sent++; return 201; });
+  const server = await serveRemote(f.core, 0, token, [identity], { origin, push });
+  const port = (server.address() as { port: number }).port;
+  try {
+    const auth = ["Tailscale-User-Login", identity, "Authorization", `Bearer ${token}`, "Origin", origin, "X-Etabli-Client", "web-v1"];
+    const login = await http(port, "/v1/browser/session", "POST", auth);
+    const cookie = login.headers["set-cookie"]![0].split(";")[0], headers = ["Tailscale-User-Login", identity, "X-Etabli-Client", "web-v1", "Origin", origin, "Cookie", cookie];
+    const subscription = { endpoint: "https://fcm.googleapis.com/fcm/send/persistent-fixture" };
+    expect((await http(port, "/v1/push/subscriptions", "POST", headers, subscription)).status).toBe(200);
+    expect((await http(port, "/v1/browser/session", "DELETE", headers)).status).toBe(200);
+    expect((await http(port, "/v1/push/subscriptions", "DELETE", headers, subscription)).status).toBe(401);
+    await push.notify(); expect(sent).toBe(1);
+    expect((await http(port, "/v1/push/subscriptions", "DELETE", auth, subscription)).status).toBe(200);
+    await push.notify(); expect(sent).toBe(1);
   } finally { await server.shutdown(); await f.cleanup(); }
 });

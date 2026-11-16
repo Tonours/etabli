@@ -15,6 +15,12 @@ and Path=/. Exact Origin plus the fetch marker protects cookie requests,
 including requests from sibling machines in the same tailnet. WebSockets
 require the exact Origin and terminate when the session is revoked.
 
+Cookies are shared across HTTPS ports on the same hostname. A separate Serve
+port does not isolate the session secret. Use a dedicated hostname or ensure
+every HTTPS backend on that hostname is trusted local code with no cookie
+forwarding or logging. Funnel or Serve proxying to an untrusted remote backend
+on the same hostname is incompatible with this browser session setup.
+
 Paste the token from the daemon's private `api.token` file into the login
 form. It is cleared after the bootstrap request; the app uses no browser
 storage, offline API cache, URL credentials or third-party scripts. Signing
@@ -41,6 +47,13 @@ the existing private SQLite store, are bound to the subscriber identity, and
 are bounded to 64 devices. FCM, Mozilla and Apple endpoints are supported;
 Windows WNS endpoints are outside this mobile slice. Disable notifications
 removes the daemon subscription and unsubscribes this browser.
+
+Notifications stay enabled after sign-out, session expiry and daemon restart.
+Disable notifications needs a live session; without one, revoke the site's
+notification permission or uninstall the app on the phone. This slice has no
+remote revoke control for a lost device. If the daemon's VAPID key changes,
+the app removes its obsolete subscription and asks you to enable notifications
+again so it cannot report a stale subscription as working.
 
 Done and blocked runs send an empty signed Web Push request with a one-hour
 TTL and high urgency. The worker displays generic text, with no task, result,
