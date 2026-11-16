@@ -167,3 +167,15 @@ test("config bounds, HOME-only expansion, exact package pin and isolated headles
   const example = JSON.parse(await readFile(join(import.meta.dirname, "../config.example.json"), "utf8"));
   expect(example.mcpServers["chrome-devtools"].args).toEqual(["--yes", "chrome-devtools-mcp@1.7.0", "--isolated", "--headless"]);
 });
+
+
+test("failed real stdio startup cannot expose argv, env or stderr markers", async () => {
+  const marker = "s7-private-stdio-failure-marker";
+  const events: unknown[] = [];
+  const bridge = await openMcp({ broken: { command: process.execPath, args: [join(import.meta.dirname, "fixtures/mcp-server.ts"), marker], env: { MCP_MODE: "exit", SECRET: marker, STDERR_MARKER: marker } } }, { report: (event) => { events.push(event); } });
+  try {
+    expect(events).toEqual([{ server: "broken", status: "skipped" }]);
+    expect(JSON.stringify(events)).not.toContain(marker);
+    expect(bridge.extension.tools?.map((tool) => tool.name)).toEqual(["tool_search"]);
+  } finally { await bridge.close(); }
+});

@@ -3,6 +3,7 @@ import { writeFile } from "node:fs/promises";
 
 if (process.env.PID_FILE) await writeFile(process.env.PID_FILE, String(process.pid));
 process.stderr.write(process.env.STDERR_MARKER ?? "");
+if (process.env.MCP_MODE === "exit") process.exit(1);
 const input = createInterface({ input: process.stdin });
 input.on("close", () => process.exit(0));
 for await (const line of input) {

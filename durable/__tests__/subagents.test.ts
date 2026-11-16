@@ -3,7 +3,7 @@ import { readFile, writeFile, mkdir, mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
-import { AgentDoc, type JsonObject, type ConversationId } from "@earendil-works/pi-durable";
+import { AgentDoc, configure, type JsonObject, type ConversationId } from "@earendil-works/pi-durable";
 import { fauxProvider, fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai/providers/faux";
 import { fixture, until } from "./helpers.ts";
 import { subagentModel } from "../src/subagents.ts";
@@ -32,7 +32,7 @@ test("scout is native read-only, task-owned, nonrecursive, and returns its actua
     let offered: string[] = [];
     child.setResponses([
       async (input) => { offered = input.messages.flatMap((message) => message.role === "system" ? (message.toolsAdded ?? []).map((tool) => tool.name) : []); return call("read", { path: "check.sh" }); },
-      fauxAssistantMessage([fauxToolCall("write", { path: "forbidden", content: "bad" }), fauxToolCall("bash", { command: "touch forbidden" }), fauxToolCall("worker", { task: "recursive" }), fauxToolCall("mcp__vault__capture", {})], { stopReason: "toolUse" }),
+      fauxAssistantMessage([fauxToolCall("write", { path: "forbidden", content: "bad" }), fauxToolCall("bash", { command: "touch forbidden" }), fauxToolCall("worker", { task: "recursive" }), fauxToolCall("mcp__alambic_obvault__vault_capture", {})], { stopReason: "toolUse" }),
       fauxAssistantMessage("scout actual answer"),
     ]);
     f.faux.setResponses([call("scout", { task: "inspect check.sh" }), fauxAssistantMessage("parent done")]);
@@ -65,6 +65,8 @@ test("worker actual write/edit/bash paths inherit guards and reviewed publicatio
         fauxToolCall("bash", { command: "git push origin HEAD:fixture" }),
         fauxToolCall("bash", { command: "gh pr create --repo Tonours/fixture" }),
         fauxToolCall("bash", { command: "gh pr merge 1" }),
+        fauxToolCall("bash", { command: "git status --porcelain" }),
+        fauxToolCall("worker", { task: "recursive worker" }),
       ], { stopReason: "toolUse" }); },
       call("edit", { path: "plain.ts", edits: [{ oldText: "export const value = 1;", newText: "// forbidden\nexport const value = 2;" }] }),
       fauxAssistantMessage("worker actual answer"),
@@ -79,6 +81,9 @@ test("worker actual write/edit/bash paths inherit guards and reviewed publicatio
     expect(text).toContain("no-comments:");
     expect(text).toContain("reviewed publish tool");
     expect(text).toContain("PR merge is forbidden");
+    expect(text).toContain("Tool worker is not available");
+    const history = (await (await f.core.harness.conversation(owned[0]!.id, context))!.entries({ order: "ascending" }, 100, undefined, context)).items;
+    expect(history.flatMap((entry) => (entry.model ?? []).filter((message) => message.role === "toolResult" && message.toolName === "bash" && !message.isError))).toHaveLength(1);
     expect(await transcript(f, run.conversationId)).toContain("worker actual answer");
   } finally { await f.cleanup(); }
 });
@@ -99,13 +104,16 @@ for (const failure of ["DRAFT", "CHALLENGED", "terminal", "missing", "cycle", "u
           (await tx.doc(ChildOwnerDoc, owned[0]!.id)).parentId = ownerless.id;
         } else { const plan = await tx.doc(EtabliPlanDoc, run.conversationId); plan.enabled = true; plan.status = failure; }
       }, context);
-      return fauxAssistantMessage([fauxToolCall("write", { path: "no-write", content: "bad" }), fauxToolCall("edit", { path: "check.sh", edits: [{ oldText: "test", newText: "false" }] }), fauxToolCall("bash", { command: "touch no-bash" })], { stopReason: "toolUse" });
+      return fauxAssistantMessage([fauxToolCall("read", { path: "check.sh" }), fauxToolCall("write", { path: "no-write", content: "bad" }), fauxToolCall("edit", { path: "check.sh", edits: [{ oldText: "test", newText: "false" }] }), fauxToolCall("bash", { command: "touch no-bash" })], { stopReason: "toolUse" });
     }, fauxAssistantMessage("denials observed")]);
     f.faux.setResponses([call("worker", { task: "mutate after authority changes" }), fauxAssistantMessage("parent done")]);
     await f.core.runs.tick(); await f.core.harness.waitForIdle(context);
     const owned = await children(f, run.conversationId);
     const text = await transcript(f, owned[0]!.id);
     expect(text).toContain(failure === "terminal" ? "run is terminal" : ["DRAFT", "CHALLENGED"].includes(failure) ? "parent plan requires READY" : "parent run is unresolved");
+    const reads = (await (await f.core.harness.conversation(owned[0]!.id, context))!.entries({}, 100, undefined, context)).items.flatMap((entry) => (entry.model ?? []).flatMap((message) => message.role === "toolResult" && message.toolName === "read" ? [message.isError] : []));
+    expect(reads).toHaveLength(1);
+    expect(reads[0]).toBe(failure === "terminal");
     expect(await readFile(join(run.worktree, "no-write"), "utf8").catch(() => "absent")).toBe("absent");
     expect(await readFile(join(run.worktree, "no-bash"), "utf8").catch(() => "absent")).toBe("absent");
     expect(await readFile(join(run.worktree, "check.sh"), "utf8")).toBe("test -f result.txt\n");
@@ -184,4 +192,23 @@ test("canonical scout route is cheap/native and invalid providers fail without f
       await expect(subagentModel(root, "scout")).rejects.toThrow("unavailable");
     }
   } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+
+test("explicit ownerless sentinel permits a native bash control without a run", async () => {
+  const f = await fixture();
+  try {
+    const raw = await f.core.harness.commit(async (tx) => {
+      const record = await tx.createConversation({ ownership: { kind: "ownerless" } });
+      await configure(tx, record.id, { cwd: f.source, model: { provider: "fixture", modelId: "fixture" } });
+      return record;
+    }, context);
+    f.faux.setResponses([call("bash", { command: "true" }), fauxAssistantMessage("ownerless control")]);
+    const conversation = (await f.core.harness.conversation(raw.id, context))!;
+    await (await conversation.submit({ type: "input", content: "control", requestId: "ownerless-control" }, context)).wait(context);
+    expect((await f.core.harness.snapshot(ChildOwnerDoc, raw.id, context))?.parentId).toBeNull();
+    const results = (await conversation.entries({}, 100, undefined, context)).items.flatMap((entry) => (entry.model ?? []).filter((message) => message.role === "toolResult"));
+    expect(results).toHaveLength(1);
+    expect(results[0]!.isError).toBe(false);
+  } finally { await f.cleanup(); }
 });
