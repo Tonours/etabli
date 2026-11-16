@@ -199,6 +199,11 @@ user units and enable `etabli-durable.service` and
 `etabli-durable-backup.timer`. The daemon uses `Restart=always`; the daily timer
 uses `sqlite3 .backup` against the live WAL store.
 
+Optional `etabli-durable-monitor.service` and `etabli-durable-monitor.timer`
+use the same checkout convention. The timer runs at08:00 Europe/Paris and
+writes private operational reports without modifying runs or repositories.
+See `durable/monitoring.md` for installation, report limits and rollback.
+
 Optional `~/.config/etabli/durable.json`:
 
 ```json
