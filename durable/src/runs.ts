@@ -4,6 +4,7 @@ import { LiveDoc, InboxDoc, configure, type Tx, type Harness, type Extension, ty
 import { Repositories } from "./repositories.ts";
 import { guardedAgent } from "./guards.ts";
 import { notify } from "./notify.ts";
+import type { PushAdmission, PushSummary } from "./push.ts";
 import { EtabliPlanDoc, phaseModel, startPlan, templateSections, type ModelRole } from "./plan-doc.ts";
 import { finalSnapshot } from "./backup.ts";
 import { PublishDoc, reconcilePublication, type Command } from "./publish.ts";
@@ -29,8 +30,11 @@ export class Runs {
   private line: Promise<unknown> = Promise.resolve();
   private stopping = new Map<string, Promise<boolean>>();
   private validated = false;
+  private notifications = new Set<Promise<PushSummary>>();
+  private pushClosedNoticed = false;
+  readonly pushNotify: (() => PushAdmission) | undefined;
 
-  constructor(options: { guard: Extension; harness: Harness; repositories: Repositories; model: () => Promise<ModelRef>; workflow?: string; phaseModel?: (role: ModelRole) => Promise<ModelRef>; publishCommand?: Command; now?: () => number; wallMs?: number; maxTurns?: number; notifyArgv?: readonly string[] }) {
+  constructor(options: { guard: Extension; harness: Harness; repositories: Repositories; model: () => Promise<ModelRef>; workflow?: string; phaseModel?: (role: ModelRole) => Promise<ModelRef>; publishCommand?: Command; now?: () => number; wallMs?: number; maxTurns?: number; notifyArgv?: readonly string[]; pushNotify?: () => PushAdmission }) {
     this.harness = options.harness;
     this.guard = options.guard;
     this.repositories = options.repositories;
@@ -39,6 +43,7 @@ export class Runs {
     this.wallMs = options.wallMs ?? 4 * 60 * 60 * 1000;
     this.maxTurns = options.maxTurns ?? 64;
     this.notifyArgv = options.notifyArgv ?? [];
+    this.pushNotify = options.pushNotify;
     this.workflow = options.workflow;
     this.phaseModel = options.phaseModel ?? ((role) => phaseModel(options.workflow!, role));
     this.publishCommand = options.publishCommand;
@@ -50,6 +55,10 @@ export class Runs {
     this.line = next.catch(() => undefined);
     return next;
   }
+
+  async drainTicks(): Promise<void> { await this.line; }
+
+  async drainNotifications(): Promise<void> { await Promise.all(this.notifications); }
 
   async list(): Promise<readonly Run[]> { return (await this.harness.snapshot(RunsDoc, context))?.runs ?? []; }
 
@@ -237,6 +246,19 @@ export class Runs {
         await this.harness.commit(async (tx) => {
           (await tx.doc(RunsDoc)).runs.find((candidate) => candidate.id === run.id)!.notified = true;
         }, context);
+        if (["done", "blocked"].includes(run.status) && this.pushNotify) {
+          const admission = this.pushNotify();
+          if (admission.kind === "accepted") {
+            const pending = admission.done;
+            this.notifications.add(pending);
+            void pending.then((result) => {
+              this.notifications.delete(pending);
+              if (result.outcome !== "complete" || result.failed || result.coalesced) console.error("Web Push attempt summary (not device delivery)", result);
+            }, () => { this.notifications.delete(pending); console.error("Web Push attempt unconfirmed"); });
+          } else if (admission.kind === "skipped" && !this.pushClosedNoticed) {
+            this.pushClosedNoticed = true; console.error("Web Push attempt skipped: dispatcher closed");
+          }
+        }
         await notify(this.notifyArgv, run).catch(() => undefined);
       }
       for (const run of await this.list()) if (run.route !== "legacy" && ["done", "blocked", "aborted"].includes(run.status) && run.notified && !this.stopping.has(run.id)) await finalSnapshot(this.repositories.root, run.id, terminalGeneration(run, (await this.harness.snapshot(CiDoc, context))?.runs.find((row) => row.runId === run.id))).catch(() => console.error("Final snapshot unavailable; check sqlite3 and state permissions; retrying", run.id));
