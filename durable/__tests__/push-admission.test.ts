@@ -127,7 +127,7 @@ test("a slow active request reaches its budget before the waiter starts, with re
 test("a queued setup-failure burst coalesces without growing pending work or blocking the next run", async () => {
   const argv: string[] = [];
   const f = await fixture({ web: { origin, identities: [identity] }, notifyArgv: argv }), peer = await pushPeer(f.root), notices = spyOn(console, "error").mockImplementation(() => {});
-  argv.push("/usr/bin/node", "-e", `require('node:fs').appendFileSync(${JSON.stringify(join(f.root, "notify-claims"))}, 'x')`);
+  argv.push("node", "-e", `require('node:fs').appendFileSync(${JSON.stringify(join(f.root, "notify-claims"))}, 'x')`);
   const push = f.core.push!, notify = push.notify.bind(push), admissions: PushAdmission[] = [];
   Object.assign(push, { send: localPushSend(peer), notify: () => { const admission = notify(); admissions.push(admission); return admission; } });
   const prepare = f.core.runs.repositories.prepare.bind(f.core.runs.repositories);
