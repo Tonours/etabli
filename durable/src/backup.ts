@@ -14,11 +14,12 @@ async function snapshot(state: string, target: string, immutable = false): Promi
   } finally { await unlink(temporary).catch(() => undefined); }
 }
 
-export async function finalSnapshot(state: string, runId: string): Promise<string> {
+export async function finalSnapshot(state: string, runId: string, generation = ""): Promise<string> {
   if (!/^[0-9a-f-]{36}$/.test(runId)) throw new Error("Invalid final snapshot run id");
+  if (generation && !/^ci-(?:[1-9][0-9]*|exhausted)$/.test(generation)) throw new Error("Invalid final snapshot generation");
   const directory = join(state, "final");
   await mkdir(directory, { recursive: true, mode: 0o700 });
-  const target = join(directory, `${runId}.sqlite`);
+  const target = join(directory, `${runId}${generation ? `.${generation}` : ""}.sqlite`);
   if (!await stat(target).then(() => true, () => false)) await snapshot(state, target, true);
   return target;
 }

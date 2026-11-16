@@ -17,11 +17,15 @@ function requiredText(value: unknown): string {
 }
 
 export async function dispatch(core: Core, request: ApiRequest): Promise<unknown> {
+  if (request.requestId && /^(schedule|ci):/.test(request.requestId)) throw new Error("Request id prefix reserved for daemon triggers; use a new id");
   switch (request.op) {
     case "run": {
       if (request.route !== undefined && !["answer", "plan"].includes(request.route)) throw new Error("Run route must be answer or plan");
       return core.runs.submit(requiredText(request.repo), requiredText(request.prompt), requiredText(request.requestId), request.route as "answer" | "plan" | undefined);
     }
+    case "schedule-create": return core.schedules.create(requiredText(request.repo), requiredText(request.prompt), requiredText(request.cron), requiredText(request.requestId));
+    case "schedule-list": return core.schedules.list();
+    case "schedule-delete": return { deleted: await core.schedules.delete(requiredText(request.id)) };
     case "plan": return core.harness.snapshot(EtabliPlanDoc, (await core.runs.show(requiredText(request.id))).conversationId, context);
     case "ls": return core.runs.list();
     case "show": {
@@ -51,7 +55,7 @@ async function bodyOf(request: IncomingMessage): Promise<Record<string, unknown>
   const parsed: unknown = JSON.parse(body || "{}");
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Expected an object");
   const fields = parsed as Record<string, unknown>;
-  if (["id", "repo", "prompt", "requestId", "content", "route"].some((key) => key in fields && typeof fields[key] !== "string")) throw new Error("Request fields must be strings");
+  if (["id", "repo", "prompt", "requestId", "content", "route", "cron"].some((key) => key in fields && typeof fields[key] !== "string")) throw new Error("Request fields must be strings");
   return fields;
 }
 
@@ -68,7 +72,16 @@ function createApi(core: Core, authorize?: ReturnType<typeof remoteAuth>): ApiSe
       try {
         const url = new URL(request.url!, "http://local");
         if (url.search) { respond(response, 400, { error: "Unexpected query" }); return; }
-        if (url.pathname === "/v1/schedules") { respond(response, 501, { error: "Schedules arrive in slice 6" }); return; }
+        const schedule = url.pathname.match(/^\/v1\/schedules(?:\/([a-f0-9-]{36}))?$/);
+        if (schedule) {
+          const id = schedule[1];
+          const op = id ? "schedule-delete" : request.method === "POST" ? "schedule-create" : "schedule-list";
+          const method = id ? "DELETE" : op === "schedule-create" ? "POST" : "GET";
+          if (request.method !== method) { respond(response, 405, { error: "Method refused" }); return; }
+          const body = method === "POST" ? await bodyOf(request) : {};
+          respond(response, 200, { ok: true, value: await dispatch(core, { ...body, op, id } as ApiRequest) });
+          return;
+        }
         const match = url.pathname.match(/^\/v1\/runs(?:\/([a-f0-9-]{36})(?:\/(plan|steer|abort))?)?$/);
         if (!match) { respond(response, 404, { error: "API route not found" }); return; }
         const [, id, action] = match;
