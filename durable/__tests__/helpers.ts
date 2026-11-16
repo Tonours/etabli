@@ -23,7 +23,7 @@ export async function localRepo(root: string): Promise<string> {
   return path;
 }
 
-export async function fixture(options: { wallMs?: number; maxTurns?: number; now?: () => number; notifyArgv?: string[]; credentials?: CredentialStore; workflow?: boolean; reviewCli?: typeof runCliReview; publishCommand?: Command } = {}) {
+export async function fixture(options: { wallMs?: number; maxTurns?: number; now?: () => number; notifyArgv?: string[]; credentials?: CredentialStore; workflow?: boolean; reviewCli?: typeof runCliReview; publishCommand?: Command; ciCommand?: Command } = {}) {
   const root = await mkdtemp(join(tmpdir(), "etabli-durable-test-"));
   const source = await localRepo(root);
   const state = join(root, "state");
