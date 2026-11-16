@@ -48,5 +48,6 @@ full	shell-docs	security-audit-glm-smoke	tests/security-audit-glm-smoke.sh
 full	shell-docs	security-audit-sandbox-smoke	tests/security-audit-sandbox-smoke.sh
 full	shell-docs	mutation-probe-test	tests/mutation-probe.test.mjs
 full	shell-docs	pr-review-lifecycle-smoke	tests/pr-review-lifecycle-smoke.sh
+full	shell-docs	pr-review-private-smoke	tests/pr-review-private-smoke.sh
 core	durable	durable-typecheck	builtin:durable-typecheck
 core	durable	durable-tests	builtin:durable-tests

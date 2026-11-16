@@ -215,9 +215,11 @@ git worktree prune
 purge_old_dirs "${TMPDIR:-/tmp}" "pr-council-*" 7
 git fetch -q origin "+refs/pull/$PR_NUMBER/head:refs/remotes/origin/pr/$PR_NUMBER" \
   "+refs/heads/$BASE_REF:refs/remotes/origin/$BASE_REF" || { echo "cannot fetch $REPO#$PR_NUMBER and $BASE_REF" >&2; exit 1; }
-MERGE_BASE="$(git merge-base "refs/remotes/origin/$BASE_REF" "$HEAD_SHA" 2>/dev/null)"
+BASE_OID="$(git rev-parse "refs/remotes/origin/$BASE_REF")" || exit 1
+MERGE_BASE="$(git merge-base "$BASE_OID" "$HEAD_SHA" 2>/dev/null)"
 [ -n "$MERGE_BASE" ] || { echo "no merge base between $BASE_REF and $HEAD_SHA" >&2; exit 1; }
 echo "=== merge-base ${MERGE_BASE:0:8}"
+printf 'COUNCIL_BASE ref=%s merge_base=%s base_oid=%s\n' "$BASE_REF" "$MERGE_BASE" "$BASE_OID"
 
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/pr-council-$PR_NUMBER.XXXXXX")"
 WORKTREE="$WORK_DIR/tree"
