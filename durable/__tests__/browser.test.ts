@@ -116,3 +116,35 @@ test("web origin configuration fails closed and cannot enable test-only HTTP rel
   expect(() => daemonConfig({ web: { origin } })).toThrow();
   expect(daemonConfig({ api: { port: 4318, identities: [identity], webOrigin: origin } }).api?.webOrigin).toBe(origin);
 });
+
+test("browser cookies use the actual S6 schedule contract with UTC due times, deletion tombstones and unchanged origin checks", async () => {
+  const now = Date.UTC(2026, 10, 16, 8, 59, 30);
+  const f = await fixture({ now: () => now });
+  const token = randomBytes(32).toString("base64url");
+  const server = await serveRemote(f.core, 0, token, [identity], { origin });
+  const port = (server.address() as { port: number }).port;
+  try {
+    const login = await http(port, "/v1/browser/session", "POST", ["Tailscale-User-Login", identity, "Authorization", `Bearer ${token}`, "Origin", origin, "X-Etabli-Client", "web-v1"]);
+    const cookie = login.headers["set-cookie"]![0].split(";")[0];
+    const headers = ["Tailscale-User-Login", identity, "Cookie", cookie, "X-Etabli-Client", "web-v1", "Origin", origin];
+    const input = { repo: "Tonours/fixture", prompt: "Browser schedule fixture", cron: "0 9 * * 1-5", requestId: "browser-schedule" };
+    const created = await http(port, "/v1/schedules", "POST", headers, input);
+    expect(created.status).toBe(200);
+    const schedule = JSON.parse(created.text).value;
+    expect(schedule).toMatchObject({ ...input, nextDue: Date.UTC(2026, 10, 16, 9), createdAt: now });
+    expect(JSON.parse((await http(port, "/v1/schedules", "GET", headers)).text).value).toEqual([schedule]);
+    expect(JSON.parse((await http(port, "/v1/schedules", "POST", headers, input)).text).value.id).toBe(schedule.id);
+    expect((await http(port, "/v1/schedules", "POST", headers, { ...input, prompt: "conflicting retry" })).status).toBe(400);
+    expect((await http(port, "/v1/schedules", "POST", headers, { ...input, requestId: "invalid-cron", cron: "impossible" })).status).toBe(400);
+    const foreign = headers.map((value) => value === origin ? "https://evil.fixture.ts.net" : value);
+    for (const method of ["GET", "POST", "DELETE"]) {
+      const path = method === "DELETE" ? `/v1/schedules/${schedule.id}` : "/v1/schedules";
+      expect((await http(port, path, method, foreign, method === "POST" ? input : undefined)).status).toBe(403);
+    }
+    expect(JSON.parse((await http(port, `/v1/schedules/${schedule.id}`, "DELETE", headers)).text).value).toEqual({ deleted: true });
+    expect(JSON.parse((await http(port, `/v1/schedules/${schedule.id}`, "DELETE", headers)).text).value).toEqual({ deleted: false });
+    expect((await http(port, "/v1/schedules", "POST", headers, input)).status).toBe(400);
+    expect(JSON.parse((await http(port, "/v1/schedules", "GET", headers)).text).value).toEqual([]);
+    expect((await http(port, "/v1/schedules", "PUT", headers)).status).toBe(405);
+  } finally { await server.shutdown(); await f.cleanup(); }
+});
