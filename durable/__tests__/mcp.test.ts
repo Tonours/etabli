@@ -165,7 +165,7 @@ test("config bounds, HOME-only expansion, exact package pin and isolated headles
   const pkg = JSON.parse(await readFile(join(import.meta.dirname, "../package.json"), "utf8"));
   expect(pkg.dependencies["@earendil-works/pi-mcp"]).toBe("1.5.2");
   const example = JSON.parse(await readFile(join(import.meta.dirname, "../config.example.json"), "utf8"));
-  expect(example.mcpServers["chrome-devtools"].args).toEqual(["--yes", "chrome-devtools-mcp@1.7.0", "--isolated", "--headless"]);
+  expect(example.mcpServers["chrome-devtools"].args).toEqual(["${HOME}/.local/share/etabli-durable/mcp/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js", "--isolated", "--headless", "--no-usage-statistics", "--no-performance-crux", "--executablePath=/usr/bin/chromium"]);
 });
 
 
