@@ -25,3 +25,9 @@ CI remediation watches only PR publications recorded with CI tracking. Previousl
 Each fix uses the same conversation, branch and worktree, with fresh turn and wall limits. It requires fresh reviews before updating the existing PR. After two submitted fixes still leave red CI, the run becomes `blocked` with reason `ci_attempts_exhausted`. A run already blocked or aborted is never resumed automatically. Each terminal result claims a new notification and keeps a separate immutable archive; the original archive is preserved.
 
 To roll back, wait for active CI attempts to finish or abort them, retain their terminal archives, delete schedules, then revert the trigger code.
+
+## Daily monitoring and MCP activation
+
+See [monitoring.md](monitoring.md) for the private daily operational report,
+08:00 Europe/Paris timer, bounded history, installation/rollback, and production
+MCP configuration. Analysis proposes improvements; it never applies them.
