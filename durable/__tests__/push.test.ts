@@ -9,6 +9,8 @@ import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
 import { fauxAssistantMessage } from "@earendil-works/pi-ai/providers/faux";
 import { loadVapid, Push, PushDoc, pushEndpoint, pushHeaders, sendPush } from "../src/push.ts";
 import { fixture } from "./helpers.ts";
+import { ciFixture } from "./fixtures/ci-fixture.ts";
+import { CiDoc, terminalGeneration } from "../src/ci-doc.ts";
 
 const identity = "owner@example.invalid", origin = "https://app.fixture.ts.net";
 const endpoint = "https://fcm.googleapis.com/fcm/send/fixture";
@@ -148,8 +150,9 @@ test("done/blocked push shares terminal claim, aborted skips push; hung delivery
   } finally { release(); await f.cleanup(); }
 });
 
-test("each fresh terminal generation of the same run may push once, with no permanent run-id deduplication", async () => {
-  const f = await fixture();
+test("actual S6 CI reactivation and exhaustion each push once for the same run across restart", async () => {
+  let now = Date.now();
+  const f = await ciFixture({ now: () => now, wallMs: 20_000, maxTurns: 4 });
   let sends = 0;
   try {
     const key = await loadVapid(join(f.state, "vapid.pem"));
@@ -159,26 +162,31 @@ test("each fresh terminal generation of the same run may push once, with no perm
       return push;
     };
     await attach().subscribe(identity, endpoint);
-    f.faux.setResponses([fauxAssistantMessage("done")]);
     const run = await f.core.runs.submit("Tonours/fixture", "terminal generation fixture", "terminal-generation");
     await f.core.runs.tick(); await f.core.harness.waitForIdle(context);
     await f.core.runs.tick(); await f.core.runs.drainNotifications();
     expect(sends).toBe(1);
-    const { RunsDoc } = await import("../src/runs-doc.ts");
-    for (const [terminalGeneration, status] of [["ci-1", "done"], ["ci-exhausted", "blocked"]] as const) {
-      // Reproduce S6's notification boundary without implementing or borrowing its CI trigger.
-      await f.core.harness.commit(async (tx) => {
-        const row = (await tx.doc(RunsDoc)).runs.find((row) => row.id === run.id)!;
-        Object.assign(row, { terminalGeneration, status, notified: false });
-      }, context);
-      const previous = sends;
+    for (const ordinal of [1, 2]) {
+      await f.reopen(); attach(); now += 60_000;
+      await f.core.ci.tick();
+      expect(await f.core.runs.show(run.id)).toMatchObject({ status: "implementing", notified: false, conversationId: run.conversationId });
+      await f.core.harness.waitForIdle(context);
       await f.core.runs.tick(); await f.core.runs.drainNotifications();
-      expect(sends).toBe(previous + 1);
+      const row = await f.core.runs.show(run.id);
+      expect(row).toMatchObject({ status: "done", notified: true });
+      const ci = (await f.core.harness.snapshot(CiDoc, context))!.runs.find((row) => row.runId === run.id);
+      expect(terminalGeneration(row, ci)).toBe(`ci-${ordinal}`);
+      expect(sends).toBe(ordinal + 1);
       await f.core.runs.tick(); await f.core.runs.tick(); await f.core.runs.drainNotifications();
-      expect(sends).toBe(previous + 1);
+      expect(sends).toBe(ordinal + 1);
+      expect((await stat(join(f.state, "final", `${run.id}.ci-${ordinal}.sqlite`))).mode & 0o777).toBe(0o400);
     }
+    now += 60_000; await f.core.ci.tick(); await f.core.runs.tick(); await f.core.runs.drainNotifications();
+    expect(await f.core.runs.show(run.id)).toMatchObject({ status: "blocked", reason: "ci_attempts_exhausted", notified: true });
+    expect(sends).toBe(4);
     await f.reopen(); attach();
     await f.core.runs.tick(); await f.core.runs.drainNotifications();
-    expect(sends).toBe(3);
+    expect(sends).toBe(4);
+    expect(f.counts).toMatchObject({ creates: 1, pushes: 3 });
   } finally { await f.cleanup(); }
-});
+}, 30_000);
