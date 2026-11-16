@@ -179,3 +179,15 @@ test("failed real stdio startup cannot expose argv, env or stderr markers", asyn
     expect(bridge.extension.tools?.map((tool) => tool.name)).toEqual(["tool_search"]);
   } finally { await bridge.close(); }
 });
+
+
+test("colliding normalized server names fail before any connection; distinct names retain stable namespaces", async () => {
+  let connections = 0;
+  await expect(openMcp({ "a-b": { command: "first" }, a_b: { command: "second" } }, { transport: () => { connections++; throw new Error("must not connect"); }, report: () => {} })).rejects.toThrow("mcpServers");
+  expect(connections).toBe(0);
+  const first = await memoryServer();
+  const second = await memoryServer();
+  const bridge = await openMcp({ "a-b": { command: "first" }, a_c: { command: "second" } }, { transport: (config) => config.command === "first" ? first.transport : second.transport, report: () => {} });
+  try { expect(bridge.extension.tools?.map((tool) => tool.name).sort()).toEqual(["mcp__a_b__echo", "mcp__a_c__echo", "tool_search"]); }
+  finally { await bridge.close(); }
+});

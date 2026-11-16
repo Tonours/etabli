@@ -2,11 +2,11 @@ import { homedir } from "node:os";
 import { unsafe } from "@earendil-works/pi-schema";
 import { defineExtension, defineTool } from "@earendil-works/pi-durable";
 import { createToolSearchTool } from "@earendil-works/pi-durable/tool-search";
-import { McpClient, StdioTransport, createMcpToolName, normalizeMcpInputSchema, limitMcpContent, toLlmContent, validateMcpServerConfig, type McpStdioServerConfig, type McpTransport } from "@earendil-works/pi-mcp";
+import { McpClient, StdioTransport, createMcpToolName, mcpNamespace, normalizeMcpInputSchema, limitMcpContent, toLlmContent, validateMcpServerConfig, type McpStdioServerConfig, type McpTransport } from "@earendil-works/pi-mcp";
 
 export function mcpConfig(raw: unknown): Record<string, unknown> {
   if (raw === undefined) return {};
-  if (!raw || typeof raw !== "object" || Array.isArray(raw) || Object.keys(raw).length > 16 || Object.keys(raw).some((name) => !/^[A-Za-z0-9_-]{1,64}$/.test(name))) throw new Error("mcpServers must be an object with at most 16 named servers");
+  if (!raw || typeof raw !== "object" || Array.isArray(raw) || Object.keys(raw).length > 16 || Object.keys(raw).some((name) => !/^[A-Za-z0-9_-]{1,64}$/.test(name)) || new Set(Object.keys(raw).map(mcpNamespace)).size !== Object.keys(raw).length) throw new Error("mcpServers must be an object with at most 16 distinct normalized server names");
   return raw as Record<string, unknown>;
 }
 
