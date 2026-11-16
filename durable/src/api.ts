@@ -72,7 +72,7 @@ function createApi(core: Core, authorize?: ReturnType<typeof remoteAuth>, browse
       try {
         if (await browser?.handle(request, response)) return;
         const status = browser ? browser.authorize(request) : authorize?.(request);
-        if (status) { respond(response, status, { error: browser ? "Authorization refused" : status === 401 ? "Bearer token required" : "Identity refused" }); request.resume(); return; }
+        if (status) { respond(response, status, { error: browser && request.headers.authorization === undefined ? "Authorization refused" : status === 401 ? "Bearer token required" : "Identity refused" }); request.resume(); return; }
         const url = new URL(request.url!, "http://local");
         if (url.search) { respond(response, 400, { error: "Unexpected query" }); return; }
         const schedule = url.pathname.match(/^\/v1\/schedules(?:\/([a-f0-9-]{36}))?$/);

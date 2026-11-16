@@ -58,6 +58,7 @@ test("browser assets and session preserve bearer/identity while denying sibling-
     for (const attribute of ["HttpOnly", "Secure", "SameSite=Strict", "Path=/", "Max-Age=43200"]) expect(set).toContain(attribute);
     const cookie = set.split(";")[0], browser = [...owner, ...marker, "Cookie", cookie];
     expect((await http(port, "/v1/runs", "GET", browser)).status).toBe(200);
+    expect((await http(port, "/v1/runs", "GET", [...browser, "Sec-Fetch-Site", "same-origin"])).status).toBe(200);
     expect((await http(port, "/v1/runs", "GET", [...marker, "Cookie", cookie])).status).toBe(403);
     expect((await http(port, "/v1/runs", "GET", ["Tailscale-User-Login", "foreign@example.invalid", ...marker, "Cookie", cookie])).status).toBe(403);
     const key = await http(port, "/v1/push/key", "GET", browser);
@@ -73,8 +74,8 @@ test("browser assets and session preserve bearer/identity while denying sibling-
     expect((await http(port, "/v1/push/subscriptions", "DELETE", [...browser, "Origin", origin], subscription)).text).toContain('"deleted":true');
     expect((await http(port, "/v1/push/subscriptions", "DELETE", [...browser, "Origin", origin], subscription)).text).toContain('"deleted":false');
     expect((await http(port, "/v1/push/subscriptions", "POST", [...browser, "Origin", origin], { endpoint: "https://127.0.0.1/ssrf" })).status).toBe(400);
-    for (const endpoint of ["https://fcm.googleapis.com:8443/x", "https://fcm.googleapis.com./x", "https://u:p@fcm.googleapis.com/x"]) expect((await http(port, "/v1/push/subscriptions", "POST", [...browser, "Origin", origin], { endpoint })).status).toBe(400);
-    expect((await http(port, "/v1/push/subscriptions", "POST", [...browser, "Origin", origin], { ...subscription, p256dh: "unexpected" })).status).toBe(400);
+    for (const endpoint of ["https://169.254.169.254/x", "https://fcm.googleapis.com:8443/x", "https://fcm.googleapis.com./x", "https://u:p@fcm.googleapis.com/x"]) expect((await http(port, "/v1/push/subscriptions", "POST", [...browser, "Origin", origin], { endpoint })).status).toBe(400);
+    for (const extra of [{ p256dh: "unexpected" }, { identity: "other@example.invalid" }]) expect((await http(port, "/v1/push/subscriptions", "POST", [...browser, "Origin", origin], { ...subscription, ...extra })).status).toBe(400);
     expect((await http(port, "/v1/runs", "GET", [...owner, "Cookie", cookie])).status).toBe(403);
     expect((await http(port, "/v1/runs", "GET", [...browser, "Authorization", "Bearer invalid"])).status).toBe(401);
     expect((await http(port, "/v1/runs", "GET", [...browser, "Authorization", `Bearer ${"A".repeat(43)}`])).status).toBe(401);
@@ -100,6 +101,7 @@ test("browser assets and session preserve bearer/identity while denying sibling-
     expect(await upgrade(port, `${path}?from=0`, controlWs)).toBe(400);
     expect(await upgrade(port, `${path}?from=1&from=2`, controlWs)).toBe(400);
     expect((await http(port, `/v1/runs/${run.id}/abort`, "POST", [...browser, "Origin", "https://evil.fixture.ts.net"])).status).toBe(403);
+    expect((await http(port, `/v1/runs/${run.id}/abort`, "POST", [...browser, "Origin", "https://app.fixture.ts.net:8443"])).status).toBe(403);
     const steer = { content: "authorized steering control", requestId: "authorized-steer" };
     expect((await http(port, `/v1/runs/${run.id}/steer`, "POST", [...browser, "Origin", origin, "Cookie", cookie], steer)).status).toBe(401);
     expect((await http(port, `/v1/runs/${run.id}/steer`, "POST", [...browser, "Origin", origin], steer)).status).toBe(200);
@@ -178,12 +180,13 @@ test("browser cookies use the actual S6 schedule contract with UTC due times, de
   } finally { await server.shutdown(); await f.cleanup(); }
 });
 
-test("bearer-only remote CLI keeps its original refusal messages", async () => {
+for (const web of [undefined, { origin }]) test(`remote CLI keeps original refusal messages (web=${!!web})`, async () => {
   const f = await fixture(), token = randomBytes(32).toString("base64url");
-  const server = await serveRemote(f.core, 0, token, [identity]);
+  const server = await serveRemote(f.core, 0, token, [identity], web);
   const port = (server.address() as { port: number }).port;
   try {
-    expect(await http(port, "/v1/runs", "GET", ["Tailscale-User-Login", identity])).toMatchObject({ status: 401, text: '{"error":"Bearer token required"}' });
+    if (!web) expect(await http(port, "/v1/runs", "GET", ["Tailscale-User-Login", identity])).toMatchObject({ status: 401, text: '{"error":"Bearer token required"}' });
+    expect(await http(port, "/v1/runs", "GET", ["Tailscale-User-Login", identity, "Authorization", `Bearer ${"A".repeat(43)}`])).toMatchObject({ status: 401, text: '{"error":"Bearer token required"}' });
     expect(await http(port, "/v1/runs", "GET", ["Authorization", `Bearer ${token}`])).toMatchObject({ status: 403, text: '{"error":"Identity refused"}' });
     expect((await http(port, "/v1/runs", "GET", ["Tailscale-User-Login", identity, "Authorization", `Bearer ${token}`])).status).toBe(200);
   } finally { await server.shutdown(); await f.cleanup(); }

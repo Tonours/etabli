@@ -127,12 +127,14 @@ test("push fanout is concurrent, stale prune cannot delete a replacement subscri
 });
 
 test("done/blocked push shares terminal claim, aborted skips push; hung delivery never holds the run line and close drains", async () => {
-  const f = await fixture();
+  const f = await fixture({ web: { origin, identities: [identity] } });
   let release!: () => void;
   const gate = new Promise<void>((resolve) => { release = resolve; });
   let calls = 0;
-  Object.assign(f.core.runs, { pushNotify: async () => { calls++; await gate; } });
   try {
+    expect(f.core.push).toBeDefined();
+    await f.core.push!.subscribe(identity, endpoint);
+    Object.assign(f.core.push!, { send: async () => { calls++; await gate; return 201; } });
     f.faux.setResponses([fauxAssistantMessage("done")]);
     const run = await f.core.runs.submit("Tonours/fixture", "push fixture", "push");
     await f.core.runs.tick(); await f.core.harness.waitForIdle(context); await f.core.runs.tick();
