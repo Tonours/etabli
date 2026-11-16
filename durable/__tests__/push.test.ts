@@ -148,7 +148,8 @@ test("done/blocked push shares terminal claim, aborted skips push; hung delivery
     let drained = false; const drain = f.core.runs.drainNotifications().then(() => { drained = true; });
     await Promise.resolve(); expect(drained).toBe(false);
     release(); await drain;
-    await f.reopen(); await f.core.runs.tick(); expect(calls).toBe(2);
+    await f.reopen(); Object.assign(f.core.push!, { send: async () => { calls++; return 201; } });
+    await f.core.runs.tick(); await f.core.runs.drainNotifications(); expect(calls).toBe(2);
   } finally { release(); await f.cleanup(); }
 });
 
