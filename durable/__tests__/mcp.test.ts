@@ -1,5 +1,4 @@
 import { expect, test } from "bun:test";
-import { createHash } from "node:crypto";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -9,7 +8,7 @@ import { fauxProvider, fauxAssistantMessage, fauxToolCall } from "@earendil-work
 import { Harness, createRegistry, type Extension } from "@earendil-works/pi-durable";
 import { MemoryStorage } from "@earendil-works/pi-durable/storage/memory";
 import { createInMemoryTransportPair } from "@earendil-works/pi-mcp/testing";
-import type { JsonRpcMessage } from "@earendil-works/pi-mcp";
+import { createMcpToolName, type JsonRpcMessage } from "@earendil-works/pi-mcp";
 import { mcpConfig, mcpStdio, openMcp } from "../src/mcp.ts";
 import { daemonConfig } from "../src/daemon.ts";
 import { fixture, until } from "./helpers.ts";
@@ -194,27 +193,68 @@ test("colliding normalized server names fail before any connection; distinct nam
 });
 
 
-test("tool bindings survive reversed startup/config order and preoccupied native hash suffixes", async () => {
-  const suffix = createHash("sha256").update("a__b\0echo").digest("hex").slice(0, 8);
-  for (const [secondName, toolNames] of [["a__b", ["b__echo"]], ["a_", ["_x"]], ["a__b", ["b__echo", `b__echo_${suffix}`]], ["a__b", ["b--echo", "b__echo"]]] as const) {
-    const targets: string[] = [];
-    for (const reverse of [false, true]) {
-      const first = await memoryServer(undefined, reverse ? [...toolNames].reverse() : [...toolNames], reverse ? 40 : 0);
-      const second = await memoryServer(undefined, [secondName === "a_" ? "x" : "echo"], reverse ? 0 : 40);
-      const servers = reverse ? { [secondName]: { command: "second" }, a: { command: "first" } } : { a: { command: "first" }, [secondName]: { command: "second" } };
-      const bridge = await openMcp(servers, { transport: (config) => config.command === "first" ? first.transport : second.transport, report: () => {} });
-      const names = bridge.extension.tools!.map((tool) => tool.name);
-      const n = await native(bridge.extension);
-      try {
-        expect(new Set(names).size).toBe(names.length);
-        const tool = secondName === "a_" ? "mcp__a___x" : "mcp__a__b__echo";
-        n.faux.setResponses([call("tool_search", { query: tool }), call(tool, { text: "binding" }), fauxAssistantMessage("done")]);
-        await (await n.root.submit({ type: "input", content: "binding", requestId: "binding" }, context)).wait(context);
-        expect(first.calls.length + second.calls.length).toBe(1);
-        expect(first.calls).toHaveLength(1);
-        targets.push(first.calls[0]!);
-      } finally { await n.harness.close(context); await bridge.close(); }
+test("ambiguous native server prefixes are rejected before any transport starts", async () => {
+  for (const [a, b] of [["a", "a__b"], ["a", "a_"], ["a-b", "a_b"], ["a".repeat(49), "a".repeat(49) + "_"], ["a".repeat(50) + "x", "a".repeat(50) + "y"]]) {
+    for (const second of [{ command: "second" }, { command: "second", enabled: false }, { url: "https://example.invalid/mcp" }]) {
+      let connections = 0;
+      await expect(openMcp({ [a!]: { command: "first" }, [b!]: second }, { transport: () => { connections++; throw new Error("must not connect"); }, report: () => {} })).rejects.toThrow("mcpServers");
+      expect(connections).toBe(0);
     }
-    expect(targets[1]).toBe(targets[0]);
+  }
+  for (const [a, b] of [["a", "a_b"], ["a-b", "a_c"], ["alambic-obvault", "chrome-devtools"]]) {
+    const first = await memoryServer(), second = await memoryServer();
+    const bridge = await openMcp({ [a!]: { command: "first" }, [b!]: { command: "second" } }, { transport: (config) => config.command === "first" ? first.transport : second.transport, report: () => {} });
+    try { expect(bridge.extension.tools?.map((tool) => tool.name).sort()).toEqual([createMcpToolName(a!, "echo"), createMcpToolName(b!, "echo"), "tool_search"].sort()); }
+    finally { await bridge.close(); }
   }
 });
+
+test("exact native1.5.2 invariant prefix includes delimiter and truncation boundaries", () => {
+  for (const length of [47, 48, 49, 50, 51, 64]) {
+    const server = "a".repeat(length);
+    const prefix = createMcpToolName(server, "", () => true).replace(/_[a-f0-9]{8}$/, "");
+    expect(prefix).toBe(`mcp__${server}__`.slice(0, 55));
+    for (const tool of ["", "echo", "x".repeat(200), "a\u200Bb", "😀"]) for (const taken of [false, true]) expect(createMcpToolName(server, tool, () => taken).startsWith(prefix)).toBe(true);
+    expect(() => mcpConfig({ [server]: {}, [server + "_"]: {} })).toThrow("mcpServers");
+    expect(mcpConfig({ [server]: {}, ["b".repeat(length)]: {} })).toHaveProperty(server);
+  }
+});
+
+for (const [label, tools] of [["ASCII", ["x-y", "x_y"]], ["Unicode", ["a\u200Bb", "a\u200Cb"]]] as const) {
+  test(`same-server native alias bindings use total code-unit order: ${label}`, async () => {
+    const targets: string[] = [];
+    for (const reverse of [false, true]) {
+      const server = await memoryServer(undefined, reverse ? [...tools].reverse() : [...tools]);
+      const bridge = await openMcp({ s: { command: "server" } }, { transport: () => server.transport, report: () => {} });
+      const n = await native(bridge.extension);
+      try {
+        const visible = tools[0]!.startsWith("x") ? "mcp__s__x_y" : "mcp__s__a_b";
+        n.faux.setResponses([call("tool_search", { query: visible }), call(visible, { text: "binding" }), fauxAssistantMessage("done")]);
+        await (await n.root.submit({ type: "input", content: "binding", requestId: "binding" }, context)).wait(context);
+        expect(server.calls).toHaveLength(1); targets.push(server.calls[0]!);
+      } finally { await n.harness.close(context); await bridge.close(); }
+    }
+    expect(targets).toEqual([tools[0]!, tools[0]!]);
+  });
+}
+
+for (const kind of ["raw duplicate", "native hash shadow"] as const) {
+  test(`ambiguous listing skips the whole server with redacted diagnostics: ${kind}`, async () => {
+    const raw = "x\u200By";
+    const shadow = createMcpToolName("bad", raw, () => true).slice("mcp__bad__".length);
+    const tools = kind === "raw duplicate" ? ["echo", "echo"] : ["x_y", shadow, raw];
+    const bad = await memoryServer(undefined, tools), good = await memoryServer();
+    const events: unknown[] = [];
+    const bridge = await openMcp({ bad: { command: "bad" }, good: { command: "good" } }, { transport: (config) => config.command === "bad" ? bad.transport : good.transport, report: (event) => events.push(event) });
+    const n = await native(bridge.extension);
+    try {
+      expect(events.filter((event) => (event as { server: string }).server === "bad")).toEqual([{ server: "bad", status: "skipped" }]);
+      expect(bad.closed).toBe(true);
+      expect(bridge.extension.tools?.some((tool) => tool.name.startsWith("mcp__bad__"))).toBe(false);
+      expect(JSON.stringify(events)).not.toContain(shadow);
+      n.faux.setResponses([call("tool_search", { query: "mcp__good__echo" }), call("mcp__good__echo", { text: "healthy" }), fauxAssistantMessage("done")]);
+      await (await n.root.submit({ type: "input", content: "healthy", requestId: "healthy" }, context)).wait(context);
+      expect(good.calls).toEqual(["echo"]);
+    } finally { await n.harness.close(context); await bridge.close(); }
+  });
+}

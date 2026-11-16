@@ -192,6 +192,17 @@ bounding each parallel startup and request. A server can be disabled with
 `PATH` and `HOME`, plus explicitly configured environment entries; stderr and
 raw failures are kept out of daemon diagnostics. HTTP/OAuth servers are skipped.
 
+Server names must have disjoint native tool prefixes, including the prefix kept
+when pi-mcp shortens a long name. Ambiguous configurations fail before any
+server starts: rename overlapping keys and rediscover their tools. For example,
+`a` with `a__b` or `a_`, and `a-b` with `a_b`, are refused; `a` with `a_b` is
+valid. The example server names keep their native names. A listing with duplicate
+upstream names or a collision in the final native names closes and skips that
+whole server, with a redacted diagnostic. Healthy servers remain available.
+With unchanged configuration and upstream inventory, a loaded tool keeps its
+server and upstream name across listing order, timeout, outage and recovery.
+Changing configured names or advertised tools requires rediscovery.
+
 ## Repository map
 
 | Path | Holds |
