@@ -69,3 +69,14 @@ test("tool calls summarize their arguments and the excerpt uses the last part", 
   expect(excerpt(block)).toBe('bash {"command":"bun test"}');
   expect(entryBlock({ id: 2, kind: "meta" })).toBeUndefined();
 });
+
+test("a 50,000-character tool result keeps its head, the notice and its tail", () => {
+  const text = `HEAD${"m".repeat(50_000 - 8)}TAIL`;
+  const block = entryBlock({ id: 1, model: [{ role: "toolResult", toolName: "bash", content: text }] })!;
+  const part = block.parts[0]!;
+  expect(part.kind).toBe("result");
+  const shown = part.kind === "result" ? part.text : "";
+  expect(shown.startsWith(`HEAD${"m".repeat(CLIP_KEEP - 4)}\n… 30000 characters not shown …\n`)).toBe(true);
+  expect(shown.endsWith("TAIL")).toBe(true);
+  expect(shown).toHaveLength(2 * CLIP_KEEP + "\n… 30000 characters not shown …\n".length);
+});
