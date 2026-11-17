@@ -150,7 +150,11 @@ hooks, agents and skill governance.
 
 `durable/` is an independent Node 26 adapter with its own exact dependency pins
 and `bun.lock`. Install its dependencies with `cd durable && bun install
---frozen-lockfile`; verify with `scripts/verify-agentic-infra durable`. It reads
+--frozen-lockfile`, then build the browser client with `bun run build` (it
+writes the git-ignored `durable/web/app.js` and `style.css`). To update a
+deployed checkout: `git pull`, then `cd durable && bun install
+--frozen-lockfile && bun run build`; rollback and the build window are in
+`durable/web/README.md`. Verify with `scripts/verify-agentic-infra durable`. It reads
 the checkout's shared workflow contracts, guard implementations and model
 registry at runtime. Routes, templates and contract text are read for subsequent
 requests; imported guard implementations take effect after a daemon restart.
@@ -332,7 +336,10 @@ named private token file as other CLI commands:
 scripts/etabli-durable --host https://gromarchy.example.ts.net --token-file /private/api.token tui
 ```
 
-Use Up/Down to select a run and Enter to follow its stream. `s` opens the steer
+The list groups runs under Needs you, In progress and Finished, each row with
+a glyph and a status label (never colour alone), its age, repository and title;
+the line under the list gives the selected run's next step and pull-request
+URL. Use Up/Down to select a run and Enter to follow its stream. `s` opens the steer
 input; Enter sends it and Escape keeps the draft while returning to the run.
 `a` asks to abort the selected run; `y` confirms and Escape cancels. Escape from
 the run returns to the list. `q` outside the input, or Ctrl-C anywhere, closes

@@ -27,10 +27,41 @@ storage, offline API cache, URL credentials or third-party scripts. Signing
 out clears the displayed run data. An unavailable session requires login
 again. This is an online app; the service worker only handles notifications.
 
-Open a run to see its live stream and plan, send an instruction, or abort it.
+The run list puts the runs that need you first, with the next step for each
+blocked run and its pull request when there is one. Open a run to see its
+overview, activity, plan and instructions panels; send an instruction or abort
+it from there. The URL hash holds only the open run's id, checked against the
+run id format before any request; nothing else is kept in the URL.
 Schedules use five numeric cron fields in UTC at minute resolution. Missed
 times coalesce into one recoverable overdue run rather than a backlog. The
 schedules interface requires the S6 backend.
+
+## Build, update and rollback
+
+The client is React, Tailwind and shadcn/ui sources in `durable/web-src`,
+built with Vite into `durable/web/app.js` and `durable/web/style.css`. Both
+files are git-ignored and built on the checkout the daemon serves (ADR-0047).
+The build packages are pinned `devDependencies`; the daemon imports none of
+them and nothing is fetched at run time.
+
+Update, as one command line on the production checkout:
+
+```bash
+git pull && cd durable && bun install --frozen-lockfile && bun run build
+```
+
+No daemon restart is needed: the next page reload loads the new client, and
+the TUI changes at its next start. The first pull that brings this client
+deletes the tracked legacy `app.js` and `style.css`, so `/app.js` answers 400
+and the page stays blank until the build ends (seconds). After later pulls the
+previous bundle keeps running until the build replaces it. A reload during
+the build can load a shell and a bundle of different versions; reload again
+once it ends. The build replaces both files together and restores the
+previous pair on a handled failure; an interrupted build can leave a mixed
+pair, and running `bun run build` again recovers it.
+
+Rollback: revert the merge commit and pull. The tracked legacy files return
+over the ignored build outputs; nothing to build or restart.
 
 ## Installation and notifications
 
@@ -100,7 +131,12 @@ the deployment owner supplies a test HTTPS Serve origin and a real phone:
 
 Local fixture: `node durable/__tests__/fixtures/browser-daemon.ts` starts a
 temporary faux daemon and a self-signed loopback HTTPS proxy that supplies a
-synthetic identity. Its public synthetic token is `F` repeated 43 times. Trust
+synthetic identity. It seeds one run per state the clients explain: a live
+answer run and a live plan run, a queued run, four recent blocked runs (one
+with a pull request), an older blocked run, published, legacy answer and
+aborted runs, and nine older published runs. It also opens the local socket
+and prints the state path, so
+`node durable/src/cli.ts --state <state> tui` shows the same runs. Its public synthetic token is `F` repeated 43 times. Trust
 that certificate only in a disposable browser profile. SIGTERM cleans the
 fixture up. This checks real browser flows but is not phone or live Web Push
 qualification.

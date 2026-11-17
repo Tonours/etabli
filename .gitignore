@@ -63,3 +63,8 @@ ops-roadmap.md
 
 # archived skill sets kept locally, not tracked
 .auto/
+
+# Durable web build output (bun run build in durable/)
+durable/web/app.js
+durable/web/style.css
+durable/.web-build-*/
