@@ -122,7 +122,7 @@ describe("installed Pi extension loader", () => {
 		function compiledLauncher(manifest: object) {
 			const dir = mkdtempSync(join(tmpdir(), "etabli-pi-launcher-"));
 			const launcher = join(dir, "pi");
-			copyFileSync("/usr/bin/true", launcher);
+			copyFileSync("/usr/bin/printf", launcher);
 			chmodSync(launcher, 0o755);
 			writeFileSync(join(dir, "package.json"), JSON.stringify(manifest));
 			return { dir, launcher };
