@@ -82,6 +82,7 @@ const ROOT_NAMES = [
   "ghost-lab", "coolify", "design", "componentize",
   "add-dark-mode", "canonicalize-tailwind", "make-responsive",
   "dark-mode-image", "brand-kit", "markup-from-image", "ideas",
+  "reverse-any-video", "style-sampling",
 ];
 const PACKAGE_SKILLS = [
   { name: "radius-api", pkg: "@earendil-works/pi-radius" },

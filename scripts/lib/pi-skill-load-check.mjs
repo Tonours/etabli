@@ -147,7 +147,9 @@ while ((match = entryRe.exec(block)) !== null) {
 const modelBlockChars = block.length;
 
 if (modelBlockChars > GATE) {
-  errors.push(`B1: model-facing block ${modelBlockChars} chars exceeds gate ${GATE}`);
+  errors.push(
+    `B1: model-facing block ${modelBlockChars} chars exceeds gate ${GATE}; run scripts/pi-dmi-stamp --home "${homeDir}" to hide specialist skills (new names go in its ROOT_NAMES)`,
+  );
 } else if (modelBlockChars >= ALERT) {
   warnings.push(`B1: model-facing block ${modelBlockChars} chars within ${GATE - ALERT} of the ${ALERT} alert`);
 }
