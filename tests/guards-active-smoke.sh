@@ -68,11 +68,10 @@ fi
 [ -x "$HCHECK" ] || fail "missing executable scripts/claude-hooks-check"
 
 STAMP_HOME="$TMP_DIR/stamp-home"
-mkdir -p "$STAMP_HOME/.agents/skills/hyperframes" "$STAMP_HOME/.agents/skills/ghost-lab" \
-  "$STAMP_HOME/.pi/agent/npm/node_modules/mitsupi/skills/github"
-for dir in "$STAMP_HOME/.agents/skills/hyperframes" "$STAMP_HOME/.agents/skills/ghost-lab"; do
-  name="$(basename "$dir")"
-  printf -- '---\nname: %s\ndescription: fixture\n---\nbody\n' "$name" >"$dir/SKILL.md"
+mkdir -p "$STAMP_HOME/.pi/agent/npm/node_modules/mitsupi/skills/github"
+for name in hyperframes ghost-lab reverse-any-video style-sampling; do
+  mkdir -p "$STAMP_HOME/.agents/skills/$name"
+  printf -- '---\nname: %s\ndescription: fixture\n---\nbody\n' "$name" >"$STAMP_HOME/.agents/skills/$name/SKILL.md"
 done
 printf -- '---\nname: github\ndescription: fixture\n---\nbody\n' \
   >"$STAMP_HOME/.pi/agent/npm/node_modules/mitsupi/skills/github/SKILL.md"
@@ -92,8 +91,7 @@ if grep -q "disable-model-invocation" "$STAMP_HOME/.agents/skills/hyperframes/SK
 fi
 
 "$STAMP" --home "$STAMP_HOME" --repo "$SYNTH_REPO" >"$TMP_DIR/stamp-out.txt" || fail "stamp run failed"
-for file in "$STAMP_HOME/.agents/skills/hyperframes/SKILL.md" \
-  "$STAMP_HOME/.agents/skills/ghost-lab/SKILL.md" \
+for file in "$STAMP_HOME"/.agents/skills/{hyperframes,ghost-lab,reverse-any-video,style-sampling}/SKILL.md \
   "$STAMP_HOME/.pi/agent/npm/node_modules/mitsupi/skills/github/SKILL.md"; do
   grep -q "^disable-model-invocation: true$" "$file" || fail "flag missing in $file"
 done
