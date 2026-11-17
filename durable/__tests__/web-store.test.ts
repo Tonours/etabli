@@ -333,3 +333,27 @@ test("a reload on a run hash opens that run once the list arrives", async () => 
   await h.signIn();
   expect([h.store.get().selected, h.open().map((socket) => socket.url)]).toEqual([B, [`wss://fixture.invalid/v1/runs/${B}/watch`]]);
 });
+
+test("offline, pagehide, online and a bfcache restore each act once on the open run", async () => {
+  const h = harness();
+  await h.signIn();
+  h.store.route(`#${A}`);
+  expect(h.open()).toHaveLength(1);
+  h.store.offline();
+  expect(h.store.get().message?.text).toBe("You are offline. Reconnect to watch and control runs.");
+  h.store.pagehide();
+  expect(h.open()).toHaveLength(0);
+  const lists = () => h.calls.filter((call) => call.path === "/v1/runs").length;
+  const before = lists();
+  h.store.online();
+  await settle();
+  expect([h.open().length, h.open()[0]!.url.includes(A), lists()]).toEqual([1, true, before + 1]);
+  h.store.applyFrame({ entries: [{ id: 1, model: [{ role: "assistant", content: "old page" }] }] });
+  h.store.pageshow(false);
+  expect(h.store.get().activity.blocks).toHaveLength(1);
+  h.setHash(`#${A}`);
+  h.store.pageshow(true);
+  expect([h.store.get().activity.blocks.length, h.open().length]).toEqual([0, 0]);
+  await settle(); await settle();
+  expect([h.store.get().session, h.store.get().selected, h.open().length]).toEqual(["in", A, 1]);
+});

@@ -149,11 +149,11 @@ test("the overview excerpt follows activity and the queued mention opens Instruc
 test("focus moves to Overview when the focused Instructions tab disappears", async () => {
   const { h, root } = await opened();
   act(() => { tab(root, "Instructions").focus(); });
-  expect(document.activeElement).toBe(tab(root, "Instructions"));
+  expect(document.activeElement?.textContent).toBe("Instructions");
   h.setRuns([listed(A, "aborted")]);
   await act(() => h.store.listRuns());
   expect(tab(root, "Instructions")).toBeUndefined();
-  expect(document.activeElement).toBe(tab(root, "Overview"));
+  expect(document.activeElement?.textContent).toBe("Overview");
 });
 
 test("pull request links appear only for https URLs", async () => {
@@ -180,13 +180,15 @@ test("a list row shows the label, the repository, the age and, when it needs you
   expect(root.querySelector(`a[data-run="${B}"]`)!.textContent).toContain("Implementing");
 });
 
-test("a focused row keeps focus across a poll", async () => {
+test("a focused row keeps focus across a poll that moves it to another group", async () => {
   const h = harness();
   await h.signIn();
   const root = mount(h).container;
   const row = () => root.querySelector<HTMLAnchorElement>(`a[data-run="${B}"]`)!;
   act(() => { row().focus(); });
-  h.setRuns([listed("cccccccc-3333-4333-8333-333333333333", "implementing", { startedAt: now }), listed(A), listed(B)]);
+  expect(row().closest(".run-group")!.querySelector("h2")!.textContent).toBe("In progress 2");
+  h.setRuns([listed("cccccccc-3333-4333-8333-333333333333", "implementing", { startedAt: now }), listed(A), listed(B, "done", { reason: "published" })]);
   await act(() => h.store.listRuns());
-  expect(document.activeElement).toBe(row());
+  expect(row().closest(".run-group")!.querySelector("h2")!.textContent).toBe("Finished 1");
+  expect(document.activeElement?.getAttribute("data-run")).toBe(B);
 });
