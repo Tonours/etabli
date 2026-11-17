@@ -1,13 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, closeSync, copyFileSync, existsSync, mkdtempSync, mkdirSync, openSync, readFileSync, readSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
 const root = resolve(import.meta.dir, "../../..");
 const piLookup = spawnSync("which", ["pi"], { encoding: "utf8" });
 const piLauncher = piLookup.status === 0 ? piLookup.stdout.trim() : "";
-const pinnedPackageRoot = join(root, "pi/node_modules/@earendil-works/pi-coding-agent");
+const piPackageName = "@earendil-works/pi-coding-agent";
+const pinnedPackageRoot = join(root, "pi/node_modules", piPackageName);
 const repositoryExtensions = [
 	"no-comments.ts",
 	"pr-body.ts",
@@ -15,7 +16,24 @@ const repositoryExtensions = [
 	"workflow-tools.ts",
 ];
 
-function resolveActiveTargets() {
+function isScript(file: string) {
+	const fd = openSync(file, "r");
+	const head = Buffer.alloc(2);
+	readSync(fd, head, 0, 2, 0);
+	closeSync(fd);
+	return head.toString() === "#!";
+}
+
+function resolveCompiledRuntime(piLauncher: string) {
+	const packageRoot = dirname(realpathSync(piLauncher));
+	const manifestPath = join(packageRoot, "package.json");
+	const manifest = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, "utf8")) : undefined;
+	if (manifest?.name !== piPackageName) throw new Error("unable to resolve active Pi runtime");
+	const version = spawnSync(piLauncher, ["--version"], { encoding: "utf8" }).stdout.trim();
+	return { ...resolvePinnedRuntime(), packageVersion: manifest.version as string, activePiVersion: version };
+}
+
+function resolveActiveTargets(piLauncher: string) {
 	const launcherTrace = spawnSync("bash", ["-x", piLauncher, "--version"], { encoding: "utf8" });
 	const activeExec = launcherTrace.stderr.match(/\+ exec (\S+) (\S+\/dist\/(?:bundle\/)?cli\.js) --version/);
 	if (launcherTrace.status === 0 && activeExec) {
@@ -45,8 +63,9 @@ function runtimeAt(activeNode: string, packageRoot: string) {
 	};
 }
 
-function resolveInstalledRuntime() {
-	const { activeNode, activeCli, version } = resolveActiveTargets();
+function resolveInstalledRuntime(launcher = piLauncher) {
+	if (!isScript(realpathSync(launcher))) return resolveCompiledRuntime(launcher);
+	const { activeNode, activeCli, version } = resolveActiveTargets(launcher);
 	let packageRoot = dirname(realpathSync(activeCli));
 	while (!existsSync(join(packageRoot, "package.json")) && dirname(packageRoot) !== packageRoot) packageRoot = dirname(packageRoot);
 	return { ...runtimeAt(activeNode, packageRoot), activePiVersion: version };
@@ -98,4 +117,47 @@ describe("installed Pi extension loader", () => {
 		const { activePiVersion, packageVersion } = resolveInstalledRuntime();
 		expect(activePiVersion).toBe(packageVersion);
 	}, 60000);
+
+	describe("compiled launcher fixtures", () => {
+		function compiledLauncher(manifest: object) {
+			const dir = mkdtempSync(join(tmpdir(), "etabli-pi-launcher-"));
+			const launcher = join(dir, "pi");
+			copyFileSync("/usr/bin/true", launcher);
+			chmodSync(launcher, 0o755);
+			writeFileSync(join(dir, "package.json"), JSON.stringify(manifest));
+			return { dir, launcher };
+		}
+
+		test("rejects a compiled launcher whose sibling package is not Pi", () => {
+			const { dir, launcher } = compiledLauncher({ name: "other-cli", version: "1.5.2" });
+			try {
+				expect(() => resolveInstalledRuntime(launcher)).toThrow("unable to resolve active Pi runtime");
+			} finally {
+				rmSync(dir, { recursive: true, force: true });
+			}
+		});
+
+		test("reports a compiled launcher whose version differs from its package", () => {
+			const { dir, launcher } = compiledLauncher({ name: piPackageName, version: "0.0.1" });
+			try {
+				const { activePiVersion, packageVersion } = resolveInstalledRuntime(launcher);
+				expect(packageVersion).toBe("0.0.1");
+				expect(activePiVersion).not.toBe(packageVersion);
+			} finally {
+				rmSync(dir, { recursive: true, force: true });
+			}
+		});
+
+		test("still rejects a script launcher without a Pi cli.js", () => {
+			const dir = mkdtempSync(join(tmpdir(), "etabli-pi-launcher-"));
+			const launcher = join(dir, "pi");
+			writeFileSync(launcher, "#!/bin/sh\necho 1.5.2\n");
+			chmodSync(launcher, 0o755);
+			try {
+				expect(() => resolveInstalledRuntime(launcher)).toThrow("unable to resolve active Pi runtime");
+			} finally {
+				rmSync(dir, { recursive: true, force: true });
+			}
+		});
+	});
 });
