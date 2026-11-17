@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test";
 import { mkdir, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { place } from "../scripts/build-web.ts";
@@ -41,4 +42,15 @@ test("restores both previous files when the second rename fails", async () => {
     await expect(place(s.source, s.destination, failing)).rejects.toThrow("rename failed");
     expect(await s.files()).toEqual(before);
   } finally { await s.cleanup(); }
+});
+
+test("the build entry point runs from a checkout path with a space", async () => {
+  const root = await mkdtemp(join(tmpdir(), "web build "));
+  try {
+    await mkdir(join(root, "scripts"));
+    await writeFile(join(root, "scripts", "build-web.ts"), await readFile(new URL("../scripts/build-web.ts", import.meta.url), "utf8"));
+    const run = spawnSync("node", [join(root, "scripts", "build-web.ts")], { encoding: "utf8" });
+    expect(run.status).toBe(1);
+    expect(run.stderr).toContain("vite");
+  } finally { await rm(root, { recursive: true, force: true }); }
 });

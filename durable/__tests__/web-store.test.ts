@@ -385,3 +385,43 @@ test("an older run-list reply never overwrites a newer one", async () => {
   await older;
   expect(h.store.get().runs?.map((run) => run.status)).toEqual(["aborted"]);
 });
+
+test("the startup session check never ends a session signed in after it", async () => {
+  const h = harness();
+  const check = deferred<Reply>();
+  let first = true;
+  const restore = h.use((call) => call.path === "/v1/runs" && first ? (first = false, check.promise) : h.fallback(call));
+  h.store.start();
+  await h.signIn(); h.store.setDraft("kept");
+  restore();
+  check.resolve({ status: 401, body: { ok: false, error: "no" } });
+  await settle(); await settle();
+  expect([h.store.get().session, h.store.get().draft, h.store.get().message?.text ?? ""]).toEqual(["in", "kept", ""]);
+});
+
+test("an older schedule list never restores a deleted row", async () => {
+  const h = harness();
+  await h.signIn();
+  const older = deferred<Reply>();
+  let lists = 0;
+  const row = { id: "s1", repo: "Tonours/fixture", prompt: "p", cron: "* * * * *", nextDue: 0 };
+  h.use((call) => call.path === "/v1/schedules" && call.method === "GET" ? (++lists === 1 ? older.promise : ok([])) : h.fallback(call));
+  const reopened = h.store.loadSchedules();
+  await h.store.deleteSchedule("s1");
+  older.resolve(ok([row]));
+  await reopened;
+  expect(h.store.get().schedules).toEqual([]);
+});
+
+test("an older plan reply of the same visit never overwrites a newer one", async () => {
+  const h = harness();
+  await h.signIn(); h.store.route(`#${A}`);
+  const older = deferred<Reply>();
+  let plans = 0;
+  h.use((call) => call.path.endsWith("/plan") ? (++plans === 1 ? older.promise : ok({ enabled: true, status: "NEW", sections: {} })) : h.fallback(call));
+  h.store.setPanel("plan");
+  await h.store.loadPlan();
+  older.resolve(ok({ enabled: true, status: "OLD", sections: {} }));
+  await settle(); await settle();
+  expect(h.store.get().plan?.status).toBe("NEW");
+});

@@ -65,6 +65,9 @@ export class Store {
   /** Run-list requests sent and the newest one applied: an older reply never overwrites a newer list. */
   private listed = 0;
   private applied = 0;
+  /** Plan and schedule requests sent: only the newest reply of each is applied. */
+  private planned = 0;
+  private scheduled = 0;
   private visit = 0;
   private socket?: Socket;
   private retry?: number;
@@ -125,12 +128,14 @@ export class Store {
 
   start(): void {
     this.connected().catch((error: Error) => {
+      if (error instanceof StaleReply) return;
       if (this.state.session === "in") this.message(error.message);
       else if (this.state.session === "checking") this.set({ session: "out" });
     });
   }
 
   login(token: string): Promise<void> {
+    this.generation++;
     return this.busy("login", async () => {
       try { await this.api("/v1/browser/session", "POST", undefined, token); } finally { token = ""; }
       await this.connected();
@@ -253,10 +258,12 @@ export class Store {
   async loadPlan(): Promise<void> {
     const id = this.state.selected, visit = this.visit;
     if (!id || this.state.panel !== "plan") return;
+    const sequence = ++this.planned;
+    const current = () => visit === this.visit && sequence === this.planned;
     try {
       const plan = await this.api<Plan>(`/v1/runs/${id}/plan`);
-      if (visit === this.visit) this.set({ plan });
-    } catch (error) { if (visit === this.visit) this.message((error as Error).message); }
+      if (current()) this.set({ plan });
+    } catch (error) { if (current()) this.message((error as Error).message); }
   }
 
   async poll(): Promise<void> {
@@ -299,7 +306,11 @@ export class Store {
     });
   }
 
-  async loadSchedules(): Promise<void> { this.set({ schedules: await this.api<Schedule[]>("/v1/schedules"), deleting: [] }); }
+  async loadSchedules(): Promise<void> {
+    const sequence = ++this.scheduled;
+    const schedules = await this.api<Schedule[]>("/v1/schedules");
+    if (sequence === this.scheduled) this.set({ schedules, deleting: [] });
+  }
 
   setForm(form: Partial<State["form"]>): void { this.set({ form: { ...this.state.form, ...form } }); }
 

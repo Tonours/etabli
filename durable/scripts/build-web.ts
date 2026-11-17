@@ -40,6 +40,6 @@ async function main(): Promise<void> {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.main) {
   main().catch((error: unknown) => { console.error(error instanceof Error ? error.message : error); process.exit(1); });
 }
