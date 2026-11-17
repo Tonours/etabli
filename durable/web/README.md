@@ -100,7 +100,12 @@ the deployment owner supplies a test HTTPS Serve origin and a real phone:
 
 Local fixture: `node durable/__tests__/fixtures/browser-daemon.ts` starts a
 temporary faux daemon and a self-signed loopback HTTPS proxy that supplies a
-synthetic identity. Its public synthetic token is `F` repeated 43 times. Trust
+synthetic identity. It seeds one run per state the clients explain: a live
+answer run and a live plan run, a queued run, four recent blocked runs (one
+with a pull request), an older blocked run, published, legacy answer and
+aborted runs, and nine older published runs. It also opens the local socket
+and prints the state path, so
+`node durable/src/cli.ts --state <state> tui` shows the same runs. Its public synthetic token is `F` repeated 43 times. Trust
 that certificate only in a disposable browser profile. SIGTERM cleans the
 fixture up. This checks real browser flows but is not phone or live Web Push
 qualification.

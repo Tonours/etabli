@@ -6,50 +6,12 @@
   <meta name="theme-color" content="#ffffff">
   <title>Etabli · Runs</title>
   <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials">
+  <link rel="icon" href="/icon-192.png">
   <link rel="apple-touch-icon" href="/icon-192.png">
   <link rel="stylesheet" href="/style.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
-  <header><a href="/" aria-label="Etabli home">établi<span>Run control</span></a><button id="logout" hidden>Sign out</button></header>
-  <main>
-    <p id="message" role="status" aria-live="polite"></p>
-    <section id="login">
-      <h1>Your work, in motion.</h1>
-      <p>Connect to watch runs and send instructions from this device.</p>
-      <form id="login-form">
-        <label for="token">Daemon API token</label>
-        <input id="token" type="password" required autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="43" aria-describedby="token-help">
-        <p class="help" id="token-help">Use the token from your daemon's private api.token file. This app does not save it. Sessions expire after 12 hours or a daemon restart.</p>
-        <button class="primary" type="submit">Connect device</button>
-      </form>
-    </section>
-    <div id="workspace" hidden>
-      <nav aria-label="Run control"><button id="runs-tab" aria-pressed="true">Runs</button><button id="schedules-tab" aria-pressed="false">Schedules</button></nav>
-      <section id="runs-panel">
-        <div class="section-heading"><h1>Runs</h1><button id="refresh">Refresh runs</button></div>
-        <p class="help">Open a run to watch its progress or change direction.</p>
-        <div class="run-layout"><ol id="runs" aria-label="Runs"></ol>
-          <section id="detail" hidden aria-label="Selected run">
-            <div class="section-heading"><h2 id="run-title"></h2><span id="run-state"></span></div>
-            <p id="run-prompt"></p><p id="connection" role="status"></p>
-            <pre id="stream" tabindex="0" aria-label="Live run stream"></pre>
-            <details id="plan-details"><summary>Run plan</summary><pre id="plan" tabindex="0"></pre></details>
-            <form id="steer-form"><label for="instruction">Send an instruction</label><textarea id="instruction" required maxlength="64000" rows="3"></textarea><button type="submit" class="primary">Send instruction</button></form>
-            <button id="abort" class="danger">Abort run</button>
-            <div id="abort-confirm" hidden><p>Abort this run and stop its active work?</p><button id="abort-yes" class="danger">Yes, abort run</button><button id="abort-no">Keep running</button></div>
-          </section>
-        </div>
-      </section>
-      <section id="schedules-panel" hidden>
-        <h1>Schedules</h1>
-        <p class="help">Schedules use UTC, at minute resolution. Missed times coalesce into one recoverable overdue run; they do not produce a backlog.</p>
-        <ol id="schedules" aria-label="Schedules"></ol>
-        <form id="schedule-form"><h2>Schedule a task</h2><label for="repo">Repository</label><input id="repo" required placeholder="owner/repository" autocomplete="off"><label for="prompt">Task</label><textarea id="prompt" required rows="3" maxlength="64000"></textarea><label for="cron">Cron expression (UTC)</label><input id="cron" required placeholder="0 9 * * 1-5" aria-describedby="cron-help"><p id="cron-help" class="help">Minute, hour, day of month, month, day of week. Numbers, *, lists, ranges and steps; when both day fields are restricted, either can match.</p><button type="submit" class="primary">Create schedule</button></form>
-      </section>
-      <section class="notifications" aria-label="Device notifications"><h2>Stay informed</h2><p id="push-state" class="help">Notifications contain no run content and stay enabled after sign-out. Use Disable notifications to stop them. On iPhone or iPad, use Share → Add to Home Screen, then open the app before enabling notifications.</p><button id="subscribe">Enable notifications</button><button id="unsubscribe" hidden>Disable notifications</button></section>
-      <p class="help">Install from your browser's app menu, or Share → Add to Home Screen. Connection and run data are available online only.</p>
-    </div>
-  </main>
+  <div id="root"></div>
 </body>
 </html>
