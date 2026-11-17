@@ -1,6 +1,9 @@
-import { Input, matchesKey, ProcessTerminal, ScrollView, Text, TuiAltScreen, truncateToWidth, VStack } from "@earendil-works/pi-tui";
+import { indexedColor, Input, matchesKey, ProcessTerminal, ScrollView, styleText, Text, TuiAltScreen, truncateToWidth, VStack, type TextStyle } from "@earendil-works/pi-tui";
 import type { Remote } from "../src/client.ts";
-import { age, safe, TuiModel } from "./model.ts";
+import { listView, safe, TuiModel, type Part } from "./model.ts";
+
+const STYLES: Record<NonNullable<Part["tone"]>, TextStyle> = { alert: { fg: indexedColor(1) }, ok: { fg: indexedColor(2) }, info: { fg: indexedColor(4) }, muted: { dim: true } };
+const paint = (part: Part) => part.tone ? styleText(part.text, STYLES[part.tone], "256color") : part.text;
 
 export class SafeInput extends Input {
   override handleInput(data: string): void {
@@ -17,6 +20,7 @@ export async function tui(state: string, remote?: Remote): Promise<void> {
   const header = new Text("Etabli durable");
   const body = new Text("", 0, 0);
   const footer = new Text("", 0, 0);
+  const detail = new Text("", 1, 0);
   const input = new SafeInput({ prompt: "steer> " });
   const listScroll = new ScrollView(body, { primary: true, scrollbar: "hidden" });
   const runScroll = new ScrollView(body, { follow: "end", primary: true, scrollbar: "hidden" });
@@ -31,26 +35,34 @@ export async function tui(state: string, remote?: Remote): Promise<void> {
     if (quitting) return;
     const run = model.selected;
     const scroll = model.mode === "list" ? listScroll : runScroll;
+    let showDetail = false;
     if (model.mode === "list") {
       followingRun = false;
+      const view = listView(model.runs, model.selectedId, Date.now());
       header.setText("Etabli durable — runs");
-      body.setText(model.runs.map((row) => truncateToWidth(`${row.id === model.selectedId ? ">" : " "} ${row.id.slice(0, 8)}  ${safe(row.status)}  ${age(row.createdAt)}  ${safe(row.repo)}  ${safe(row.prompt).slice(0, 140)}`, Math.max(1, terminal.columns))).join("\n") || (model.error ? "" : "No runs yet."));
-      footer.setText("↑/↓ select · Enter follow · r refresh · q quit");
-      scroll.scrollTo(Math.max(0, model.runs.findIndex((row) => row.id === model.selectedId) - Math.floor(scroll.viewportHeight / 2)));
+      body.setText(view.lines.map((line) => truncateToWidth(line.map(paint).join(""), Math.max(1, terminal.columns))).join("\n") || (model.error ? "" : "No runs yet."));
+      detail.setText(view.detail.join("\n"));
+      showDetail = view.detail.length > 0;
+      footer.setText(model.hints());
+      scroll.scrollTo(Math.max(0, view.selectedLine - Math.floor(scroll.viewportHeight / 2)));
     } else {
-      header.setText(`${safe(run?.repo ?? "Run")} · ${model.selectedId.slice(0, 8)} · ${safe(run?.status ?? "unavailable")} · ${model.status}`);
+      header.setText(model.header().join("\n"));
       body.setText(model.transcript());
       if (!followingRun) { scroll.scrollToEnd(); followingRun = true; }
-      footer.setText(model.mode === "abort" ? `Abort ${model.targetId.slice(0, 8)}? y confirm · Esc cancel` : model.mode === "steer" ? "Enter send · Esc cancel" : "s steer · a abort · Esc runs · PgUp/PgDn scroll · q quit");
+      footer.setText(model.notice ? `${model.notice}\n${model.hints()}` : model.hints());
     }
     if (model.pending) footer.setText("Sending… · Ctrl-C quit");
     if (model.error) footer.setText(`${safe(model.error)}\n${model.mode === "abort" ? `y ${model.actionError ? "retry" : "confirm"} · Esc cancel` : model.mode === "steer" ? `Enter ${model.actionError ? "retry" : "send"} · Esc cancel` : "r refresh · q quit"}`);
     if (model.mode === "steer" && !editing) input.setValue(model.draft);
-    if (model.mode !== "steer" && editing) input.setValue("");
+    if (model.mode !== "steer" && editing) {
+      if (model.keepInput) { model.draft = safe(input.getValue()); model.keepInput = false; }
+      input.setValue("");
+    }
     editing = model.mode === "steer";
     ui.setLayoutRoot(new VStack([
       header,
       { component: scroll, basis: 0, grow: 1, minSize: 1 },
+      ...(showDetail ? [detail] : []),
       ...(editing ? [input] : []),
       footer,
     ]));

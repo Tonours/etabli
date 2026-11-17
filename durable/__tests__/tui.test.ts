@@ -5,7 +5,9 @@ import { fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai/provid
 import { Text, visibleWidth } from "@earendil-works/pi-tui";
 import { stat } from "node:fs/promises";
 import { join } from "node:path";
-import { TuiModel, age, safe, lines } from "../tui/model.ts";
+import { TuiModel, listView, safe, lines } from "../tui/model.ts";
+import { age } from "../shared/runs-view.ts";
+import type { Run } from "../src/runs-doc.ts";
 import { SafeInput, tui } from "../tui/app.ts";
 import { serve } from "../src/api.ts";
 import { request, watchRun } from "../src/client.ts";
@@ -23,6 +25,8 @@ test("native sanitizers protect server text and pasted drafts without losing Uni
   expect(age(0, 59_000)).toBe("59s");
   expect(age(0, 60_000)).toBe("1m");
   expect(age(0, 3_600_000)).toBe("1h");
+  expect(age(0, 47 * 3_600_000)).toBe("47h");
+  expect(age(0, 72 * 3_600_000)).toBe("3d");
 });
 
 test("recent window deduplicates, stays bounded, and uses before rather than contiguous ids for gaps", () => {
@@ -115,7 +119,8 @@ test("native model/client follows a busy run, steers once, cancels abort and con
     model.begin("steer");
     model.draft = "steer from actual TUI model";
     await Promise.all([model.send(), model.send()]);
-    await until(async () => model.transcript().includes("steer from actual TUI model"));
+    expect(model.notice).toBe("Instruction queued");
+    await until(async () => model.entries.some((entry) => JSON.stringify(entry).includes("steer from actual TUI model")));
     const contents = model.entries.map((entry) => JSON.stringify(entry));
     expect(contents.filter((entry) => entry.includes("steer from actual TUI model"))).toHaveLength(1);
     const tool = model.entries.findIndex((entry) => entry.kind === "pi.tool-result");
@@ -188,4 +193,136 @@ test("headless TUI refuses before network or terminal mutation; remote watch kee
   const controller = new AbortController();
   await expect(watchRun("unused", "unused", undefined, { host: "http://example.invalid", tokenFile: "not-read" }, controller.signal, () => {}, () => {})).rejects.toThrow("HTTPS origin");
   await expect(watchRun("unused", "unused", undefined, { host: "https://example.invalid/path", tokenFile: "not-read" }, controller.signal, () => {}, () => {})).rejects.toThrow("HTTPS origin");
+});
+
+const HOUR = 3_600_000;
+const NOW = 1_000 * HOUR;
+const row = (id: string, status: Run["status"], extra: Partial<Run> = {}): Run => ({ id: id.padEnd(36, "0"), requestId: id, repo: "Tonours/fixture", prompt: `prompt ${id}`, conversationId: 1 as ConversationId, branch: "b", worktree: "w", route: "plan", status, reason: "", url: "", createdAt: NOW - HOUR, startedAt: NOW - HOUR, deadline: 0, maxTurns: 64, submissionId: "", notified: false, ...extra });
+const plain = (line: { text: string }[]) => line.map((part) => part.text).join("");
+
+test("list view groups rows in display order, aligns columns, pairs tone with a glyph and shows the detail line", () => {
+  const runs = [
+    row("done-old", "done", { reason: "published", createdAt: NOW - 100 * HOUR, startedAt: NOW - 100 * HOUR }),
+    row("busy", "implementing", { repo: "o/r" }),
+    row("blocked", "blocked", { reason: "ci_attempts_exhausted", url: "https://github.com/Tonours/fixture/pull/7", createdAt: NOW - 3 * HOUR, startedAt: NOW - 3 * HOUR }),
+    row("web", "blocked", { reason: "model_error", url: "http://example.test/x" }),
+  ];
+  const view = listView(runs, runs[2].id, NOW);
+  const text = view.lines.map(plain);
+  expect(text[0]).toBe("2 need you · 1 working · 0 queued");
+  expect(text.filter((line) => /\(\d\)$/.test(line))).toEqual(["Needs you (2)", "In progress (1)", "Finished (1)"]);
+  const rows = text.filter((line) => line.includes("prompt"));
+  expect(rows.map((line) => line.indexOf("prompt"))).toEqual(rows.map(() => rows[0].indexOf("prompt")));
+  expect(rows).toHaveLength(4);
+  expect(text[view.selectedLine].startsWith(">")).toBe(true);
+  expect(text[view.selectedLine]).toContain("! CI failing");
+  expect(text.findIndex((line) => line.startsWith(">"))).toBe(view.selectedLine);
+  expect(text.find((line) => line.includes("PR opened"))).toContain("4d");
+  expect(text.find((line) => line.includes("PR opened"))).toContain("✓ PR opened");
+  expect(view.lines[view.selectedLine][1].tone).toBe("alert");
+  expect(view.detail).toEqual(["CI still fails after the repair attempts. Fix the checks on the pull request.", "https://github.com/Tonours/fixture/pull/7"]);
+  const http = listView(runs, runs[3].id, NOW).detail;
+  expect(http).toHaveLength(1);
+  expect(http.join("\n")).not.toContain("example.test");
+  expect(listView([], "", NOW).lines).toEqual([]);
+});
+
+test("refresh keeps the display order and Up/Down walk it across groups", async () => {
+  const f = await fixture();
+  const server = await serve(f.core, f.state);
+  const model = new TuiModel(f.state, undefined, () => {});
+  try {
+    const older = await f.core.runs.submit("Tonours/fixture", "older queued", "order-older");
+    const newer = await f.core.runs.submit("Tonours/fixture", "newer queued", "order-newer");
+    await model.refresh();
+    expect(model.runs.map((run) => run.id)).toEqual([older.id, newer.id]);
+    expect(model.selectedId).toBe(older.id);
+    model.move(1);
+    expect(model.selectedId).toBe(newer.id);
+    model.move(1);
+    expect(model.selectedId).toBe(newer.id);
+    model.move(-1);
+    expect(model.selectedId).toBe(older.id);
+  } finally { model.close(); await server.shutdown(); await f.cleanup(); }
+});
+
+test("run view: header, tool argument summary, queued instructions, ended wording and state-aware hints", () => {
+  const model = new TuiModel("unused", undefined, () => {});
+  const live = row("live", "implementing", { deadline: Date.now() + 90 * 60_000 });
+  model.runs = [live];
+  model.selectedId = live.id;
+  model.mode = "run";
+  model.status = "Live";
+  const call = fauxAssistantMessage("");
+  call.content = [{ type: "toolCall", id: "t", name: "bash", arguments: { command: "x".repeat(300) } }];
+  model.entries = [{ id: 2 as EntryId, conversationId: 1 as ConversationId, kind: "fixture", model: [call] }];
+  model.docs = { "pi.live": { run: { turns: 3 } }, "pi.agent": { maxTurns: 64 }, "pi.inbox": { items: [{ mode: "write", content: "internal" }, { mode: "steer", content: "use bun" }, { mode: "followUp", content: [{ type: "text", text: "then lint" }] }] } };
+  const text = model.transcript();
+  expect(text).toMatch(/\[tool bash \{"command":"x{20,}…\]/);
+  expect(text).not.toContain("x".repeat(121));
+  expect(text).toContain("Instruction queued: use bun");
+  expect(text).toContain("Instruction queued: then lint");
+  expect(text).not.toContain("internal");
+  expect(model.header().join("\n")).toMatch(/Implementing .* Live\nTurn 3 of 64 · 1h (29|30)m left/);
+  expect(model.hints()).toContain("s steer · a abort");
+  model.docs = {};
+  expect(model.queued()).toEqual([]);
+  expect(model.transcript()).not.toContain("Instruction queued");
+  const blocked = row("blocked", "blocked", { reason: "turn_limit", url: "https://github.com/o/r/pull/1" });
+  model.runs = [blocked];
+  model.selectedId = blocked.id;
+  model.entries = [];
+  expect(model.transcript()).toBe("Nothing was recorded for this run.");
+  const header = model.header().join("\n");
+  expect(header).toContain("! Out of turns");
+  expect(header).toContain("Finished");
+  expect(header).not.toContain("Live");
+  expect(header).toContain("https://github.com/o/r/pull/1");
+  expect(header).not.toContain("left");
+  for (const status of ["done", "blocked", "aborted"] as const) {
+    model.runs = [row("ended", status)];
+    model.selectedId = model.runs[0].id;
+    expect(model.hints()).not.toMatch(/steer|abort/);
+    model.begin("steer");
+    model.begin("abort");
+    expect(model.mode).toBe("run");
+  }
+  model.runs = [row("wait", "queued")];
+  model.selectedId = model.runs[0].id;
+  expect(model.hints()).toContain("a abort");
+  expect(model.hints()).not.toContain("steer");
+  model.close();
+});
+
+test("a run that ends during steer or abort returns to run mode, keeps the draft and drops the controls", async () => {
+  const f = await fixture();
+  const server = await serve(f.core, f.state);
+  const model = new TuiModel(f.state, undefined, () => {});
+  try {
+    for (const mode of ["steer", "abort"] as const) {
+      const target = await f.core.runs.submit("Tonours/fixture", `ends while ${mode}`, `ends-${mode}`);
+      await model.refresh();
+      model.selectedId = target.id;
+      model.mode = mode;
+      model.draft = "unsent words";
+      await request(f.state, { op: "abort", id: target.id });
+      await model.refresh();
+      expect<string>(model.mode).toBe("run");
+      expect(model.keepInput).toBe(true);
+      expect(model.draft).toBe("unsent words");
+      expect(model.hints()).not.toMatch(/steer|abort/);
+      expect(model.transcript()).toContain("Unsent instruction (the run ended): unsent words");
+      if (mode === "steer") {
+        model.mode = "steer";
+        model.targetId = target.id;
+        await model.send();
+        expect(model.error).toBe("Not delivered: the run ended. Your message is kept below.");
+        expect(model.draft).toBe("unsent words");
+        model.mode = "run";
+      }
+      model.cancel();
+      expect<string>(model.mode).toBe("list");
+      expect(model.draft).toBe("");
+    }
+  } finally { model.close(); await server.shutdown(); await f.cleanup(); }
 });
