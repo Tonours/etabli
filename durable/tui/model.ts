@@ -217,11 +217,16 @@ export class TuiModel {
     this.changed();
     try {
       await request(this.state, op === "steer" ? { op, id, content, requestId: this.intent!.requestId } : { op, id }, this.remote, this.lifetime.signal);
-      if (op === "steer") { this.draft = ""; this.intent = undefined; this.notice = "Instruction queued"; }
+      if (op === "steer") { this.draft = ""; this.intent = undefined; this.notice = this.endedTarget(id) ? "Instruction accepted before the run ended; the agent may not have read it." : "Instruction queued"; }
       this.mode = "run";
       void this.refresh();
-    } catch { if (!this.closed) this.actionError = "Request failed. Retry or cancel; the message has been kept."; }
+    } catch { if (!this.closed) this.actionError = this.endedTarget(id) ? "Not delivered: the run ended. Your message is kept below." : "Request failed. Retry or cancel; the message has been kept."; }
     finally { this.pending = false; if (!this.closed) this.changed(); }
+  }
+
+  private endedTarget(id: string): boolean {
+    const run = this.runs.find((item) => item.id === id);
+    return !!run && ended(run);
   }
 
   transcript(): string {

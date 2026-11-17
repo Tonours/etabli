@@ -6,6 +6,11 @@ export type Plan = { enabled: boolean; status: string; sections: Record<string, 
 export type Method = "GET" | "POST" | "DELETE";
 export type Fetch = (path: string, init: RequestInit) => Promise<Response>;
 
+/** A reply that belongs to an earlier session; callers drop it instead of showing it. */
+export class StaleReply extends Error {
+  constructor() { super("Session changed. Reconnect to continue."); }
+}
+
 /** Same request contract as the hand-written client: one generation per session, 401/403 ends it. */
 export function createApi(fetcher: Fetch, generation: () => number, unauthorized: () => void) {
   return async function api<T>(path: string, method: Method = "GET", value?: unknown, authorization?: string): Promise<T> {
@@ -19,7 +24,7 @@ export function createApi(fetcher: Fetch, generation: () => number, unauthorized
       });
     } catch { throw new Error("Connection lost. Check your network and reconnect."); }
     const body = await response.json().catch(() => null) as { ok?: boolean; value?: T; error?: string } | null;
-    if (version !== generation()) throw new Error("Session changed. Reconnect to continue.");
+    if (version !== generation()) throw new StaleReply();
     if (response.status === 401 || response.status === 403) { unauthorized(); throw new Error("Session unavailable. Reconnect with your daemon token."); }
     if (!response.ok) throw new Error(body?.error || (response.status >= 500 ? "Daemon unavailable. Check your connection and retry." : "Request refused."));
     if (!body || body.ok !== true) throw new Error("Invalid daemon response. Reconnect to retry.");

@@ -312,6 +312,14 @@ test("a run that ends during steer or abort returns to run mode, keeps the draft
       expect(model.draft).toBe("unsent words");
       expect(model.hints()).not.toMatch(/steer|abort/);
       expect(model.transcript()).toContain("Unsent instruction (the run ended): unsent words");
+      if (mode === "steer") {
+        model.mode = "steer";
+        model.targetId = target.id;
+        await model.send();
+        expect(model.error).toBe("Not delivered: the run ended. Your message is kept below.");
+        expect(model.draft).toBe("unsent words");
+        model.mode = "run";
+      }
       model.cancel();
       expect<string>(model.mode).toBe("list");
       expect(model.draft).toBe("");

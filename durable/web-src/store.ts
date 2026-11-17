@@ -1,5 +1,5 @@
 import { BLOCK_LIMIT, entryBlock, liveBlock, queued, type Block, type Frame } from "./activity.ts";
-import { createApi, type Fetch, type Method, type Plan, type Run, type Schedule } from "./api.ts";
+import { createApi, StaleReply, type Fetch, type Method, type Plan, type Run, type Schedule } from "./api.ts";
 import { ended } from "../shared/runs-view.ts";
 
 export type Panel = "overview" | "activity" | "plan" | "instructions";
@@ -62,6 +62,9 @@ export class Store {
   private readonly listeners = new Set<() => void>();
   private readonly env: Env;
   private generation = 0;
+  /** Run-list requests sent and the newest one applied: an older reply never overwrites a newer list. */
+  private listed = 0;
+  private applied = 0;
   private visit = 0;
   private socket?: Socket;
   private retry?: number;
@@ -87,11 +90,17 @@ export class Store {
 
   message(text = "", tone: Notice["tone"] = "error"): void { this.set({ message: text ? { text, tone } : undefined }); }
 
+  /** Shows a failure unless it is a reply of an earlier session. */
+  private report(error: unknown): void {
+    if (!(error instanceof StaleReply)) this.message((error as Error).message);
+  }
+
   private async busy(name: string, action: () => Promise<void>): Promise<void> {
     if (this.state.busy.includes(name)) return;
+    const generation = this.generation;
     this.set({ busy: [...this.state.busy, name], message: undefined });
-    try { await action(); } catch (error) { this.message((error as Error).message); }
-    finally { this.set({ busy: this.state.busy.filter((item) => item !== name) }); }
+    try { await action(); } catch (error) { this.report(error); }
+    finally { if (generation === this.generation) this.set({ busy: this.state.busy.filter((item) => item !== name) }); }
   }
 
   private stopWatch(): void {
@@ -133,7 +142,10 @@ export class Store {
   }
 
   async listRuns(): Promise<void> {
+    const sequence = ++this.listed;
     const runs = await this.api<Run[]>("/v1/runs");
+    if (sequence < this.applied) return;
+    this.applied = sequence;
     const before = this.selectedRun();
     this.set({ runs });
     const run = this.selectedRun();
@@ -179,7 +191,7 @@ export class Store {
     const id = this.state.selected;
     if (this.state.session !== "in" || !id) return;
     this.watch(id);
-    void this.listRuns().catch((error: Error) => this.message(error.message));
+    void this.listRuns().catch((error: unknown) => this.report(error));
   }
 
   private watch(id: string): void {
@@ -253,7 +265,7 @@ export class Store {
     try {
       await this.listRuns();
       if (this.state.selected && this.state.panel === "plan") await this.loadPlan();
-    } catch (error) { this.message((error as Error).message); }
+    } catch (error) { this.report(error); }
     finally { this.refreshing = false; }
   }
 
@@ -307,7 +319,7 @@ export class Store {
     if (this.state.deleting.includes(id)) return;
     this.set({ deleting: [...this.state.deleting, id] });
     try { await this.api(`/v1/schedules/${id}`, "DELETE"); await this.loadSchedules(); }
-    catch (error) { this.message((error as Error).message); this.set({ deleting: this.state.deleting.filter((item) => item !== id) }); }
+    catch (error) { this.report(error); this.set({ deleting: this.state.deleting.filter((item) => item !== id) }); }
   }
 
   private pushState(patch: Partial<Push>): void { this.set({ push: { ...this.state.push, ...patch } }); }
@@ -360,6 +372,6 @@ export class Store {
   pageshow(persisted: boolean): void {
     if (!persisted) return;
     this.clearSession();
-    this.connected().catch((error: Error) => this.message(error.message));
+    this.connected().catch((error: unknown) => this.report(error));
   }
 }

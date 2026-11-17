@@ -357,3 +357,31 @@ test("offline, pagehide, online and a bfcache restore each act once on the open 
   await settle(); await settle();
   expect([h.store.get().session, h.store.get().selected, h.open().length]).toEqual(["in", A, 1]);
 });
+
+test("a poll in flight at sign out leaves the Signed out notice alone", async () => {
+  const h = harness();
+  await h.signIn();
+  const gate = deferred<Reply>();
+  const restore = h.use((call) => call.path === "/v1/runs" ? gate.promise : h.fallback(call));
+  const polling = h.store.poll();
+  restore();
+  await h.store.logout();
+  gate.resolve(ok([listed(A)]));
+  await polling;
+  expect([h.store.get().session, h.store.get().message?.text, h.store.get().runs]).toEqual(["out", "Signed out.", undefined]);
+});
+
+test("an older run-list reply never overwrites a newer one", async () => {
+  const h = harness();
+  await h.signIn();
+  const first = deferred<Reply>(), second = deferred<Reply>();
+  const replies = [first, second];
+  const restore = h.use((call) => call.path === "/v1/runs" ? replies.shift()!.promise : h.fallback(call));
+  const older = h.store.listRuns(), newer = h.store.listRuns();
+  restore();
+  second.resolve(ok([listed(A, "aborted")]));
+  await newer;
+  first.resolve(ok([listed(A, "implementing")]));
+  await older;
+  expect(h.store.get().runs?.map((run) => run.status)).toEqual(["aborted"]);
+});
