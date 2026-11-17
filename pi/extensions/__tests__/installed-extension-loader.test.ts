@@ -29,8 +29,13 @@ function resolveCompiledRuntime(piLauncher: string) {
 	const manifestPath = join(packageRoot, "package.json");
 	const manifest = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, "utf8")) : undefined;
 	if (manifest?.name !== piPackageName) throw new Error("unable to resolve active Pi runtime");
-	const version = spawnSync(piLauncher, ["--version"], { encoding: "utf8" }).stdout.trim();
-	return { ...resolvePinnedRuntime(), packageVersion: manifest.version as string, activePiVersion: version };
+	const versionRun = spawnSync(piLauncher, ["--version"], { encoding: "utf8" });
+	if (versionRun.status !== 0) throw new Error("unable to resolve active Pi runtime");
+	return { ...resolvePinnedRuntime(), packageVersion: manifest.version as string, activePiVersion: versionRun.stdout.trim() };
+}
+
+function expectMatchingVersions({ activePiVersion, packageVersion }: { activePiVersion: string; packageVersion: string }) {
+	expect(activePiVersion).toBe(packageVersion);
 }
 
 function resolveActiveTargets(piLauncher: string) {
@@ -114,15 +119,14 @@ describe("installed Pi extension loader", () => {
 	}, 60000);
 
 	test.skipIf(!piLauncher)("the pi launcher runs the version of the runtime it resolves to", () => {
-		const { activePiVersion, packageVersion } = resolveInstalledRuntime();
-		expect(activePiVersion).toBe(packageVersion);
+		expectMatchingVersions(resolveInstalledRuntime());
 	}, 60000);
 
 	describe("compiled launcher fixtures", () => {
-		function compiledLauncher(manifest: object) {
+		function compiledLauncher(manifest: object, binary = "/bin/echo") {
 			const dir = mkdtempSync(join(tmpdir(), "etabli-pi-launcher-"));
 			const launcher = join(dir, "pi");
-			copyFileSync("/usr/bin/printf", launcher);
+			copyFileSync(binary, launcher);
 			chmodSync(launcher, 0o755);
 			writeFileSync(join(dir, "package.json"), JSON.stringify(manifest));
 			return { dir, launcher };
@@ -140,9 +144,28 @@ describe("installed Pi extension loader", () => {
 		test("reports a compiled launcher whose version differs from its package", () => {
 			const { dir, launcher } = compiledLauncher({ name: piPackageName, version: "0.0.1" });
 			try {
-				const { activePiVersion, packageVersion } = resolveInstalledRuntime(launcher);
-				expect(packageVersion).toBe("0.0.1");
-				expect(activePiVersion).not.toBe(packageVersion);
+				const runtime = resolveInstalledRuntime(launcher);
+				expect(runtime.packageVersion).toBe("0.0.1");
+				expect(() => expectMatchingVersions(runtime)).toThrow();
+			} finally {
+				rmSync(dir, { recursive: true, force: true });
+			}
+		});
+
+		test("accepts a compiled launcher whose version matches its package", () => {
+			const echoed = spawnSync("/bin/echo", ["--version"], { encoding: "utf8" }).stdout.trim();
+			const { dir, launcher } = compiledLauncher({ name: piPackageName, version: echoed });
+			try {
+				expectMatchingVersions(resolveInstalledRuntime(launcher));
+			} finally {
+				rmSync(dir, { recursive: true, force: true });
+			}
+		});
+
+		test("rejects a compiled launcher whose --version fails", () => {
+			const { dir, launcher } = compiledLauncher({ name: piPackageName, version: "1.5.2" }, "/usr/bin/false");
+			try {
+				expect(() => resolveInstalledRuntime(launcher)).toThrow("unable to resolve active Pi runtime");
 			} finally {
 				rmSync(dir, { recursive: true, force: true });
 			}
