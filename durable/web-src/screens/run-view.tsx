@@ -27,7 +27,7 @@ function PartView({ part }: { part: Part }) {
   if (part.kind === "tool") {
     return (
       <Collapsible className="tool">
-        <CollapsibleTrigger asChild><Button variant="ghost" className="tool-line"><ChevronRight aria-hidden="true" /><span>{part.name} · {part.summary}</span></Button></CollapsibleTrigger>
+        <CollapsibleTrigger asChild><Button variant="ghost" className="tool-line h-auto justify-start whitespace-normal"><ChevronRight aria-hidden="true" /><span>{part.name} · {part.summary}</span></Button></CollapsibleTrigger>
         <CollapsibleContent><pre>{part.body}</pre></CollapsibleContent>
       </Collapsible>
     );
@@ -175,7 +175,7 @@ function RunActions({ state }: { state: State }) {
   return (
     <Collapsible className="run-actions">
       <Separator />
-      <CollapsibleTrigger asChild><Button variant="ghost" className="action-toggle" ref={trigger}><ChevronDown aria-hidden="true" className="chevron" />Run actions</Button></CollapsibleTrigger>
+      <CollapsibleTrigger asChild><Button variant="ghost" className="action-toggle w-full justify-start" ref={trigger}><ChevronDown aria-hidden="true" className="chevron" />Run actions</Button></CollapsibleTrigger>
       <CollapsibleContent>
         {state.abort.open ? (
           <section className="confirmation" aria-label="Confirm abort">
@@ -218,7 +218,7 @@ export function RunView({ run }: { run: Run }) {
         <p className="meta">{run.repo} · {run.startedAt ? `started ${age(run.startedAt, now)} ago` : `created ${age(run.createdAt, now)} ago`}</p>
       </header>
       <Tabs value={state.panel} onValueChange={(value) => store.setPanel(value as Panel)}>
-        <TabsList aria-label="Run panels" className="run-tabs">
+        <TabsList aria-label="Run panels" className="run-tabs group-data-[orientation=horizontal]/tabs:h-auto">
           <TabsTrigger value="overview" ref={overview}>Overview</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
           <TabsTrigger value="plan">Plan</TabsTrigger>
