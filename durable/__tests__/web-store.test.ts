@@ -425,3 +425,25 @@ test("an older plan reply of the same visit never overwrites a newer one", async
   await settle(); await settle();
   expect(h.store.get().plan?.status).toBe("NEW");
 });
+
+test("a failed newest schedule list leaves no row stuck in deleting", async () => {
+  const h = harness();
+  await h.signIn();
+  const first = deferred<Reply>();
+  let lists = 0;
+  h.use((call) => call.path === "/v1/schedules" && call.method === "GET" ? (++lists === 1 ? first.promise : { status: 500, body: { ok: false, error: "down" } }) : h.fallback(call));
+  const a = h.store.deleteSchedule("a"), b = h.store.deleteSchedule("b");
+  await b; first.resolve(ok([])); await a;
+  expect(h.store.get().deleting).toEqual([]);
+});
+
+test("a second login while one is pending keeps the first one", async () => {
+  const h = harness();
+  const session = deferred<Reply>();
+  const restore = h.use((call) => call.path === "/v1/browser/session" ? session.promise : h.fallback(call));
+  const first = h.store.login("F".repeat(43));
+  await h.store.login("F".repeat(43));
+  restore(); session.resolve(ok({}));
+  await first;
+  expect([h.store.get().session, h.store.get().busy]).toEqual(["in", []]);
+});

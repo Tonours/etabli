@@ -135,6 +135,7 @@ export class Store {
   }
 
   login(token: string): Promise<void> {
+    if (this.state.busy.includes("login")) return Promise.resolve();
     this.generation++;
     return this.busy("login", async () => {
       try { await this.api("/v1/browser/session", "POST", undefined, token); } finally { token = ""; }
@@ -330,7 +331,8 @@ export class Store {
     if (this.state.deleting.includes(id)) return;
     this.set({ deleting: [...this.state.deleting, id] });
     try { await this.api(`/v1/schedules/${id}`, "DELETE"); await this.loadSchedules(); }
-    catch (error) { this.report(error); this.set({ deleting: this.state.deleting.filter((item) => item !== id) }); }
+    catch (error) { this.report(error); }
+    finally { this.set({ deleting: this.state.deleting.filter((item) => item !== id) }); }
   }
 
   private pushState(patch: Partial<Push>): void { this.set({ push: { ...this.state.push, ...patch } }); }
