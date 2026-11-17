@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, closeSync, copyFileSync, existsSync, mkdtempSync, mkdirSync, openSync, readFileSync, readSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, closeSync, constants, copyFileSync, existsSync, mkdtempSync, mkdirSync, openSync, readFileSync, readSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 
@@ -123,10 +123,10 @@ describe("installed Pi extension loader", () => {
 	}, 60000);
 
 	describe("compiled launcher fixtures", () => {
-		function compiledLauncher(manifest: object, binary = "/bin/echo") {
+		function compiledLauncher(manifest: object, binary = process.execPath) {
 			const dir = mkdtempSync(join(tmpdir(), "etabli-pi-launcher-"));
 			const launcher = join(dir, "pi");
-			copyFileSync(binary, launcher);
+			copyFileSync(binary, launcher, constants.COPYFILE_FICLONE);
 			chmodSync(launcher, 0o755);
 			writeFileSync(join(dir, "package.json"), JSON.stringify(manifest));
 			return { dir, launcher };
@@ -153,8 +153,7 @@ describe("installed Pi extension loader", () => {
 		});
 
 		test("accepts a compiled launcher whose version matches its package", () => {
-			const echoed = spawnSync("/bin/echo", ["--version"], { encoding: "utf8" }).stdout.trim();
-			const { dir, launcher } = compiledLauncher({ name: piPackageName, version: echoed });
+			const { dir, launcher } = compiledLauncher({ name: piPackageName, version: Bun.version });
 			try {
 				expectMatchingVersions(resolveInstalledRuntime(launcher));
 			} finally {
