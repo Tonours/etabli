@@ -15,6 +15,9 @@ below by a path relative to this file (Pi reads the same file as
   writes only; routing is the model's reading of `workflow/spec.md` (ADR-0036).
 - `/goal`: `workflow/skills/orchestration.md` (measurable condition plus a cap).
 - Orchestration parity: `workflow/skills/orchestration.md`.
+- Exploration: send independent reads and searches together, as parallel tool
+  calls in one message or one Bash call. A lone call re-reads the whole
+  context for one small result.
 
 ## Compact instructions
 When compacting, keep the root `PLAN.md` subject and status, files modified,
