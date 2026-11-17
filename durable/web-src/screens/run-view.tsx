@@ -32,8 +32,8 @@ function PartView({ part }: { part: Part }) {
       </Collapsible>
     );
   }
-  if (part.kind === "result") return <div className="result"><p className="meta">{part.name}</p>{part.text && <pre>{part.text}</pre>}</div>;
-  return <div className="said"><p className="meta">{part.who}</p><p className="text">{part.text}</p></div>;
+  if (part.kind === "result") return <div><p className="meta">{part.name}</p>{part.text && <pre>{part.text}</pre>}</div>;
+  return <div><p className="meta">{part.who}</p><p className="text">{part.text}</p></div>;
 }
 
 function BlockView({ block }: { block: Block }) {

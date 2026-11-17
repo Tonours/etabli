@@ -1,3 +1,5 @@
+import { toolSummary } from "../shared/runs-view.ts";
+
 export const CLIP_AT = 20_000, CLIP_KEEP = 10_000, BLOCK_LIMIT = 300, EXCERPT = 280;
 
 type Content = string | readonly { type?: string; text?: string; name?: string; arguments?: unknown }[] | undefined;
@@ -32,8 +34,7 @@ function toolParts(content: Content): Part[] {
   if (typeof content === "string" || !content) return [];
   return content.filter((part) => part.type === "toolCall").map((part) => {
     const body = JSON.stringify(part.arguments ?? {}, null, 2);
-    const flat = JSON.stringify(part.arguments ?? {});
-    return { kind: "tool", name: part.name ?? "tool", summary: flat.length > 120 ? `${flat.slice(0, 120)}…` : flat, body: clip(body) };
+    return { kind: "tool", name: part.name ?? "tool", summary: toolSummary(part.arguments), body: clip(body) };
   });
 }
 

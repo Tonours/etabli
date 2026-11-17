@@ -41,7 +41,7 @@ export function App() {
           </nav>
         )}
         {signedIn && <Settings />}
-        {signedIn && <Button variant="outline" className="sign-out" disabled={state.busy.includes("logout")} onClick={() => void store.logout()}>Sign out</Button>}
+        {signedIn && <Button variant="outline" disabled={state.busy.includes("logout")} onClick={() => void store.logout()}>Sign out</Button>}
       </header>
       <div role="status" aria-live="polite" className="global-message">
         {state.message && (

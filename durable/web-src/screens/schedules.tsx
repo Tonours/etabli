@@ -17,7 +17,7 @@ export function Schedules() {
           <li key={row.id}>
             <strong>{row.repo}</strong>
             <p className="muted">{row.cron} UTC · Next: {new Date(row.nextDue).toISOString()}</p>
-            <p className="prompt">{row.prompt}</p>
+            <p>{row.prompt}</p>
             <Button variant="outline" disabled={state.deleting.includes(row.id)} onClick={() => void store.deleteSchedule(row.id)}>Delete schedule</Button>
           </li>
         ))}

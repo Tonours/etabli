@@ -4,7 +4,7 @@ import type { ConversationView, EntryRecord } from "@earendil-works/pi-durable";
 import type { Message } from "@earendil-works/pi-ai";
 import { active, type Run } from "../src/runs-doc.ts";
 import { request, watchRun, type Remote } from "../src/client.ts";
-import { age, describe, ended, GROUPS, order, pullRequest, summary, title, type Tone } from "../shared/runs-view.ts";
+import { age, describe, ended, GROUPS, order, pullRequest, since as start, summary, title, toolSummary, type Tone } from "../shared/runs-view.ts";
 
 export type Part = { text: string; tone?: Tone };
 export type ListView = { lines: Part[][]; selectedLine: number; detail: string[] };
@@ -21,11 +21,6 @@ const GLYPH: Record<Tone, string> = { alert: "!", ok: "✓", info: "·", muted: 
 const REPO_WIDTH = 28;
 const record = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
 
-function toolSummary(args: unknown): string {
-  const flat = JSON.stringify(args ?? {});
-  return flat.length > 120 ? `${flat.slice(0, 120)}…` : flat;
-}
-
 function left(deadline: number, now: number): string {
   const minutes = Math.ceil((deadline - now) / 60_000);
   if (!deadline || minutes <= 0) return "";
@@ -39,7 +34,7 @@ function detailLines(run: Readonly<Run>, hint: string): string[] {
 /** Grouped, column-aligned rows in display order; `selectedLine` counts the summary and the headings. */
 export function listView(runs: readonly Readonly<Run>[], selectedId: string, now: number): ListView {
   const { groups, counts } = order(runs, now);
-  const since = (run: Readonly<Run>) => age(run.startedAt || run.createdAt, now);
+  const since = (run: Readonly<Run>) => age(start(run), now);
   const labelWidth = Math.max(0, ...runs.map((run) => `${GLYPH[describe(run, now).tone]} ${safe(describe(run, now).label)}`.length)) + 2;
   const ageWidth = Math.max(0, ...runs.map((run) => since(run).length));
   const repo = (run: Readonly<Run>) => { const text = safe(run.repo); return text.length > REPO_WIDTH ? `${text.slice(0, REPO_WIDTH - 1)}…` : text; };

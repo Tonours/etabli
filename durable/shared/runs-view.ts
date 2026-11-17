@@ -28,7 +28,14 @@ const BLOCKED: Record<string, [string, string]> = {
   interrupted: INTERRUPTED, restart_limit: INTERRUPTED, faulted: INTERRUPTED, orphaned: INTERRUPTED,
 };
 
-const since = (run: ListedRun) => run.startedAt || run.createdAt;
+/** Start time, or creation time for a run that never started; ages and the attention window count from it. */
+export const since = (run: ListedRun) => run.startedAt || run.createdAt;
+
+/** One-line tool arguments, cut at 120 characters. */
+export function toolSummary(args: unknown): string {
+  const flat = JSON.stringify(args ?? {});
+  return flat.length > 120 ? `${flat.slice(0, 120)}…` : flat;
+}
 const own = <T>(table: Record<string, T>, key: string): T | undefined => Object.hasOwn(table, key) ? table[key] : undefined;
 
 export function describe(run: ListedRun, now: number): RunView {

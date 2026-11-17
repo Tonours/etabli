@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef } from "react";
 import { ChevronRight, ExternalLink } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { age, describe, GROUPS, order, pullRequest, summary, title } from "../../shared/runs-view.ts";
+import { age, describe, GROUPS, order, pullRequest, since, summary, title } from "../../shared/runs-view.ts";
 import { useStore } from "../use-store.ts";
 import { Status } from "./status.tsx";
 
@@ -44,7 +44,7 @@ export function RunList() {
                     <a className="run-link" data-run={run.id} href={`#${run.id}`} aria-current={run.id === state.selected ? "page" : undefined}>
                       <span className="row-title"><span>{name}</span><ChevronRight aria-hidden="true" /></span>
                       <Status view={view} />
-                      <span className="meta">{run.repo} · {age(run.startedAt || run.createdAt, now)}</span>
+                      <span className="meta">{run.repo} · {age(since(run), now)}</span>
                       {group === "attention" && view.hint && <span className="hint">{view.hint}</span>}
                     </a>
                     {link && <a className="pr-link" href={link} target="_blank" rel="noreferrer" aria-label={`Pull request for ${name}`}>Pull request<ExternalLink aria-hidden="true" /></a>}
