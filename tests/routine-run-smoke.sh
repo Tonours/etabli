@@ -697,9 +697,10 @@ t_defaults_and_unimplemented() {
   /bin/bash "$R" run dflt -- "$BIN/mark.sh" "$CASE/m" </dev/null >/dev/null 2>&1; eq $? 0 "exit"
   [ -f "$HOME/.claude/state/routines/dflt/last.json" ] || fail "default folder not used"
   local s
-  for s in adopt release status nothing; do
+  for s in adopt release nothing; do
     /bin/bash "$R" $s </dev/null >/dev/null 2>&1; eq $? 2 "$s"
   done
+  /bin/bash "$R" status </dev/null >/dev/null 2>&1; eq $? 0 "status"
 }
 
 t_no_model_binary() {
