@@ -30,6 +30,7 @@ export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PA
 . "$HERE/herdr.sh"
 . "$HERE/../pr-council-review/lib.sh"
 . "$HERE/clones.sh"
+. "$HERE/own-only.sh"
 . "$HERE/register.sh"
 . "$HERE/requests.sh"
 
@@ -153,7 +154,7 @@ write_launcher() {
 
 pr_snapshot() {
   local pr review
-  pr="$(gh pr view "$2" --repo "$1" --json state,isDraft,headRefOid,url,reviewRequests,latestReviews </dev/null)" || return 1
+  pr="$(gh pr view "$2" --repo "$1" --json state,isDraft,headRefOid,url,reviewRequests,latestReviews,author </dev/null)" || return 1
   # gh latestReviews can serialize an empty commit.oid. REST carries the
   # reviewed commit, and its last non-comment opinion supersedes older approval.
   review="$(gh api --paginate "repos/$1/pulls/$2/reviews" </dev/null | jq -cs --arg me "$3" '
@@ -164,7 +165,8 @@ pr_snapshot() {
       .state, .isDraft, .headRefOid, .url,
       ((([.reviewRequests[]?.login] + [.latestReviews[]?.author.login]) | map(ascii_downcase) | index($me|ascii_downcase)) != null),
       ($review.state == "APPROVED" and $review.commit_id == .headRefOid),
-      ($review.state == "APPROVED" and $review.commit_id != .headRefOid)
+      ($review.state == "APPROVED" and $review.commit_id != .headRefOid),
+      (.author.login // "" | ascii_downcase)
     ] | @tsv'
 }
 
@@ -270,6 +272,7 @@ consider() {
     elif ! marker_holds "$key.registered" "$(cut -f1 "$key.registered" 2>/dev/null)" "$me"; then return 0
     fi
   fi
+  if own_only && [ "$dry" = 0 ]; then return 0; fi
   run_reserved "$key" && { log "$repo#$number review still running, wait"; return; }
   if [ "$dry" = 0 ] && [ -f "$key.approval-pending" ]; then
     retry_pending_approval "$repo" "$number" "$sha" "$url" "$key"
@@ -330,15 +333,25 @@ consider() {
 }
 
 process_watched() {
-  local me="$1" repo number state draft sha url involved approved stale key registered_sha registered_login
+  local me="$1" repo number state draft sha url involved approved stale author key registered_sha registered_login
   local next="$WATCHED.next"
   : >"$next"
   while IFS=$'\t' read -r repo number _; do
     [ -n "$repo" ] || continue
-    IFS=$'\t' read -r state draft sha url involved approved stale <<<"$(pr_snapshot "$repo" "$number" "$me" 2>/dev/null)"
+    IFS=$'\t' read -r state draft sha url involved approved stale author <<<"$(pr_snapshot "$repo" "$number" "$me" 2>/dev/null)"
     if [ -z "${state:-}" ]; then
       printf '%s\t%s\n' "$repo" "$number" >>"$next"
       continue
+    fi
+    if own_only; then
+      if [ -z "${author:-}" ]; then
+        printf '%s\t%s\n' "$repo" "$number" >>"$next"
+        continue
+      fi
+      if [ "$author" != "$(printf '%s' "$me" | tr '[:upper:]' '[:lower:]')" ]; then
+        log "own-only: dropping $repo#$number (another author's pull request)"
+        continue
+      fi
     fi
     key="$(run_key "$repo" "$number")"
     [ "$state" != OPEN ] || [ ! -f "$key.dryrun" ] || involved=true
@@ -378,6 +391,97 @@ process_watched() {
   remove_finished_clones
 }
 
+cached_author() {
+  local id author
+  id="$(printf '%s#%s' "$1" "$2" | tr '[:upper:]' '[:lower:]')"
+  if author="$(awk -F'\t' -v id="$id" '$1 == id {print $2; found = 1; exit} END {exit !found}' "$AUTHOR_CACHE")"; then
+    [ "$author" != - ] && printf '%s' "$author"
+    return
+  fi
+  author="$(pr_author_login "$1" "$2")" || author=-
+  printf '%s\t%s\n' "$id" "$author" >>"$AUTHOR_CACHE"
+  [ "$author" != - ] && printf '%s' "$author"
+}
+
+remove_reservation() {
+  local file
+  for file in "$1.launch" "$1".launch.*; do
+    if [ -e "$file" ] || [ -L "$file" ]; then rm -f "$file"; fi
+  done
+  rm -f "$1.token" "$1.claimed"
+}
+
+write_skip_status() {
+  local key="$1" reason="$2" temp
+  [ "$(head -1 "$key.status" 2>/dev/null)" != "$reason" ] || return 0
+  temp="$(mktemp "$key.status.XXXXXX")" || return 1
+  printf '%s\n' "$reason" >"$temp" && mv "$temp" "$key.status"
+}
+
+purge_foreign() {
+  local me file base key pair author status_mode marker unread=0 next="$WATCHED.next" entry_repo entry_number
+  local -a keys=()
+  me="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+  AUTHOR_CACHE="$(mktemp)" || return 1
+  while IFS= read -r key; do
+    keys+=("$key")
+  done < <(find "$RUNS" -maxdepth 1 \( -type f -o -type l \) | while IFS= read -r file; do
+    base="${file##*/}"
+    [[ "$base" =~ ^(.+_[0-9]+)\.(registered|council-done|approval-pending|approval-body|token|claimed|launch|launch\..+|status)$ ]] && printf '%s/%s\n' "$RUNS" "${BASH_REMATCH[1]}"
+  done | sort -u)
+  for key in ${keys[@]+"${keys[@]}"}; do
+    if ! pair="$(own_only_key_pr "$key")" || ! author="$(cached_author "${pair% *}" "${pair#* }")"; then
+      unread=$((unread + 1))
+      log "own-only purge: author of ${key##*/} unreadable, left as is"
+      continue
+    fi
+    status_mode=''
+    [ ! -f "$key.status" ] || IFS=$'\t' read -r _ status_mode _ <"$key.status" || true
+    for marker in registered council-done approval-pending approval-body; do rm -f "$key.$marker"; done
+    if [ "$author" != "$me" ]; then
+      remove_reservation "$key"
+      write_skip_status "$key" 'skipped own-only'
+      log "own-only purge: ${key##*/} is another author's pull request"
+    elif [ -n "$status_mode" ] && [ "$status_mode" != dryrun ]; then
+      remove_reservation "$key"
+      write_skip_status "$key" 'skipped posting-off'
+      log "own-only purge: ${key##*/} mode $status_mode refused"
+    fi
+  done
+  : >"$next"
+  while IFS=$'\t' read -r entry_repo entry_number _; do
+    [ -n "$entry_repo" ] || continue
+    if author="$(cached_author "$entry_repo" "$entry_number")" && [ "$author" != "$me" ]; then
+      log "own-only purge: dropping $entry_repo#$entry_number from the watch list"
+      continue
+    fi
+    printf '%s\t%s\n' "$entry_repo" "$entry_number" >>"$next"
+  done <"$WATCHED"
+  mv "$next" "$WATCHED"
+  rm -f "$AUTHOR_CACHE"
+  [ "$unread" = 0 ] || return 3
+}
+
+purge_foreign_command() {
+  local me rc=0
+  mkdir -p "$STATE_DIR" "$RUNS" || return 1
+  chmod 700 "$STATE_DIR" "$RUNS" || return 1
+  RUNS="$(cd "$RUNS" && pwd -P)" || return 1
+  touch "$WATCHED"
+  acquire_lock "$LOCK_DIR" 'watch\.sh' || { echo "a watcher tick is running, purge not done" >&2; return 75; }
+  trap 'rm -rf "$LOCK_DIR"' EXIT
+  me="$(own_only_login)" || { echo "gh not authenticated" >&2; return 1; }
+  purge_foreign "$me" || rc=$?
+  return "$rc"
+}
+
+purge_foreign_tick() {
+  local me
+  own_only || return 0
+  me="$(gh api user --jq .login 2>/dev/null)" && [ -n "$me" ] || return 0
+  purge_foreign "$me" || true
+}
+
 stop_everything() {
   local pidfile pid
   mkdir -p "$STATE_DIR"
@@ -395,15 +499,23 @@ stop_everything() {
 main() {
   umask 077
   [ "${1:-}" = stop ] && { stop_everything; exit 0; }
+  [ "${1:-}" = --purge-foreign ] && { purge_foreign_command; exit $?; }
   mkdir -p "$STATE_DIR" "$REPORTS" "$RUNS" "$STATE_DIR/diagnostics" "$(dirname "$LOG")"
   chmod 700 "$STATE_DIR" "$REPORTS" "$RUNS" "$STATE_DIR/diagnostics" || exit 1
   RUNS="$(cd "$RUNS" && pwd -P)" || exit 1
   touch "$WATCHED"
   [ "$(perl -e 'print((stat shift)[7] // 0)' "$LOG")" -lt "$LOG_MAX_BYTES" ] || mv -f "$LOG" "$LOG.1"
   exec >>"$LOG" 2>&1
-  [ -f "$KILL_SWITCH" ] && exit 0
+  if [ -f "$KILL_SWITCH" ]; then
+    if own_only && acquire_lock "$LOCK_DIR" 'watch\.sh'; then
+      trap 'rm -rf "$LOCK_DIR"' EXIT
+      purge_foreign_tick
+    fi
+    exit 0
+  fi
   acquire_lock "$LOCK_DIR" 'watch\.sh' || { log "previous tick still running, skip"; exit 0; }
   trap 'rm -rf "$LOCK_DIR"' EXIT
+  purge_foreign_tick
   check_claude_cli || exit 1
   [ -x "$COUNCIL" ] || { log "pr-council-review not found at $COUNCIL"; exit 1; }
   [ -x "$RUNNER" ] || { log "review runner not found at $RUNNER"; exit 1; }
@@ -412,7 +524,7 @@ main() {
   [ -n "$me" ] || { log "gh answered no login"; exit 1; }
   write_watch_heartbeat "$me" || exit 1
   write_review_request_ready "$me" || exit 1
-  discover_requested | merge_into_watched
+  own_only || discover_requested | merge_into_watched
   ingest_council_registrations "$me" || exit 1
   ingest_review_requests "$me" || exit 1
   [ -f "$KILL_SWITCH" ] && exit 0

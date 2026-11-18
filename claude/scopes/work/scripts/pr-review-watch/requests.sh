@@ -56,6 +56,7 @@ ingest_review_requests() {
           (.state|type=="string") and (.isDraft|type=="boolean")
           and (.headRefOid|type=="string" and test("^[0-9a-f]{40}$"))
           and (.author.login|type=="string" and test("^[A-Za-z0-9][A-Za-z0-9-]*$"))' >/dev/null; then continue
+        elif own_only && { [ "$(printf '%s' "$snapshot" | jq -r '.author.login|ascii_downcase')" != "$me" ] || [ "$mode" != dry-run ]; }; then reason=own-only
         elif [ "$(printf '%s' "$snapshot" | jq -r .state)" != OPEN ]; then reason=closed
         elif [ "$(printf '%s' "$snapshot" | jq -r .isDraft)" = true ]; then reason=draft
         elif [ "$(printf '%s' "$snapshot" | jq -r .headRefOid)" != "$sha" ]; then reason=stale

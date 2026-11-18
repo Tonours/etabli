@@ -1,5 +1,6 @@
 #!/bin/bash
 . "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lifecycle.sh"
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/own-only.sh"
 
 # Council producers publish immutable envelopes. Only the watcher changes state.
 
@@ -76,6 +77,9 @@ ingest_council_registrations() {
     IFS=$'\t' read -r repo number sha login mode < <(jq -r '[.repo,.number,.sha,.login,.mode]|@tsv' "$record")
     if [ "$login" != "$me" ]; then
       reject_registration "$record" "$repo" "$number" "$mode" 'account changed'; continue
+    fi
+    if own_only; then
+      reject_registration "$record" "$repo" "$number" "$mode" 'own-only'; continue
     fi
     listed="$(awk -F'\t' -v r="$repo" -v n="$number" 'tolower($1)==tolower(r) && $2==n {print $1; exit}' "$WATCHED")"
     repo="${listed:-$repo}"

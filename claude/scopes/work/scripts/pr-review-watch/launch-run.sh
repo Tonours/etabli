@@ -7,6 +7,8 @@ canonical_key="$(cd "$(dirname "$KEY")" && pwd -P)/${KEY##*/}" || exit 1
 if [ "$KEY" != "$canonical_key" ]; then shift; exec "$HERE/launch-run.sh" "$canonical_key" "$@"; fi
 shift 5
 . "$HERE/lifecycle.sh" || exit 1
+. "$HERE/own-only.sh" || exit 1
+if own_only_refused_key "$KEY" "$MODE"; then exit 0; fi
 status_age() { echo $(( $(date +%s) - $(perl -e 'print((stat shift)[9] // time)' "$1.status") )); }
 deferred() {
   if [ "$TOKEN" = - ]; then echo 'review launch deferred: execution or reservation already exists' >&2; exit 75; fi

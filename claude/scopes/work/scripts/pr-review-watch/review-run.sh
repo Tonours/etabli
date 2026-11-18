@@ -397,6 +397,8 @@ if [ -f "${PR_REVIEW_WATCH_STATE_DIR:-$HOME/.claude/state/pr-review-watch}/off" 
   fi
   exit 75
 fi
+. "$HERE/own-only.sh" || exit 1
+if own_only_refused "$REPO" "$NUMBER" "$MODE"; then exit 1; fi
 USAGE_TARGET="$REPO#$NUMBER@$SHA"
 ME="$(gh api user --jq .login)" || exit 1
 echo "=== $MODE $REPO#$NUMBER @${SHA:0:8} — $URL"
