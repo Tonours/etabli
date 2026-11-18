@@ -81,6 +81,49 @@ watcher discovering its review request remains: before the council completes
 registration, discovery can launch an initial review after its settle interval.
 There is no new global pre-start lease.
 
+## Own-only mode
+
+An `own-only` file in the state folder (`$PR_REVIEW_WATCH_STATE_DIR`) makes the
+watcher serve the login's own pull requests only, as dry-runs that post nothing.
+It is a file, not an environment variable, so launchers written before the
+switch obey it too. Without the file nothing changes.
+
+With the file:
+
+- discovery of review requests is skipped;
+- a council registration is refused and logged (`own-only`), whoever wrote the
+  PR, and leaves no approval pending;
+- a request is accepted only as an own-PR v2 `dry-run`; every other request gets
+  the receipt `rejected` / `own-only`;
+- `process_watched` drops an entry whose author is not the login and keeps one
+  whose author cannot be read, without running it;
+- `launch-run.sh` and `review-run.sh` exit before any work, and before posting a
+  pending approval, when the PR author is not the login or cannot be read, or
+  when their mode is not `dryrun` (an own PR in `council` or `verify` mode
+  would post comments).
+
+`watch.sh --purge-foreign` cleans `runs/` and `watched.tsv`. It runs at the
+start of every tick, also while `off` exists. For each key, from the PR author:
+
+- the login's own PR: the posting markers `registered`, `council-done`,
+  `approval-pending` and `approval-body` are removed, with or without a status
+  file. If its status records a mode other than `dryrun`, `token`, `claimed`,
+  `launch` and `launch.*` go too and the status becomes the single line
+  `skipped posting-off`;
+- another author's PR: the same files go, and the status becomes the single
+  line `skipped own-only`. Its entry leaves `watched.tsv`;
+- an author that cannot be read: nothing is purged and nothing runs. The
+  command exits 3 while such a key remains, 75 when a tick holds the lock.
+
+Switch with `pr-review-watch/install.sh --own-only [interval]`. It refuses
+unless the `off` switch exists and never removes it. It creates `own-only`, runs
+the purge, and loads the launchd job only when no unread or foreign
+reservation remains. Deploy order: `off`, new scripts, `install.sh --own-only`,
+then remove `off`. The base scripts ignore the file, so installing the scripts
+without `off` first lets a foreign launcher run. `install.sh` without the flag
+leaves an existing `own-only` file. Delete the file to go back; purged
+reservations are not restored.
+
 ## Launch ownership and diagnostics
 
 Each attempt has an immutable private launcher and a one-shot token. Herdr and
