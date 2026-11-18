@@ -681,6 +681,105 @@ t_rm_failures_after_commit() {
   done
 }
 
+t_settle_failure_preserves_commit() {
+  local kind f
+  for kind in adopt release; do
+    new_case
+    if [ "$kind" = adopt ]; then make_start new; else make_start adopted; fi
+    put mac-cleanup; M=$LAB
+    f="$RD/$NAME"
+    held committed "$kind" "$L"
+    kill_held
+    cp "$AG/$L.plist" "$CASE/after.plist"
+    reset_calls
+
+    ROUTINE_TEST_FAIL=rm:prev A "$M"; eq $? 1 "$kind: failed settling"
+    [ -f "$f/pending" ] && [ -f "$f/plist.prev" ] || fail "$kind: commit evidence was lost"
+    untouched "$L" "$kind: failed settling"
+
+    A "$M"; eq $? 0 "$kind: successful settling"
+    untouched "$L" "$kind: successful settling"
+    plist_is "$L" "$CASE/after.plist" "$kind: commit still stands"
+    [ ! -e "$f/pending" ] && [ ! -e "$f/plist.prev" ] || fail "$kind: leftovers after retry"
+  done
+}
+
+t_running_job_is_not_stopped_by_signal_rollback() {
+  local kind
+  for kind in adopt release; do
+    new_case
+    if [ "$kind" = adopt ]; then make_start new; else make_start adopted; fi
+    put mac-cleanup; M=$LAB
+    cp "$AG/$L.plist" "$CASE/before.plist"
+    held verified "$kind" "$L"
+    cp "$AG/$L.plist" "$CASE/during.plist"
+    : >"$FK/running/$L"
+    reset_calls
+
+    kill -TERM "$BGPID"
+    wait "$BGPID"; eq $? 143 "$kind: signalled command"
+    untouched "$L" "$kind: rollback while running"
+    plist_is "$L" "$CASE/during.plist" "$kind: rollback deferred"
+    [ -e "$RD/$NAME/pending" ] && [ -e "$RD/$NAME/plist.prev" ] || fail "$kind: recovery files lost"
+    if [ "$kind" = adopt ]; then
+      [ ! -e "$RD/$NAME/cap" ] || fail "the aborted adoption left a cap"
+      [ -z "$(find "$RD/$NAME" -name 'plist.before.*' -print)" ] || fail "the aborted adoption left an origin"
+    fi
+
+    rm -f "$FK/running/$L"
+    A "$M"; eq $? 0 "$kind: next command after the job ended"
+    plist_is "$L" "$CASE/before.plist" "$kind: settled"
+  done
+}
+
+t_partial_backup_is_discarded_without_restoration() {
+  local kind f
+  for kind in adopt release; do
+    new_case
+    if [ "$kind" = adopt ]; then make_start new; else make_start adopted; fi
+    put mac-cleanup; M=$LAB
+    f="$RD/$NAME"
+    held backup-copied "$kind" "$L"
+    [ -f "$f/plist.prev.next" ] && [ ! -e "$f/plist.prev" ] || fail "$kind: copy published before rename"
+    printf '<plist' >"$f/plist.prev.next"
+    kill_held
+    cp "$AG/$L.plist" "$CASE/before.plist"
+    reset_calls
+
+    A "$M"; eq $? 0 "$kind: settling an interrupted copy"
+    untouched "$L" "$kind: incomplete backup"
+    plist_is "$L" "$CASE/before.plist" "$kind: job kept"
+    [ ! -e "$f/pending" ] && [ ! -e "$f/plist.prev.next" ] || fail "$kind: leftovers after settling"
+  done
+}
+
+t_idle_text_in_arguments_does_not_hide_running_job() {
+  new_case
+  put mac-cleanup
+  local lab="$LAB"
+  lctl bootout "gui/501/$lab" || fail "cannot unload fixture"
+  pbt 'Add :ProgramArguments:1 string "state = not running"' "$AG/$lab.plist" || fail "cannot add argument"
+  lctl bootstrap gui/501 "$AG/$lab.plist" || fail "cannot reload fixture"
+  : >"$FK/running/$lab"
+  cp "$AG/$lab.plist" "$CASE/before.plist"
+  reset_calls
+  A "$lab"; eq $? 2 "running despite argument"
+  untouched "$lab" "running despite argument"
+  plist_is "$lab" "$CASE/before.plist" "running job kept"
+}
+
+t_multiline_manifest_keeps_the_label_bound() {
+  new_case
+  put mac-cleanup
+  local lab="$LAB"
+  mkdir -p "$RD/other"
+  printf '{"label":\n"%s","source":"install"}\n' "$lab" >"$RD/other/routine.json"
+  reset_calls
+  A "$lab"; eq $? 2 "label already bound"
+  has "$CASE/err" "already bound to the name other" "label binding"
+  untouched "$lab" "label already bound"
+}
+
 t_running_job_is_not_stopped_by_settling() {
   local kind
   for kind in adopt release; do
@@ -703,9 +802,34 @@ t_running_job_is_not_stopped_by_settling() {
     A "$M"; eq $? 2 "$kind: with a slot near"
     untouched "$L" "$kind/slot"
     echo "1 12 0" >"$CASE/clock"
+    reset_calls
+    FAKE_LCTL_RUN_FROM=2 A "$M"; eq $? 2 "$kind: job starts between the two state reads"
+    untouched "$L" "$kind: settling recheck"
+    plist_is "$L" "$CASE/during.plist" "$kind: settling deferred"
     A "$M"; eq $? 0 "$kind: once the job has ended"
     plist_is "$L" "$CASE/before.plist" "$kind: settled"
   done
+}
+
+t_oversized_manifest_is_refused_before_swap() {
+  new_case
+  put mac-cleanup
+  local lab="$LAB"
+  /usr/bin/perl -0777 -pe '
+    $slots = join "", map {
+      sprintf "<dict><key>Hour</key><integer>%d</integer><key>Minute</key><integer>%d</integer></dict>", int($_ / 60), $_ % 60
+    } 180..429;
+    s{(<key>StartCalendarInterval</key>\s*<array>).*?(</array>)}{$1$slots$2}s;
+  ' "$FIXT/mac-cleanup.plist" >"$AG/$lab.plist" || fail "cannot generate large schedule"
+  lctl bootout "gui/501/$lab" || fail "cannot unload original schedule"
+  lctl bootstrap gui/501 "$AG/$lab.plist" || fail "cannot load large schedule"
+  cp "$AG/$lab.plist" "$CASE/before.plist"
+  reset_calls
+  A "$lab"; eq $? 2 "large schedule exit"
+  has "$CASE/err" "manifest exceeds" "large schedule reason"
+  untouched "$lab" "large schedule"
+  plist_is "$lab" "$CASE/before.plist" "large schedule"
+  [ ! -e "$RD/mac-cleanup/routine.json" ] || fail "oversized manifest published"
 }
 
 t_three_commands_after_a_kill() {

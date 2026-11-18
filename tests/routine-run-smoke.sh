@@ -45,7 +45,7 @@ export HOME="$TMP_DIR/home"
 mkdir -p "$HOME"
 BIN="$TMP_DIR/bin"
 mkdir -p "$BIN"
-unset ETABLI_ROUTINES_DIR ROUTINE_TEST_PERL ROUTINE_TEST_HOLD ROUTINE_TEST_PS ROUTINE_SUMMARY
+unset ETABLI_ROUTINES_DIR ROUTINE_TEST_PERL ROUTINE_TEST_HOLD ROUTINE_TEST_PS ROUTINE_TEST_FAIL ROUTINE_SUMMARY
 
 cat >"$BIN/mark.sh" <<'EOF'
 #!/bin/bash
@@ -215,6 +215,57 @@ t_reserved_and_native_refused() {
   rw other2 -- "$BIN/mark.sh" "$CASE/m"; eq $? 2 "reserved label exit"
   [ ! -e "$CASE/m" ] || fail "reserved label ran the command"
   eq "$(snap "$ETABLI_ROUTINES_DIR")" "$before" "tree after reserved label"
+
+  printf '{\n  "label": "com.example.other2",\n  "source":\n    "native"\n}\n' >"$FOLDER/routine.json"
+  before=$(snap "$ETABLI_ROUTINES_DIR")
+  rw other2 -- "$BIN/mark.sh" "$CASE/m"; eq $? 2 "multiline native source exit"
+  eq "$(snap "$ETABLI_ROUTINES_DIR")" "$before" "tree after multiline native source"
+
+  printf '{"label":\n"com.tonours.fleet-improvement","source":"adopt"}\n' >"$FOLDER/routine.json"
+  before=$(snap "$ETABLI_ROUTINES_DIR")
+  rw other2 -- "$BIN/mark.sh" "$CASE/m"; eq $? 2 "multiline reserved label exit"
+  [ ! -e "$CASE/m" ] || fail "multiline manifest ran the command"
+  eq "$(snap "$ETABLI_ROUTINES_DIR")" "$before" "tree after multiline reserved label"
+}
+
+t_admission_write_failure_runs_nothing() {
+  new_case
+  mkdir -p "$FOLDER"
+  echo 1 >"$FOLDER/cap"
+  echo '{"state":"ok"}' >"$FOLDER/last.json"
+  cp "$FOLDER/last.json" "$CASE/before"
+
+  ROUTINE_TEST_FAIL=mv:admitted rw "$NAME" -- "$BIN/mark.sh" "$CASE/m"
+  eq $? 74 "admission failure exit"
+  [ ! -e "$CASE/m" ] && [ ! -e "$FOLDER/admitted" ] && [ ! -e "$FOLDER/runs.jsonl" ] || fail "admission failure ran or recorded the command"
+  cmp -s "$CASE/before" "$FOLDER/last.json" || fail "admission failure changed the latest run"
+  rw "$NAME" -- "$BIN/mark.sh" "$CASE/m"; eq $? 0 "retry exit"
+  rw "$NAME" -- "$BIN/mark.sh" "$CASE/m"; eq $? 0 "cap skip exit"
+  eq "$(lines "$CASE/m")" 1 "exactly one command admitted"
+}
+
+t_concurrent_busy_pruning_keeps_the_newest_hundred() {
+  new_case
+  bg $NAME -- "$BIN/wait.sh" "$CASE/active" "$CASE/done"
+  local owner="$BGPID" first i
+  wait_for "$CASE/active"
+  mkdir -p "$FOLDER/busy"
+  for i in $(seq 1 100); do
+    printf -v first '0000000000000000-%03d.json' "$i"
+    : >"$FOLDER/busy/$first"
+  done
+
+  ROUTINE_TEST_HOLD="busy-prune:$CASE/prune" bg $NAME -- "$BIN/mark.sh" "$CASE/m"
+  first="$BGPID"
+  wait_for "$CASE/prune.reached"
+  rw $NAME -- "$BIN/mark.sh" "$CASE/m"; eq $? 75 "second busy start"
+  touch "$CASE/prune"
+  wait "$first"; eq $? 75 "first busy start"
+  eq "$(ls "$FOLDER/busy" | wc -l | tr -d ' ')" 100 "busy records kept"
+  [ -f "$FOLDER/busy/0000000000000000-003.json" ] || fail "third-oldest record was lost"
+  [ ! -e "$CASE/m" ] || fail "a busy start ran the command"
+  touch "$CASE/done"
+  wait "$owner"; eq $? 0 "lock holder exit"
 }
 
 t_running_is_on_disk() {
@@ -644,6 +695,81 @@ EOF
 }
 t_trap_term_exits_3() { trap_case 3 failed; }
 t_trap_term_exits_0() { trap_case 0 ok; }
+
+t_interrupted_wait_retrieves_already_exited_child() {
+  new_case
+  cat >"$BIN/delayed-trap.sh" <<'EOF'
+#!/bin/bash
+trap 'while [ ! -e "$3" ]; do /bin/sleep 0.1; done; exit 3' TERM
+echo $$ >"$1"
+while [ ! -e "$2" ]; do /bin/sleep 0.1; done
+EOF
+  chmod +x "$BIN/delayed-trap.sh"
+  ROUTINE_TEST_HOLD="waited:$CASE/waited" bg $NAME -- "$BIN/delayed-trap.sh" "$CASE/child" "$CASE/never" "$CASE/exit-now"
+  wait_for "$CASE/child"
+  kill -TERM "$BGPID"
+  wait_for "$CASE/waited.reached"
+  touch "$CASE/exit-now"
+  wait_gone "$(cat "$CASE/child")"
+  touch "$CASE/waited"
+  wait "$BGPID"; eq $? 3 "wrapper exit after interrupted wait"
+  eq "$(jf "$FOLDER/last.json" exit)" 3 "recorded child exit"
+  eq "$(jf "$FOLDER/last.json" signal)" TERM "forwarded signal"
+}
+
+t_failed_go_publication_releases_the_lock() {
+  new_case
+  bg_hold go
+  local cmd run
+  wait_cmd_pid "$FOLDER/last.json"
+  cmd=$(jf "$FOLDER/last.json" cmd_pid)
+  track "$cmd"
+  run=$(jf "$FOLDER/last.json" run)
+  mkdir "$FOLDER/go.$run"
+  touch "$CASE/hold"
+  wait_gone "$BGPID"
+  wait "$BGPID"; eq $? 74 "failed go publication"
+  wait_lock_free "$FOLDER"
+  [ ! -e "$CASE/a" ] || fail "command started without the gate"
+  eq "$(jf "$FOLDER/last.json" state)" failed "latest state"
+  eq "$(jf "$FOLDER/last.json" exit)" 74 "latest exit"
+}
+
+t_hup_during_startup_is_not_followed_by_term() {
+  new_case
+  cat >"$BIN/startup-signals.sh" <<'EOF'
+#!/bin/bash
+trap 'touch "$2"' HUP
+trap 'exit 77' TERM
+touch "$1"
+while [ ! -e "$3" ]; do /bin/sleep 0.1; done
+EOF
+  chmod +x "$BIN/startup-signals.sh"
+  ROUTINE_TEST_HOLD="after-go:$CASE/hold" bg "$NAME" -- "$BIN/startup-signals.sh" "$CASE/child" "$CASE/hup" "$CASE/end"
+  wait_for "$CASE/hold.reached"
+  wait_for "$CASE/child"
+  kill -HUP "$BGPID"
+  wait_for "$CASE/hup"
+  touch "$CASE/hold"
+  /bin/sleep 0.5
+  touch "$CASE/end"
+  wait "$BGPID"; eq $? 0 "HUP was handled"
+  eq "$(jf "$FOLDER/last.json" signal)" HUP "forwarded signal"
+}
+
+t_signal_before_identity_is_recorded() {
+  new_case
+  bg_hold identity
+  local cmd
+  cmd=$(subshell_of "$BGPID") || fail "no waiting subshell"
+  track "$cmd"
+  kill -HUP "$BGPID"
+  wait_gone "$cmd"
+  touch "$CASE/hold"
+  wait "$BGPID"; eq $? 129 "signalled subshell exit"
+  eq "$(jf "$FOLDER/last.json" signal)" HUP "forwarded signal"
+  [ ! -e "$CASE/a" ] || fail "the command ran before identity"
+}
 
 t_off_skips_stay_bounded() {
   new_case

@@ -15,6 +15,8 @@ RESERVED_NAME=fleet-improvement
 RESERVED_LABEL=com.tonours.fleet-improvement
 JOURNAL_LINES=250
 BUSY_KEEP=100
+MANIFEST_MAX_BYTES=8192
+PLIST_MAX_BYTES=65536
 
 routines_dir() { printf '%s' "${ETABLI_ROUTINES_DIR:-$HOME/.claude/state/routines}"; }
 
@@ -67,7 +69,7 @@ routine_lock_release() {
 # --- test hold points ------------------------------------------------------
 # ROUTINE_TEST_HOLD=<point>:<file>, read only when set: wait there until the
 # file exists, and says it got there with <file>.reached. Points: busy,
-# identity, go, after-go, end.
+# busy-prune, identity, go, after-go, waited, end.
 hold() {
   case "${ROUTINE_TEST_HOLD:-}" in
     "$1":*)
@@ -110,7 +112,7 @@ journal_skip() { # reason [extra json fields, leading comma]
 # A busy skip is its own file: written under a temporary name, then renamed.
 # Written without the run lock, it never touches the journal.
 busy_skip() {
-  local dir="$folder/busy" stamp id total drop f
+  local dir="$folder/busy" stamp id drop f LC_ALL=C
   /bin/mkdir -p "$dir" 2>/dev/null || return 0
   stamp=$(/usr/bin/perl -MTime::HiRes=gettimeofday -e '($s, $u) = gettimeofday; printf "%010d%06d", $s, $u' 2>/dev/null)
   [ -n "$stamp" ] || stamp=$(/bin/date +%s)000000
@@ -118,11 +120,14 @@ busy_skip() {
   printf '{"v":1,"name":"%s","kind":"skip","reason":"busy","time":"%s"}\n' "$name" "$(now_iso)" >"$dir/tmp.$id"
   hold busy
   /bin/mv -f "$dir/tmp.$id" "$dir/$id.json"
-  total=$(/bin/ls "$dir" | LC_ALL=C /usr/bin/grep -c '\.json$')
-  if [ "${total:-0}" -gt "$BUSY_KEEP" ]; then
-    drop=$(/bin/ls "$dir" | LC_ALL=C /usr/bin/grep '\.json$' | LC_ALL=C /usr/bin/sort | /usr/bin/head -n "$((total - BUSY_KEEP))")
-    for f in $drop; do /bin/rm -f "$dir/$f"; done
-  fi
+  set -- "$dir"/*.json
+  hold busy-prune
+  drop=$(($# - BUSY_KEEP))
+  for f; do
+    [ "$drop" -gt 0 ] || break
+    /bin/rm -f "$f"
+    drop=$((drop - 1))
+  done
 }
 
 # First line of $ROUTINE_SUMMARY, 200 bytes at most, invalid UTF-8 dropped,
@@ -142,8 +147,13 @@ read_summary() {
 # INT and TERM reach the command as TERM (bash starts a background command with
 # INT ignored), HUP as HUP. The wrapper keeps waiting for the command.
 on_signal() {
+  wait_interrupted=1
   sig_sent="$1"
-  [ -z "$cmd_pid" ] || kill -"$1" "$cmd_pid" 2>/dev/null
+  if [ -n "$cmd_pid" ]; then
+    kill -"$1" "$cmd_pid" 2>/dev/null
+  else
+    pending_signal="$1"
+  fi
 }
 
 # finish <exit> <signal> <cmd_pid> <cmd_born> <summary>: the end record, the
@@ -162,7 +172,7 @@ finish() {
 }
 
 cmd_run() {
-  local name="${1:-}" dir folder lock_st today cap cnt future d r tmp
+  local name="${1:-}" dir folder lock_st today cap cnt future d r tmp st wait_interrupted pending_signal=""
   if ! valid_name "$name"; then die "invalid routine name: $name"; return 2; fi
   shift
   if [ "${1:-}" != -- ] || [ "$#" -lt 2 ]; then die "usage: routine.sh run <name> -- <command...>"; return 2; fi
@@ -171,9 +181,13 @@ cmd_run() {
 
   dir=$(routines_dir)
   folder="$dir/$name"
-  if [ -f "$folder/routine.json" ] && /usr/bin/grep -Eq '"source"[[:space:]]*:[[:space:]]*"native"|"label"[[:space:]]*:[[:space:]]*"'"$RESERVED_LABEL"'"' "$folder/routine.json"; then
-    die "$name has a native record writer; the wrapper does not touch it"
-    return 2
+  if [ -f "$folder/routine.json" ]; then
+    manifest_get "$folder/routine.json" --check-writer
+    case $? in
+      0) ;;
+      2) die "$name has a native record writer; the wrapper does not touch it"; return 2 ;;
+      *) die "$name: cannot read routine.json; nothing run"; return 74 ;;
+    esac
   fi
 
   /bin/mkdir -p "$folder" 2>/dev/null || { die "cannot create $folder"; return 74; }
@@ -234,15 +248,19 @@ cmd_run() {
 
   # admitted: today's line and later ones stay, earlier days are dropped.
   tmp="$folder/admitted.$$.tmp"
-  {
+  if ! (
     if [ -f "$folder/admitted" ]; then
       while IFS=' ' read -r d r || [ -n "$d" ]; do
         [ -n "$d" ] || continue
-        if [[ "$d" > "$today" ]] || [ "$d" = "$today" ]; then printf '%s %s\n' "$d" "$r"; fi
-      done <"$folder/admitted"
+        if [[ "$d" > "$today" ]] || [ "$d" = "$today" ]; then printf '%s %s\n' "$d" "$r" || exit 1; fi
+      done <"$folder/admitted" || exit 1
     fi
     printf '%s %s\n' "$today" "$run"
-  } >"$tmp" && /bin/mv -f "$tmp" "$folder/admitted"
+  ) >"$tmp" || [ -d "$folder/admitted" ] || ! mvp admitted "$tmp" "$folder/admitted"; then
+    /bin/rm -f "$tmp"
+    die "$name: cannot update admitted; nothing run"
+    return 74
+  fi
 
   write_last running "" "" "" "" "" "" || { die "$name: cannot write last.json"; return 74; }
 
@@ -256,7 +274,7 @@ cmd_run() {
   # The command's process: a subshell that waits for go.<run>, then execs.
   (
     trap - TERM HUP
-    while [ ! -e "$folder/go.$run" ]; do
+    while [ ! -f "$folder/go.$run" ]; do
       [ "$(born_of "$$")" = "$self_born" ] || exit 0
       /bin/sleep 0.1
     done
@@ -266,23 +284,37 @@ cmd_run() {
   hold identity
   cmd_born=$(born_of "$cmd_pid")
   if [ -z "$cmd_born" ]; then
-    kill -TERM "$cmd_pid" 2>/dev/null
-    wait "$cmd_pid" 2>/dev/null
-    finish 70 "" "$cmd_pid" "" ""
+    trap '' TERM HUP INT
+    if [ -z "$sig_sent" ]; then
+      kill -TERM "$cmd_pid" 2>/dev/null
+      wait "$cmd_pid" 2>/dev/null
+      st=70
+    else
+      wait "$cmd_pid" 2>/dev/null
+      st=$?
+    fi
+    finish "$st" "$sig_sent" "$cmd_pid" "" ""
     return $?
   fi
   write_last running "$cmd_pid" "$cmd_born" "" "" "" "" || { kill -TERM "$cmd_pid" 2>/dev/null; wait "$cmd_pid" 2>/dev/null; die "$name: cannot write last.json"; return 74; }
   hold go
-  : >"$folder/go.$run"
+  if [ -n "$pending_signal" ]; then kill -"$pending_signal" "$cmd_pid" 2>/dev/null; fi
+  if ! : >"$folder/go.$run"; then
+    trap '' TERM HUP INT
+    kill -TERM "$cmd_pid" 2>/dev/null
+    wait "$cmd_pid" 2>/dev/null
+    die "$name: cannot start the command; cannot create go.$run"
+    finish 74 "$sig_sent" "$cmd_pid" "$cmd_born" ""
+    return $?
+  fi
   hold after-go
-  [ -z "$sig_sent" ] || kill -TERM "$cmd_pid" 2>/dev/null
 
-  local st
   while :; do
+    wait_interrupted=0
     wait "$cmd_pid"
     st=$?
-    kill -0 "$cmd_pid" 2>/dev/null || break
-    [ "$st" != 127 ] || break
+    hold waited
+    [ "$wait_interrupted" = 1 ] || break
   done
 
   trap '' TERM HUP INT
@@ -327,7 +359,22 @@ tf() { case ",${ROUTINE_TEST_FAIL:-}," in *",$1,"*) return 0 ;; esac; return 1; 
 mvp() { tf "mv:$1" && return 1; /bin/mv -f "$2" "$3"; }
 rmp() { tf "rm:$1" && return 1; /bin/rm -f "${2:?}"; }
 
-manifest_get() { /usr/bin/sed -n 's/.*"'"$2"'"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$1" | /usr/bin/head -n 1; }
+manifest_get() {
+  /usr/bin/perl -MJSON::PP -e '
+    my ($path, $field, $limit, $reserved) = @ARGV;
+    open my $file, "<", $path or exit 74;
+    my $size = read $file, my $json, $limit + 1;
+    exit 74 if !defined($size) || $size > $limit;
+    my $manifest = eval { decode_json($json) };
+    exit 74 unless ref($manifest) eq "HASH";
+    if ($field eq "--check-writer") {
+      exit 2 if ($manifest->{source} // "") eq "native" || ($manifest->{label} // "") eq $reserved;
+      exit 0;
+    }
+    my $value = $manifest->{$field};
+    print $value if defined($value) && !ref($value);
+  ' "$1" "$2" "$MANIFEST_MAX_BYTES" "$RESERVED_LABEL"
+}
 
 # The path of this script, absolute, as it will be written in a plist.
 self_path() {
@@ -348,6 +395,7 @@ system_tz() {
     case "$t" in *zoneinfo/*) t="${t#*zoneinfo/}" ;; *) return 1 ;; esac
   fi
   case "$t" in ''|*[!A-Za-z0-9_+/-]*) return 1 ;; esac
+  [ "${#t}" -le 64 ] || return 1
   printf '%s' "$t"
 }
 
@@ -544,10 +592,12 @@ make_wrapped() { # src dst name
 # $JOB_LOADED and $JOB_RUNNING from one `launchctl print`. Anything but
 # "state = not running" counts as running.
 job_state() {
+  local state
   JOB_LOADED=0; JOB_RUNNING=0; JOB_OUT=""
   JOB_OUT=$("$LCTL" print "gui/$(user_id)/$1" 2>/dev/null) || return 1
   JOB_LOADED=1
-  case "$JOB_OUT" in *"state = not running"*) ;; *) JOB_RUNNING=1 ;; esac
+  state=$(printf '%s\n' "$JOB_OUT" | /usr/bin/grep -m 1 $'^\tstate = ')
+  [ "$state" = $'\tstate = not running' ] || JOB_RUNNING=1
   return 0
 }
 
@@ -564,17 +614,18 @@ install_plist() { # src label [failure point]
   fi
 }
 
-# Puts <prev> back as the label's plist, loaded and verified. 0 when done.
+# Restores and verifies <prev>. Returns 2 when a running job prevents restoration.
 restore_prev() { # label prev
   local label="$1" prev="$2" dst
   dst="$(launch_dir)/$label.plist"
   job_state "$label"
   if [ "$JOB_LOADED" = 1 ] && $CMP -s "$prev" "$dst"; then return 0; fi
+  [ "$JOB_RUNNING" = 0 ] || return 2
   if [ "$JOB_LOADED" = 1 ]; then "$LCTL" bootout "gui/$(user_id)/$label" >/dev/null 2>&1 || return 1; fi
   install_plist "$prev" "$label" || return 1
   "$LCTL" bootstrap "gui/$(user_id)" "$dst" >/dev/null 2>&1 || return 1
   job_state "$label"
-  [ "$JOB_LOADED" = 1 ] && $CMP -s "$prev" "$dst"
+  [ "$JOB_LOADED" = 1 ] && $CMP -s "$prev" "$dst" || return 1
 }
 
 # --- the lock of adopt and release -----------------------------------------
@@ -613,6 +664,12 @@ begin_command() {
 
 clean_stage() { /bin/rm -f "${1:?}"/*.next "${1:?}/plist.next"; }
 
+save_prev() {
+  /bin/cp "$1" "$2/plist.prev.next" || return 1
+  hold backup-copied
+  /bin/mv -f "$2/plist.prev.next" "$2/plist.prev"
+}
+
 # The two commands to run by hand when a plist cannot be put back.
 leave_failed() { # folder label prev
   local f="${1:?}/adopt.failed" dst
@@ -644,12 +701,22 @@ stage_fail() { die "$C_KIND $C_LABEL: $1; nothing changed"; abort_files; return 
 
 # A failure after the swap began (or at the commit): back to plist.prev.
 rollback() {
+  local restore_status
   C_PHASE=rollback
   trap '' TERM INT HUP
   die "$C_KIND $C_LABEL failed: $1"
-  if [ "$C_SWAP" = 1 ] && ! restore_prev "$C_LABEL" "$C_FOLDER/plist.prev"; then
-    leave_failed "$C_FOLDER" "$C_LABEL" "$C_FOLDER/plist.prev"
-    return 1
+  if [ "$C_SWAP" = 1 ]; then
+    restore_prev "$C_LABEL" "$C_FOLDER/plist.prev"
+    restore_status=$?
+    case "$restore_status" in
+      0) ;;
+      2)
+        undo_published
+        die "$C_LABEL is running; rollback will resume on the next command"
+        return 1
+        ;;
+      *) leave_failed "$C_FOLDER" "$C_LABEL" "$C_FOLDER/plist.prev"; return 1 ;;
+    esac
   fi
   undo_published
   abort_files
@@ -666,7 +733,7 @@ on_cmd_signal() {
 }
 
 settle_folder() { # folder
-  local f="$1" kind="" id="" committed=0 label dst prev="$1/plist.prev" name="${1##*/}"
+  local f="$1" kind="" id="" committed=0 label dst prev="$1/plist.prev" name="${1##*/}" restore_status
   if [ -f "$f/pending" ]; then { IFS= read -r kind; IFS= read -r id; } <"$f/pending"; fi
   case "$kind" in
     adopt) [ -n "$id" ] && [ -f "$f/routine.json" ] && [ "$(manifest_get "$f/routine.json" command)" = "$id" ] && committed=1 ;;
@@ -687,19 +754,26 @@ settle_folder() { # folder
         if [ "$JOB_RUNNING" = 1 ]; then die "$name: incomplete, and its job is running; nothing changed"; return 2; fi
         if ! parse_slots "$prev" || slot_within 10; then die "$name: incomplete, and a slot of its job is near; nothing changed"; return 2; fi
       fi
-      if ! restore_prev "$label" "$prev"; then
+      restore_prev "$label" "$prev"
+      restore_status=$?
+      if [ "$restore_status" = 2 ]; then
+        die "$name: incomplete, and its job is running; nothing changed"
+        return 2
+      elif [ "$restore_status" != 0 ]; then
         die "$name: incomplete, and the job could not be put back"
         leave_failed "$f" "$label" "$prev"
         return 1
       fi
     fi
   fi
-  clean_stage "$f"
-  if [ "$committed" = 1 ] && [ "$kind" = adopt ]; then /bin/rm -f "${f:?}/routine.released.json"; fi
-  /bin/rm -f "${prev:?}"
-  /bin/rm -f "${f:?}/pending" "${f:?}/adopt.failed"
-  /bin/rmdir "$f" 2>/dev/null
-  [ ! -e "$f/pending" ] && [ ! -e "$prev" ]
+  clean_stage "$f" || return 1
+  if [ "$committed" = 1 ] && [ "$kind" = adopt ]; then
+    rmp released "${f:?}/routine.released.json" || return 1
+  fi
+  rmp prev "$prev" || return 1
+  /bin/rm -f "${f:?}/adopt.failed" || return 1
+  rmp pending "$f/pending" || return 1
+  /bin/rmdir "$f" 2>/dev/null || true
 }
 
 settle_all() {
@@ -742,6 +816,7 @@ cmd_adopt() {
     esac
   done
   case "$label" in ''|*[!A-Za-z0-9._-]*) usage_adopt; return 2 ;; esac
+  [ "${#label}" -le 200 ] || { die "label exceeds 200 characters"; return 2; }
   if [ "$label" = "$RESERVED_LABEL" ] || [ "$name" = "$RESERVED_NAME" ]; then
     die "$RESERVED_NAME and $RESERVED_LABEL are reserved for their own writer"
     return 2
@@ -760,7 +835,7 @@ cmd_adopt() {
 }
 
 do_adopt() {
-  local want_cap="$1" folder plist d bound cur src mode tzv origin_name adopted
+  local want_cap="$1" folder plist d bound cur src mode tzv origin_name adopted manifest_bytes wrapped_plist plist_bytes
   SELF=$(self_path) || { die "cannot use the path of routine.sh (quotes, backslashes or control characters)"; return 2; }
   tzv=$(system_tz) || { die "cannot read the system time zone (set ROUTINE_TZ)"; return 2; }
   plist="$(launch_dir)/$C_LABEL.plist"
@@ -810,17 +885,23 @@ do_adopt() {
 
   printf 'adopt\n%s\n' "$C_ID" >"$folder/pending" || { stage_fail "cannot write pending"; return 1; }
   if [ "$mode" != refresh ]; then
-    /bin/cp "$plist" "$folder/plist.prev" || { stage_fail "cannot save the plist"; return 1; }
+    save_prev "$plist" "$folder" || { stage_fail "cannot save the plist"; return 1; }
   fi
   hold staging
+  wrapped_plist="$plist"
   if [ "$mode" != refresh ]; then
     origin_name="plist.before.$C_ID"
     /bin/cp "$folder/plist.prev" "$folder/$origin_name.next" || { stage_fail "cannot save the origin"; return 1; }
     if tf stage-next || ! make_wrapped "$folder/plist.prev" "$folder/plist.next" "$C_NAME"; then
       stage_fail "cannot write the wrapped plist"; return 1
     fi
+    wrapped_plist="$folder/plist.next"
   else
     origin_name=$(manifest_get "$folder/routine.json" origin)
+  fi
+  plist_bytes=$(/usr/bin/wc -c <"$wrapped_plist") || { stage_fail "cannot size the wrapped plist"; return 1; }
+  if [ "$plist_bytes" -gt "$PLIST_MAX_BYTES" ]; then
+    stage_fail "wrapped plist exceeds $PLIST_MAX_BYTES bytes"; return 2
   fi
   adopted=""
   if [ "$mode" != new ]; then adopted=$(manifest_get "$folder/routine.json" adopted); fi
@@ -828,6 +909,10 @@ do_adopt() {
   if tf stage-manifest || ! printf '{"v":1,"name":"%s","label":"%s","tz":"%s","slots":%s,"adopted":"%s","source":"adopt","origin":"%s","command":"%s"}\n' \
       "$C_NAME" "$C_LABEL" "$tzv" "$(slots_json)" "$adopted" "$origin_name" "$C_ID" >"$folder/routine.json.next"; then
     stage_fail "cannot write the manifest"; return 1
+  fi
+  manifest_bytes=$(/usr/bin/wc -c <"$folder/routine.json.next") || { stage_fail "cannot size the manifest"; return 1; }
+  if [ "$manifest_bytes" -gt "$MANIFEST_MAX_BYTES" ]; then
+    stage_fail "manifest exceeds $MANIFEST_MAX_BYTES bytes"; return 2
   fi
   if [ ! -f "$folder/cap" ]; then
     [ -n "$want_cap" ] || want_cap=$(default_cap)
@@ -892,7 +977,7 @@ publish_and_commit() { # origin name (adopt)
   fi
   hold committed
   C_PHASE=post
-  clean_stage "$f"
+  clean_stage "$f" || { die "$C_KIND $C_LABEL is done; a leftover stays for the next command"; return 1; }
   if [ "$C_KIND" = adopt ] && [ -e "$f/routine.released.json" ]; then
     rmp released "$f/routine.released.json" || { die "$C_KIND $C_LABEL is done; a leftover stays for the next command"; return 1; }
   fi
@@ -947,7 +1032,7 @@ do_release() {
   trap 'on_cmd_signal 130' INT
   trap 'on_cmd_signal 129' HUP
   printf 'release\n%s\n' "$C_ID" >"$folder/pending" || { stage_fail "cannot write pending"; return 1; }
-  /bin/cp "$plist" "$folder/plist.prev" || { stage_fail "cannot save the plist"; return 1; }
+  save_prev "$plist" "$folder" || { stage_fail "cannot save the plist"; return 1; }
   hold staging
   if tf stage-next || ! /bin/cp "$folder/$origin" "$folder/plist.next"; then stage_fail "cannot stage the origin"; return 1; fi
   hold staged

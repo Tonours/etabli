@@ -32,8 +32,10 @@ holder deletes any it finds.
 
 `v`, `name`, `label`, `tz`, `slots` (a list of `{weekday, hour, minute}`,
 `weekday` null for a daily slot), `adopted`, `source` (`adopt`, `install` or
-`native`), `origin` and `command` (absent for `native`). The wrapper only reads
-this file, for `source` and `label`.
+`native`), `origin` and `command` (absent for `native`). A manifest is at
+most 8 KiB, with at most 200 characters for `label` and 64 for `tz`. The
+wrapper reads `source` and `label` and refuses to run when an existing manifest
+cannot be decoded. Fleet reads launchd plists up to 64 KiB.
 
 ### `last.json`
 
@@ -96,7 +98,7 @@ characters removed). The wrapper exits with the command's status.
 | the command's | the command ran (128+n when a signal ended it) |
 | 75 | `busy`: another run holds the lock |
 | 0 | `off` or `cap` skip |
-| 74 | the lock or the folder could not be set up; nothing run, nothing recorded |
+| 74 | the wrapper could not prepare the lock, read the manifest or record admission and the running state |
 | 2 | refused: invalid or reserved name, native folder, malformed call |
 
 `adopt` and `release` use the same codes (see below); `status` exits 0.
@@ -155,14 +157,16 @@ telling whether the Perl lock works (exit 74 if not).
 
 Every `adopt` and `release` holds a kernel lock on `adopt.lock` in the routines
 folder (descriptor 9, inherited by `launchctl`, so a killed command whose
-`launchctl` still runs keeps it). Files are staged as `*.next`, then published
-in a fixed order: the origin `plist.before.<id>` and the `cap`, then the
-wrapped plist swap, then the commit, a rename of `routine.json.next` over
+`launchctl` still runs keeps it). After staging the `*.next` files, adoption
+swaps and verifies the wrapped plist. It then publishes the origin
+`plist.before.<id>` and the `cap`, and commits by renaming `routine.json.next` over
 `routine.json` (release: `routine.json` to `routine.released.json`). `pending`
 (kind and id) and `plist.prev` (the plist in place before the swap) are written
-first and deleted last. A failure before the commit restores `plist.prev` and
-reloads the job. If the restore fails, `adopt.failed` is left, with the manual
-commands printed.
+first. The backup is copied to `plist.prev.next` and then renamed to
+`plist.prev`. Cleanup deletes `pending` after the other recovery files. A failure
+before the commit restores `plist.prev` and reloads an idle job. If the job is
+running, recovery files stay in place for the next command. A restoration
+error leaves `adopt.failed` with the manual recovery commands.
 
 Any later `adopt` or `release` first settles every folder holding a `pending`:
 a committed change only has its leftovers deleted, without calling launchd; an
@@ -223,10 +227,11 @@ and no `run.lock`.
 
 Read only when set, for the smoke test: `ROUTINE_TEST_PERL` (replaces
 `/usr/bin/perl` in the lock check), `ROUTINE_TEST_PS` (replaces `ps`),
-`ROUTINE_TEST_HOLD=<point>:<file>` (wait at `busy`, `identity`, `go`, `after-go`
-or `end`, and in `adopt` and `release` at `staging`, `staged`, `unloaded`,
+`ROUTINE_TEST_HOLD=<point>:<file>` (wait at `busy`, `busy-prune`, `identity`,
+`go`, `after-go`, `waited` or `end`, and in `adopt` and `release` at
+`backup-copied`, `staging`, `staged`, `unloaded`,
 `verified`, `committed` or `prev-deleted`, until the file exists; `<file>.reached`
-says it got there). Also `ROUTINE_TEST_FAIL` (comma list: `mv:<origin|cap|commit|swap>`,
+says it got there). Also `ROUTINE_TEST_FAIL` (comma list: `mv:<admitted|origin|cap|commit|swap>`,
 `rm:<released|prev|pending>`, `stage-next`, `stage-manifest`) and `ROUTINE_TEST_CLOCK`
 (a file holding `weekday hour minute`). `ROUTINE_PLISTBUDDY`, `ROUTINE_PLUTIL`,
 `ROUTINE_LAUNCHCTL`, `ROUTINE_LAUNCHAGENTS_DIR`, `ROUTINE_UID` and `ROUTINE_TZ` replace
