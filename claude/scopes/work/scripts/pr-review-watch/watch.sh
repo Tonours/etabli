@@ -489,32 +489,63 @@ tree_pids() {
   for child in $(pgrep -P "$1" 2>/dev/null); do tree_pids "$child"; done
 }
 
+pid_start() { ps -p "$1" -o lstart= 2>/dev/null; }
+pgid_of() { ps -p "$1" -o pgid= 2>/dev/null | tr -d ' '; }
+
+# A process stays the one recorded while its start time is unchanged: a reused pid differs.
 pid_alive() {
-  local stat
-  stat="$(ps -p "$1" -o stat= 2>/dev/null)" && [ -n "$stat" ] && [ "${stat#Z}" = "$stat" ]
+  local pid="${1%%@*}" stat
+  [ "$(pid_start "$pid")" = "${1#*@}" ] || return 1
+  stat="$(ps -p "$pid" -o stat= 2>/dev/null)" && [ -n "$stat" ] && [ "${stat#Z}" = "$stat" ]
+}
+
+# A group id is not reused while one member lives, so a live member is still the run's.
+group_alive() {
+  ps -A -o pgid=,stat= 2>/dev/null | awk -v g="$1" '$1 == g && $2 !~ /^Z/ { found = 1 } END { exit !found }'
+}
+
+# Records every process of a run and every process group one of them leads.
+track_tree() {
+  local p g
+  while IFS= read -r p; do
+    [ -n "$p" ] || continue
+    pids+=("$p@$(pid_start "$p")")
+    g="$(pgid_of "$p")"
+    [ "$g" = "$p" ] && [ "$g" != "$own_group" ] && groups+=("$g")
+  done < <(tree_pids "$1")
 }
 
 stop_everything() {
-  local pidfile pid wait left
-  local -a pids=()
+  local pidfile key pid entry group wait left own_group
+  local -a pids=() groups=()
+  own_group="$(pgid_of $$)"
   mkdir -p "$STATE_DIR"
   touch "$KILL_SWITCH"
   rm -f "$STATE_DIR/requests/ready"
   while IFS= read -r pidfile; do
-    pid="$(cat "$pidfile" 2>/dev/null)"
-    run_alive "${pidfile%.pid}" || continue
-    # Kept by pid: a descendant ignoring TERM outlives the wrappers run_alive reads.
-    while IFS= read -r left; do pids+=("$left"); done < <(tree_pids "$pid")
-    kill_tree "$pid" TERM
-    echo "stopped review run $pid ($(basename "${pidfile%.pid}"))"
+    key="${pidfile%.pid}"
+    run_alive "$key" || continue
+    # Only a pid whose command is this key's launcher or runner is signalled.
+    for pid in "$(cat "$key.pid" 2>/dev/null)" "$(cat "$key.execution/pid" 2>/dev/null)"; do
+      process_matches "$pid" "$key" || continue
+      track_tree "$pid"
+      kill_tree "$pid" TERM
+      echo "stopped review run $pid ($(basename "$key"))"
+    done
   done < <(find "$RUNS" -maxdepth 1 -name '*.pid' 2>/dev/null)
-  # A survivor gets KILL; the stop fails while any is still alive.
+  for group in ${groups[@]+"${groups[@]}"}; do kill -TERM -- "-$group" 2>/dev/null; done
+  # Survivors get KILL; the stop fails while any is still alive.
   for wait in 1 2 3 4 5 6 7 8 9 10 kill 1 2; do
     left=0
-    for pid in ${pids[@]+"${pids[@]}"}; do
-      pid_alive "$pid" || continue
+    for entry in ${pids[@]+"${pids[@]}"}; do
+      pid_alive "$entry" || continue
       left=1
-      [ "$wait" != kill ] || kill_tree "$pid" KILL
+      [ "$wait" != kill ] || kill -KILL "${entry%%@*}" 2>/dev/null
+    done
+    for group in ${groups[@]+"${groups[@]}"}; do
+      group_alive "$group" || continue
+      left=1
+      [ "$wait" != kill ] || kill -KILL -- "-$group" 2>/dev/null
     done
     [ "$left" = 1 ] || break
     [ "$wait" = kill ] || sleep 1

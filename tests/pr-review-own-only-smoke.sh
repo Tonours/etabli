@@ -394,6 +394,35 @@ if ps -p "$child" -o stat= 2>/dev/null | grep -qv Z; then kill -KILL "$child"; f
 pass 'install --own-only kills a descendant that ignores TERM after its runner exits'
 
 install_fixture; touch "$STATE_DIR/off"
+l="$(key_of acme/widgets 24)"; author acme/widgets 24 someone; reserve "$l" council tok24
+mkdir -p "$TMP_DIR/late"
+printf 'trap '"'"'( trap "" TERM; exec sleep 300 ) & echo $! >"%s"; exit 0'"'"' TERM\nwhile :; do sleep 1; done\n' "$TMP_DIR/late/child" >"$TMP_DIR/late/review-run.sh"
+perl -e 'setpgrp(0, 0); exec @ARGV' /bin/bash "$TMP_DIR/late/review-run.sh" "$l" & live=$!
+printf '%s\n' "$live" >"$l.pid"
+sleep 1
+rc=0; /bin/bash "$SCRIPTS/install.sh" --own-only >/dev/null 2>&1 || rc=$?
+[ "$rc" = 0 ] || fail "install --own-only with a child started on TERM exit $rc"
+child="$(cat "$TMP_DIR/late/child" 2>/dev/null)"; [ -n "$child" ] || fail 'the TERM handler started no child'
+sleep 1
+if ps -p "$child" -o stat= 2>/dev/null | grep -qv Z; then kill -KILL "$child"; fail 'install --own-only left a child started by the TERM handler alive'; fi
+pass 'install --own-only kills a child the runner starts while handling TERM'
+
+install_fixture; touch "$STATE_DIR/off"
+l="$(key_of acme/widgets 25)"; author acme/widgets 25 someone; reserve "$l" council tok25
+sleep 300 & innocent=$!
+mkdir -p "$TMP_DIR/stale"; printf 'sleep 300\n' >"$TMP_DIR/stale/launch-run.sh"
+/bin/bash "$TMP_DIR/stale/launch-run.sh" "$l" & supervisor=$!
+printf '%s\n' "$innocent" >"$l.pid"
+mkdir -p "$l.execution"; printf '%s\n' "$supervisor" >"$l.execution/pid"
+rc=0; /bin/bash "$SCRIPTS/install.sh" --own-only >/dev/null 2>&1 || rc=$?
+[ "$rc" = 0 ] || fail "install --own-only with a stale run pid exit $rc"
+kill -0 "$innocent" 2>/dev/null || fail 'stop signalled a process that is not a run of this key'
+sleep 1
+if kill -0 "$supervisor" 2>/dev/null; then kill "$supervisor"; fail 'stop left the supervisor of the key alive'; fi
+kill "$innocent"; wait "$innocent" 2>/dev/null || true
+pass 'stop signals the run of the key, not a stale pid'
+
+install_fixture; touch "$STATE_DIR/off"
 u="$(key_of acme/widgets 18)"; author acme/widgets 18 -; reserve "$u" council tok18
 rc=0; /bin/bash "$SCRIPTS/install.sh" --own-only >/dev/null 2>&1 || rc=$?
 [ "$rc" != 0 ] || fail 'install --own-only with an unread key must not succeed'

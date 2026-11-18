@@ -5,6 +5,10 @@ KEY="${1:?}" TOKEN="${2:?}" MODE="${3:?}" SHA="${4:?}" ATTEMPT="${5:?}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 canonical_key="$(cd "$(dirname "$KEY")" && pwd -P)/${KEY##*/}" || exit 1
 if [ "$KEY" != "$canonical_key" ]; then shift; exec "$HERE/launch-run.sh" "$canonical_key" "$@"; fi
+# The run leads its own process group, so a stop reaches every process it starts.
+if [ "$(ps -p $$ -o pgid= 2>/dev/null | tr -d ' ')" != "$$" ] && [ -z "${PR_REVIEW_WATCH_GROUPED:-}" ]; then
+  PR_REVIEW_WATCH_GROUPED=1 exec perl -e 'setpgrp(0, 0); exec @ARGV or die "exec: $!"' /bin/bash "$0" "$KEY" "$TOKEN" "$MODE" "$SHA" "$ATTEMPT" "${@:6}"
+fi
 shift 5
 . "$HERE/lifecycle.sh" || exit 1
 . "$HERE/own-only.sh" || exit 1
