@@ -340,6 +340,7 @@ pass 'unreadable author: key untouched, launcher deferred at the same attempt, p
 
 install_fixture() {
   reset
+  export TZ=UTC
   mkdir -p "$HOME/Library/LaunchAgents"
   rm -f "$HOME/Library/LaunchAgents/"*.plist
 }
@@ -414,8 +415,8 @@ sleep 1
 if ps -p "$child" -o stat= 2>/dev/null | grep -qv Z; then
   [ "$rc" != 0 ] || { kill -KILL "$child"; fail 'install --own-only succeeded with a child started by the TERM handler alive'; }
   [ ! -e "$LAUNCHCTL_CALLS" ] || { kill -KILL "$child"; fail 'job loaded while a stopped run left a process'; }
-  # A retry still refuses while that process lives, then succeeds once it is gone.
-  rc=0; /bin/bash "$SCRIPTS/install.sh" --own-only >/dev/null 2>&1 || rc=$?
+  # A retry, from another time zone, still refuses while that process lives, then succeeds once it is gone.
+  rc=0; TZ=Pacific/Kiritimati /bin/bash "$SCRIPTS/install.sh" --own-only >/dev/null 2>&1 || rc=$?
   [ "$rc" != 0 ] && [ ! -e "$LAUNCHCTL_CALLS" ] || { kill -KILL "$child"; fail 'a retried install forgot the survivor of the first stop'; }
   kill -KILL "$child"; sleep 1
   rc=0; /bin/bash "$SCRIPTS/install.sh" --own-only >/dev/null 2>&1 || rc=$?

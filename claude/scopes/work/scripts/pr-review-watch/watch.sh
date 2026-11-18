@@ -489,7 +489,8 @@ tree_pids() {
   for child in $(pgrep -P "$1" 2>/dev/null); do tree_pids "$child"; done
 }
 
-pid_start() { ps -p "$1" -o lstart= 2>/dev/null; }
+# Start time in a fixed zone and locale: a stored identity must compare equal from any caller.
+pid_start() { LC_ALL=C TZ=UTC ps -p "$1" -o lstart= 2>/dev/null; }
 pgid_of() { ps -p "$1" -o pgid= 2>/dev/null | tr -d ' '; }
 
 # A process stays the one recorded while its start time is unchanged: a reused pid differs.
