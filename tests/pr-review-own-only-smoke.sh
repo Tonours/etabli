@@ -265,8 +265,10 @@ for mode in approve council; do
   printf '%s\n' "$HEAD" >"$f.approval-pending"; printf 'body' >"$f.approval-body"; printf '%s\n' "$HEAD" >"$f.council-done"
   printf '%s\t%s\trunning\t1\n' "$HEAD" "$mode" >"$f.status"
   (
-    mkdir -p "$f.execution"; printf '%s\n' "$BASHPID" >"$f.execution/pid"; printf 'tok20\n' >"$f.execution/token"
-    export PR_REVIEW_WATCH_SUPERVISOR="$BASHPID" PR_REVIEW_WATCH_RUN_KEY="$f" PR_REVIEW_WATCH_RUN_TOKEN=tok20
+    # The subshell's pid without BASHPID (macOS bash 3.2): the parent of a child it forks.
+    sh -c 'echo $PPID' >"$TMP_DIR/subshell.pid"; me="$(cat "$TMP_DIR/subshell.pid")"
+    mkdir -p "$f.execution"; printf '%s\n' "$me" >"$f.execution/pid"; printf 'tok20\n' >"$f.execution/token"
+    export PR_REVIEW_WATCH_SUPERVISOR="$me" PR_REVIEW_WATCH_RUN_KEY="$f" PR_REVIEW_WATCH_RUN_TOKEN=tok20
     rc=0; cd "$TMP_DIR" && /bin/bash "$SCRIPTS/review-run.sh" "$mode" acme/widgets 20 "$HEAD" - https://example.test/pr "$REPORTS/acme_widgets-20-aaaaaaaa-$mode.md" "$f" >/dev/null 2>&1 || rc=$?
     printf '%s\n' "$rc" >"$TMP_DIR/supervised.rc"
   ) || true
@@ -279,8 +281,10 @@ reset; own_only_on
 f="$(key_of acme/widgets 21)"; author acme/widgets 21 -; watch acme/widgets 21
 printf '%s\tdryrun\trunning\t2\n' "$HEAD" >"$f.status"
 (
-  mkdir -p "$f.execution"; printf '%s\n' "$BASHPID" >"$f.execution/pid"; printf 'tok21\n' >"$f.execution/token"
-  export PR_REVIEW_WATCH_SUPERVISOR="$BASHPID" PR_REVIEW_WATCH_RUN_KEY="$f" PR_REVIEW_WATCH_RUN_TOKEN=tok21
+  # The subshell's pid without BASHPID (macOS bash 3.2): the parent of a child it forks.
+  sh -c 'echo $PPID' >"$TMP_DIR/subshell.pid"; me="$(cat "$TMP_DIR/subshell.pid")"
+  mkdir -p "$f.execution"; printf '%s\n' "$me" >"$f.execution/pid"; printf 'tok21\n' >"$f.execution/token"
+  export PR_REVIEW_WATCH_SUPERVISOR="$me" PR_REVIEW_WATCH_RUN_KEY="$f" PR_REVIEW_WATCH_RUN_TOKEN=tok21
   rc=0; cd "$TMP_DIR" && /bin/bash "$SCRIPTS/review-run.sh" dryrun acme/widgets 21 "$HEAD" - https://example.test/pr "$REPORTS/acme_widgets-21-aaaaaaaa-dryrun.md" "$f" >/dev/null 2>&1 || rc=$?
   printf '%s\n' "$rc" >"$TMP_DIR/supervised.rc"
 ) || true
