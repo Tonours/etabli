@@ -65,6 +65,9 @@ Your agent routes every request to the smallest route that fits it
 | Build an existing `READY` plan | `implement` | Code, checks, reviews, archive |
 | A review of a diff, PR or plan | `review` | Findings and a `GO`, `GO WITH NOTES` or `BLOCK` verdict |
 
+To check routing, guard behavior and skill load across the adapters, use the
+[workflow assurance exercises](docs/workflow-assurance.md).
+
 A planned run goes through these steps:
 
 ```text
