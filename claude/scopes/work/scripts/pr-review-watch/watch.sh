@@ -482,26 +482,39 @@ purge_foreign_tick() {
   purge_foreign "$me" || true
 }
 
+# The pid and every descendant, read before they are signalled.
+tree_pids() {
+  local child
+  printf '%s\n' "$1"
+  for child in $(pgrep -P "$1" 2>/dev/null); do tree_pids "$child"; done
+}
+
+pid_alive() {
+  local stat
+  stat="$(ps -p "$1" -o stat= 2>/dev/null)" && [ -n "$stat" ] && [ "${stat#Z}" = "$stat" ]
+}
+
 stop_everything() {
-  local pidfile pid key wait left
-  local -a stopped=()
+  local pidfile pid wait left
+  local -a pids=()
   mkdir -p "$STATE_DIR"
   touch "$KILL_SWITCH"
   rm -f "$STATE_DIR/requests/ready"
   while IFS= read -r pidfile; do
     pid="$(cat "$pidfile" 2>/dev/null)"
     run_alive "${pidfile%.pid}" || continue
+    # Kept by pid: a descendant ignoring TERM outlives the wrappers run_alive reads.
+    while IFS= read -r left; do pids+=("$left"); done < <(tree_pids "$pid")
     kill_tree "$pid" TERM
-    stopped+=("${pidfile%.pid}:$pid")
     echo "stopped review run $pid ($(basename "${pidfile%.pid}"))"
   done < <(find "$RUNS" -maxdepth 1 -name '*.pid' 2>/dev/null)
-  # A run that ignores TERM gets KILL; the stop fails while any is still alive.
+  # A survivor gets KILL; the stop fails while any is still alive.
   for wait in 1 2 3 4 5 6 7 8 9 10 kill 1 2; do
     left=0
-    for key in ${stopped[@]+"${stopped[@]}"}; do
-      run_alive "${key%:*}" || continue
+    for pid in ${pids[@]+"${pids[@]}"}; do
+      pid_alive "$pid" || continue
       left=1
-      [ "$wait" != kill ] || kill_tree "${key##*:}" KILL
+      [ "$wait" != kill ] || kill_tree "$pid" KILL
     done
     [ "$left" = 1 ] || break
     [ "$wait" = kill ] || sleep 1

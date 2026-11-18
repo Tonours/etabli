@@ -38,7 +38,7 @@ submit_council_registration() (
   author="$(gh pr view "$number" --repo "$repo" --json author --jq .author.login 2>/dev/null)" || { refuse 'PR author unavailable'; return 0; }
   author="$(printf '%s' "$author" | tr '[:upper:]' '[:lower:]')"
   [ -n "$author" ] && [ "$author" != "$login" ] || { refuse 'own PR or missing author'; return 0; }
-  [ ! -e "$root/own-only" ] || { refuse 'the watcher is in own-only mode'; return 0; }
+  [ ! -e "$root/own-only" ] && [ ! -L "$root/own-only" ] || { refuse 'the watcher is in own-only mode'; return 0; }
   if [ "$mode" = approve ] && ! watch_registration_ready "$root" "$login"; then
     refuse 'watcher not ready for this account'; return 0
   fi

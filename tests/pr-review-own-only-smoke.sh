@@ -381,6 +381,19 @@ if kill -0 "$live" 2>/dev/null; then kill -KILL "$live"; fail 'install --own-onl
 pass 'install --own-only kills a review that ignores TERM before the purge'
 
 install_fixture; touch "$STATE_DIR/off"
+l="$(key_of acme/widgets 23)"; author acme/widgets 23 someone; reserve "$l" council tok23
+mkdir -p "$TMP_DIR/worker"
+printf '( trap "" TERM; exec sleep 300 ) &\necho $! >"%s"\nwait\n' "$TMP_DIR/worker/child" >"$TMP_DIR/worker/review-run.sh"
+/bin/bash "$TMP_DIR/worker/review-run.sh" "$l" & live=$!
+printf '%s\n' "$live" >"$l.pid"
+sleep 1; child="$(cat "$TMP_DIR/worker/child")"
+rc=0; /bin/bash "$SCRIPTS/install.sh" --own-only >/dev/null 2>&1 || rc=$?
+[ "$rc" = 0 ] || fail "install --own-only with a worker ignoring TERM exit $rc"
+sleep 1
+if ps -p "$child" -o stat= 2>/dev/null | grep -qv Z; then kill -KILL "$child"; fail 'install --own-only left a descendant that ignores TERM alive'; fi
+pass 'install --own-only kills a descendant that ignores TERM after its runner exits'
+
+install_fixture; touch "$STATE_DIR/off"
 u="$(key_of acme/widgets 18)"; author acme/widgets 18 -; reserve "$u" council tok18
 rc=0; /bin/bash "$SCRIPTS/install.sh" --own-only >/dev/null 2>&1 || rc=$?
 [ "$rc" != 0 ] || fail 'install --own-only with an unread key must not succeed'
