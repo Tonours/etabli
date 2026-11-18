@@ -562,6 +562,10 @@ stop_everything() {
       [ "$wait" != kill ] || kill -KILL "${entry%%@*}" 2>/dev/null
     done
     unproven=''
+    # Survivors an earlier stop could not prove stay blocking until they are gone.
+    while IFS= read -r entry; do
+      [ -n "$entry" ] && pid_alive "$entry" && unproven+="$entry"$'\n'
+    done < <(cat "$STATE_DIR/stop-survivors" 2>/dev/null)
     for entry in ${groups[@]+"${groups[@]}"}; do
       if group_anchored "$entry"; then
         left=1
@@ -570,7 +574,7 @@ stop_everything() {
         [ "$wait" != kill ] || kill -KILL -- "-${entry%%@*}" 2>/dev/null
       else
         for pid in $(group_pids "${entry%%@*}"); do
-          case "$tracked" in *" $pid "*) ;; *) unproven+="$pid " ;; esac
+          case "$tracked" in *" $pid "*) ;; *) unproven+="$pid@$(pid_start "$pid")"$'\n' ;; esac
         done
       fi
     done
@@ -580,7 +584,13 @@ stop_everything() {
   echo "kill switch on: $KILL_SWITCH (rm it to resume)"
   [ "$left" = 0 ] || { echo "a review run is still alive after KILL" >&2; return 1; }
   # Fail closed: a process left in a group whose leader is gone cannot be proved the run's.
-  [ -z "$unproven" ] || { echo "processes left in a stopped run's group, not signalled: $unproven" >&2; return 1; }
+  # It is kept, so every later stop fails too until it has exited.
+  if [ -n "$unproven" ]; then
+    printf '%s' "$unproven" | sort -u >"$STATE_DIR/stop-survivors"
+    echo "processes left in a stopped run's group, not signalled: $(cut -d@ -f1 "$STATE_DIR/stop-survivors" | tr '\n' ' ')" >&2
+    return 1
+  fi
+  rm -f "$STATE_DIR/stop-survivors"
 }
 
 main() {

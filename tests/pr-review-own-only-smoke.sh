@@ -412,9 +412,15 @@ child="$(cat "$TMP_DIR/late/child" 2>/dev/null || true)"; [ -n "$child" ] || fai
 sleep 1
 # Either stop proved the child the run's and killed it, or it refused to report success.
 if ps -p "$child" -o stat= 2>/dev/null | grep -qv Z; then
-  kill -KILL "$child"
-  [ "$rc" != 0 ] || fail 'install --own-only succeeded with a child started by the TERM handler alive'
-  [ ! -e "$LAUNCHCTL_CALLS" ] || fail 'job loaded while a stopped run left a process'
+  [ "$rc" != 0 ] || { kill -KILL "$child"; fail 'install --own-only succeeded with a child started by the TERM handler alive'; }
+  [ ! -e "$LAUNCHCTL_CALLS" ] || { kill -KILL "$child"; fail 'job loaded while a stopped run left a process'; }
+  # A retry still refuses while that process lives, then succeeds once it is gone.
+  rc=0; /bin/bash "$SCRIPTS/install.sh" --own-only >/dev/null 2>&1 || rc=$?
+  [ "$rc" != 0 ] && [ ! -e "$LAUNCHCTL_CALLS" ] || { kill -KILL "$child"; fail 'a retried install forgot the survivor of the first stop'; }
+  kill -KILL "$child"; sleep 1
+  rc=0; /bin/bash "$SCRIPTS/install.sh" --own-only >/dev/null 2>&1 || rc=$?
+  [ "$rc" = 0 ] || fail "install --own-only still refused once the survivor was gone (exit $rc)"
+  echo 'note: the late child outlived its leader; the retry path ran'
 fi
 pass 'install --own-only never succeeds while a child the runner starts on TERM lives'
 
