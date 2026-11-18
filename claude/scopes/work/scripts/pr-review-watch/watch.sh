@@ -499,56 +499,81 @@ pid_alive() {
   stat="$(ps -p "$pid" -o stat= 2>/dev/null)" && [ -n "$stat" ] && [ "${stat#Z}" = "$stat" ]
 }
 
-# A group id is not reused while one member lives, so a live member is still the run's.
-group_alive() {
+group_members() {
   ps -A -o pgid=,stat= 2>/dev/null | awk -v g="$1" '$1 == g && $2 !~ /^Z/ { found = 1 } END { exit !found }'
 }
 
-# Records every process of a run and every process group one of them leads.
+# A recorded group is still the run's while its leader keeps its start time, or, once the
+# leader is gone, while members remain and the group was never seen empty: a group id is
+# reused only after its last member exits.
+group_alive() {
+  local group="${1%%@*}" start
+  case "$groups_done" in *" $group "*) return 1 ;; esac
+  start="$(pid_start "$group")"
+  if [ -n "$start" ] && [ "$start" != "${1#*@}" ]; then groups_done+="$group "; return 1; fi
+  group_members "$group" && return 0
+  groups_done+="$group "
+  return 1
+}
+
+# Records each process of a run with its start time, and each process group one of them leads.
 track_tree() {
   local p g
   while IFS= read -r p; do
-    [ -n "$p" ] || continue
+    case "$tracked" in *" $p "*) continue ;; esac
+    tracked+="$p "
     pids+=("$p@$(pid_start "$p")")
     g="$(pgid_of "$p")"
-    [ "$g" = "$p" ] && [ "$g" != "$own_group" ] && groups+=("$g")
+    [ "$g" = "$p" ] && [ "$g" != "$own_group" ] && groups+=("$g@$(pid_start "$g")")
   done < <(tree_pids "$1")
 }
 
+in_groups() {
+  local entry
+  for entry in ${groups[@]+"${groups[@]}"}; do [ "${entry%%@*}" = "$1" ] && return 0; done
+  return 1
+}
+
 stop_everything() {
-  local pidfile key pid entry group wait left own_group
-  local -a pids=() groups=()
+  local pidfile key pid entry wait left own_group tracked=' ' groups_done=' '
+  local -a pids=() groups=() roots=()
   own_group="$(pgid_of $$)"
   mkdir -p "$STATE_DIR"
   touch "$KILL_SWITCH"
   rm -f "$STATE_DIR/requests/ready"
+  # Every run is recorded before the first signal: a supervisor exits once its runner does.
   while IFS= read -r pidfile; do
     key="${pidfile%.pid}"
     run_alive "$key" || continue
     # Only a pid whose command is this key's launcher or runner is signalled.
     for pid in "$(cat "$key.pid" 2>/dev/null)" "$(cat "$key.execution/pid" 2>/dev/null)"; do
       process_matches "$pid" "$key" || continue
+      roots+=("$pid ($(basename "$key"))")
       track_tree "$pid"
-      kill_tree "$pid" TERM
-      echo "stopped review run $pid ($(basename "$key"))"
     done
   done < <(find "$RUNS" -maxdepth 1 -name '*.pid' 2>/dev/null)
-  for group in ${groups[@]+"${groups[@]}"}; do kill -TERM -- "-$group" 2>/dev/null; done
-  # Survivors get KILL; the stop fails while any is still alive.
-  for wait in 1 2 3 4 5 6 7 8 9 10 kill 1 2; do
+  # One TERM per process: by group when it is in a recorded group, else by pid.
+  for entry in ${groups[@]+"${groups[@]}"}; do kill -TERM -- "-${entry%%@*}" 2>/dev/null; done
+  for entry in ${pids[@]+"${pids[@]}"}; do
+    in_groups "$(pgid_of "${entry%%@*}")" || { pid_alive "$entry" && kill -TERM "${entry%%@*}" 2>/dev/null; }
+  done
+  for entry in ${roots[@]+"${roots[@]}"}; do echo "stopped review run $entry"; done
+  # Children started meanwhile are recorded too; survivors get KILL; the stop fails while any lives.
+  for wait in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 kill 1 2 3 4; do
     left=0
     for entry in ${pids[@]+"${pids[@]}"}; do
       pid_alive "$entry" || continue
       left=1
+      track_tree "${entry%%@*}"
       [ "$wait" != kill ] || kill -KILL "${entry%%@*}" 2>/dev/null
     done
-    for group in ${groups[@]+"${groups[@]}"}; do
-      group_alive "$group" || continue
+    for entry in ${groups[@]+"${groups[@]}"}; do
+      group_alive "$entry" || continue
       left=1
-      [ "$wait" != kill ] || kill -KILL -- "-$group" 2>/dev/null
+      [ "$wait" != kill ] || kill -KILL -- "-${entry%%@*}" 2>/dev/null
     done
     [ "$left" = 1 ] || break
-    [ "$wait" = kill ] || sleep 1
+    [ "$wait" = kill ] || sleep 0.5
   done
   echo "kill switch on: $KILL_SWITCH (rm it to resume)"
   [ "$left" = 0 ] || { echo "a review run is still alive after KILL" >&2; return 1; }
