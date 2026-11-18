@@ -49,6 +49,7 @@
 #   status_states ......................... show an unwrapped, incomplete or broken folder as fine
 #   lock_check_refuses .................... skip the Perl check
 #   release_needs_a_saved_plist ........... delete the manifest
+#   release_refuses_unwrapped ............. release restores the origin and the hand-written plist is lost
 #   tz_from_the_system .................... ignore /etc/localtime
 #   bash32_and_no_jq ...................... associative arrays, BASHPID, jq in the script
 set -uo pipefail
@@ -577,7 +578,7 @@ t_mv_failures_at_each_rename() {
 
 kill_matrix() {
   local kind="$1" starts st pt core0 origin_file="" f left
-  if [ "$kind" = adopt ]; then starts="new released unwrapped"; else starts="adopted unwrapped"; fi
+  if [ "$kind" = adopt ]; then starts="new released unwrapped"; else starts="adopted"; fi
   for st in $starts; do for pt in staging staged unloaded verified committed; do
     new_case
     make_start "$st"
@@ -1094,6 +1095,24 @@ t_release_needs_a_saved_plist() {
   put brain-cron; lab=$LAB
   A "$lab" || fail "adopt"; Rl "$lab" || fail "release"
   Rl "$lab"; eq $? 2 "release of a released label"
+}
+
+t_release_refuses_unwrapped() {
+  new_case
+  put brain-cron; local lab=$LAB f="$RD/brain-cron" s0
+  A "$lab" || fail "adopt"
+  hand_rewrite "$lab"
+  cp "$AG/$lab.plist" "$CASE/P1"
+  s0=$(snap "$f")
+  reset_calls
+  Rl "$lab"; eq $? 2 "release of an unwrapped routine"
+  grep -qw adopt "$CASE/err" || fail "the refusal does not tell to run adopt: $(cat "$CASE/err")"
+  untouched "$lab" "release unwrapped"
+  plist_is "$lab" "$CASE/P1" "release unwrapped"
+  eq "$(snap "$f")" "$s0" "the folder"
+  A "$lab"; eq $? 0 "adopt again"
+  Rl "$lab"; eq $? 0 "release"
+  plist_is "$lab" "$CASE/P1" "released after adopt again"
 }
 
 t_tz_from_the_system() {

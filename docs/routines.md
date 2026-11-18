@@ -181,7 +181,7 @@ slot is under 10 minutes away: the command then exits 2 and the folder stays
 | --- | --- |
 | `adopted` | manifest present, plist wrapped (loaded or not) |
 | `released` | `routine.released.json` only |
-| `unwrapped` | manifest present but the plist was rewritten by hand; `adopt` wraps it again and keeps the old origin |
+| `unwrapped` | manifest present but the plist was rewritten by hand; `adopt` wraps it again and takes the hand-written plist as the new origin (the old one is kept); `release` refuses it (exit 2) so a hand rewrite is never lost |
 | `incomplete` | a `pending` file waits for settling |
 | `broken` | `adopt.failed` is present: the restore failed |
 | `native` | `source: native`, written by its own routine |

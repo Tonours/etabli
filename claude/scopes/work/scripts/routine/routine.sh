@@ -934,6 +934,7 @@ do_release() {
   case "$origin" in */*) die "refused: the manifest of $C_NAME names no saved plist"; return 2 ;; esac
   [ -f "$folder/$origin" ] || { die "refused: the saved plist $origin of $C_NAME is gone"; return 2; }
   [ -f "$plist" ] || { die "refused: no plist at $plist"; return 2; }
+  if ! is_wrapped "$plist" "$C_NAME"; then die "refused: $C_NAME is unwrapped (the plist lost the wrapper); run adopt $C_LABEL again first, so the hand-written plist becomes the new origin"; return 2; fi
   parse_slots "$plist" || { die "refused: $C_LABEL: $WHY"; return 2; }
   job_state "$C_LABEL"
   [ "$JOB_LOADED" = 1 ] || { die "refused: $C_LABEL is not loaded"; return 2; }
