@@ -430,6 +430,17 @@ kill "$innocent"; wait "$innocent" 2>/dev/null || true
 pass 'stop signals the run of the key, not a stale pid'
 
 install_fixture; touch "$STATE_DIR/off"
+l="$(key_of acme/widgets 26)"; author acme/widgets 26 someone; reserve "$l" council tok26
+mkdir -p "$TMP_DIR/early"; printf 'sleep 300\n' >"$TMP_DIR/early/launch-run.sh"
+/bin/bash "$TMP_DIR/early/launch-run.sh" "$l" & supervisor=$!
+mkdir -p "$l.execution"; printf '%s\n' "$supervisor" >"$l.execution/pid"
+rc=0; /bin/bash "$SCRIPTS/install.sh" --own-only >/dev/null 2>&1 || rc=$?
+[ "$rc" = 0 ] || fail "install --own-only with a supervisor before its pid file exit $rc"
+sleep 1
+if kill -0 "$supervisor" 2>/dev/null; then kill "$supervisor"; fail 'stop missed a supervisor that has not published its pid file yet'; fi
+pass 'stop reaches a supervisor holding its execution folder before the pid file'
+
+install_fixture; touch "$STATE_DIR/off"
 u="$(key_of acme/widgets 18)"; author acme/widgets 18 -; reserve "$u" council tok18
 rc=0; /bin/bash "$SCRIPTS/install.sh" --own-only >/dev/null 2>&1 || rc=$?
 [ "$rc" != 0 ] || fail 'install --own-only with an unread key must not succeed'
