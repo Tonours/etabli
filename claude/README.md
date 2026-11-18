@@ -97,7 +97,9 @@ ungoverned and outside the index gate.
   shell tricks it cannot prove harmless, on executables outside system bin
   directories, on every call if its modules fail to load, and on unreadable
   hook input (exit 2). The frontmatter command ends with `|| exit 2`, so a
-  missing script or a crashed `node` blocks Bash too.
+  missing script or a crashed `node` blocks Bash too. A guard stalled past its
+  10 s `timeout` is killed and blocks Bash (`onFailure: block`, Claude Code
+  2.1.295 or later).
   `tests/claude-hooks-smoke.sh` holds the accepted and refused cases.
 - `no-comments-guard.mjs` (`PreToolUse` on `Edit|Write|MultiEdit`) is a thin
   adapter over `workflow/runtime/no-comments-guard.mjs`, the detector Pi uses
