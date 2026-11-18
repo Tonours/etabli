@@ -71,21 +71,22 @@ export class Runs {
   async submit(repo: string, prompt: string, requestId: string, route: "answer" | "plan" = "answer"): Promise<Run> {
     repo = this.repositories.policy.allow(repo);
     if (!prompt.trim() || prompt.length > 64_000 || !requestId || requestId.length > 200) throw new Error("Provide a bounded prompt and request id");
+    const admissionRoute = this.workflow ? route : "legacy";
     return this.serialized(async () => {
       const existing = (await this.list()).find((run) => run.requestId === requestId);
       if (existing) {
-        if (existing.repo !== repo || existing.prompt !== prompt || existing.route !== (this.workflow ? route : "legacy")) throw new Error("Request id already belongs to a different input");
+        if (existing.repo !== repo || existing.prompt !== prompt || (existing.admissionRoute ?? existing.route) !== admissionRoute) throw new Error("Request id already belongs to a different input");
         return existing;
       }
       await this.repositories.admit(repo);
-      return this.harness.commit((tx) => this.create(tx, repo, prompt, requestId, route), context);
+      return this.harness.commit((tx) => this.create(tx, repo, prompt, requestId, admissionRoute), context);
     });
   }
 
-  private async create(tx: Tx, repo: string, prompt: string, requestId: string, route: "answer" | "plan"): Promise<Run> {
+  private async create(tx: Tx, repo: string, prompt: string, requestId: string, admissionRoute: Run["route"]): Promise<Run> {
     const id = randomUUID();
     const conversation = await tx.createConversation({ ownership: { kind: "ownerless" } });
-    const run: Run = { id, requestId, repo, prompt, conversationId: conversation.id, branch: `feat/durable-${id.replaceAll("-", "")}`, worktree: this.repositories.path(id), route: this.workflow ? route : "legacy", status: "queued", reason: "", url: "", createdAt: this.now(), startedAt: 0, deadline: 0, maxTurns: this.maxTurns, submissionId: "", notified: false };
+    const run: Run = { id, requestId, repo, prompt, conversationId: conversation.id, branch: `feat/durable-${id.replaceAll("-", "")}`, worktree: this.repositories.path(id), route: admissionRoute, admissionRoute, status: "queued", reason: "", url: "", createdAt: this.now(), startedAt: 0, deadline: 0, maxTurns: this.maxTurns, submissionId: "", notified: false };
     (await tx.doc(RunsDoc)).runs.push(run);
     return run;
   }
@@ -113,7 +114,7 @@ export class Runs {
       if (existing) {
         occurrence.status = "failed"; occurrence.error = "request_identity_conflict";
       } else {
-        const run = await this.create(tx, stored.value.repo, stored.value.prompt, occurrence.requestId, "plan");
+        const run = await this.create(tx, stored.value.repo, stored.value.prompt, occurrence.requestId, this.workflow ? "plan" : "legacy");
         occurrence.runId = run.id; occurrence.status = "acknowledged"; occurrence.error = "";
       }
       stored.value.nextDue = nextDue(stored.value.cron, Math.max(due, this.now()), 400);

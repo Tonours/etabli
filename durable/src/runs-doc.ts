@@ -4,6 +4,7 @@ export const activeStatuses = ["planning", "implementing", "reviewing", "publish
 export type Run = {
   id: string; requestId: string; repo: string; prompt: string; conversationId: ConversationId;
   branch: string; worktree: string; route: "legacy" | "answer" | "plan";
+  admissionRoute?: Run["route"];
   status: "queued" | typeof activeStatuses[number] | "done" | "blocked" | "aborted";
   reason: string; url: string; createdAt: number; startedAt: number; deadline: number; maxTurns: number;
   submissionId: SubmissionId | ""; notified: boolean;

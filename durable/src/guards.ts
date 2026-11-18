@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { parse } from "shell-quote";
 import type { Context } from "@earendil-works/chord/context";
 import { AgentDoc, ToolTask, configure, defineDoc, defineExtension, hook, section, type ConversationId, type Extension, type Tx, type ConversationRecord, type AgentChange, type HookApi } from "@earendil-works/pi-durable";
+import { isReadOnlyBashCommand } from "../../workflow/runtime/read-only-bash.mjs";
 import { noCommentsGuardDecision } from "../../workflow/runtime/no-comments-guard.mjs";
 import { prBodyGuardDecision } from "../../workflow/runtime/pr-body-guard.mjs";
 import { git, OwnerPolicy } from "./policy.ts";
@@ -227,9 +228,12 @@ export function createGuards(checkout: string, policy: OwnerPolicy): Extension {
         if (run && (child || run.route !== "legacy") && !active(run)) return { block: "durable guard: run is terminal" };
         if (["write", "edit", "bash"].includes(call.name)) {
           if (unresolved) return { block: "durable guard: parent run is unresolved" };
-          if (child && run) {
+          if (run) {
             const plan = await api.snapshot(EtabliPlanDoc, run.conversationId, context);
-            if (plan?.enabled && plan.status !== "READY") return { block: "durable guard: parent plan requires READY" };
+            if (plan?.enabled && plan.status !== "READY") {
+              const discovery = !child && call.name === "bash" && isReadOnlyBashCommand(String(call.arguments.command ?? ""), { allowGitFetch: false });
+              if (!discovery) return { block: child ? "durable guard: parent plan requires READY" : "durable guard: plan requires READY" };
+            }
           }
         }
         const cwd = state?.cwd;

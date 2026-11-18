@@ -70,6 +70,26 @@ run independent cases in fresh fixture sessions with the intended skills
 loaded, and obtain the selected skill from observed host tooling or a recorded
 file read. Treat unverifiable skill use as indeterminate.
 
+## Interactive follow-up
+
+On 2026-11-19, replayed cases V and D in six fresh terminal sessions with the
+fixture's review and implement skills installed. Each fixture had no remote.
+The sessions stopped at review preparation or the DRAFT gate.
+
+| Host | Review preparation | DRAFT gate |
+| --- | --- | --- |
+| Claude Code 2.1.327 | Invoked `Skill(review)` and captured the actual `git diff`. | Invoked `Skill(implement)`, read the on-disk DRAFT and stopped. |
+| Codex CLI 0.170.0 | Read the fixture's `review/SKILL.md` and captured the full diff against HEAD. | Read the fixture's `implement/SKILL.md` and the plan, then reported the DRAFT blocker. |
+| Pi 1.5.2 | Read the fixture's `review/SKILL.md` and captured the patch with `git diff`. | Read the fixture's `implement/SKILL.md` and on-disk DRAFT, then stopped. |
+
+The six fixture trees matched their starting states. To reproduce, use a
+disposable PTY per case. Allow read-only discovery and skill loading. Give
+Claude explicit permission for the fixture's `Skill` calls under `dontAsk`.
+For Pi, allow a bounded read-only set of Git inspection commands. Keep
+delegation disabled for the review exercise. Tool and skill events distinguish
+observed behavior from the final response. The two earlier misses did not
+recur under these controls.
+
 ## Guard fixtures
 
 | Surface | Observed effect | Proof to rerun |

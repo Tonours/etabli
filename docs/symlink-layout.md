@@ -300,8 +300,10 @@ Local CLI requests use HTTP over the private `0600` Unix socket in
 `flock` enforces process exclusivity and releases after SIGKILL; losing its lock
 helper stops the daemon. A daemon-owned bare cache avoids altering the original
 checkout. Each run has an ownerless native conversation, `feat/durable-<compact-run-id>` branch
-and isolated worktree. Retrying a `--request-id` returns the same run; different
+and isolated worktree. Retrying a `--request-id` with the original input returns the same run. Different
 content under an existing id is refused.
+The daemon remembers the submitted route through a later answer-to-plan promotion.
+A run promoted before this field existed compares against its stored route.
 
 The credential adapter shares Pi 1.5.2's `~/.pi/agent/auth.json` lock protocol:
 canonical realpath, `proper-lockfile`, 30-second stale threshold, five-second
