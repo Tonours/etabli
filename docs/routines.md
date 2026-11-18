@@ -4,7 +4,7 @@ A routine is a scheduled job with an end. Each run of a wrapped routine leaves
 the same small record under `~/.claude/state/routines/<name>/` (override the
 folder with `ETABLI_ROUTINES_DIR`), so one reader can say what ran, when and
 how it ended. This page is record contract v1, the `run` wrapper, and
-`adopt`, `release` and `status`, which wrap existing launchd calendar jobs.
+the owner commands for adopting and editing existing launchd calendar jobs.
 
 Names match `[a-z0-9-]{1,40}`. The name `fleet-improvement` and the label
 `com.tonours.fleet-improvement` are reserved for a routine that writes its own
@@ -15,7 +15,7 @@ record: the wrapper refuses that name, and a folder whose manifest says
 
 | File | Written by | Content |
 | --- | --- | --- |
-| `routine.json` | `adopt` (and a later `install`; a native writer itself) | the manifest |
+| `routine.json` | `adopt` and `edit` (native jobs use their own writer) | the manifest |
 | `last.json` | the holder of the run lock | the latest admitted run |
 | `runs.jsonl` | the holder of the run lock | one line per ended run and per `off` or `cap` skip |
 | `runs.1.jsonl` | the holder, by rename | the previous journal |
@@ -32,8 +32,10 @@ holder deletes any it finds.
 
 `v`, `name`, `label`, `tz`, `slots` (a list of `{weekday, hour, minute}`,
 `weekday` null for a daily slot), `adopted`, `source` (`adopt`, `install` or
-`native`), `origin` and `command` (absent for `native`). A manifest is at
-most 8 KiB, with at most 200 characters for `label` and 64 for `tz`. The
+`native`), `origin` and `command` (absent for `native`). The optional
+`description` is a single line of plain text, at most 200 Unicode characters.
+A missing or empty description opens as an empty string in the editor.
+A manifest is at most 8 KiB, with at most 200 characters for `label` and 64 for `tz`. The
 wrapper reads `source` and `label` and refuses to run when an existing manifest
 cannot be decoded. Fleet reads launchd plists up to 64 KiB.
 
@@ -135,9 +137,10 @@ routine.sh status
 
 `adopt` rewrites `~/Library/LaunchAgents/<label>.plist` so launchd starts
 `/bin/bash <routine.sh> run <name> -- <original command...>`, reloads the job,
-and writes the manifest. `release` puts the saved original back. The name
-defaults to the last dot component of the label. The default `cap` is the most
-slots on one local day plus 2; an existing `cap` file is kept.
+and writes the manifest. `release` restores the saved original command and
+settings with the current calendar. The name defaults to the last dot component
+of the label. The default `cap` is the most slots on one local day plus 2.
+An existing `cap` file is kept.
 
 A plist is adopted only if it is a simple calendar job: no `Program`,
 `KeepAlive`, `RunAtLoad` true, `StartInterval`, `Month` or `Day`, and no entry
@@ -174,6 +177,65 @@ uncommitted one is put back, unless the job is loaded with the plist already
 equal to `plist.prev`. The job is never booted out for that while it runs or a
 slot is under 10 minutes away: the command then exits 2 and the folder stays
 `incomplete`.
+
+### Owner editor for Fleet
+
+The work-scope deployment links `~/.claude/scripts/routine/` to
+`claude/scopes/work/scripts/routine/`. The entry point is the executable
+`routine.sh`. Its adjacent `editor.sh` and `editor.pl` ship through that same
+directory link. For an explicit owner request, Fleet invokes the fixed
+`$HOME/.claude/scripts/routine/routine.sh` with separate arguments and sets
+`ETABLI_ROUTINES_DIR` to the records directory used for observation. The daemon
+chooses both paths. The caller supplies a registered name. The timezone comes
+from the producer manifest's `tz` field.
+
+| Arguments | Result on stdout, exit 0 |
+| --- | --- |
+| `capabilities` | `{"routine_editor":1}` |
+| `editor <name>` | `{"revision":"<sha256>","fields":{"slots":[{"weekday":null,"hour":8,"minute":0}],"description":""}}` |
+| `edit <name> <revision> <changes-json>` | The same envelope with `"status":"applied"` or `"status":"unchanged"`. |
+
+Probe on opening the editor. A missing executable, an unknown subcommand on an
+older writer, or an unrecognized capability version means editing is
+unsupported. Fleet keeps the observation available and sends zero write calls.
+`editor` also checks support for the particular record. This writer supports
+`source: adopt`. Editing folder installations depends on their installer
+persisting the owner settings across reinstalls. Native routines use their owning producer.
+
+The revision is lowercase SHA-256 of the raw bytes of `routine.json`, including
+its final newline. Send a JSON object with the fields the user changed.
+A description of `""` clears it. Slots replace the whole calendar. Each entry
+requires integer `hour` (0 or 3–23) and `minute` (0–59). Omit `weekday` or set
+it to null for daily, or supply 0–7 for weekly. Sunday 7 becomes 0 and
+duplicate entries collapse. An empty slot list is invalid. Reordering the
+same slots leaves the definition unchanged.
+
+The read holds the existing adoption lock and reports pending recovery without
+changing the job. Saving verifies the revision and the installed job under the
+same lock. It compares the label, plist path, wrapper, original arguments and
+calendar with disk and the loaded launchd service. The run lock also covers a
+child still running after the wrapper has exited. Both calendars must be at
+least ten minutes away at entry and five minutes away at the final check.
+Description edits commit by atomic manifest rename. For a changed calendar,
+the producer stages the wrapped plist, reloads once, verifies the loaded
+calendar and arguments, then commits by manifest rename. The transaction records both
+manifest hashes.
+A retry can settle an interrupted swap or clean up a committed transaction.
+Refresh and re-adoption retain the description. Release restores the original
+command under the edited calendar.
+
+A refusal exits nonzero and returns
+`{"status":"error","code":"<code>","message":"<action>"}` on stdout. Keep
+the draft. Use the code for behavior and the message for the operator.
+
+| Code | Fleet action |
+| --- | --- |
+| `invalid` | Correct the fields and resubmit. |
+| `conflict` | Reopen and compare. If the plist or loaded job drifted, reconcile the adoption first. A retry with the old revision after a lost success response also returns this code. |
+| `busy` | Retry when the job is idle, the lock is free and both slot margins permit a change. Exit 75. |
+| `unsupported` | Show the routine read-only for this producer or version. |
+| `apply` | Check the reported staging or launchd error and retry. |
+| `recovery` | Inspect `status`. Retry a pending edit when idle. Settle interrupted adoption or release via its owner command. If `adopt.failed` exists, inspect the backup and recovery instructions. |
 
 ### States shown by `status`
 
