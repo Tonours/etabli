@@ -398,7 +398,13 @@ if [ -f "${PR_REVIEW_WATCH_STATE_DIR:-$HOME/.claude/state/pr-review-watch}/off" 
   exit 75
 fi
 . "$HERE/own-only.sh" || exit 1
-if own_only_refused "$REPO" "$NUMBER" "$MODE"; then exit 1; fi
+own_only_refused "$REPO" "$NUMBER" "$MODE"; own_rc=$?
+if [ "$own_rc" = 2 ]; then
+  # An unreadable author defers the run like the off switch: same attempt next tick.
+  [ "$MODE" = approve ] || printf '%s\t%s\n' "$SHA" "$(cut -f4 "$KEY.status")" >"$KEY.paused"
+  exit 75
+fi
+[ "$own_rc" = 1 ] || exit 1
 USAGE_TARGET="$REPO#$NUMBER@$SHA"
 ME="$(gh api user --jq .login)" || exit 1
 echo "=== $MODE $REPO#$NUMBER @${SHA:0:8} — $URL"

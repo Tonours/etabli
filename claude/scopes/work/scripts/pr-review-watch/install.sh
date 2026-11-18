@@ -21,6 +21,8 @@ PURGE_RC=0
 if [ "$OWN_ONLY" = 1 ]; then
   [ -f "$STATE/off" ] || { echo "own-only needs the off switch first: touch $STATE/off" >&2; exit 2; }
   touch "$STATE/own-only"
+  # Stop runs already past the launch guards before their reservations go.
+  /bin/bash "$SCRIPT" stop >/dev/null || { echo "could not stop the running reviews" >&2; exit 1; }
   /bin/bash "$SCRIPT" --purge-foreign || PURGE_RC=$?
 fi
 
@@ -47,6 +49,8 @@ cat >"$PLIST" <<EOF
   <dict>
     <key>PATH</key>
     <string>$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>PR_REVIEW_WATCH_STATE_DIR</key>
+    <string>$STATE</string>
   </dict>
   <key>StandardOutPath</key>
   <string>$HOME/.claude/logs/pr-review-watch.launchd.out</string>

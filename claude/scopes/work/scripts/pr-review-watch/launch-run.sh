@@ -8,7 +8,8 @@ if [ "$KEY" != "$canonical_key" ]; then shift; exec "$HERE/launch-run.sh" "$cano
 shift 5
 . "$HERE/lifecycle.sh" || exit 1
 . "$HERE/own-only.sh" || exit 1
-if own_only_refused_key "$KEY" "$MODE"; then exit 0; fi
+own_only_refused_key "$KEY" "$MODE"; own_rc=$?
+[ "$own_rc" != 0 ] || exit 0
 status_age() { echo $(( $(date +%s) - $(perl -e 'print((stat shift)[9] // time)' "$1.status") )); }
 deferred() {
   if [ "$TOKEN" = - ]; then echo 'review launch deferred: execution or reservation already exists' >&2; exit 75; fi
@@ -52,7 +53,8 @@ fi
 [ "$(cat "$KEY.execution/pid" 2>/dev/null)" = "$$" ] || deferred
 owned=1
 printf '%s\n' "$TOKEN" >"$KEY.execution/token"
-if [ -f "${PR_REVIEW_WATCH_STATE_DIR:-$HOME/.claude/state/pr-review-watch}/off" ]; then
+# An unreadable author defers the run like the off switch: same attempt next tick.
+if [ -f "${PR_REVIEW_WATCH_STATE_DIR:-$HOME/.claude/state/pr-review-watch}/off" ] || [ "$own_rc" = 2 ]; then
   if [ "$MODE" != approve ]; then printf '%s\t%s\n' "$SHA" "$ATTEMPT" >"$KEY.paused"; fi
   exit 75
 fi
