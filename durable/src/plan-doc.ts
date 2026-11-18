@@ -88,7 +88,11 @@ export async function startPlan(tx: Tx, conversationId: ConversationId, sections
   plan.sections = sections;
   await configure(tx, conversationId, { model });
   const run = (await tx.doc(RunsDoc)).runs.find((run) => run.conversationId === conversationId);
-  if (run && active(run) && run.route !== "legacy") { run.route = "plan"; run.status = "planning"; }
+  if (run && active(run) && run.route !== "legacy") {
+    run.admissionRoute ??= run.route;
+    run.route = "plan";
+    run.status = "planning";
+  }
 }
 
 export async function changePlanStatus(tx: Tx, conversationId: ConversationId, status: PlanStatus, model: ModelRef, authors: readonly string[]): Promise<void> {

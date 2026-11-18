@@ -226,7 +226,7 @@ function isUnsafeGitInspectionArg(argument, subcommand) {
 	return Boolean(name) && UNSAFE_GIT_LONG_OPTIONS.some((option) => option.startsWith(name));
 }
 
-function isReadOnlyGitSegment(segment) {
+function isReadOnlyGitSegment(segment, allowGitFetch) {
 	const words = splitShellWords(segment);
 	if (!words || words[0].replace(/^.*\//, "") !== "git") return false;
 
@@ -241,7 +241,7 @@ function isReadOnlyGitSegment(segment) {
 	if (args.some((argument) => isUnsafeGitInspectionArg(argument, subcommand))) return false;
 
 	if (ALWAYS_READ_ONLY_GIT_SUBCOMMANDS.has(subcommand)) return true;
-	if (subcommand === "fetch") return isReadOnlyGitFetch(args);
+	if (subcommand === "fetch") return allowGitFetch && isReadOnlyGitFetch(args);
 	if (subcommand === "branch") {
 		return (
 			args.length === 0 ||
@@ -330,7 +330,7 @@ function shellHazards(segment) {
 	return hazards;
 }
 
-function isReadOnlyPipelineSegment(segment) {
+function isReadOnlyPipelineSegment(segment, allowGitFetch) {
 	const trimmed = segment.trim();
 	const invoked = trimmed.match(/^([A-Za-z0-9_./-]+)/)?.[1];
 	const hazards = shellHazards(trimmed);
@@ -343,7 +343,7 @@ function isReadOnlyPipelineSegment(segment) {
 		executable === invoked
 			? trimmed
 			: `${executable}${trimmed.slice(invoked.length)}`;
-	if (executable === "git") return isReadOnlyGitSegment(basenamed);
+	if (executable === "git") return isReadOnlyGitSegment(basenamed, allowGitFetch);
 	if (executable === "gh") return isReadOnlyGhSegment(basenamed);
 	if (executable === "find") {
 		const words = splitShellWords(trimmed);
@@ -399,7 +399,7 @@ function isReadOnlyPipelineSegment(segment) {
 	return READ_ONLY_BASH_COMMANDS.has(executable);
 }
 
-export function isReadOnlyBashCommand(command) {
+export function isReadOnlyBashCommand(command, { allowGitFetch = true } = {}) {
 	const segments = splitReadOnlyPipeline(command);
-	return Boolean(segments && segments.every(isReadOnlyPipelineSegment));
+	return Boolean(segments && segments.every((segment) => isReadOnlyPipelineSegment(segment, allowGitFetch)));
 }

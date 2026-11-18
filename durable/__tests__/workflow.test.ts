@@ -7,6 +7,7 @@ import { fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai/provid
 import { fixture } from "./helpers.ts";
 import { dispatch } from "../src/daemon.ts";
 import { EtabliPlanDoc } from "../src/plan-doc.ts";
+import { RunsDoc } from "../src/runs-doc.ts";
 import { git } from "../src/change.ts";
 
 const call = (name: string, args: Record<string, string>) => fauxAssistantMessage(fauxToolCall(name, args), { stopReason: "toolUse" });
@@ -162,5 +163,93 @@ test("unavailable eligible review blocks, and direct publication cannot replace 
     await f.core.runs.tick();
     await f.core.harness.waitForIdle(context);
     expect(await f.core.runs.show(run.id)).toMatchObject({ status: "blocked", reason: "review_unavailable_or_invalid" });
+  } finally { await f.cleanup(); }
+});
+
+for (const stored of ["new", "existing"] as const) {
+  test(`${stored} run retries preserve admission after promotion and reopening`, async () => {
+    const f = await fixture({ workflow: true });
+    const admission = { op: "run", repo: "Tonours/fixture", prompt: "Promote this request", requestId: "promoted", route: "answer" };
+    try {
+      f.faux.setResponses([call("plan_begin", {})]);
+      f.planner.setResponses([fauxAssistantMessage("The plan is drafted.")]);
+      const run = await f.core.runs.submit(admission.repo, admission.prompt, admission.requestId);
+      if (stored === "existing") {
+        await f.core.harness.commit(async (tx) => { delete (await tx.doc(RunsDoc)).runs[0].admissionRoute; }, context);
+      }
+      await f.core.runs.tick();
+      await f.core.harness.waitForIdle(context);
+      expect((await f.core.runs.show(run.id)).route).toBe("plan");
+
+      await f.reopen();
+      const retries = await Promise.all([dispatch(f.core, admission), dispatch(f.core, admission)]);
+      for (const retry of retries) expect(retry).toMatchObject({ id: run.id, route: "plan" });
+      await expect(dispatch(f.core, { ...admission, route: "plan" })).rejects.toThrow("different input");
+      await expect(dispatch(f.core, { ...admission, prompt: "Other input" })).rejects.toThrow("different input");
+      await expect(dispatch(f.core, { ...admission, repo: "Tonours/another" })).rejects.toThrow("different input");
+      expect(await f.core.runs.list()).toHaveLength(1);
+
+      await f.core.harness.commit(async (tx) => { delete (await tx.doc(RunsDoc)).runs[0].admissionRoute; }, context);
+      await expect(dispatch(f.core, admission)).rejects.toThrow("different input");
+      expect(await dispatch(f.core, { ...admission, route: "plan" })).toMatchObject({ id: run.id });
+    } finally { await f.cleanup(); }
+  });
+}
+
+test("a root planner can discover files but only mutates code in READY", async () => {
+  const f = await fixture({ workflow: true });
+  try {
+    f.planner.setResponses([
+      fauxAssistantMessage([
+        fauxToolCall("bash", { command: "ls -1" }),
+        fauxToolCall("bash", { command: "rg --files" }),
+        fauxToolCall("write", { path: "draft.txt", content: "draft" }),
+        fauxToolCall("edit", { path: "check.sh", edits: [{ oldText: "result.txt", newText: "draft.txt" }] }),
+        fauxToolCall("bash", { command: "touch draft-shell.txt" }),
+        fauxToolCall("bash", { command: "git fetch origin" }, { id: "draft-fetch" }),
+      ], { stopReason: "toolUse" }),
+      call("plan_section", { section: "Goal", content: "Make a READY fixture." }),
+      call("review", { kind: "plan" }),
+      call("plan_status", { status: "READY" }),
+      fauxAssistantMessage([
+        fauxToolCall("read", { path: "check.sh" }),
+        fauxToolCall("bash", { command: "touch challenged.txt" }),
+      ], { stopReason: "toolUse" }),
+      fauxAssistantMessage("Replan complete."),
+    ]);
+    f.faux.setResponses([
+      fauxAssistantMessage(report("adversary", "READY")),
+      call("write", { path: "ready.txt", content: "written\n" }),
+      fauxAssistantMessage(fauxToolCall("edit", { path: "ready.txt", edits: [{ oldText: "written", newText: "edited" }] }), { stopReason: "toolUse" }),
+      call("bash", { command: "touch ready-shell.txt" }),
+      call("plan_section", { section: "Goal", content: "Revise the reviewed goal." }),
+    ]);
+    const run = await f.core.runs.submit("Tonours/fixture", "Exercise root phase gates", "root-gates", "plan");
+    await f.core.runs.tick();
+    await f.core.harness.waitForIdle(context);
+
+    const conversation = (await f.core.harness.conversation(run.conversationId, context))!;
+    const entries = (await conversation.entries({ order: "ascending" }, 100, undefined, context)).items;
+    const rendered = JSON.stringify(entries);
+    const toolResults = entries.flatMap((entry) => entry.model ?? []).filter((message) => message.role === "toolResult");
+    const results = toolResults.filter((result) => !result.isError);
+    expect(toolResults.find((result) => result.toolCallId === "draft-fetch")).toMatchObject({
+      isError: true,
+      content: expect.arrayContaining([expect.objectContaining({ text: expect.stringContaining("durable guard: plan requires READY") })]),
+    });
+    expect(results.filter((result) => result.toolName === "bash" &&
+      result.content.some((part) => part.type === "text" && part.text.includes("check.sh")),
+    )).toHaveLength(2);
+    expect(results.some((result) => result.toolName === "read" &&
+      result.content.some((part) => part.type === "text" && part.text.includes("test -f result.txt")),
+    )).toBe(true);
+    expect(rendered).toContain("durable guard: plan requires READY");
+    expect((await f.core.harness.snapshot(EtabliPlanDoc, run.conversationId, context))?.status).toBe("CHALLENGED");
+    for (const path of ["draft.txt", "draft-shell.txt", "challenged.txt"]) {
+      await expect(stat(join(run.worktree, path))).rejects.toMatchObject({ code: "ENOENT" });
+    }
+    expect(await readFile(join(run.worktree, "check.sh"), "utf8")).toContain("result.txt");
+    expect(await readFile(join(run.worktree, "ready.txt"), "utf8")).toBe("edited\n");
+    expect((await stat(join(run.worktree, "ready-shell.txt"))).isFile()).toBe(true);
   } finally { await f.cleanup(); }
 });
