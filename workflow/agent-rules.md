@@ -14,10 +14,9 @@
   `~/.claude/workflow/` (Claude) or `~/.pi/agent/workflow/` (Pi).
 - Smallest route. On Pi, execution and mutation stay parent-only; Claude may
   delegate one READY plan step to a `worker` (`workflow/skills/implementation-loop.md`).
-- On Pi, skills are instruction folders, not tools: read its SKILL.md, then run
-  its scripts with the bash tool (e.g. cd <skill-dir> && ./search.js "query").
-  Never invent a tool named after a skill; never claim bash cannot be used.
-  Read-only `pi -p --no-session` review hunters are not writer subagents.
+- On Pi, read the skill's `SKILL.md` and run its scripts through the Bash tool.
+  Skills are folders. Never invent skill-named tools or claim Bash is unavailable.
+  Read-only `pi -p --no-session` review hunters are separate from writer subagents.
 - For routes with a plan, use only root `PLAN.md` and implement only from `Status: READY`;
   archive implemented/validated plans in `docs/plan/` (both storage paths: durable exception in `workflow/spec.md`); discard unrelated/
   abandoned root plans with `scripts/plan-cleanup --discard <reason-slug>`
