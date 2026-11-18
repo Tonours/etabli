@@ -535,15 +535,15 @@ in_groups() {
 }
 
 stop_everything() {
-  local pidfile key pid entry wait left own_group tracked=' ' groups_done=' '
+  local key pid entry wait left own_group tracked=' ' groups_done=' '
   local -a pids=() groups=() roots=()
   own_group="$(pgid_of $$)"
   mkdir -p "$STATE_DIR"
   touch "$KILL_SWITCH"
   rm -f "$STATE_DIR/requests/ready"
   # Every run is recorded before the first signal: a supervisor exits once its runner does.
-  while IFS= read -r pidfile; do
-    key="${pidfile%.pid}"
+  # A supervisor holds its execution folder before it publishes the pid file: both are read.
+  while IFS= read -r key; do
     run_alive "$key" || continue
     # Only a pid whose command is this key's launcher or runner is signalled.
     for pid in "$(cat "$key.pid" 2>/dev/null)" "$(cat "$key.execution/pid" 2>/dev/null)"; do
@@ -551,9 +551,9 @@ stop_everything() {
       roots+=("$pid ($(basename "$key"))")
       track_tree "$pid"
     done
-  done < <(find "$RUNS" -maxdepth 1 -name '*.pid' 2>/dev/null)
+  done < <(find "$RUNS" -maxdepth 1 \( -name '*.pid' -o -name '*.execution' \) 2>/dev/null | sed -E 's/\.(pid|execution)$//' | sort -u)
   # One TERM per process: by group when it is in a recorded group, else by pid.
-  for entry in ${groups[@]+"${groups[@]}"}; do kill -TERM -- "-${entry%%@*}" 2>/dev/null; done
+  for entry in ${groups[@]+"${groups[@]}"}; do group_alive "$entry" && kill -TERM -- "-${entry%%@*}" 2>/dev/null; done
   for entry in ${pids[@]+"${pids[@]}"}; do
     in_groups "$(pgid_of "${entry%%@*}")" || { pid_alive "$entry" && kill -TERM "${entry%%@*}" 2>/dev/null; }
   done
