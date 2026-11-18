@@ -499,21 +499,15 @@ pid_alive() {
   stat="$(ps -p "$pid" -o stat= 2>/dev/null)" && [ -n "$stat" ] && [ "${stat#Z}" = "$stat" ]
 }
 
-group_members() {
-  ps -A -o pgid=,stat= 2>/dev/null | awk -v g="$1" '$1 == g && $2 !~ /^Z/ { found = 1 } END { exit !found }'
+# Live members of a process group, one pid per line.
+group_pids() {
+  ps -A -o pid=,pgid=,stat= 2>/dev/null | awk -v g="$1" '$2 == g && $3 !~ /^Z/ { print $1 }'
 }
 
-# A recorded group is still the run's while its leader keeps its start time, or, once the
-# leader is gone, while members remain and the group was never seen empty: a group id is
-# reused only after its last member exits.
-group_alive() {
-  local group="${1%%@*}" start
-  case "$groups_done" in *" $group "*) return 1 ;; esac
-  start="$(pid_start "$group")"
-  if [ -n "$start" ] && [ "$start" != "${1#*@}" ]; then groups_done+="$group "; return 1; fi
-  group_members "$group" && return 0
-  groups_done+="$group "
-  return 1
+# A group is the run's only while its recorded leader lives with the same start time: a group
+# id alone proves nothing once the leader is gone, so such a group is never signalled.
+group_anchored() {
+  [ "$(pid_start "${1%%@*}")" = "${1#*@}" ] && [ -n "$(group_pids "${1%%@*}")" ]
 }
 
 # Records each process of a run with its start time, and each process group one of them leads.
@@ -535,7 +529,7 @@ in_groups() {
 }
 
 stop_everything() {
-  local key pid entry wait left own_group tracked=' ' groups_done=' '
+  local key pid entry wait left unproven='' own_group tracked=' '
   local -a pids=() groups=() roots=()
   own_group="$(pgid_of $$)"
   mkdir -p "$STATE_DIR"
@@ -553,7 +547,7 @@ stop_everything() {
     done
   done < <(find "$RUNS" -maxdepth 1 \( -name '*.pid' -o -name '*.execution' \) 2>/dev/null | sed -E 's/\.(pid|execution)$//' | sort -u)
   # One TERM per process: by group when it is in a recorded group, else by pid.
-  for entry in ${groups[@]+"${groups[@]}"}; do group_alive "$entry" && kill -TERM -- "-${entry%%@*}" 2>/dev/null; done
+  for entry in ${groups[@]+"${groups[@]}"}; do group_anchored "$entry" && kill -TERM -- "-${entry%%@*}" 2>/dev/null; done
   for entry in ${pids[@]+"${pids[@]}"}; do
     in_groups "$(pgid_of "${entry%%@*}")" || { pid_alive "$entry" && kill -TERM "${entry%%@*}" 2>/dev/null; }
   done
@@ -567,16 +561,26 @@ stop_everything() {
       track_tree "${entry%%@*}"
       [ "$wait" != kill ] || kill -KILL "${entry%%@*}" 2>/dev/null
     done
+    unproven=''
     for entry in ${groups[@]+"${groups[@]}"}; do
-      group_alive "$entry" || continue
-      left=1
-      [ "$wait" != kill ] || kill -KILL -- "-${entry%%@*}" 2>/dev/null
+      if group_anchored "$entry"; then
+        left=1
+        # Members of an anchored group are the run's: each is kept with its start time.
+        for pid in $(group_pids "${entry%%@*}"); do track_tree "$pid"; done
+        [ "$wait" != kill ] || kill -KILL -- "-${entry%%@*}" 2>/dev/null
+      else
+        for pid in $(group_pids "${entry%%@*}"); do
+          case "$tracked" in *" $pid "*) ;; *) unproven+="$pid " ;; esac
+        done
+      fi
     done
-    [ "$left" = 1 ] || break
+    [ "$left" = 1 ] || [ -n "$unproven" ] || break
     [ "$wait" = kill ] || sleep 0.5
   done
   echo "kill switch on: $KILL_SWITCH (rm it to resume)"
   [ "$left" = 0 ] || { echo "a review run is still alive after KILL" >&2; return 1; }
+  # Fail closed: a process left in a group whose leader is gone cannot be proved the run's.
+  [ -z "$unproven" ] || { echo "processes left in a stopped run's group, not signalled: $unproven" >&2; return 1; }
 }
 
 main() {
