@@ -753,6 +753,19 @@ t_partial_backup_is_discarded_without_restoration() {
   done
 }
 
+t_signal_after_publication_removes_the_uncommitted_files() {
+  local phase
+  for phase in moved-origin moved-cap; do
+    new_case
+    make_start new
+    held "$phase" adopt "$L"
+    kill -TERM "$BGPID"
+    wait "$BGPID"; eq $? 143 "$phase: signalled adoption"
+    plist_is "$L" "$CASE/orig.$L" "$phase: original restored"
+    [ ! -e "$RD/$NAME" ] || fail "$phase: aborted adoption left a folder"
+  done
+}
+
 t_idle_text_in_arguments_does_not_hide_running_job() {
   new_case
   put mac-cleanup

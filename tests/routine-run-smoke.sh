@@ -771,6 +771,26 @@ t_signal_before_identity_is_recorded() {
   [ ! -e "$CASE/a" ] || fail "the command ran before identity"
 }
 
+t_pending_signal_is_delivered_even_when_birth_lookup_fails() {
+  new_case
+  cat >"$BIN/ps-failure" <<'EOF'
+#!/bin/bash
+if [ -f "$BIRTH_FAILURE" ] && [ "$4" != "$(cat "$WRAPPER_ID")" ]; then exit 1; fi
+exec /bin/ps "$@"
+EOF
+  chmod +x "$BIN/ps-failure"
+  export BIRTH_FAILURE="$CASE/birth-failure" WRAPPER_ID="$CASE/wrapper-id"
+  ROUTINE_TEST_PS="$BIN/ps-failure" ROUTINE_TEST_HOLD="before-spawn:$CASE/hold" bg "$NAME" -- "$BIN/mark.sh" "$CASE/a"
+  wait_for "$CASE/hold.reached"
+  printf '%s\n' "$BGPID" >"$WRAPPER_ID"
+  kill -HUP "$BGPID"
+  touch "$BIRTH_FAILURE" "$CASE/hold"
+  wait_gone "$BGPID"
+  wait "$BGPID"; eq $? 129 "pending HUP exit"
+  eq "$(jf "$FOLDER/last.json" signal)" HUP "forwarded signal"
+  [ ! -e "$CASE/a" ] || fail "the command ran without identity"
+}
+
 t_off_skips_stay_bounded() {
   new_case
   mkdir -p "$FOLDER"; touch "$FOLDER/off"

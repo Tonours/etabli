@@ -69,7 +69,7 @@ routine_lock_release() {
 # --- test hold points ------------------------------------------------------
 # ROUTINE_TEST_HOLD=<point>:<file>, read only when set: wait there until the
 # file exists, and says it got there with <file>.reached. Points: busy,
-# busy-prune, identity, go, after-go, waited, end.
+# busy-prune, before-spawn, identity, go, after-go, waited, end.
 hold() {
   case "${ROUTINE_TEST_HOLD:-}" in
     "$1":*)
@@ -270,6 +270,7 @@ cmd_run() {
   trap 'on_signal TERM' TERM
   trap 'on_signal HUP' HUP
   trap 'on_signal TERM' INT
+  hold before-spawn
 
   # The command's process: a subshell that waits for go.<run>, then execs.
   (
@@ -281,6 +282,7 @@ cmd_run() {
     exec "$@"
   ) <&0 &
   cmd_pid=$!
+  if [ -n "$pending_signal" ]; then kill -"$pending_signal" "$cmd_pid" 2>/dev/null; fi
   hold identity
   cmd_born=$(born_of "$cmd_pid")
   if [ -z "$cmd_born" ]; then
@@ -298,7 +300,6 @@ cmd_run() {
   fi
   write_last running "$cmd_pid" "$cmd_born" "" "" "" "" || { kill -TERM "$cmd_pid" 2>/dev/null; wait "$cmd_pid" 2>/dev/null; die "$name: cannot write last.json"; return 74; }
   hold go
-  if [ -n "$pending_signal" ]; then kill -"$pending_signal" "$cmd_pid" 2>/dev/null; fi
   if ! : >"$folder/go.$run"; then
     trap '' TERM HUP INT
     kill -TERM "$cmd_pid" 2>/dev/null
@@ -356,7 +357,11 @@ new_id() { printf '%s-%s-%s' "$(/bin/date -u +%Y%m%dT%H%M%SZ)" "$$" "$RANDOM"; }
 # Test failure points, read only when ROUTINE_TEST_FAIL is set: a comma list of
 # mv:<point>, rm:<point>, stage-next and stage-manifest.
 tf() { case ",${ROUTINE_TEST_FAIL:-}," in *",$1,"*) return 0 ;; esac; return 1; }
-mvp() { tf "mv:$1" && return 1; /bin/mv -f "$2" "$3"; }
+mvp() {
+  tf "mv:$1" && return 1
+  /bin/mv -f "$2" "$3" || return 1
+  hold "moved-$1"
+}
 rmp() { tf "rm:$1" && return 1; /bin/rm -f "${2:?}"; }
 
 manifest_get() {
@@ -691,8 +696,12 @@ abort_files() {
 }
 
 undo_published() {
-  [ -z "$C_PUB_ORIGIN" ] || /bin/rm -f "${C_FOLDER:?}/${C_PUB_ORIGIN:?}"
-  [ "$C_PUB_CAP" = 0 ] || /bin/rm -f "${C_FOLDER:?}/cap"
+  if [ -n "$C_PUB_ORIGIN" ] && [ ! -e "$C_FOLDER/$C_PUB_ORIGIN.next" ]; then
+    /bin/rm -f "${C_FOLDER:?}/${C_PUB_ORIGIN:?}"
+  fi
+  if [ "$C_PUB_CAP" = 1 ] && [ ! -e "$C_FOLDER/cap.next" ]; then
+    /bin/rm -f "${C_FOLDER:?}/cap"
+  fi
   return 0
 }
 
@@ -959,12 +968,12 @@ publish_and_commit() { # origin name (adopt)
   local f="$C_FOLDER"
   if [ "$C_KIND" = adopt ]; then
     if [ -e "$f/$1.next" ]; then
-      mvp origin "$f/$1.next" "$f/$1" || { rollback "cannot publish the origin"; return 1; }
       C_PUB_ORIGIN="$1"
+      mvp origin "$f/$1.next" "$f/$1" || { rollback "cannot publish the origin"; return 1; }
     fi
     if [ -e "$f/cap.next" ]; then
-      mvp cap "$f/cap.next" "$f/cap" || { rollback "cannot publish the cap"; return 1; }
       C_PUB_CAP=1
+      mvp cap "$f/cap.next" "$f/cap" || { rollback "cannot publish the cap"; return 1; }
     fi
   fi
   hold verified

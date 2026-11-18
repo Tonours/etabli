@@ -227,9 +227,9 @@ and no `run.lock`.
 
 Read only when set, for the smoke test: `ROUTINE_TEST_PERL` (replaces
 `/usr/bin/perl` in the lock check), `ROUTINE_TEST_PS` (replaces `ps`),
-`ROUTINE_TEST_HOLD=<point>:<file>` (wait at `busy`, `busy-prune`, `identity`,
+`ROUTINE_TEST_HOLD=<point>:<file>` (wait at `busy`, `busy-prune`, `before-spawn`, `identity`,
 `go`, `after-go`, `waited` or `end`, and in `adopt` and `release` at
-`backup-copied`, `staging`, `staged`, `unloaded`,
+`backup-copied`, `staging`, `staged`, `unloaded`, `moved-origin`, `moved-cap`,
 `verified`, `committed` or `prev-deleted`, until the file exists; `<file>.reached`
 says it got there). Also `ROUTINE_TEST_FAIL` (comma list: `mv:<admitted|origin|cap|commit|swap>`,
 `rm:<released|prev|pending>`, `stage-next`, `stage-manifest`) and `ROUTINE_TEST_CLOCK`
