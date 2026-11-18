@@ -240,6 +240,11 @@ gone "$k.registered" "$k.council-done" "$k.approval-pending" "$k.approval-body"
 [ -z "$(ls "$STATE_DIR/register")" ] || fail 'registration kept'
 grep -q 'registration rejected: acme/widgets#12 own-only' "$TMP_DIR/log" || fail 'refusal not logged'
 pass 'registration: foreign approve registration refused, logged, no approval pending'
+write_watch_heartbeat owner
+out="$(submit_council_registration acme/widgets 12 "$HEAD" owner "$TMP_DIR/council.md" approve)"
+[ "$out" = '=== watcher: not queued (the watcher is in own-only mode)' ] || fail "producer under own-only: $out"
+[ -z "$(ls "$STATE_DIR/register")" ] || fail 'producer under own-only wrote a registration'
+pass 'registration: the producer reports own-only instead of a queued approval'
 
 reset; own_only_on
 f="$(key_of acme/widgets 13)"; author acme/widgets 13 someone; watch acme/widgets 13
@@ -253,6 +258,36 @@ gone "$f.approval-pending" "$f.approval-body" "$f.registered" "$f.council-done"
 no_writes 'tick'; no_council tick
 [ "$(first_line "$f.status")" = 'skipped own-only' ] || fail "status: $(first_line "$f.status")"
 pass 'pending approval of a foreign key: nothing posted, files purged'
+
+for mode in approve council; do
+  reset; own_only_on
+  f="$(key_of acme/widgets 20)"; author acme/widgets 20 someone; watch acme/widgets 20
+  printf '%s\n' "$HEAD" >"$f.approval-pending"; printf 'body' >"$f.approval-body"; printf '%s\n' "$HEAD" >"$f.council-done"
+  printf '%s\t%s\trunning\t1\n' "$HEAD" "$mode" >"$f.status"
+  (
+    mkdir -p "$f.execution"; printf '%s\n' "$BASHPID" >"$f.execution/pid"; printf 'tok20\n' >"$f.execution/token"
+    export PR_REVIEW_WATCH_SUPERVISOR="$BASHPID" PR_REVIEW_WATCH_RUN_KEY="$f" PR_REVIEW_WATCH_RUN_TOKEN=tok20
+    rc=0; cd "$TMP_DIR" && /bin/bash "$SCRIPTS/review-run.sh" "$mode" acme/widgets 20 "$HEAD" - https://example.test/pr "$REPORTS/acme_widgets-20-aaaaaaaa-$mode.md" "$f" >/dev/null 2>&1 || rc=$?
+    printf '%s\n' "$rc" >"$TMP_DIR/supervised.rc"
+  ) || true
+  [ "$(cat "$TMP_DIR/supervised.rc")" = 1 ] || fail "supervised $mode child: exit $(cat "$TMP_DIR/supervised.rc")"
+  no_writes "supervised $mode child"; no_council "supervised $mode child"
+done
+pass 'a supervised runner child entering after the switch posts nothing (its own guard)'
+
+reset; own_only_on
+f="$(key_of acme/widgets 21)"; author acme/widgets 21 -; watch acme/widgets 21
+printf '%s\tdryrun\trunning\t2\n' "$HEAD" >"$f.status"
+(
+  mkdir -p "$f.execution"; printf '%s\n' "$BASHPID" >"$f.execution/pid"; printf 'tok21\n' >"$f.execution/token"
+  export PR_REVIEW_WATCH_SUPERVISOR="$BASHPID" PR_REVIEW_WATCH_RUN_KEY="$f" PR_REVIEW_WATCH_RUN_TOKEN=tok21
+  rc=0; cd "$TMP_DIR" && /bin/bash "$SCRIPTS/review-run.sh" dryrun acme/widgets 21 "$HEAD" - https://example.test/pr "$REPORTS/acme_widgets-21-aaaaaaaa-dryrun.md" "$f" >/dev/null 2>&1 || rc=$?
+  printf '%s\n' "$rc" >"$TMP_DIR/supervised.rc"
+) || true
+[ "$(cat "$TMP_DIR/supervised.rc")" = 75 ] || fail "unreadable author in the runner: exit $(cat "$TMP_DIR/supervised.rc"), want 75"
+[ "$(first_line "$f.paused")" = "$(printf '%s\t2' "$HEAD")" ] || fail 'unreadable author in the runner: not deferred at the same attempt'
+no_writes 'runner unreadable author'; no_council 'runner unreadable author'
+pass 'a supervised dry-run child with an unreadable author defers at the same attempt'
 
 for name in launch launch.AbC123; do
   reset
@@ -294,8 +329,10 @@ present "$u.registered" "$u.token" "$u.status"
 reserve "$u" dryrun tok15
 launcher "$u.launch.AbC123" "$u" tok15 dryrun acme/widgets 15
 run_launcher "$u.launch.AbC123"
-no_council unread; no_writes unread; gone "$u.claimed"
-pass 'unreadable author: key untouched, launcher refused, purge reports it'
+no_council unread; no_writes unread
+[ "$(first_line "$u.paused")" = "$(printf '%s\t1' "$HEAD")" ] || fail 'unread author: dry-run not deferred at the same attempt'
+[ "$(first_line "$u.status")" = "$(printf '%s\tdryrun\t75\t1' "$HEAD")" ] || fail "unread author: status $(first_line "$u.status")"
+pass 'unreadable author: key untouched, launcher deferred at the same attempt, purge reports it'
 
 install_fixture() {
   reset
@@ -316,9 +353,32 @@ rc=0; /bin/bash "$SCRIPTS/install.sh" --own-only >/dev/null 2>&1 || rc=$?
 [ "$rc" = 0 ] || fail "install --own-only exit $rc"
 [ -f "$STATE_DIR/off" ] && [ -e "$STATE_DIR/own-only" ] || fail 'off must stay, own-only must exist'
 grep -q '^bootstrap' "$LAUNCHCTL_CALLS" || fail 'job not loaded'
+grep -A1 '<key>PR_REVIEW_WATCH_STATE_DIR</key>' "$HOME/Library/LaunchAgents/com.aguimard.pr-review-watch.plist" | grep -qF "<string>$STATE_DIR</string>" || fail 'the plist does not carry the state folder own-only was set in'
 if grep -qE 'acme_widgets_16\.(token|claimed|launch|approval)' "$LAUNCHCTL_RUNS"; then fail "foreign reservation still present when the job was loaded: $(cat "$LAUNCHCTL_RUNS")"; fi
 if grep -qE 'acme_widgets_17\.registered' "$LAUNCHCTL_RUNS"; then fail "own posting marker still present when the job was loaded: $(cat "$LAUNCHCTL_RUNS")"; fi
 pass 'install --own-only: purge before the job is loaded, off kept, file created'
+
+install_fixture; touch "$STATE_DIR/off"
+l="$(key_of acme/widgets 19)"; author acme/widgets 19 someone; reserve "$l" council tok19
+mkdir -p "$TMP_DIR/live"; printf 'sleep 300\n' >"$TMP_DIR/live/review-run.sh"
+/bin/bash "$TMP_DIR/live/review-run.sh" "$l" & live=$!
+printf '%s\n' "$live" >"$l.pid"
+rc=0; /bin/bash "$SCRIPTS/install.sh" --own-only >/dev/null 2>&1 || rc=$?
+[ "$rc" = 0 ] || fail "install --own-only with a live run exit $rc"
+sleep 1
+if kill -0 "$live" 2>/dev/null; then kill "$live"; fail 'install --own-only left a live foreign review running'; fi
+pass 'install --own-only stops a review already running before the purge'
+
+install_fixture; touch "$STATE_DIR/off"
+l="$(key_of acme/widgets 22)"; author acme/widgets 22 someone; reserve "$l" council tok22
+mkdir -p "$TMP_DIR/stubborn"; printf "trap '' TERM\nsleep 300\n" >"$TMP_DIR/stubborn/review-run.sh"
+/bin/bash "$TMP_DIR/stubborn/review-run.sh" "$l" & live=$!
+printf '%s\n' "$live" >"$l.pid"
+sleep 1
+rc=0; /bin/bash "$SCRIPTS/install.sh" --own-only >/dev/null 2>&1 || rc=$?
+[ "$rc" = 0 ] || fail "install --own-only with a run ignoring TERM exit $rc"
+if kill -0 "$live" 2>/dev/null; then kill -KILL "$live"; fail 'install --own-only left a run that ignores TERM alive'; fi
+pass 'install --own-only kills a review that ignores TERM before the purge'
 
 install_fixture; touch "$STATE_DIR/off"
 u="$(key_of acme/widgets 18)"; author acme/widgets 18 -; reserve "$u" council tok18

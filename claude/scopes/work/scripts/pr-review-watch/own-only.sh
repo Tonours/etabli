@@ -36,12 +36,17 @@ own_only_key_pr() {
   printf '%s/%s %s' "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}"
 }
 
+# 1: allowed; 0: refused; 2: refused for now, the login or the author could not be read.
 own_only_refused() {
   local repo="$1" number="$2" mode="$3" me author
   own_only || return 1
   [ "$mode" = dryrun ] || { echo "own-only: mode $mode refused for $repo#$number" >&2; return 0; }
-  me="$(own_only_login)" && author="$(pr_author_login "$repo" "$number")" && [ "$me" = "$author" ] && return 1
-  echo "own-only: $repo#$number is not read as the login's pull request" >&2
+  if ! me="$(own_only_login)" || ! author="$(pr_author_login "$repo" "$number")"; then
+    echo "own-only: author of $repo#$number unreadable, deferred" >&2
+    return 2
+  fi
+  [ "$me" = "$author" ] && return 1
+  echo "own-only: $repo#$number is another author's pull request" >&2
   return 0
 }
 

@@ -483,7 +483,8 @@ purge_foreign_tick() {
 }
 
 stop_everything() {
-  local pidfile pid
+  local pidfile pid key wait left
+  local -a stopped=()
   mkdir -p "$STATE_DIR"
   touch "$KILL_SWITCH"
   rm -f "$STATE_DIR/requests/ready"
@@ -491,14 +492,27 @@ stop_everything() {
     pid="$(cat "$pidfile" 2>/dev/null)"
     run_alive "${pidfile%.pid}" || continue
     kill_tree "$pid" TERM
+    stopped+=("${pidfile%.pid}:$pid")
     echo "stopped review run $pid ($(basename "${pidfile%.pid}"))"
   done < <(find "$RUNS" -maxdepth 1 -name '*.pid' 2>/dev/null)
+  # A run that ignores TERM gets KILL; the stop fails while any is still alive.
+  for wait in 1 2 3 4 5 6 7 8 9 10 kill 1 2; do
+    left=0
+    for key in ${stopped[@]+"${stopped[@]}"}; do
+      run_alive "${key%:*}" || continue
+      left=1
+      [ "$wait" != kill ] || kill_tree "${key##*:}" KILL
+    done
+    [ "$left" = 1 ] || break
+    [ "$wait" = kill ] || sleep 1
+  done
   echo "kill switch on: $KILL_SWITCH (rm it to resume)"
+  [ "$left" = 0 ] || { echo "a review run is still alive after KILL" >&2; return 1; }
 }
 
 main() {
   umask 077
-  [ "${1:-}" = stop ] && { stop_everything; exit 0; }
+  [ "${1:-}" = stop ] && { stop_everything; exit $?; }
   [ "${1:-}" = --purge-foreign ] && { purge_foreign_command; exit $?; }
   mkdir -p "$STATE_DIR" "$REPORTS" "$RUNS" "$STATE_DIR/diagnostics" "$(dirname "$LOG")"
   chmod 700 "$STATE_DIR" "$REPORTS" "$RUNS" "$STATE_DIR/diagnostics" || exit 1
