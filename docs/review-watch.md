@@ -116,13 +116,21 @@ start of every tick, also while `off` exists. For each key, from the PR author:
   command exits 3 while such a key remains, 75 when a tick holds the lock.
 
 Switch with `pr-review-watch/install.sh --own-only [interval]`. It refuses
-unless the `off` switch exists and never removes it. It creates `own-only`, runs
-the purge, and loads the launchd job only when no unread or foreign
+unless the `off` switch exists and never removes it. It creates `own-only`,
+stops every running review (`watch.sh stop`), runs the purge, and loads the launchd job only when no unread or foreign
 reservation remains. Deploy order: `off`, new scripts, `install.sh --own-only`,
 then remove `off`. The base scripts ignore the file, so installing the scripts
 without `off` first lets a foreign launcher run. `install.sh` without the flag
 leaves an existing `own-only` file. Delete the file to go back; purged
 reservations are not restored.
+
+`watch.sh stop` sends TERM to each run's process group and processes, KILLs what
+is left after 10 seconds, and fails while one lives. A run leads its own process
+group; a group is signalled only while its recorded leader lives. A process left
+in a group whose leader is gone is never signalled: the stop fails, names it,
+and records it in `stop-survivors`, so every later stop, and `install.sh
+--own-only`, fails until that process has exited. Check it with `ps -p <pid>`
+and end it by hand.
 
 ## Launch ownership and diagnostics
 
