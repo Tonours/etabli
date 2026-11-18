@@ -26,8 +26,11 @@ Same-session Logic self-review is forbidden.
    `git show` bytes). Hunters receive that text and do not re-run `git diff`.
 2. Supply Intent plus current plan/Decision Log to Spec, Threat and lead; omit
    these from Logic. Reconcile conflicts before dispatch.
-3. Detect language/UI surface. Set `Standards: yes` or `Standards: none` on the
-   Logic brief.
+3. Give hunters a short project-context brief from trusted scoped rules: changed
+   areas, relevant invariants and known intentional exceptions with source paths.
+   Code at the reviewed head must confirm any exception; prose alone refutes
+   nothing. Keep ticket/plan acceptance criteria on the Spec axis. Detect
+   language/UI surface. Set `Standards: yes` or `Standards: none` on the Logic brief.
 4. Write the pinned patch to a temp file (must be non-empty). Dispatch
    **Logic hunter** with `workflow/templates/review-logic-hunter.md` in a fresh
    context. First line: `Axis: Logic`. Do not hunt Logic in the parent.
@@ -106,6 +109,11 @@ Same-session Logic self-review is forbidden.
    sibling exists, report the convention lens as `not run`; never present it as
    clean (see rubric § Convention & pattern fit). If `Standards: none`, record
    `quality: none` in the lead report.
+   For a large patch, Logic inventories touched runtime behaviors, inspects
+   groups with their callers/shared state, then checks interactions between
+   groups. A missing group is incomplete coverage, never a clean result. Keep
+   one pinned patch and the existing hunters; splitting inspection does not
+   authorize extra passes or hide cross-group regressions.
 7. Lead-filter with `workflow/templates/review-lead.md`. Do not re-hunt.
 
 ## Target Resolution
@@ -151,8 +159,9 @@ no-sibling gap excepted), when the whole-diff `n/a` lists a changed path that
 is not a document or pure rename, or when `isolation: none`. `GO WITH NOTES`
 is not a workaround for those gates. A triggered Threat axis without its
 complete report (a table missing or `partial:`) blocks `GO` and `GO WITH NOTES`
-the same way, as do `template: missing` and a hunter report whose last line
-is not `STATUS: complete`.
+the same way. A concrete unresolved material Logic candidate under Open questions
+also blocks both passing verdicts. So do `template: missing` and a hunter report
+whose last line is not `STATUS: complete`.
 
 ## Rules
 
@@ -161,5 +170,5 @@ is not `STATUS: complete`.
 - Prefer minimal fixes.
 - If a human should arbitrate risk, replan, or broad-impact tradeoffs, say so
   explicitly.
-- If the request is to prove completion rather than review a diff, route to the
-  verification workflow instead of treating it as code review.
+- If the request is to prove completion rather than review a diff, answer it on
+  the `answer` route with evidence instead of treating it as code review.

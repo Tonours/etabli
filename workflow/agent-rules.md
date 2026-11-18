@@ -3,6 +3,8 @@
 ## Identity
 - French chat; English code/commands/commits. Evidence-first.
 - Challenge weak assumptions with facts.
+- Every question to the user goes through AskUserQuestion or the harness
+  equivalent, grilling included; never a bare question in chat.
 
 ## Workflow
 - Read local sources first: `AGENTS.md`, `CLAUDE.md`, docs, then
@@ -17,11 +19,16 @@
   Never invent a tool named after a skill; never claim bash cannot be used.
   Read-only `pi -p --no-session` review hunters are not writer subagents.
 - For routes with a plan, use only root `PLAN.md` and implement only from `Status: READY`;
-  archive implemented/validated plans in `docs/plan/`; discard unrelated/
+  archive implemented/validated plans in `docs/plan/` (both storage paths: durable exception in `workflow/spec.md`); discard unrelated/
   abandoned root plans with `scripts/plan-cleanup --discard <reason-slug>`
   instead of staying blocked.
 - Answers/handoffs follow `workflow/answer-quality.md` and its live final gate.
 - Assessment/review/diagnosis: findings then stop. Otherwise act once evidence is enough.
+- Handoff: root `PLAN.md` § Notes / Handoff; without a plan, a distilled
+  vault note (state, decisions, next action), never a transcript, a raw plan
+  or an ad hoc `/tmp` file.
+- Long background steps follow `workflow/skills/orchestration.md` § Background
+  steps (log path, ETA, start check, final push notification).
 - No approval pauses: destructive work, pushes, deploys, and external writes
   run directly, except under a host that gates effects (`workflow/spec.md`
   § Human checkpoints). Pause only for user-only input (a credential value, a
@@ -39,14 +46,19 @@
   whose GitHub org is listed in the machine-local `~/.config/etabli/work-orgs`; all other projects use
   `alambic-obvault` / `~/work/obvault`. Match GitHub remote organization, not machine scope; no
   cross-vault fallback. See `workflow/skills/obvault-memory.md`.
-- Fleet: when you run under fleet (`FLEET_SESSION_ID` set) or operate it, read
-  brain `ref/fleet-memory.md` first (`vault_read`, or the file in `~/work/brain`),
-  whatever the repo; it is fleet's global memory. Skip when brain is absent.
+- Fleet: read brain `ref/fleet-memory.md` (`vault_read`, or `~/work/brain`) when
+  operating Fleet (CLI/daemon/skill, reporting or host questions) or working in
+  GitHub `Tonours/fleet`. `FLEET_SESSION_ID` alone is not a trigger. Skip when brain is absent.
 - Tickets: `workflow/ticket-template.md`; one behavior per PR.
 - Branches and commits: `workflow/git-contract.md`. Branch
   `<type>/<ticket-id>-<short-slug>`, slug 3 words max, under 50 chars. Commit
   subject only, conventional, lowercase imperative, no body, no trailers.
-- PR bodies: `workflow/pr-body-contract.md`. English always, repo template
-  intact, lead with what changed, densest draft wins, state the stack when the
-  base is not the default branch.
+- PR bodies: open or rewrite one with the `pr` skill
+  (`workflow/pr-body-contract.md`): `## What`, `## Why`, `## How to test`,
+  English always, repo template intact (its own what-changed and
+  verification sections stand in for ours), lead with what changed, densest draft
+  wins, state the stack when the base is not the default branch.
 - Never credit AI tools.
+- Linear tickets and comments: English, in the `write-direct` voice.
+- Work-org output (PRs, commits, Linear, review comments) names no non-Claude
+  model or provider (GPT, Codex, GLM, zai...).

@@ -87,13 +87,6 @@ describe("Pi settings consistency", () => {
     expect(deployAgentWorkflowScript).toContain("skillRecords(repoDir)");
     expect(installScript).toContain('"$BOOTSTRAP_DIR/deploy-agent-workflow" --apply');
 
-    for (const shelved of ["coolify", "react-doctor-100"]) {
-      expect(skillCatalog.find((s) => s.name === shelved)).toMatchObject({
-        source: "extras",
-        piCore: false,
-      });
-    }
-
     const keepList = [
       "plan-loop",
       "plan-implement",
@@ -101,18 +94,17 @@ describe("Pi settings consistency", () => {
       "review",
       "code-quality",
       "implement",
-      "verify-workflow",
-      "bug-check",
       "linear-ticket-create",
-      "linear-work",
       "write-direct",
+      "pr",
       "thermo-nuclear-code-quality-review",
+      "pr-council-review",
     ];
     expect(installCoreSkills().sort()).toEqual([...keepList].sort());
     expect(
       skillCatalog.find((skill) => skill.name === "shared/code-quality"),
     ).toMatchObject({ piCore: true });
-    expect(keepList).toHaveLength(12);
+    expect(keepList).toHaveLength(11);
     for (const banned of ["ponytail", "deslop", "code-simplifier"]) {
       expect(installCoreSkills()).not.toContain(banned);
     }
@@ -128,34 +120,22 @@ describe("Pi settings consistency", () => {
       prompts: [],
       themes: [],
     });
-    expect(packageBySource("git:github.com/badlogic/pi-skills")).toMatchObject({
-      extensions: [],
-      skills: [],
-      prompts: [],
-      themes: [],
-    });
-    expect(sources).toContain("npm:@tintinweb/pi-tasks@0.7.1");
-    expect(packageBySource("npm:@tintinweb/pi-tasks@0.7.1")?.skills).toEqual(
-      [],
-    );
-    for (const silenced of [
-      "npm:pi-autoresearch",
-      "npm:pi-cursor-sdk",
-      "npm:@narumitw/pi-goal",
-      "npm:pi-lens",
-      "npm:pi-simplify",
-    ]) {
-      expect(packageBySource(silenced)?.skills).toEqual([]);
-    }
+    expect(packageBySource("git:github.com/badlogic/pi-skills")).toBeUndefined();
     expect(packageBySource("npm:pi-mcp-adapter")?.skills).toEqual([
       "mcp-scripting",
     ]);
     expect(packageBySource("npm:@zenspc/pi-pstack")).toBeUndefined();
-    expect(packageBySource("npm:pi-subagents")?.skills).toEqual([]);
+    expect(packageBySource("npm:pi-subagents")).toBeUndefined();
 
     // Removed from quasi-vanilla profile
+    expect(packageBySource("npm:@narumitw/pi-goal")).toBeUndefined();
+    expect(packageBySource("npm:pi-autoresearch")).toBeUndefined();
+    expect(packageBySource("npm:pi-simplify")).toBeUndefined();
+    expect(packageBySource("npm:pi-cursor-sdk")).toBeUndefined();
     expect(packageBySource("npm:pi-hooks")).toBeUndefined();
     expect(packageBySource("npm:glimpseui")).toBeUndefined();
+    expect(packageBySource("npm:@tintinweb/pi-tasks")).toBeUndefined();
+    expect(packageBySource("npm:pi-lens")).toBeUndefined();
     expect(packageBySource("npm:pi-interview")).toBeUndefined();
     expect(
       packageBySource("npm:@tintinweb/pi-subagents@0.13.0"),
@@ -170,7 +150,7 @@ describe("Pi settings consistency", () => {
     // Installer delegates surface convergence; deploy owns settings synchronization.
     expect(installScript).toContain('"$BOOTSTRAP_DIR/deploy-agent-workflow" --apply');
     expect(deployAgentWorkflowScript).toContain("pi-agent-settings-sync.mjs");
-    expect(settingsSyncModule).not.toContain('"npm:pi-subagents",');
+    expect(settingsSyncModule).toContain('"npm:pi-subagents",');
     expect(settingsSyncModule).toContain('"npm:@tintinweb/pi-subagents",');
     expect(settingsSyncModule).toContain('"npm:pi-hooks",');
     expect(settingsSyncModule).not.toContain('"npm:@agwab/pi-workflow@0.8.1",');

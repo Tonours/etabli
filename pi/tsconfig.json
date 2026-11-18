@@ -15,5 +15,5 @@
     "target": "ESNext",
     "types": ["bun", "node"]
   },
-  "include": ["extensions/**/*.ts", "../workflow/runtime/*.mjs"]
+  "include": ["extensions/**/*.ts", "profiles/**/*.ts", "../workflow/runtime/*.mjs"]
 }

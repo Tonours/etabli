@@ -6,6 +6,11 @@ request to redo a description. It does not govern mechanical edits to an
 existing body, such as ticking its checkboxes. Its freshness check
 (§ Honest status) also applies before each push to a branch with an open PR.
 
+The `pr` skill is the procedure. The `pr-body` guard refuses a
+`gh pr create` or `gh pr edit` body without `## What`, `## Why`,
+`## How to test` and the repo template's headings, with AI attribution, or
+with non-ASCII prose.
+
 The reader is a busy human reviewer, not a changelog. They decide in about
 thirty seconds whether they can review this now.
 
@@ -15,9 +20,16 @@ thirty seconds whether they can review this now.
   commits, code, and identifiers.
 - **The repo's template is law.** Use `.github/PULL_REQUEST_TEMPLATE.md` (or
   the equivalent). Keep every section and checklist intact, fill only the
-  placeholders, leave author/reviewer checklists unchecked.
+  placeholders, leave author/reviewer checklists unchecked. Our `## What`,
+  `## Why`, `## How to test` go inside its free-form section; when the
+  template already has sections for what changed and how it was verified,
+  those stand in for ours.
 - **No AI attribution.** No "Generated with", no robot emoji, no co-author
-  trailer, nowhere in the body.
+  or `Claude-Session:` trailer, no session link, nowhere in the body.
+- **No other model names at work.** In a repo of an org listed in
+  `~/.config/etabli/work-orgs`, prose names no non-Claude model or provider
+  (GPT, ChatGPT, OpenAI, Codex, GLM, zai, z.ai, Zhipu, Gemini, DeepSeek,
+  Mistral, Grok, Qwen, Llama, Kimi), HTML comments included; code spans may.
 - **Link the ticket** when there is one: `fixes PRD-123` on its own line, so
   the tracker picks it up.
 
@@ -28,10 +40,15 @@ That is the whole body. One opening line states the change, then `## What`,
 `## Why`, `## How to test`. Lead with the change, never with a story about the
 problem; the reviewer reads the diff for the rest.
 
-- **What** — the change. A table of touched files plus the rules that changed.
+- **What** — the change, in the smallest view that shows it: a table of
+  touched files plus the rules that changed, or a sketch (diff, call tree,
+  file tree, pseudocode, Mermaid) when the shape is the point.
 - **Why** — the need, and only the choices a reviewer would otherwise
-  question. Skip the obvious ones.
-- **How to test** — the commands you actually ran, with their result.
+  question. Skip the obvious ones. When the merge cannot be walked back
+  (migration, data deletion, published API, history rewrite), one bullet says
+  what is irreversible and how far it reaches.
+- **How to test** — the commands you actually ran, with their result. A fix
+  shows before and after: the test or output that failed, then passes.
 
 Anything else has to earn its heading against those three, and almost nothing
 does. A ceiling you accepted on purpose belongs in one `## Why` bullet, not in

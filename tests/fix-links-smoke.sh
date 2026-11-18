@@ -5,6 +5,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." >/dev/null 2>&1 && pwd)"
 # asdf shims resolve node from HOME, which the fixtures replace.
 PATH="$(dirname "$(node -e 'process.stdout.write(process.execPath)')"):$PATH"
 TMP_HOME="$(cd -P "$(mktemp -d)" && pwd)"
+# This smoke covers links; the skill-load checks of a live home have their own smokes.
+export ETABLI_SKIP_SKILL_LOAD_CHECKS=1
 CHECKOUT_LINK="$ROOT_DIR/pi/extensions/node_modules"
 
 link_state() {
@@ -89,13 +91,13 @@ assert_link "$TMP_HOME/.pi/agent/skills/plan-loop" "$REPO/skills/shared/plan-loo
 assert_link "$TMP_HOME/.pi/agent/skills/adversary" "$REPO/skills/shared/adversary"
 assert_link "$TMP_HOME/.pi/agent/skills/implement" "$REPO/skills/shared/implement"
 assert_link "$TMP_HOME/.pi/agent/skills/code-quality" "$REPO/skills/shared/code-quality"
-assert_link "$TMP_HOME/.pi/agent/skills/verify-workflow" "$REPO/skills/shared/verify-workflow"
+assert_link "$TMP_HOME/.pi/agent/skills/pr" "$REPO/skills/shared/pr"
 assert_not_exists "$TMP_HOME/.pi/agent/skills/verify"
-assert_not_exists "$TMP_HOME/.pi/agent/skills/bug-check"
-assert_not_exists "$TMP_HOME/.pi/agent/skills/linear-work"
+assert_not_exists "$TMP_HOME/.pi/agent/skills/linear-ticket-create"
+assert_not_exists "$TMP_HOME/.pi/agent/skills/pr-council-review"
 assert_link "$TMP_HOME/.claude/skills/plan-loop" "$REPO/skills/shared/plan-loop"
 assert_link "$TMP_HOME/.claude/skills/write-direct" "$REPO/skills/shared/write-direct"
-assert_not_exists "$TMP_HOME/.claude/skills/linear-work"
+assert_not_exists "$TMP_HOME/.claude/skills/linear-ticket-create"
 # --fix moves a foreign link aside, outside the discovery root, never deletes it.
 foreign_backups=( "$TMP_HOME/.claude/skills.bak"/plan-loop.bak.* )
 [ "$(readlink "${foreign_backups[0]}")" = "$TMP_HOME/external-skill" ] || {
@@ -114,7 +116,6 @@ assert_not_exists "$TMP_HOME/.claude/skills/frontend-css-ui-ux"
 assert_not_exists "$TMP_HOME/.claude/skills/css-layout-primitives"
 assert_not_exists "$TMP_HOME/.claude/skills/css-only-components"
 assert_not_exists "$TMP_HOME/.claude/skills/css-debugging"
-assert_not_exists "$TMP_HOME/.claude/skills/react-doctor-100"
 assert_not_exists "$TMP_HOME/.claude/skills/retired-skill"
 assert_not_exists "$TMP_HOME/.claude/skills/vercel-react-best-practices"
 assert_not_exists "$TMP_HOME/.grok"
@@ -133,7 +134,6 @@ assert_link "$TMP_HOME/.claude/hooks/read-only-agent-guard.mjs" "$REPO/claude/ho
 assert_link "$TMP_HOME/.claude/workflow" "$REPO/workflow"
 assert_link "$TMP_HOME/.claude/PLAN_TEMPLATE.md" "$REPO/PLAN_TEMPLATE.md"
 assert_link "$TMP_HOME/.claude/PLAN_TEMPLATE_FULL.md" "$REPO/PLAN_TEMPLATE_FULL.md"
-assert_not_exists "$TMP_HOME/.claude/skills/coolify"
 assert_not_exists "$TMP_HOME/.claude/scripts/claude-bin.sh"
 
 mkdir -p "$TMP_HOME/.claude/scripts"
@@ -144,10 +144,10 @@ ETABLI_SCOPE=work HOME="$TMP_HOME" "$SCRIPT" --fix --verbose >/dev/null
 assert_not_exists "$TMP_HOME/.claude/skills/adr"
 assert_link "$TMP_HOME/.claude/scripts/claude-bin.sh" "$REPO/claude/scopes/work/scripts/claude-bin.sh"
 assert_link "$TMP_HOME/.claude/scripts/pr-review-watch" "$REPO/claude/scopes/work/scripts/pr-review-watch"
-assert_link "$TMP_HOME/.claude/skills/linear-work" "$REPO/skills/work/linear-work"
-assert_link "$TMP_HOME/.pi/agent/skills/linear-work" "$REPO/skills/work/linear-work"
+assert_link "$TMP_HOME/.claude/skills/linear-ticket-create" "$REPO/skills/work/linear-ticket-create"
+assert_link "$TMP_HOME/.pi/agent/skills/linear-ticket-create" "$REPO/skills/work/linear-ticket-create"
 assert_link "$TMP_HOME/.claude/skills/pr-council-review" "$REPO/skills/work/pr-council-review"
-assert_not_exists "$TMP_HOME/.pi/agent/skills/pr-council-review"
+assert_link "$TMP_HOME/.pi/agent/skills/pr-council-review" "$REPO/skills/work/pr-council-review"
 assert_not_exists "$TMP_HOME/.pi/agent/skills/employer-backend-suite"
 assert_link "$TMP_HOME/.claude/skills/employer-backend-suite" "$REPO/skills/work/employer-backend-suite"
 assert_not_exists "$TMP_HOME/.pi/agent/skills/adonisjs-suite"

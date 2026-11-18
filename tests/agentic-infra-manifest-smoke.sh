@@ -17,7 +17,7 @@ duplicates="$(awk -F '\t' '!/^#/ && NF {print $3}' "$MANIFEST" | sort | uniq -d)
 
 while IFS=$'\t' read -r profile group label target; do
 	case "$profile" in core | full) ;; *) fail "unknown profile for $label: $profile" ;; esac
-	case "$group" in shell-docs | pi) ;; *) fail "unknown group for $label: $group" ;; esac
+	case "$group" in shell-docs | pi | durable) ;; *) fail "unknown group for $label: $group" ;; esac
 	[ -n "$label" ] && [ -n "$target" ] || fail "empty label or target"
 	case "$target" in
 	builtin:*) ;;
@@ -29,7 +29,9 @@ done < <(sed '/^#/d; /^$/d' "$MANIFEST")
 for required in \
 	shell-syntax \
 	json-config \
-	pi-typecheck; do
+	pi-typecheck \
+	durable-typecheck \
+	durable-tests; do
 	awk -F '\t' -v required="$required" '!/^#/ && $3 == required {found=1} END {exit !found}' "$MANIFEST" ||
 		fail "required check is absent: $required"
 done
@@ -50,7 +52,7 @@ actual_nvim="$(awk -F '\t' '!/^#/ && $2 == "nvim" {print $3}' "$MANIFEST")"
 stdin_root="$(mktemp -d)"
 trap 'rm -rf "$stdin_root"' EXIT
 
-for group in shell-docs pi; do
+for group in shell-docs pi durable; do
 	count="$(grep -Fc "scripts/verify-agentic-infra $group" "$WORKFLOW")"
 	[ "$count" -eq 1 ] || fail "CI must call canonical group $group exactly once, found $count"
 done
@@ -70,8 +72,8 @@ case "$shell_docs_job" in
 *) fail "shell/docs CI job must install Bun for Bun-backed smoke tests" ;;
 esac
 
-[ "$(grep -c '^    timeout-minutes:' "$WORKFLOW")" -eq 2 ] || fail "both CI jobs must set timeout-minutes"
-[ "$(grep -c 'uses: actions/cache@' "$WORKFLOW")" -eq 2 ] || fail "both CI jobs must cache bun installs"
+[ "$(grep -c '^    timeout-minutes:' "$WORKFLOW")" -eq 3 ] || fail "all three CI jobs must set timeout-minutes"
+[ "$(grep -c 'uses: actions/cache@' "$WORKFLOW")" -eq 3 ] || fail "all three CI jobs must cache bun installs"
 grep -Eq '^    branches: \[main\]$' "$WORKFLOW" || fail "CI push runs must be limited to main"
 if printf '%s\n' "$(cat "$ROOT_DIR/scripts/verify-agentic-infra")" | grep -Fq 'sysctl'; then
 	fail "verify-agentic-infra must count cores with getconf, not the macOS-only sysctl"

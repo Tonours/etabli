@@ -1,7 +1,8 @@
 #!/bin/bash
 set -uo pipefail
+umask 077
 
-MODE="${1:?usage: review-run.sh <council|verify|approve> <owner/repo> <number> <sha> <since> <url> <report> <state-key>}"
+MODE="${1:?usage: review-run.sh <council|dryrun|verify|approve> <owner/repo> <number> <sha> <since> <url> <report> <state-key>}"
 REPO="${2:?}"
 NUMBER="${3:?}"
 SHA="${4:?}"
@@ -10,23 +11,39 @@ URL="${6:?}"
 REPORT="${7:?}"
 KEY="${8:?}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
+canonical_key="$(cd "$(dirname "$KEY")" && pwd -P)/${KEY##*/}" || exit 1
+if [ "$KEY" != "$canonical_key" ]; then exec "$HERE/review-run.sh" "$MODE" "$REPO" "$NUMBER" "$SHA" "$SINCE" "$URL" "$REPORT" "$canonical_key"; fi
 COUNCIL="${PR_REVIEW_WATCH_COUNCIL:-$HOME/.claude/scripts/pr-council-review/run.sh}"
 TIMEOUT="${PR_REVIEW_WATCH_TIMEOUT:-2700}"
 VERIFY_MODEL="${PR_REVIEW_WATCH_VERIFY_MODEL:-opus}"
 VERIFY_EFFORT="${PR_REVIEW_WATCH_VERIFY_EFFORT:-low}"
 
-export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
-. "$HERE/../pr-council-review/lib.sh"
-. "$HERE/gates.sh"
+# Preserve the eight-argument CLI; only the immediate supervised child may enter.
+if [ "${PR_REVIEW_WATCH_SUPERVISOR:-}" != "$PPID" ] || [ "${PR_REVIEW_WATCH_RUN_KEY:-}" != "$KEY" ] \
+  || [ "$(cat "$KEY.execution/pid" 2>/dev/null)" != "$PPID" ] \
+  || [ "${PR_REVIEW_WATCH_RUN_TOKEN:-}" != "$(cat "$KEY.execution/token" 2>/dev/null)" ]; then
+  attempt=1
+  IFS=$'\t' read -r status_sha status_mode status_rc status_attempt <"$KEY.status" 2>/dev/null || true
+  if [ "${status_sha:-}" = "$SHA" ] && [[ "${status_attempt:-}" =~ ^[1-9][0-9]*$ ]]; then attempt="$status_attempt"; fi
+  exec "$HERE/launch-run.sh" "$KEY" - "$MODE" "$SHA" "$attempt" "$HERE/review-run.sh" "$@"
+fi
 
+# Advertise the child too: a killed supervisor must not hide a live runner.
+printf '%s\n' "$$" >"$KEY.pid"
 finish() {
-  local rc=$? attempt
-  attempt="$(cut -f4 "$KEY.status" 2>/dev/null || echo 1)"
-  [ "$MODE" = approve ] || printf '%s\t%s\t%s\t%s\n' "$SHA" "$MODE" "$rc" "${attempt:-1}" >"$KEY.status"
-  rm -f "$KEY.pid"
+  local rc=$?
   echo "=== exit $rc"
-  [ "$rc" -eq 0 ] || notify "PR review failed ($MODE, $rc)" "$REPO#$NUMBER @${SHA:0:8}" "file://$REPORT"
+  if [ "$rc" -ne 0 ] && declare -F notify >/dev/null; then
+    notify "PR review failed ($MODE, $rc)" "$REPO#$NUMBER @${SHA:0:8}" "file://$REPORT"
+  fi
 }
+trap finish EXIT
+trap 'declare -F stop_children >/dev/null && stop_children; exit 130' INT
+trap 'declare -F stop_children >/dev/null && stop_children; exit 143' TERM
+trap 'declare -F stop_children >/dev/null && stop_children; exit 129' HUP
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
+. "$HERE/../pr-council-review/lib.sh" || exit 1
+. "$HERE/gates.sh" || exit 1
 
 my_review_count() {
   gh pr view "$NUMBER" --repo "$REPO" --json latestReviews \
@@ -54,8 +71,51 @@ keep_pending_approval() {
 }
 
 post_approval() {
-  local body="$1" url pending
-  if ! url="$(gh api "repos/$REPO/pulls/$NUMBER/reviews" -f event=APPROVE -f commit_id="$SHA" -f body="$body" --jq .html_url)"; then
+  local body="$1" url pending actor registered_sha registered_actor reviews response status
+  actor="$(gh api user --jq .login)" || actor=''
+  actor="$(printf '%s' "$actor" | tr '[:upper:]' '[:lower:]')"
+  registered_actor="$(printf '%s' "$ME" | tr '[:upper:]' '[:lower:]')"
+  if [ -f "$KEY.registered" ]; then
+    IFS=$'\t' read -r registered_sha registered_actor <"$KEY.registered" || registered_actor=''
+  fi
+  if [ -z "$actor" ] || [ "$actor" != "$registered_actor" ]; then
+    keep_pending_approval "$body"
+    echo '=== approval pending: authenticated account changed or unavailable'
+    return 0
+  fi
+  reviews="$(gh api --paginate "repos/$REPO/pulls/$NUMBER/reviews")" || {
+    keep_pending_approval "$body"
+    echo '=== approval pending: review history unavailable'
+    return 0
+  }
+  url="$(printf '%s' "$reviews" | jq -csr --arg me "$actor" --arg sha "$SHA" '
+    [.[][] | select((.user.login|ascii_downcase) == $me)
+      | select(.state == "APPROVED" or .state == "CHANGES_REQUESTED" or .state == "DISMISSED")]
+    | max_by(.id) // {} | select(.state == "APPROVED" and .commit_id == $sha) | .html_url // "confirmed"')" || {
+    keep_pending_approval "$body"; echo '=== approval pending: unreadable review history'; return 0
+  }
+  if [ -n "$url" ]; then
+    rm -f "$KEY.approval-pending" "$KEY.approval-body"
+    echo "=== approved: $url (already confirmed on this head)"
+    return 0
+  fi
+  if ! response="$(gh api --include "repos/$REPO/pulls/$NUMBER/reviews" -f event=APPROVE -f commit_id="$SHA" -f body="$body")"; then
+    status="$(printf '%s\n' "$response" | sed -n 's/^HTTP\/[^ ]* \([0-9][0-9][0-9]\).*/\1/p' | tail -1)"
+    case "$status" in
+      400|401|403|404|405|410|422)
+        # A rate-limit response is retryable; other deterministic 4xx refusals
+        # cannot become approvals by posting the same proof every minute.
+        if ! printf '%s\n' "$response" | grep -qiE '^(retry-after:|x-ratelimit-remaining: 0)|rate limit'; then
+          rm -f "$KEY.approval-pending" "$KEY.approval-body"
+          echo "=== approval terminal: GitHub refused HTTP $status; no automatic retry"
+          notify 'PR approval refused' "$REPO#$NUMBER: HTTP $status" "$URL"
+          return 0
+        fi ;;
+    esac
+    response=''
+  fi
+  url="$(printf '%s\n' "$response" | awk 'body {print} /^\r?$/ {body=1}' | jq -er '.html_url | select(type == "string" and startswith("https://"))' 2>/dev/null)" || url=''
+  if [ -z "$url" ]; then
     pending="$(cat "$KEY.approval-pending" 2>/dev/null)"
     keep_pending_approval "$body"
     echo "=== approval pending: the approval POST failed (retried by the watcher without a new review)"
@@ -94,12 +154,38 @@ run_shown() {
   return "$rc"
 }
 
+council_report_path() {
+  printf '%s/%s-%s-%s-council.md' "$(dirname "$REPORT")" "${REPO//\//_}" "$NUMBER" "${1:0:8}"
+}
+
+council_state_complete() {
+  local council findings actor_sha actor
+  IFS=$'\t' read -r actor_sha actor <"$KEY.registered" 2>/dev/null || return 1
+  [ "$actor" = "$(printf '%s' "$ME" | tr '[:upper:]' '[:lower:]')" ] || return 1
+  council="$(cat "$KEY.council-done" 2>/dev/null)" && [ -n "$council" ] || return 1
+  findings="$(validator_run_findings "$(council_report_path "$council")" "$council")" || return 1
+  if [ -f "$KEY.council-clean" ]; then
+    [ "$findings" = 0 ] && [ "$(cat "$KEY.council-clean")" = "$council" ] || return 1
+  fi
+}
+
 run_council() {
   local body findings
-  run_shown "$REPORT" "$COUNCIL" "$NUMBER" "$REPO" --post || return
-  findings="$(validator_run_findings "$REPORT" "$SHA")"
-  [ -n "$findings" ] || { echo "=== no validator run marker for ${SHA:0:8}: the review is incomplete"; return "$REVIEW_INCOMPLETE_RC"; }
+  REPORT="$(council_report_path "$SHA")"
+  rm -f "$KEY.council-done" "$KEY.council-clean" || return "$REVIEW_INCOMPLETE_RC"
+  run_shown "$REPORT" "$COUNCIL" "$NUMBER" "$REPO" --post --no-watch-register || return
+  if grep -q '^=== council degraded:' "$REPORT"; then
+    echo '=== incomplete council: a required independent pass did not complete'
+    return "$REVIEW_INCOMPLETE_RC"
+  fi
+  findings="$(validator_run_findings "$REPORT" "$SHA" 2>>"$REPORT")"
+  [ -n "$findings" ] || {
+    rm -f "$KEY.council-done" "$KEY.council-clean"
+    echo "=== no complete validator run marker for ${SHA:0:8} (pending, ticketed, malformed or missing): the review is incomplete" | tee -a "$REPORT"
+    return "$REVIEW_INCOMPLETE_RC"
+  }
   echo "$SHA" >"$KEY.council-done"
+  printf '%s\t%s\n' "$SHA" "$(printf '%s' "$ME" | tr '[:upper:]' '[:lower:]')" >"$KEY.registered"
   [ "$findings" = 0 ] || return 0
   echo "=== approval"
   body="$(validator_approval_body "$REPORT" "$SHA" 2>&1)" || { decide_and_approve "$body" ""; return 0; }
@@ -108,10 +194,93 @@ run_council() {
   decide_and_approve "" "$body"
 }
 
+# Last JSON object after the last WOULD SUBMIT heading that carries a review
+# payload; one naming another commit is ignored (text echoed from the PR).
+dryrun_payload() {
+  # The payload is the last top-level review object after the last WOULD SUBMIT heading,
+  # bound to this head by commit_id. Each top-level JSON value is skipped whole, so nothing
+  # nested in an object or an array stands in for it, and a broken value fails the parse.
+  SHA="$2" perl -MJSON::PP -MB -e '
+    sub is_text { my $v = shift; defined $v && !ref $v
+      && (B::svref_2object(\$v)->FLAGS & B::SVp_POK) && !(B::svref_2object(\$v)->FLAGS & (B::SVp_IOK | B::SVp_NOK)) }
+    local $/; my $text = <STDIN>; $text =~ s/.*^[ \t#*]*WOULD SUBMIT\b//ms or exit 1;
+    my $json = JSON::PP->new->utf8; my $found;
+    while ($text =~ /^[ \t]*[\{\[]/mg) {
+      my $at = $-[0]; my ($obj, $len) = eval { $json->decode_prefix(substr($text, $at)) };
+      defined $len or exit 1;
+      pos($text) = $at + $len;
+      next unless ref $obj eq "HASH" && exists $obj->{commit_id};
+      next unless is_text($obj->{commit_id}) && $obj->{commit_id} eq $ENV{SHA};
+      exit 1 if exists $obj->{body} && !is_text($obj->{body});
+      my $comments = $obj->{comments} // [];
+      exit 1 unless ref $comments eq "ARRAY";
+      for my $c (@$comments) {
+        exit 1 unless ref $c eq "HASH" && is_text($c->{path}) && is_text($c->{body});
+      }
+      $found = $obj;
+    }
+    $found or exit 1; print $json->canonical->encode($found)' <"$1"
+}
+
+# Own PR: run the council without --post, keep its findings, write nothing on the PR.
+run_full_dryrun() {
+  local findings payload out="$(dirname "$REPORT")/${REPO//\//_}-$NUMBER-${SHA:0:8}-findings.json" temp
+  # A run that does not complete leaves no findings file, never an older one for this head.
+  rm -f "$out" || return 1
+  run_shown "$REPORT" "$COUNCIL" "$NUMBER" "$REPO" --no-watch-register || return
+  if grep -q '^=== council degraded:' "$REPORT"; then
+    echo '=== incomplete council: a required independent pass did not complete'
+    return "$REVIEW_INCOMPLETE_RC"
+  fi
+  findings="$(validator_run_findings "$REPORT" "$SHA" 2>>"$REPORT")"
+  [ -n "$findings" ] || {
+    echo "=== no complete validator run marker for ${SHA:0:8}: the dry-run is incomplete" | tee -a "$REPORT"
+    return "$REVIEW_INCOMPLETE_RC"
+  }
+  payload="$(dryrun_payload "$REPORT" "$SHA")" || payload='{"body":"","comments":[]}'
+  if [ "$findings" != 0 ] && [ "$(jq '.comments // [] | length' <<<"$payload")" = 0 ] && [ "$(jq -r '.body // ""' <<<"$payload")" = "" ]; then
+    echo "=== dry-run kept $findings findings but printed no WOULD SUBMIT payload: incomplete" | tee -a "$REPORT"
+    return "$REVIEW_INCOMPLETE_RC"
+  fi
+  temp="$(mktemp "$out.XXXXXX")" || return 1
+  jq -n --arg repo "$REPO" --argjson number "$NUMBER" --arg sha "$SHA" --argjson findings "$findings" --argjson payload "$payload" \
+    '{version: 1, repo: $repo, number: $number, sha: $sha, basis: "full", findings: $findings, body: ($payload.body // ""), comments: ($payload.comments // [])}' >"$temp" \
+    && mv "$temp" "$out" || { rm -f "$temp"; return 1; }
+  echo "=== dry-run: $findings findings written to $out; nothing posted, no approval"
+}
+
+run_dryrun() {
+  local helper="$HERE/dryrun-followup.sh" rc=2
+  local out="$(dirname "$REPORT")/${REPO//\//_}-$NUMBER-${SHA:0:8}-findings.json"
+  rm -f "$out" || return 1
+  if [ -e "$KEY.dryrun-last" ] || [ -L "$KEY.dryrun-last" ]; then
+    rc=0
+    run_shown "$REPORT" /bin/bash "$helper" "$REPO" "$NUMBER" "$SHA" "$ME" "$KEY" "$out" || rc=$?
+  fi
+  case "$rc" in
+    0) ;;
+    2|6)
+      rm -f "$KEY.dryrun-last" || return 1
+      echo '=== private follow-up unavailable or uncertain: run one full council'
+      run_full_dryrun || return ;;
+    "$REVIEW_VETO_RC"|"$REVIEW_INCOMPLETE_RC")
+      rm -f "$KEY.dryrun-last"
+      return "$rc" ;;
+    *) return "$rc" ;;
+  esac
+  # Baselines are an optimization, never posting/approval authority. A failed
+  # receipt write must not discard a completed review or reuse older findings.
+  /bin/bash "$helper" record "$REPO" "$NUMBER" "$SHA" "$ME" "$KEY" "$out" "$REPORT" || {
+    rm -f "$KEY.dryrun-last"
+    echo '=== private baseline unavailable: cannot record completed result'
+  }
+  return 0
+}
+
 run_delta() {
   local log="$1" rc
   linked_once
-  run_with_timeout "$TIMEOUT" "$HERE/delta-review.sh" "$REPO" "$NUMBER" "$SINCE" "$LINKED_FILE" </dev/null >"$log" 2>&1
+  run_with_timeout "$TIMEOUT" "$HERE/delta-review.sh" "$REPO" "$NUMBER" "$SINCE" "$LINKED_FILE" "$SHA" </dev/null >"$log" 2>&1
   rc=$?
   cat "$log"
   return "$rc"
@@ -127,6 +296,11 @@ verify_merge_base() {
 
 run_verify_fixes() {
   local tree raw rc base
+  local -a verify_args=("${ISOLATED_SETTINGS[@]}")
+  verify_args[1]="$(verify_settings "$VERIFY_SKILL_NAME")" || {
+    echo "$SHA" >"$KEY.verify-unconfigured" || return 1
+    return "$VERIFY_UNCONFIGURED_RC"
+  }
   purge_old_dirs "${TMPDIR:-/tmp}" "pr-verify-*" 7
   tree="$(mktemp -d "${TMPDIR:-/tmp}/pr-verify-$NUMBER.XXXXXX")/tree"
   raw="${REPORT%.md}.json"
@@ -137,7 +311,7 @@ run_verify_fixes() {
   rc=0
   cd "$tree" || return 1
   claude_pass verify "$raw" read-only "$(verify_prompt)" \
-    --model "$VERIFY_MODEL" --effort "$VERIFY_EFFORT" "${ISOLATED_SETTINGS[@]}" >"$REPORT" || rc=$?
+    --model "$VERIFY_MODEL" --effort "$VERIFY_EFFORT" "${verify_args[@]}" >"$REPORT" || rc=$?
   cd "$OLDPWD" || return 1
   cat "$REPORT"
   git worktree remove --force "$tree" >/dev/null 2>&1
@@ -160,6 +334,12 @@ council_in_history() {
 run_verify() {
   local delta_log="${REPORT%.md}-delta.md" delta_findings reviewed history=0
   rm -f "$KEY.verify-unconfigured"
+  if ! council_state_complete; then
+    echo "=== stored council report missing, incomplete or inconsistent: full council again"
+    rm -f "$KEY".{council-done,council-clean,watermark,delta-done} || return "$REVIEW_INCOMPLETE_RC"
+    run_council
+    return
+  fi
   council_in_history || history=$?
   case "$history" in
     0) ;;
@@ -170,24 +350,15 @@ run_verify() {
       return ;;
     *) echo "=== cannot check the head's history against the council"; return 1 ;;
   esac
-  if [ "$(head -1 "$KEY.delta-done" 2>/dev/null)" = "$SHA" ]; then
+  if [ "$(head -1 "$KEY.delta-done" 2>/dev/null)" = "$SHA" ] && grep -qxF "DELTA_HEAD $SHA" "$KEY.delta-done"; then
     echo "=== step 1: skipped, the commits since ${SINCE:0:8} were already reviewed for ${SHA:0:8}"
     tail -n +2 "$KEY.delta-done" >"$delta_log"
   else
     echo "=== step 1: /code-review on the commits since ${SINCE:0:8}, findings posted"
     run_delta "$delta_log" || return
-    grep -q '^=== nothing new since' "$delta_log" && printf 'DELTA_FINDINGS 0\nDELTA_CONFIDENT value=true\n' >>"$delta_log"
-    { echo "$SHA"; grep -E '^DELTA_(FINDINGS|CONFIDENT) ' "$delta_log"; } >"$KEY.delta-done"
+    { echo "$SHA"; grep -E '^DELTA_(HEAD|FINDINGS|CONFIDENT) ' "$delta_log"; } >"$KEY.delta-done"
   fi
   delta_findings="$(sed -n 's/^DELTA_FINDINGS \([0-9]*\).*/\1/p' "$delta_log" | tail -1)"
-
-  if [ -f "$KEY.council-clean" ] && [ "$(my_review_count)" = 0 ]; then
-    echo "=== step 2: skipped, the full review found nothing to verify"
-    echo "$SHA" >"$KEY.watermark"
-    decide_and_approve "$(clean_blocker "$delta_log" "$delta_findings")" \
-      "Approved: the full review at $(cut -c1-8 "$KEY.council-clean") found nothing, and the commits since add no finding."
-    return
-  fi
 
   VERIFY_SKILL_NAME="$(verify_skill)" || {
     echo "$SHA" >"$KEY.verify-unconfigured"
@@ -200,7 +371,7 @@ run_verify() {
   echo "=== step 3: approval"
   grep -E '^CONFIDENCE ' "$REPORT" | tail -1
   reviewed="$(field "$REPORT" VERIFY_VERDICT reviewed)"
-  decide_and_approve "$(verify_blocker "$REPORT" "$delta_findings")" \
+  decide_and_approve "$(verify_blocker "$REPORT" "$delta_findings" "$delta_log")" \
     "Approved after /verify-fixes: ${reviewed:-0} findings closed or accepted, none reopened, no new finding since ${SINCE:0:8}."
 }
 
@@ -209,23 +380,37 @@ run_pending_approval() {
   pending_sha="$(cat "$KEY.approval-pending" 2>/dev/null)"
   [ -f "$KEY.approval-body" ] || { rm -f "$KEY.approval-pending"; echo "=== pending approval has no body, dropped"; return 0; }
   [ "$pending_sha" = "$SHA" ] || { rm -f "$KEY.approval-pending" "$KEY.approval-body"; echo "=== pending approval was for ${pending_sha:0:8}, dropped"; return 0; }
+  if ! council_state_complete; then
+    rm -f "$KEY".{council-done,council-clean,watermark,delta-done,approval-pending,approval-body,status} || return "$REVIEW_INCOMPLETE_RC"
+    echo "=== approval deferred: stored council report invalid; queued for a normal council next tick"
+    return 0
+  fi
   CI_WAIT_SECONDS=0
   blocker="$(objective_blocker)"
   [ -z "$blocker" ] || { echo "=== approval still pending: $blocker"; return 0; }
   post_approval "$(cat "$KEY.approval-body")"
 }
 
-[ -f "${PR_REVIEW_WATCH_STATE_DIR:-$HOME/.claude/state/pr-review-watch}/off" ] && { echo "kill switch is on"; exit 0; }
-echo $$ >"$KEY.pid"
-trap finish EXIT
-trap 'stop_children; exit 130' INT
-trap 'stop_children; exit 143' TERM
-trap 'stop_children; exit 129' HUP
-USAGE_TARGET="$REPO#$NUMBER"
+if [ -f "${PR_REVIEW_WATCH_STATE_DIR:-$HOME/.claude/state/pr-review-watch}/off" ]; then
+  if [ "$MODE" != approve ]; then
+    printf '%s\t%s\n' "$SHA" "$(cut -f4 "$KEY.status")" >"$KEY.paused"
+  fi
+  exit 75
+fi
+. "$HERE/own-only.sh" || exit 1
+own_only_refused "$REPO" "$NUMBER" "$MODE"; own_rc=$?
+if [ "$own_rc" = 2 ]; then
+  # An unreadable author defers the run like the off switch: same attempt next tick.
+  [ "$MODE" = approve ] || printf '%s\t%s\n' "$SHA" "$(cut -f4 "$KEY.status")" >"$KEY.paused"
+  exit 75
+fi
+[ "$own_rc" = 1 ] || exit 1
+USAGE_TARGET="$REPO#$NUMBER@$SHA"
 ME="$(gh api user --jq .login)" || exit 1
 echo "=== $MODE $REPO#$NUMBER @${SHA:0:8} — $URL"
 case "$MODE" in
   council) run_council ;;
+  dryrun) run_dryrun ;;
   verify) run_verify ;;
   approve) run_pending_approval ;;
   *) echo "unknown mode $MODE" >&2; exit 2 ;;

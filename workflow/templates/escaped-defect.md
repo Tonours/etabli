@@ -8,7 +8,7 @@ defect, with a concise statement of observable evidence.
 ```text
 escaped-defect:
   reviewed_change:
-  tier: small | standard | high-risk | unknown
+  tier: small | bounded-fix | standard | high-risk | unknown
   source_location:
   found_by: independent-review | human-review | ci | production
   defect: <source location + one sentence>
@@ -25,8 +25,9 @@ intended, out of scope or owned elsewhere, while the change's goal depended on i
 the implementation report `tier:`); `unknown` when no reliable source gives one.
 Public surfaces accept aggregate synthetic rows only; raw change records stay private.
 
-`project_constraint`: the miss is mechanizable in the subject project
-(`workflow/project-constraints.md`). One miss must not append a new prompt rule.
+`project_constraint`: the miss is mechanizable in the subject project: encode
+it in that project's type, lint, test or CI, with a case that fails before.
+One miss must not append a new prompt rule.
 Keep the record bounded and reproducible.
 Do not store credentials or raw provider output.
 Re-run the relevant check before closing the record.

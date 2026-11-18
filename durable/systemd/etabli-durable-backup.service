@@ -1,0 +1,8 @@
+[Unit]
+Description=Snapshot the Etabli durable store
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/work/etabli
+ExecStart=%h/work/etabli/scripts/etabli-durable backup
+UMask=0077

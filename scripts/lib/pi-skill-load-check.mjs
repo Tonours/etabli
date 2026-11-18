@@ -147,7 +147,9 @@ while ((match = entryRe.exec(block)) !== null) {
 const modelBlockChars = block.length;
 
 if (modelBlockChars > GATE) {
-  errors.push(`B1: model-facing block ${modelBlockChars} chars exceeds gate ${GATE}`);
+  errors.push(
+    `B1: model-facing block ${modelBlockChars} chars exceeds gate ${GATE}; run scripts/pi-dmi-stamp --home "${homeDir}" to hide specialist skills (new names go in its ROOT_NAMES)`,
+  );
 } else if (modelBlockChars >= ALERT) {
   warnings.push(`B1: model-facing block ${modelBlockChars} chars within ${GATE - ALERT} of the ${ALERT} alert`);
 }
@@ -233,9 +235,7 @@ for (const name of expected) {
 }
 for (const entry of rendered) {
   const isPackage = entry.location.includes("/npm/node_modules/");
-  const isLens = entry.location.includes("/pi-lens/");
   if (isPackage) {
-    if (isLens) continue;
     const pkg = entry.location.split("/npm/node_modules/")[1].split("/skills/")[0];
     const pkgEntry = (settings.packages ?? []).find(
       (candidate) =>

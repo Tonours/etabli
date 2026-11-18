@@ -4,10 +4,27 @@ set -euo pipefail
 LABEL="com.aguimard.pr-review-watch"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 SCRIPT="$HOME/.claude/scripts/pr-review-watch/watch.sh"
-INTERVAL="${1:-300}"
+STATE="${PR_REVIEW_WATCH_STATE_DIR:-$HOME/.claude/state/pr-review-watch}"
+OWN_ONLY=0
+INTERVAL=60
+for arg in "$@"; do
+  case "$arg" in
+    --own-only) OWN_ONLY=1 ;;
+    *) INTERVAL="$arg" ;;
+  esac
+done
 
 [ -x "$SCRIPT" ] || { echo "missing $SCRIPT, run etabli scripts/install.sh first" >&2; exit 1; }
 case "$INTERVAL" in ''|*[!0-9]*) echo "interval must be seconds" >&2; exit 2 ;; esac
+
+PURGE_RC=0
+if [ "$OWN_ONLY" = 1 ]; then
+  [ -f "$STATE/off" ] || { echo "own-only needs the off switch first: touch $STATE/off" >&2; exit 2; }
+  touch "$STATE/own-only"
+  # Stop runs already past the launch guards before their reservations go.
+  /bin/bash "$SCRIPT" stop >/dev/null || { echo "could not stop the running reviews" >&2; exit 1; }
+  /bin/bash "$SCRIPT" --purge-foreign || PURGE_RC=$?
+fi
 
 mkdir -p "$HOME/.claude/logs" "$(dirname "$PLIST")"
 cat >"$PLIST" <<EOF
@@ -32,6 +49,8 @@ cat >"$PLIST" <<EOF
   <dict>
     <key>PATH</key>
     <string>$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <key>PR_REVIEW_WATCH_STATE_DIR</key>
+    <string>$STATE</string>
   </dict>
   <key>StandardOutPath</key>
   <string>$HOME/.claude/logs/pr-review-watch.launchd.out</string>
@@ -64,6 +83,7 @@ cat >"$AWAKE_PLIST" <<EOF
 </plist>
 EOF
 
+[ "$PURGE_RC" = 0 ] || { echo "wrote $PLIST and $AWAKE_PLIST, not loaded: the purge left an unread or foreign reservation (exit $PURGE_RC)" >&2; exit 1; }
 [ -z "${PR_REVIEW_WATCH_NO_LOAD:-}" ] || { echo "wrote $PLIST and $AWAKE_PLIST, not loaded"; exit 0; }
 for label_plist in "$LABEL:$PLIST" "$AWAKE_LABEL:$AWAKE_PLIST"; do
   launchctl bootout "gui/$(id -u)/${label_plist%%:*}" 2>/dev/null || true

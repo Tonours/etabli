@@ -167,6 +167,8 @@ read_only_probes=(
 	"git grep --open-files-in-page=touch x"
 	"gh auth status --show-token=true"
 	"git grep -nOtouch x"
+	"rtk grep -n x f"
+	"cd /tmp && rtk git status"
 	"rtk grep x f -- --pre=touch"
 	"test -v 'BASH_VERSINFO[\$(touch x)]'"
 	"gh pr view 1 -w"
@@ -179,6 +181,7 @@ read_only_probes=(
 	"rg -z foo a.gz"
 )
 read_only_controls=(
+	"cd /tmp && git status"
 	"git status"
 	"rtk git log --oneline -3"
 	"grep -n 'a#b' file"
@@ -208,7 +211,7 @@ import { spawnSync } from "node:child_process";
 const root = process.env.ROOT_DIR;
 const { isReadOnlyBashCommand } = await import(`${root}/workflow/runtime/read-only-bash.mjs`);
 const decide = (command) => {
-  if (command.startsWith("rtk ")) {
+  if (/\brtk\s/.test(command)) {
     const input = JSON.stringify({ cwd: process.env.CWD, hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command } });
     const run = spawnSync("node", [`${root}/claude/hooks/read-only-agent-guard.mjs`], { input, encoding: "utf8" });
     if (run.stdout.includes('"permissionDecision":"deny"')) return "deny";
@@ -240,8 +243,9 @@ if (failed) process.exit(1);
 NODE
 
 parity_dir="$TMP_DIR/no-comments-parity"
-mkdir -p "$parity_dir"
+mkdir -p "$parity_dir/.git"
 printf '/**\n * Existing doc.\n */\nexport const a = 1;\n' >"$parity_dir/doc.ts"
+printf '/* Existing note. */\nexport const a = 1;\n' >"$parity_dir/dup.ts"
 printf "const x = 1; // don't\nconst y = 2;\n" >"$parity_dir/apos.ts"
 ROOT_DIR="$ROOT_DIR" PARITY_DIR="$parity_dir" node --input-type=module <<'NODE'
 import { spawnSync } from "node:child_process";
@@ -250,7 +254,8 @@ const cwd = process.env.PARITY_DIR;
 const { noCommentsGuardDecision } = await import(`${root}/workflow/runtime/no-comments-guard.mjs`);
 const write = (name, content) => ({ tool_name: "Write", tool_input: { file_path: `${cwd}/${name}`, content } });
 const edit = (old_string, new_string) => ({ tool_name: "Edit", tool_input: { file_path: `${cwd}/doc.ts`, old_string, new_string } });
-const multiEdit = (edits) => ({ tool_name: "MultiEdit", tool_input: { file_path: `${cwd}/doc.ts`, edits } });
+const multiEdit = (edits) => ({ tool_name: "MultiEdit", tool_input: { file_path: `${cwd}/dup.ts`, edits } });
+const editDup = (old_string, new_string) => ({ tool_name: "Edit", tool_input: { file_path: `${cwd}/dup.ts`, old_string, new_string } });
 const cases = [
   ["kept comment", edit(" * Existing doc.\n */\nexport const a = 1;", " * Existing doc.\n */\nexport const a = 2;"), "allow"],
   ["added comment", edit("export const a = 1;", "// added\nexport const a = 1;"), "deny"],
@@ -261,10 +266,15 @@ const cases = [
   ["eslint directive", write("c.ts", "// eslint-disable-next-line no-console\nconsole.log(1);\n"), "allow"],
   ["copyright header", write("d.ts", "// Copyright 2026 Example\nexport {};\n"), "allow"],
   ["astro comment", write("e.astro", "---\n// note\n---\n"), "deny"],
-  ["JSDoc continuation", edit(" * Existing doc.\n", " * Existing doc.\n * new line\n"), "deny"],
-  ["duplicated comment write", write("doc.ts", "/**\n * Existing doc.\n */\n/**\n * Existing doc.\n */\nexport const a = 1;\n"), "deny"],
-  ["duplicated comment edit", edit("export const a = 1;", "export const a = 1;\n/**\n * Existing doc.\n */"), "deny"],
-  ["duplicated comment multiedit", multiEdit([{ old_string: "export const a = 1;", new_string: "export const a = 1;\n/** Existing doc. */" }, { old_string: "/** Existing doc. */", new_string: "/**\n * Existing doc.\n */" }]), "deny"],
+  ["JSDoc continuation", edit(" * Existing doc.\n", " * Existing doc.\n * new line\n"), "allow"],
+  ["JSDoc block", write("da.ts", "/** Adds one. */\nexport const inc = (x: number) => x + 1;\n"), "allow"],
+  ["rustdoc lines", write("db.rs", "//! Crate docs.\n/// Adds one.\npub fn inc(x: u8) -> u8 { x + 1 }\n"), "allow"],
+  ["four-slash banner", write("dc.rs", "//// banner\npub fn inc() {}\n"), "deny"],
+  ["shell header block", write("dd.sh", "#!/usr/bin/env bash\n# Deploys the thing.\n#\n# Usage: dd.sh\nset -eu\n"), "allow"],
+  ["shell comment after code", write("de.sh", "set -eu\n# restates set\n"), "deny"],
+  ["duplicated comment write", write("dup.ts", "/* Existing note. */\n/* Existing note. */\nexport const a = 1;\n"), "deny"],
+  ["duplicated comment edit", editDup("export const a = 1;", "export const a = 1;\n/* Existing note. */"), "deny"],
+  ["duplicated comment multiedit", multiEdit([{ old_string: "export const a = 1;", new_string: "export const a = 1;\n// Existing note." }, { old_string: "// Existing note.", new_string: "/* Existing note. */" }]), "deny"],
   ["line comment in ts", write("f.ts", "// note\nexport {};\n"), "deny"],
   ["hash comment in py", write("g.py", "# note\nx = 1\n"), "deny"],
   ["block comment in css", write("h.css", "/* x */\n.a { color: red; }\n"), "deny"],
@@ -383,12 +393,17 @@ jq -e '[.hooks.PreToolUse[] | select(.matcher == "Write|Edit|MultiEdit") | .hook
 	exit 1
 }
 no_comments="$ROOT_DIR/claude/hooks/no-comments-guard.mjs"
-denied=$(jq -nc --arg cwd "$TMP_DIR" '{cwd:$cwd,tool_name:"Write",tool_input:{file_path:"src/a.ts",content:("/" + "/ note\nconst a = 1\n")}}' | node "$no_comments")
+outside_repo=$(jq -nc --arg cwd "$TMP_DIR" '{cwd:$cwd,tool_name:"Write",tool_input:{file_path:"src/a.ts",content:("/" + "/ note\nconst a = 1\n")}}' | node "$no_comments")
+[ -z "$outside_repo" ] || {
+	printf 'no-comments-guard must pass a write outside a git work tree, got %s\n' "$outside_repo" >&2
+	exit 1
+}
+denied=$(jq -nc --arg cwd "$parity_dir" '{cwd:$cwd,tool_name:"Write",tool_input:{file_path:"src/a.ts",content:("/" + "/ note\nconst a = 1\n")}}' | node "$no_comments")
 [ "$(printf '%s' "$denied" | jq -r '.hookSpecificOutput.permissionDecision')" = deny ] || {
 	printf 'no-comments-guard must deny a write that adds a comment, got %s\n' "$denied" >&2
 	exit 1
 }
-clean=$(jq -nc --arg cwd "$TMP_DIR" '{cwd:$cwd,tool_name:"Write",tool_input:{file_path:"src/a.ts",content:("const url = \"http:" + "/" + "/x\"\n")}}' | node "$no_comments")
+clean=$(jq -nc --arg cwd "$parity_dir" '{cwd:$cwd,tool_name:"Write",tool_input:{file_path:"src/a.ts",content:("const url = \"http:" + "/" + "/x\"\n")}}' | node "$no_comments")
 [ -z "$clean" ] || {
 	printf 'no-comments-guard must pass comment markers inside strings, got %s\n' "$clean" >&2
 	exit 1
@@ -398,129 +413,44 @@ if jq -r '.. | .command? // empty' "$ROOT_DIR/claude/settings.workflow-hooks.jso
 	exit 1
 fi
 
-rtk_guard="$ROOT_DIR/claude/hooks/rtk-guard.mjs"
-fake_rtk_dir="$TMP_DIR/fake-rtk"
-mkdir -p "$fake_rtk_dir"
-cat >"$fake_rtk_dir/rtk" <<'EOF'
-#!/bin/sh
-printf 'called\n' >>"$RTK_CALLS"
-printf '%s\n' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","updatedInput":{"command":"rtk git status"}}}'
-EOF
-chmod +x "$fake_rtk_dir/rtk"
-export RTK_CALLS="$TMP_DIR/rtk-calls"
-: >"$RTK_CALLS"
-node_bin="$(node -p process.execPath)"
-for data_command in 'git diff > out.diff' 'cat a > b' 'git diff | wc -l'; do
-	data_out="$(jq -nc --arg c "$data_command" '{tool_name:"Bash",tool_input:{command:$c}}' | PATH="$fake_rtk_dir:$PATH" "$node_bin" "$rtk_guard")"
-	assert_empty "$data_out" "rtk-guard on data-flow command '$data_command'"
-done
-[ ! -s "$RTK_CALLS" ] || {
-	printf 'rtk-guard must not call rtk for data-flow commands\n' >&2
-	exit 1
-}
-display_out="$(jq -nc '{tool_name:"Bash",tool_input:{command:"git status"}}' | PATH="$fake_rtk_dir:$PATH" "$node_bin" "$rtk_guard")"
-assert_contains "$display_out" '"command":"rtk git status"'
-missing_out="$(jq -nc '{tool_name:"Bash",tool_input:{command:"git status"}}' | PATH="$(dirname "$node_bin")" "$node_bin" "$rtk_guard")"
-assert_empty "$missing_out" "rtk-guard without rtk on PATH"
-hung_rtk_dir="$TMP_DIR/hung-rtk"
-mkdir -p "$hung_rtk_dir"
-printf '#!/bin/sh\nexec sleep 8\n' >"$hung_rtk_dir/rtk"
-chmod +x "$hung_rtk_dir/rtk"
-hung_started="$("$node_bin" -p 'Date.now()')"
-hung_status=0
-hung_out="$(jq -nc '{tool_name:"Bash",tool_input:{command:"git status"}}' | PATH="$hung_rtk_dir:$PATH" "$node_bin" "$rtk_guard")" || hung_status=$?
-hung_ms=$(($("$node_bin" -p 'Date.now()') - hung_started))
-[ "$hung_status" -eq 0 ] && [ -z "$hung_out" ] && [ "$hung_ms" -lt 2500 ] || {
-	printf 'rtk-guard must allow the raw command within 2.5 s when rtk hangs, got status %s after %s ms: %s\n' "$hung_status" "$hung_ms" "$hung_out" >&2
-	exit 1
-}
-large_rtk_dir="$TMP_DIR/large-rtk"
-mkdir -p "$large_rtk_dir"
-printf '#!/bin/sh\nexec %s -e %s\n' "$node_bin" "'process.stdout.write(JSON.stringify({hookSpecificOutput:{hookEventName:\"PreToolUse\",updatedInput:{command:\"rtk \" + \"x\".repeat(1000000)}}}))'" >"$large_rtk_dir/rtk"
-chmod +x "$large_rtk_dir/rtk"
-large_bytes="$(jq -nc '{tool_name:"Bash",tool_input:{command:"git status"}}' | PATH="$large_rtk_dir:$PATH" "$node_bin" "$rtk_guard" | wc -c | tr -d ' ')"
-[ "$large_bytes" -gt 1000000 ] || {
-	printf 'rtk-guard truncated a large rtk reply to %s bytes\n' "$large_bytes" >&2
-	exit 1
-}
-
 rtk_home="$TMP_DIR/rtk-migration-home"
 mkdir -p "$rtk_home/.claude"
-jq -n '{hooks:{PreToolUse:[{matcher:"Bash",hooks:[{type:"command",command:"rtk hook claude"}]},{matcher:"Bash",hooks:[{type:"command",command:"rtk hook claude --ultra-compact"}]},{matcher:"Bash",hooks:[{type:"command",command:"rtk hook claude\t--ultra-compact"}]},{matcher:"Bash",hooks:[{type:"command",command:"/opt/homebrew/bin/rtk hook claude"}]},{matcher:"Bash",hooks:[{type:"command",command:"rtk hook claude && node audit.mjs"}]},{matcher:"Bash",hooks:[{type:"command",command:"\"rtk\" hook \"claude\""}]},{matcher:"Bash",hooks:[{type:"command",command:"rtk --verbose hook claude"}]},{matcher:"Bash",hooks:[{type:"command",command:"rtk hook claude \"$(node audit-subst.mjs)\""}]},{matcher:"Bash",hooks:[{type:"command",command:"rtk \"--x=`node audit-tick.mjs`\" hook claude"}]}]}}' >"$rtk_home/.claude/settings.json"
-obf_home="$TMP_DIR/rtk-obfuscated-home"
-mkdir -p "$obf_home/.claude"
-jq -n --arg c "r''tk hook claude && :" --arg w "sh -c \"r''tk hook claude\"" --arg n "$(printf 'sh -c "r\\\ntk hook claude"')" --arg m "$(printf "sh -c '#x\\\\\nr\"\"tk hook claude'")" --arg k "$(printf "#/usr/bin/rtk hook claude --'\nprintf audit-comment\n#'")" '{hooks:{PreToolUse:[{matcher:"Bash",hooks:[{type:"command",command:$c}]},{matcher:"^B",hooks:[{type:"command",command:"rtk hook claude && :"}]},{matcher:"Bash",hooks:[{type:"command",command:$w}]},{matcher:"Bash",hooks:[{type:"command",command:$n}]},{matcher:"Bash",hooks:[{type:"command",command:$m}]},{matcher:"Bash",hooks:[{type:"command",command:$k}]},{matcher:"Bash",hooks:[{type:"command",command:"RTK hook claude"}]}]}}' >"$obf_home/.claude/settings.json"
-"$ROOT_DIR/scripts/claude-hooks-merge" --home "$obf_home" >/dev/null
-assert_contains "$(jq -r '.. | .command? // empty' "$obf_home/.claude/settings.json")" "r''tk hook claude && :"
-if "$ROOT_DIR/scripts/claude-hooks-check" --home "$obf_home" >"$TMP_DIR/rtk-obf-check.txt" 2>&1; then
-	printf 'claude-hooks-check must fail while a quoted rtk token hides a rewriting hook\n' >&2
-	exit 1
-fi
-assert_contains "$(cat "$TMP_DIR/rtk-obf-check.txt")" 'calls rtk outside rtk-guard'
-assert_contains "$(cat "$TMP_DIR/rtk-obf-check.txt")" 'PreToolUse/^B: rtk hook claude && :'
-assert_contains "$(cat "$TMP_DIR/rtk-obf-check.txt")" "PreToolUse/Bash: sh -c \"r''tk hook claude\""
-jq -r '.. | .command? // empty' "$obf_home/.claude/settings.json" | grep -Fq 'printf audit-comment' || {
-	printf 'a commented multiline hook must never be retired as a simple rtk call\n' >&2
-	exit 1
-}
-[ "$(grep -c 'calls rtk outside rtk-guard' "$TMP_DIR/rtk-obf-check.txt")" -eq 7 ] || {
-	printf 'a backslash-newline continuation inside an rtk hook must be refused too\n' >&2
-	exit 1
-}
-nonbash_home="$TMP_DIR/rtk-nonbash-home"
-mkdir -p "$nonbash_home/.claude"
-jq -n '{hooks:{PreToolUse:[{matcher:"Write|Edit",hooks:[{type:"command",command:"rtk gain --history"}]}]}}' >"$nonbash_home/.claude/settings.json"
-"$ROOT_DIR/scripts/claude-hooks-check" --home "$nonbash_home" >"$TMP_DIR/rtk-nonbash-check.txt" 2>&1 || :
-if grep -Fq 'calls rtk outside rtk-guard' "$TMP_DIR/rtk-nonbash-check.txt"; then
-	printf 'a PreToolUse hook whose matcher cannot match Bash must not be refused\n' >&2
-	exit 1
-fi
+jq -n '{hooks:{PreToolUse:[{matcher:"Bash",hooks:[{type:"command",command:"rtk hook claude"}]},{matcher:"Bash",hooks:[{type:"command",command:"rtk hook claude --ultra-compact"}]},{matcher:"Bash",hooks:[{type:"command",command:"/opt/homebrew/bin/rtk hook claude"}]},{matcher:"Bash",hooks:[{type:"command",command:"rtk hook claude && node audit.mjs"}]}]}}' >"$rtk_home/.claude/settings.json"
 "$ROOT_DIR/scripts/claude-hooks-merge" --home "$rtk_home" >/dev/null || {
 	printf 'claude-hooks-merge failed on an rtk-hooked settings file\n' >&2
 	exit 1
 }
 migrated_commands="$(jq -r '.. | .command? // empty' "$rtk_home/.claude/settings.json")"
 assert_contains "$migrated_commands" 'rtk hook claude && node audit.mjs'
-assert_contains "$migrated_commands" 'audit-subst.mjs'
-assert_contains "$migrated_commands" 'audit-tick.mjs'
 if printf '%s\n' "$migrated_commands" | grep -v 'audit' | grep -Eq '(^|/)rtk[[:space:]]+hook[[:space:]]+claude'; then
 	printf 'claude-hooks-merge must retire the raw rtk hook and its option variants\n' >&2
 	exit 1
 fi
-assert_contains "$migrated_commands" 'hooks/rtk-guard.mjs'
-if "$ROOT_DIR/scripts/claude-hooks-check" --home "$rtk_home" >"$TMP_DIR/rtk-check.txt" 2>&1; then
-	printf 'claude-hooks-check must fail while a custom hook calls rtk hook claude outside rtk-guard\n' >&2
-	exit 1
-fi
-assert_contains "$(cat "$TMP_DIR/rtk-check.txt")" 'calls rtk outside rtk-guard'
-cp "$rtk_home/.claude/settings.json" "$TMP_DIR/rtk-migrated.json"
-"$ROOT_DIR/scripts/claude-hooks-merge" --home "$rtk_home" >/dev/null
-cmp -s "$rtk_home/.claude/settings.json" "$TMP_DIR/rtk-migrated.json" || {
-	printf 'claude-hooks-merge must be idempotent after the rtk migration\n' >&2
+
+old_home="$TMP_DIR/old-install-home"
+mkdir -p "$old_home/.claude"
+jq '.hooks.PreToolUse[1].hooks |= [{type:"command",command:"node \"${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/rtk-guard.mjs\"",timeout:5}] + .' "$ROOT_DIR/claude/settings.workflow-hooks.json" >"$old_home/.claude/settings.json"
+grep -Fq 'hooks/rtk-guard.mjs' "$old_home/.claude/settings.json" || {
+	printf 'old-install fixture lost its rtk-guard hook\n' >&2
 	exit 1
 }
-
-benign_home="$TMP_DIR/rtk-benign-home"
-mkdir -p "$benign_home/.claude"
-jq -n '{hooks:{Stop:[{hooks:[{type:"command",command:"echo '"'"'rtk hook claude is deprecated'"'"'"}]}]}}' >"$benign_home/.claude/settings.json"
-"$ROOT_DIR/scripts/claude-hooks-merge" --home "$benign_home" >/dev/null 2>&1
-assert_contains "$(jq -r '.. | .command? // empty' "$benign_home/.claude/settings.json")" "echo 'rtk hook claude is deprecated'"
-"$ROOT_DIR/scripts/claude-hooks-check" --home "$benign_home" >"$TMP_DIR/benign-check.txt" 2>&1 || true
-if grep -q 'outside rtk-guard' "$TMP_DIR/benign-check.txt"; then
-	printf 'claude-hooks-check must not refuse rtk text outside Bash PreToolUse hooks\n' >&2
+"$ROOT_DIR/scripts/claude-hooks-merge" --home "$old_home" >/dev/null || {
+	printf 'claude-hooks-merge failed on an old install holding rtk-guard\n' >&2
+	exit 1
+}
+old_commands="$(jq -r '.. | .command? // empty' "$old_home/.claude/settings.json")"
+if printf '%s\n' "$old_commands" | grep -Fq 'rtk-guard.mjs'; then
+	printf 'claude-hooks-merge must retire the installed rtk-guard hook\n' >&2
 	exit 1
 fi
-prefixed_home="$TMP_DIR/rtk-prefixed-home"
-mkdir -p "$prefixed_home/.claude"
-for prefixed in 'command -- rtk hook claude' "sh -lc 'rtk hook claude'" 'env -i PATH=/usr/bin rtk hook claude'; do
-	jq -n --arg c "$prefixed" '{hooks:{PreToolUse:[{matcher:"Bash",hooks:[{type:"command",command:$c}]}]}}' >"$prefixed_home/.claude/settings.json"
-	"$ROOT_DIR/scripts/claude-hooks-merge" --home "$prefixed_home" >/dev/null 2>&1
-	if "$ROOT_DIR/scripts/claude-hooks-check" --home "$prefixed_home" >"$TMP_DIR/prefixed-check.txt" 2>&1; then
-		printf 'claude-hooks-check must refuse %s\n' "$prefixed" >&2
-		exit 1
-	fi
-	assert_contains "$(cat "$TMP_DIR/prefixed-check.txt")" 'calls rtk outside rtk-guard'
-done
+assert_contains "$old_commands" 'hooks/no-comments-guard.mjs'
+assert_contains "$old_commands" 'hooks/pr-body-guard.mjs'
+cp "$old_home/.claude/settings.json" "$TMP_DIR/old-migrated.json"
+"$ROOT_DIR/scripts/claude-hooks-merge" --home "$old_home" >/dev/null
+cmp -s "$old_home/.claude/settings.json" "$TMP_DIR/old-migrated.json" || {
+	printf 'claude-hooks-merge must be idempotent after the rtk-guard retirement\n' >&2
+	exit 1
+}
 
 hash_repo="$TMP_DIR/re#po"
 mkdir -p "$hash_repo/scripts/lib" "$hash_repo/claude" "$TMP_DIR/hash-home/.claude"

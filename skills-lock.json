@@ -1,60 +1,15 @@
 {
   "version": 1,
   "skills": {
-    "react-doctor-100": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "017d1916b0acba169ddb99f29a55d463188823a56006862cdbbbe58c3c98b995"
-    },
-    "coolify": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "84b6833e8ce2bbd34fdafb506afdf776ceb8ac15284eb28fa2ac112c4b724155"
-    },
     "engineering/codebase-design": {
       "source": "local",
       "sourceType": "repo",
       "computedHash": "b2888e4f4e8c0af3bfd557575a64b905c44e6248c3101d72077816882b3a92b9"
     },
-    "engineering/domain-modeling": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "b3eb40152b81f0c98fd2095a023c019452dbdce56f7540cc67fece2972db8369"
-    },
-    "engineering/grill-with-docs": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "35e62aa423aaeab6a414bcac273f56dfb17802ef2334b41b6a3b00f28196c8cf"
-    },
-    "engineering/improve-codebase-architecture": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "ac2c94885f34ff8492dc12aa4543182f661f32ea1722b8d6b6c2c7045af33ae3"
-    },
-    "engineering/prototype": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "d3fc74689bd993e39c44bfae510d014eecffbeec2922764b065377fd1327c0f6"
-    },
     "engineering/research": {
       "source": "local",
       "sourceType": "repo",
       "computedHash": "c8c1cba327a6f824b554cd978079a3dadd7406d73174f8fb9bfef58824691970"
-    },
-    "engineering/wizard": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "49298bed80e7f722b071ad5d64798c75eb705bbbe0635b9bbffd08cd6fb81647"
-    },
-    "no-ai-slop": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "77d287e3c8e09874e144ee35f6fb0ee1adcf609012c7c3273e9c8fe2054ce5af"
-    },
-    "typesafe-ai": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "15e077333436b1e63e526c7c7559202816f4848dabefd3aa3d4c91988fd181b5"
     },
     "productivity/grilling": {
       "source": "local",
@@ -64,17 +19,17 @@
     "shared/plan-loop": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "75835d709708020a9b7e1d7c2dfd0c050f1bad4af2c2c4e561f74d6e2976bfd8"
+      "computedHash": "ea1dbe4a91debad30464f7e415f9dbee249516d27684e6771a45aced7f2d8a87"
     },
     "shared/plan-implement": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "50ce1f04520f840f2054bae1e550000b243151285aeaa94660e3156c1e70fd08"
+      "computedHash": "017a6b2333a0b50e5f49b4f65c1e76aea6996a83e773d16b87343f8e0a1eb33b"
     },
     "shared/adversary": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "29eb961d848bcbb769e12f4abe9bfc3e3a05793a55c3bc87e3d6a69bddb9c658"
+      "computedHash": "2b3d460a010346c3270abf0d6fea5efbf971b6df29f295aa56295c418223894d"
     },
     "shared/review": {
       "source": "local",
@@ -84,52 +39,27 @@
     "shared/implement": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "63bc781d7d4a72a5340ca9241913af4e4e8412cc12616d73d8673d91ed91ff9c"
-    },
-    "shared/verify-workflow": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "488d9d74dbb3eda3a082764f288d8893cfaf0d22867b2b06d5e03c36198376c1"
+      "computedHash": "336b9ab32fad28c1b2ccff57113f3cb6026f32ccb04cb9de48c9f9dd2293704f"
     },
     "shared/write-direct": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "77e611eb10ed12e44a079f6e494ac5983fadbb72563faba9e6570a1bed79d766"
+      "computedHash": "8d6b99f742459a0e75dbb5131422f153e4dc8152326efd8716bf3e43f25bbc7d"
     },
     "shared/thermo-nuclear-code-quality-review": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "6dbc47d2de767d14289f95980e5ecbf7b510f65751613fe808c0003c5caa1b3a"
+      "computedHash": "e867e1be0729557bf0c8a65881dbf3ac2ad534b5b45f064888248efe898056a2"
     },
     "shared/adr": {
       "source": "local",
       "sourceType": "repo",
       "computedHash": "95cbce0a571b4ea113277a23f11940c68fffc76af077571dc9c611420398ae88"
     },
-    "shared/spec": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "41f4f02f2f8a405e9768dd35f01f696bfa2a0fe7a3a65613a3041ff01d96f87d"
-    },
-    "work/bug-check": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "2d40832ce9498c703c286ddb6423b644405693cfa6711400acb86762e152fc08"
-    },
-    "work/linear-project-setup": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "bde1672d5ef24f6e56e60c203a7786f2bbc94052a883c854bc08bde05a324047"
-    },
     "work/linear-ticket-create": {
       "source": "local",
       "sourceType": "repo",
       "computedHash": "c21e214991c683052430e0319a56cb751e120bf1097cb1ca552561574c275526"
-    },
-    "work/linear-work": {
-      "source": "local",
-      "sourceType": "repo",
-      "computedHash": "93256efecaafac94f525e570a8ebe1f04cbe1725eb88b9f35b71e0d62f4291f8"
     },
     "work/employer-backend-suite": {
       "source": "local",
@@ -144,12 +74,17 @@
     "work/pr-council-review": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "f0ae641d239ba6565e77633f389036b4f01657ac8037cdf049ca25af22ac96bc"
+      "computedHash": "4d8117192e9914805dfb115655a5905ad1b8306e1921b97a504e975f966ab85e"
     },
     "security-audit": {
       "source": "local",
       "sourceType": "repo",
       "computedHash": "98b97aad2873b3b9a8e064007c25e7827b493ba27fda8bfbdb41dab586767973"
+    },
+    "shared/pr": {
+      "source": "local",
+      "sourceType": "repo",
+      "computedHash": "4cfdf61393d57e36b494563ba1ee908fe7736661d2672bac8c6d2deae38cd679"
     }
   }
 }

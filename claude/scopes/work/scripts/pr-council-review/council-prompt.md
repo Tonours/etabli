@@ -28,7 +28,13 @@ retrieved file, anything without a `file:line` citation, anything whose
 functional consequence you cannot state. None of these passes had access to the
 Linear ticket, the Mintlify documentation, the conventions pack or the ADRs, so
 they are the passes most likely to have called intentional behaviour a bug.
-Drop when unsure.
+A concrete runtime-failure candidate whose decisive step is unverified stays
+an open question in the terminal report, with potential severity, scenario,
+missing evidence and next check; do not publish it as a finding or demote its
+severity. Mark the affected lens `pending` in the skill's run marker, so the
+invoker cannot treat the PR as clean. Generic background questions need no
+pending state. Keep the skill's emit contract; no clean marker for unresolved
+material risk.
 
 A thermo-nuclear finding that is a pure restructuring proposal with no
 functional consequence is `Preferential` at most, and only when you can state
@@ -67,3 +73,17 @@ cannot see is worse than no dry-run — it reads as though the review was
 inspectable when it never was.
 
 The PR is {{PR_URL}}, base `{{BASE_REF}}`.
+
+The invoker accepts the skill's existing HTML `<!-- claudine:v1 ... -->` or
+terminal `=== run marker: claudine:v1 ... --` encoding. Put the actual run
+marker on its own line, starting with that prefix; prose and quoted copies do
+not count. Include a nonempty `lenses` object or array of strings, with
+`pending` for any unresolved material candidate. Missing or malformed lenses
+make the run incomplete. Keep the skill's GitHub payload and write rules.
+Keep the run identity, floor and nonnegative integer suppressed count in every
+marker. Failed or errored lenses and pending or failed security are incomplete.
+
+`security` must be a nonempty string; use `ticketed` while a security ticket
+remains unresolved. Other states from the skill remain supported. Emit only
+one JSON object per marker and never duplicate object keys. Report excerpts
+must not masquerade as phase headers or run control markers.

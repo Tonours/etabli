@@ -1,0 +1,31 @@
+{
+  "mcpServers": {
+    "alambic-obvault": {
+      "type": "stdio",
+      "command": "/usr/bin/node",
+      "args": [
+        "${HOME}/work/alambic/_meta/mcp/server.mjs"
+      ],
+      "env": {
+        "ALAMBIC_ROOT": "${HOME}/work/obvault",
+        "ALAMBIC_STATE_DIR": "${HOME}/.local/state/alambic-obvault"
+      }
+    },
+    "chrome-devtools": {
+      "type": "stdio",
+      "command": "/usr/bin/node",
+      "args": [
+        "${HOME}/.local/share/etabli-durable/mcp/node_modules/chrome-devtools-mcp/build/src/bin/chrome-devtools-mcp.js",
+        "--isolated",
+        "--headless",
+        "--no-usage-statistics",
+        "--no-performance-crux",
+        "--executablePath=/usr/bin/chromium"
+      ],
+      "env": {
+        "CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS": "1",
+        "CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS": "1"
+      }
+    }
+  }
+}

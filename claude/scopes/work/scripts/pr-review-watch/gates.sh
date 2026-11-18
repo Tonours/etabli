@@ -25,10 +25,11 @@ unresolved_threads() {
 }
 
 pr_state_line() {
-  gh pr view "$NUMBER" --repo "$REPO" --json state,isDraft,headRefOid,latestReviews \
+  gh pr view "$NUMBER" --repo "$REPO" --json state,isDraft,headRefOid,latestReviews,author \
     | jq -r --arg me "$ME" '[
         .state, .isDraft, .headRefOid,
-        ([.latestReviews[] | select(.state == "CHANGES_REQUESTED" and .author.login != $me) | .author.login] | join(","))
+        ([.latestReviews[] | select(.state == "CHANGES_REQUESTED" and .author.login != $me) | .author.login] | join(",")),
+        (.author.login // "unknown")
       ] | @tsv'
 }
 
@@ -58,11 +59,14 @@ wait_for_ci() {
 }
 
 pr_blocker() {
-  local state draft head others threads
-  IFS=$'\t' read -r state draft head others <<<"$(pr_state_line 2>/dev/null)"
+  local state draft head others author threads
+  # TSV empty fields collapse in read; use a non-whitespace delimiter here.
+  IFS='|' read -r state draft head others author <<<"$(pr_state_line 2>/dev/null | tr '\t' '|')"
   [ "$state" = OPEN ] || { echo "PR is ${state:-unreadable}"; return; }
   [ "$draft" = false ] || { echo "PR is a draft"; return; }
   [ "$head" = "$SHA" ] || { echo "head moved to ${head:0:8}"; return; }
+  [ -n "$author" ] && [ "$author" != unknown ] || { echo 'PR author unreadable'; return; }
+  [ "$(printf '%s' "$author" | tr '[:upper:]' '[:lower:]')" != "$(printf '%s' "$ME" | tr '[:upper:]' '[:lower:]')" ] || { echo 'cannot approve own PR'; return; }
   [ -z "$others" ] || { echo "changes requested by $others"; return; }
   threads="$(unresolved_threads 2>/dev/null)"
   [ "$threads" = 0 ] || { echo "${threads:-unknown} unresolved review threads"; return; }
@@ -80,8 +84,9 @@ objective_blocker() {
 }
 
 verify_blocker() {
-  local log="$1" delta_findings="$2" reviewed
+  local log="$1" delta_findings="$2" delta_log="${3:-}" reviewed
   [ "${delta_findings:-x}" = 0 ] || { echo "delta review posted ${delta_findings:-unknown} findings"; return; }
+  [ "$(field "$delta_log" DELTA_CONFIDENT value 2>/dev/null)" = true ] || { echo "delta reviewer not confident"; return; }
   grep -qE '^VERIFY_VERDICT ' "$log" || { echo "no VERIFY_VERDICT line"; return; }
   reviewed="$(field "$log" VERIFY_VERDICT reviewed)"
   [ "$reviewed" -ge 0 ] 2>/dev/null || { echo "unreadable finding count"; return; }

@@ -115,7 +115,28 @@ set_live_state unmapped-newcomer on
 expect_fail "personal skill on in live settings" "$FIX/home" "$FIX/repo" 'personal skill unmapped-newcomer is "on"'
 printf '%s\n' '["unmapped-newcomer"]' >"$FIX/repo/claude/machine-local-skills.json"
 expect_ok "machine-local personal skill on in live settings" "$FIX/home" "$FIX/repo"
+printf '%s\n' '["alambic-brain"]' >"$FIX/repo/claude/machine-local-skills.json"
+mkdir -p "$FIX/home/.config/etabli"
+printf '%s\n' '["unmapped-newcomer"]' >"$FIX/home/.config/etabli/machine-local-skills.json"
+expect_ok "home machine-local skill list unions with the repo list" "$FIX/home" "$FIX/repo"
 rm "$FIX/repo/claude/machine-local-skills.json"
+expect_ok "home machine-local skill list alone" "$FIX/home" "$FIX/repo"
+mkdir -p "$FIX/other/.config/etabli"
+printf '%s\n' '["unmapped-newcomer"]' >"$FIX/other/.config/etabli/machine-local-skills.json"
+rm "$FIX/home/.config/etabli/machine-local-skills.json"
+expect_fail "only the target home's skill list counts" "$FIX/home" "$FIX/repo" 'personal skill unmapped-newcomer is "on"'
+rm -rf "$FIX/other/.config"
+if [ "$(id -u)" != 0 ]; then
+  printf '%s\n' '["unmapped-newcomer"]' >"$FIX/home/.config/etabli/machine-local-skills.json"
+  chmod 000 "$FIX/home/.config/etabli/machine-local-skills.json"
+  expect_fail "unreadable home skill list" "$FIX/home" "$FIX/repo" "cannot read"
+  chmod 644 "$FIX/home/.config/etabli/machine-local-skills.json"
+fi
+printf '%s\n' '{"unmapped-newcomer": true}' >"$FIX/home/.config/etabli/machine-local-skills.json"
+expect_fail "non-array home skill list" "$FIX/home" "$FIX/repo" "must be a JSON array"
+printf '{bad' >"$FIX/home/.config/etabli/machine-local-skills.json"
+expect_fail "invalid JSON home skill list" "$FIX/home" "$FIX/repo" "invalid JSON"
+rm -rf "$FIX/home/.config/etabli"
 set_live_state unmapped-newcomer user-invocable-only
 rm -rf "$FIX/home/.claude/skills/unmapped-newcomer"
 expect_fail "stale personal key" "$FIX/home" "$FIX/repo" "map key with no surface skill: unmapped-newcomer"
@@ -159,15 +180,15 @@ const keepers = Object.entries(JSON.parse(fs.readFileSync(mapFile, "utf8")).skil
   .filter(([, state]) => state === "on").map(([name]) => name);
 const fixtureChars = keepers.reduce((sum, name) => sum + name.length + `stub ${name}`.length + 20, 0);
 const text = fs.readFileSync(file, "utf8");
-fs.writeFileSync(file, text.replace("description: stub", `description: ${"x".repeat(4912 - fixtureChars)}stub`));
+fs.writeFileSync(file, text.replace("description: stub", `description: ${"x".repeat(5280 - fixtureChars)}stub`));
 NODE
-expect_ok "exact 4912-character boundary" "$FIX/home" "$FIX/repo"
+expect_ok "exact 5280-character boundary" "$FIX/home" "$FIX/repo"
 node - "$FIX/home/.claude/skills/$KEEPER/SKILL.md" <<'NODE'
 const fs = require("node:fs");
 const [file] = process.argv.slice(2);
 fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("description: ", "description: x"));
 NODE
-expect_fail "4913 characters exceeds strengthened gate" "$FIX/home" "$FIX/repo" "exceeds gate 4912"
+expect_fail "5281 characters exceeds strengthened gate" "$FIX/home" "$FIX/repo" "exceeds gate 5280"
 
 build_fixture "$FIX/home" "$FIX/repo"
 node - "$FIX/repo/claude/settings.skill-overrides.json" "$FIX/home" "$FIX/repo" <<'NODE'
@@ -266,7 +287,7 @@ expect_fail "enabled plugin ships skills" "$FIX/home" "$FIX/repo" "enabled plugi
 SREPO="$FIX/scope-repo"
 mkdir -p "$SREPO"
 for shared_root in workflow vendor skills; do ln -s "$ROOT_DIR/$shared_root" "$SREPO/$shared_root"; done
-WORK_ONLY="bug-check employer-backend-suite employer-docs-writing linear-project-setup linear-ticket-create linear-work pr-council-review"
+WORK_ONLY="employer-backend-suite employer-docs-writing linear-ticket-create pr-council-review"
 build_scope_fixture() {
   build_fixture "$FIX/home" "$SREPO"
   rm -f "$FIX/home/.etabli-scope"
@@ -284,8 +305,8 @@ build_scope_fixture ""
 rm -rf "$FIX/home/.claude/skills/plan-loop"
 expect_fail "missing expected keeper on shared" "$FIX/home" "$SREPO" "repo skill plan-loop expected for this scope is missing"
 build_scope_fixture work
-rm -rf "$FIX/home/.claude/skills/linear-work" "$FIX/home/.claude/skills/synced/linear-work"
-expect_fail "missing work skill on work" "$FIX/home" "$SREPO" "repo skill linear-work expected for this scope is missing"
+rm -rf "$FIX/home/.claude/skills/employer-docs-writing" "$FIX/home/.claude/skills/synced/employer-docs-writing"
+expect_fail "missing work skill on work" "$FIX/home" "$SREPO" "repo skill employer-docs-writing expected for this scope is missing"
 build_scope_fixture ""
 node - "$SREPO/claude/settings.skill-overrides.json" <<'NODE'
 const fs = require("node:fs");
@@ -298,7 +319,7 @@ expect_fail "unknown stale key on shared" "$FIX/home" "$SREPO" "map key with no 
 CLAUDE_SKILL_LOAD_HOME="$FIX/home" CLAUDE_SKILL_LOAD_REPO="$SREPO" "$CHECK" --fix >/dev/null 2>&1 || fail "shared --fix failed"
 jq -e '.skillOverrides | has("retired-unknown") | not' "$SREPO/claude/settings.skill-overrides.json" >/dev/null ||
   fail "--fix must drop a key with neither a surface nor a catalog skill"
-jq -e '.skillOverrides["linear-work"] == "user-invocable-only" and .skillOverrides["employer-backend-suite"] == "on"' \
+jq -e '.skillOverrides["employer-docs-writing"] == "user-invocable-only" and .skillOverrides["employer-backend-suite"] == "on"' \
   "$SREPO/claude/settings.skill-overrides.json" >/dev/null || fail "--fix on shared must keep work-scope keys"
 rm -f "$FIX/home/.etabli-scope"
 
@@ -320,6 +341,16 @@ printf '%s\n' '{"skillOverrides":{"machine-on":"on","personal-on":"on"}}' >"$FIX
 node "$SYNC" "$FIX/sync/machine.json" "$FIX/sync/tracked.json" 0 t3 deploy >/dev/null || fail "settings sync machine-local pass failed"
 [ "$(jq -c .skillOverrides "$FIX/sync/machine.json")" = '{"machine-on":"on","repo-skill":"on"}' ] ||
   fail "settings sync must keep listed machine-local on keys and drop other personal on keys: $(jq -c .skillOverrides "$FIX/sync/machine.json")"
+mkdir -p "$FIX/sync-home/.config/etabli"
+printf '%s\n' '["home-on"]' >"$FIX/sync-home/.config/etabli/machine-local-skills.json"
+printf '%s\n' '{"skillOverrides":{"machine-on":"on","home-on":"on","personal-on":"on"}}' >"$FIX/sync/machine.json"
+node "$SYNC" "$FIX/sync/machine.json" "$FIX/sync/tracked.json" 0 t3b deploy "$FIX/sync-home" >/dev/null || fail "settings sync home machine-local pass failed"
+[ "$(jq -c .skillOverrides "$FIX/sync/machine.json")" = '{"home-on":"on","machine-on":"on","repo-skill":"on"}' ] ||
+  fail "settings sync must keep on keys listed in the home machine-local file too: $(jq -c .skillOverrides "$FIX/sync/machine.json")"
+printf '{bad' >"$FIX/sync-home/.config/etabli/machine-local-skills.json"
+node "$SYNC" "$FIX/sync/machine.json" "$FIX/sync/tracked.json" 0 t3c deploy "$FIX/sync-home" >/dev/null 2>"$FIX/sync-bad.txt" &&
+  fail "settings sync must refuse an invalid home machine-local file"
+grep -qF "invalid JSON" "$FIX/sync-bad.txt" || fail "settings sync must name the invalid home list: $(cat "$FIX/sync-bad.txt")"
 printf '%s\n' '{"skillOverrides":{"repo-skill":"on"},"autoMemoryEnabled":false}' >"$FIX/sync/tracked-memory.json"
 node "$SYNC" "$FIX/sync/settings.json" "$FIX/sync/tracked-memory.json" 0 t3 deploy >/dev/null || fail "settings sync must accept a tracked autoMemoryEnabled key"
 node -e '
@@ -336,5 +367,18 @@ jq -e '.skillOverrides == {"nested-declared":"off","personal-hidden":"off","repo
   fail "settings sync must drop personal keys whose skill left the surface: $(jq -c .skillOverrides "$FIX/sync/settings.json")"
 jq -e '.autoMemoryEnabled == false' "$ROOT_DIR/claude/settings.skill-overrides.json" >/dev/null ||
   fail "claude/settings.skill-overrides.json must track autoMemoryEnabled false (the vault owns durable memory)"
+
+jq -e 'has("env") | not' "$ROOT_DIR/claude/settings.skill-overrides.json" >/dev/null ||
+  fail "shared fragment must not activate a global subagent model"
+printf '%s\n' '{"skillOverrides":{},"env":{"LOCAL_TOKEN":"synthetic-env-secret"}}' >"$FIX/sync/env-settings.json"
+jq '.env = {"CLAUDE_CODE_SUBAGENT_MODEL":"sonnet"}' "$ROOT_DIR/claude/settings.skill-overrides.json" >"$FIX/sync/env-tracked.json"
+mkdir -p "$FIX/runtime-bin"
+printf '#!/bin/sh\nprintf "2.1.251 (Claude Code)\\n"\n' >"$FIX/runtime-bin/claude"
+chmod +x "$FIX/runtime-bin/claude"
+env_out="$(PATH="$FIX/runtime-bin:$PATH" node "$SYNC" "$FIX/sync/env-settings.json" "$FIX/sync/env-tracked.json" 0 env deploy)" || fail "tracked env deployment failed"
+jq -e '.env == {"LOCAL_TOKEN":"synthetic-env-secret","CLAUDE_CODE_SUBAGENT_MODEL":"sonnet"}' "$FIX/sync/env-settings.json" >/dev/null ||
+  fail "tracked env must preserve local values while setting Sonnet"
+[ -f "$FIX/sync/env-settings.json.bak.env" ] || fail "env deployment must back up existing settings"
+case "$env_out" in *synthetic-env-secret*) fail "env deployment leaked a local value" ;; esac
 
 printf '%s\n' "PASS: claude-skill-load-check fixture assertions"

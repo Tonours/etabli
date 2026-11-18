@@ -67,6 +67,15 @@ out="$(PI_SKILL_LOAD_NO_REPO=1 "$CHECK" --dump "$TMP_DIR/dump-final.txt" --home 
 echo "$out" | grep -q "entries=2 universe=5 deny=2 dmi=2" || fail "counts wrong: $out"
 echo "$out" | grep -q "pi-skill-load-check: ok" || fail "ok line missing"
 
+# An oversized block fails B1 and names the repair command.
+pad="$(printf 'x%.0s' $(seq 1 7900))"
+sed "s#<description>fixture</description>#<description>$pad</description>#" "$TMP_DIR/dump-final.txt" >"$TMP_DIR/dump-big.txt"
+if PI_SKILL_LOAD_NO_REPO=1 "$CHECK" --dump "$TMP_DIR/dump-big.txt" --home "$HOME_FIX" >"$TMP_DIR/big.out" 2>&1; then
+  fail "a block over the gate must trip B1"
+fi
+grep -q 'B1: model-facing block' "$TMP_DIR/big.out" || fail "B1 failure missing: $(cat "$TMP_DIR/big.out")"
+grep -q 'B1: .*pi-dmi-stamp' "$TMP_DIR/big.out" || fail "B1 failure must name its repair command: $(grep B1 "$TMP_DIR/big.out")"
+
 write_settings '"!deslop"'
 if PI_SKILL_LOAD_NO_REPO=1 "$CHECK" --dump "$TMP_DIR/dump-final.txt" --home "$HOME_FIX" >/dev/null 2>&1; then
   fail "missing deny entry (find-skills) must trip B2(ii)"
@@ -281,5 +290,27 @@ set -e
 exec 3>&-
 [ "$stdin_status" -ne 142 ] || fail "native pi run must not wait on an open stdin"
 grep -q "native dump failed" "$TMP_DIR/stdin-out.txt" || fail "native pi run with an empty dump unexplained"
+
+# The native render stays read-only and global: no extension discovery, and it
+# runs outside the caller's project so project skills cannot enter the block.
+ARGV_PI_BIN="$TMP_DIR/argv-pi-bin"
+mkdir -p "$ARGV_PI_BIN" "$TMP_DIR/caller-project/.pi/skills"
+printf '#!/bin/sh
+printf "%%s\\n%%s\\n" "$PWD" "$*" >"%s"\n' "$TMP_DIR/pi-argv.txt" >"$ARGV_PI_BIN/pi"
+chmod +x "$ARGV_PI_BIN/pi"
+(cd "$TMP_DIR/caller-project" && PATH="$ARGV_PI_BIN:$PATH" "$CHECK" --home "$STDIN_HOME" >/dev/null 2>&1) || :
+[ -f "$TMP_DIR/pi-argv.txt" ] || fail "native render must invoke pi"
+grep -q -- "--no-extensions" "$TMP_DIR/pi-argv.txt" || fail "native render must disable extension discovery: $(cat "$TMP_DIR/pi-argv.txt")"
+[ "$(head -1 "$TMP_DIR/pi-argv.txt")" != "$(cd "$TMP_DIR/caller-project" && pwd -P)" ] || fail "native render must not run in the caller's project"
+
+# A relative PATH entry still finds pi and its interpreter once the render
+# leaves the caller's cwd.
+ln -s /bin/sh "$ARGV_PI_BIN/argvsh"
+{ printf '#!/usr/bin/env argvsh\n'; tail -n +2 "$ARGV_PI_BIN/pi"; } >"$ARGV_PI_BIN/pi.new"
+mv "$ARGV_PI_BIN/pi.new" "$ARGV_PI_BIN/pi"
+chmod +x "$ARGV_PI_BIN/pi"
+rm -f "$TMP_DIR/pi-argv.txt"
+(cd "$TMP_DIR" && PATH="argv-pi-bin:$PATH" "$CHECK" --home "$STDIN_HOME" >/dev/null 2>&1) || :
+[ -f "$TMP_DIR/pi-argv.txt" ] || fail "native render must resolve a pi found through a relative PATH entry"
 
 printf '%s\n' "PASS: pi-skill-load-check fixture assertions"

@@ -1,7 +1,6 @@
 # Workflow Spec
 
-Canonical workflow **map** for `etabli` and the single agent entry point. Long
-rules and command lists live in `workflow/contract-details.md`.
+Canonical workflow **map** for `etabli` and the single agent entry point.
 
 ## Flow
 
@@ -11,15 +10,13 @@ learn -> plan -> implement -> review -> validate
 
 ## Activation
 
-The workflow is ambient in any project that contains `workflow/spec.md`. Users
-should not need to write "use the Etabli workflow" in normal prompts. Agents
-must infer the smallest matching route from the request and local repo state.
+The workflow is ambient in any project containing `workflow/spec.md`: agents
+infer the smallest matching route from the request and repo state, unprompted.
 
 ## Agentic workflow loop
 
-Pi remains the primary user-facing tool. Thin adapters over shared contracts
-(ADR-0006). Role definitions: `workflow/contract-details.md`. Shared
-orchestration: `workflow/skills/orchestration.md`. Single writer and risk
+Claude Code, Codex, interactive Pi and the planned durable adapter are thin adapters over shared contracts
+(ADR-0006). Shared orchestration: `workflow/skills/orchestration.md`. Single writer and risk
 tiers: `workflow/skills/implementation-loop.md`; `scout` and `reviewer` stay
 read-only (Bash `PreToolUse` allowlist).
 
@@ -41,7 +38,7 @@ work follows the Routing rules below; plan status and risk tier are not routes.
 
 ## Rules (map)
 
-Full prose: `workflow/contract-details.md`. Non-negotiables:
+Non-negotiables:
 
 - Read code before planning or editing; retry from `/` with an explicit shell if
   cwd fails.
@@ -49,9 +46,9 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   slice first.
 - When asked whether a source implies repository changes, answer `no change`,
   `change`, or `blocked` against the local contract before editing.
-- Before mutable local-device or server actions, name target, control path, and
-  post-check.
-- One execution artifact: `PLAN.md`. No `REVIEW.md` second plan.
+- Before mutable local-device or server actions, name target, control path,
+  post-check and rollback.
+- One execution artifact: `PLAN.md` (durable exception below). No `REVIEW.md` second plan.
 - Keep facts separate from assumptions; use `PLAN_TEMPLATE.md` /
   `PLAN_TEMPLATE_FULL.md` as appropriate.
 - Answers/handoffs: `workflow/answer-quality.md`.
@@ -66,13 +63,12 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
 - Branch-mutating runs isolate per
   `workflow/skills/worktree-isolation.md`: one run, one worktree, root `PLAN.md`
   inside it, explicit cleanup.
-- Evidence and investigations: `workflow/skills/investigation.md` and
-  `workflow/evidence-pack.schema.json`. Integrity, parent-observed execution,
-  proxy support, and blocked surfaces stay distinct.
+- Evidence and investigations: `workflow/skills/investigation.md`. Integrity,
+  parent-observed execution, proxy support, and blocked surfaces stay distinct.
 - Run evidence lives in `PLAN.md`: check results in Checks, review and adversary
   provenance (model, `shasum -a 256 PLAN.md` at dispatch, verdict) in Review
-  Changes, handoff (branch, sha, done, pending, next action, do-not-redo) in
-  Notes / Handoff.
+  Changes; current handoff in Notes / Handoff follows
+  `workflow/skills/implementation-loop.md` § Standing rules.
 - Pre-READY, edit only root `PLAN.md`. On resume, archive validated work or
   discard an unrelated plan with `scripts/plan-cleanup --discard <reason-slug>`;
   age alone is not abandonment (`workflow/plan-archive.md`).
@@ -82,9 +78,9 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   trust-boundary or public-API changes; `GO` needs a filled deciding-code table
   for runtime diffs (`workflow/review-rubric.md`). An escaped defect after `GO`
   fills `workflow/templates/escaped-defect.md`.
-- Cold contracts, opened only on their trigger: bounded re-review
+- Cold contract, opened only on its trigger: bounded re-review
   `workflow/skills/review-rounds.md` (findings, re-review, CI commits after
-  review); open-ended improvement loops `workflow/skills/long-loop.md`.
+  review).
 - No-progress stop: when the same fix hypothesis fails twice, or the same check
   stays red three times with no new diff between runs, stop as `blocked`, note
   it in the Decision Log, and list the eliminated hypotheses.
@@ -97,12 +93,30 @@ Full prose: `workflow/contract-details.md`. Non-negotiables:
   autonomous `plan-implement` run comes from a fresh
   context (subagent reviewer or cross-model). Handoffs are recorded in
   `PLAN.md` § Notes / Handoff.
+- When no plan-route row matches, non-semantic editorial edits on any repo
+  surface (wording, links, examples, comments, test failure messages) are small:
+  `answer` route, self-review, core checks, no plan. The exclusions in
+  `workflow/skills/implementation-loop.md` § Risk tiers apply; route, gate,
+  obligation, assertion or runtime changes keep their tier. In-flight delta
+  escalation (`workflow/skills/review-rounds.md`) is unchanged.
 - Golden principles: every mechanical check fails with a message that names its remediation.
   Instruction files stay maps, not manuals.
-  Recurring findings become reviewed recommendations, never auto-applied; no parallel harness trees.
-  Skill design: `workflow/skill-design.md`. A bug fix starts from a failing test that reproduces
-  the issue. Reviewers flag only gaps that affect correctness or stated requirements.
+  Recurring findings become reviewed recommendations, never auto-applied; no parallel harness trees (durable adapter exception: ADR-0046).
+  Skill design: `workflow/skill-design.md`. A code behavior change ships with tests in the suite's
+  conventions; docs and contracts are validated by smoke pins or inspection. A bug fix starts from
+  a failing test that reproduces the issue. The third occurrence of the same finding becomes a
+  mechanical check in the project's own tooling. Reviewers flag only gaps that affect correctness
+  or stated requirements.
   A started migration is finished or explicitly handed off in `PLAN.md` § Notes / Handoff.
+
+## Durable runs (ADR-0046)
+
+Only personal runs hosted by `durable/` on gromarchy replace every `PLAN.md`
+reference with their SQLite `EtabliPlanDoc`, including snapshot hashes, reviews,
+handoffs and the READY gate. Immutable final store snapshots replace `docs/plan/`
+archives; no plan projection or archive file is written. See `workflow/plan-archive.md`.
+Shared contracts remain authoritative; this exception changes storage, not gates.
+The daemon stops at `blocked` or after push, PR creation and notification; it never merges.
 
 ## Minimal READY gate
 
@@ -129,22 +143,21 @@ Rows are checked top to bottom; the first matching row wins.
 | --- | --- | --- | --- |
 | Adversarial plan review without "do not edit" intent | `adversary` | updated `PLAN.md` | `READY`, `CHALLENGED`, or blocker |
 | Review request (diff, GitHub PR, plan) or adversarial review with "do not edit" intent | `review` | findings only | `GO`, `GO WITH NOTES`, or `BLOCK` |
-| Verify, retest, prove, or completion audit (interface `verify`; internal id `verify-workflow`) | `verify` | verification report | `VERIFIED`, `NOT VERIFIED`, or `INCONCLUSIVE` |
 | Existing `READY PLAN.md` covering the requested task, plus implementation request | `implement` | code/docs + archive | validated archive and root `PLAN.md` deleted |
 | "plan puis implémente", autonomous `plan-loop`, end-to-end ("A to Z") project, Linear ticket implementation, or self-improvement from run evidence | `plan-implement` | `PLAN.md` then code/docs | validated archive and root `PLAN.md` deleted, or explicit no-op/blocker |
 | Broad task, unclear implementation, or explicit plan request ("fais un plan") | `plan-loop` | `PLAN.md` | `READY` or `CHALLENGED` |
-| Question, explanation, diagnosis, compare, or forensics | `answer` | none | answer delivered; no `PLAN.md` |
-| Ordinary coding with no root `PLAN.md` | `answer` | code/docs | edit complete |
+| Question, explanation, diagnosis, compare, verify or retest a claim, or forensics | `answer` | none | answer delivered; no `PLAN.md` |
+| Ordinary coding with no root `PLAN.md` (a bounded fix runs its tier's journey, below) | `answer` | code/docs | edit complete |
 
 Work commands are explicit commands (work scope), never chosen from the
-table: `/linear-work`, `/linear-ticket-create`, `/linear-project-setup`,
-`/bug-check`, `/pr-council-review`. Each runs under its own contract. Linear
+table: `/linear-ticket-create`, `/pr-council-review`. Each runs under its own contract. Linear
 commands require Linear MCP or stop with `LINEAR_MCP_UNAVAILABLE` — see
 `docs/mcp-strategy.md` § Linear MCP gap. Rationale: ADR-0027.
 
-`verify` is the contract route; its skill is `verify-workflow` on both runtimes
-(`/verify-workflow`, `/skill:verify-workflow`), so Claude's native `/verify`
-stays free.
+Obligations per case (tiers: `workflow/skills/implementation-loop.md`): planned
+work runs its tier's full sequence; a bounded fix needs no plan but a failing
+reproducer, focused checks and one fresh-context review; a review-only request
+returns findings and stops; host-restricted effects follow § Human checkpoints.
 
 A route says what to produce and when to stop; it does not say what the area
 already taught us. Where the runtime exposes skills, select the narrowest domain
@@ -169,5 +182,7 @@ remaining write gates (no-comments, read-only agents) stay authoritative code.
 
 ## Runtime surfaces
 
-Full index: `workflow/contract-details.md` § Runtime surfaces (detail). Key surfaces referenced by routing/guards: Claude hooks fragment
-`claude/settings.workflow-hooks.json` and `workflow/plan-archive.md`.
+Surfaces not mapped above: Claude hooks `claude/hooks/` with
+`claude/settings.workflow-hooks.json`; Linear tickets
+`workflow/linear-ticket-template.md`; scaffolded projects keep
+`docs/project-context.md`, `docs/plan/` and `docs/agent-memory/`.

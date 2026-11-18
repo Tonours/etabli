@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { dirname, isAbsolute, resolve } from "node:path";
 
 function normalizeToolName(toolName) {
 	const raw = String(toolName || "");
@@ -7,13 +7,6 @@ function normalizeToolName(toolName) {
 	if (lower === "write") return "Write";
 	if (lower === "edit") return "Edit";
 	if (lower === "multiedit") return "MultiEdit";
-	if (
-		lower === "bash" ||
-		lower === "shell" ||
-		lower === "run_terminal_command"
-	) {
-		return "Bash";
-	}
 	return raw;
 }
 
@@ -108,6 +101,12 @@ function isExemptComment(text) {
 
 const REGEX_LITERAL_PREFIX = /(^|[=(,:[!&|?{;+]|=>|(?:^|[^.\w$])(?:return|throw|typeof|case|yield|await|else|void|delete))\s*$/;
 const MAX_NESTING = 64;
+
+const DOC_LINE = /^\/\/[/!](?!\/)/;
+
+function isDocBlock(block) {
+	return block.startsWith("/**") && !block.startsWith("/***") && block !== "/**/";
+}
 
 function normalizeComment(text) {
 	return String(text).replace(/\s+/g, " ").trim();
@@ -232,12 +231,14 @@ export function collectCommentLines(text, family) {
 
 	let nesting = 0;
 	let capped = false;
+	let shellHeader = family === "shell";
 	const scanNested = (start, closer) => {
 		if (nesting >= MAX_NESTING) {
 			capped = true;
 			return source.length;
 		}
 		nesting += 1;
+		shellHeader = false;
 		const end = scanCode(start, closer);
 		nesting -= 1;
 		return end;
@@ -251,7 +252,7 @@ export function collectCommentLines(text, family) {
 
 	const pushBlock = (start, stop) => {
 		const block = source.slice(start, stop);
-		if (isExemptComment(block)) return;
+		if (isExemptComment(block) || (SLASH_FAMILIES.has(family) && isDocBlock(block))) return;
 		for (const chunk of block.split("\n")) push(chunk);
 	};
 
@@ -262,6 +263,7 @@ export function collectCommentLines(text, family) {
 		let index = start;
 		const heredocs = [];
 		const appendCode = (text) => {
+			if (/\S/.test(text)) shellHeader = false;
 			if (codeTail.length > 128) codeTail = codeTail.slice(-32);
 			if (!/^\s$/.test(text) || !/\s$/.test(codeTail)) codeTail += text;
 		};
@@ -334,7 +336,8 @@ export function collectCommentLines(text, family) {
 			if (lineCommentAt(source, index, family)) {
 				const end = source.indexOf("\n", index);
 				const stop = end === -1 ? source.length : end;
-				push(source.slice(index, stop));
+				const line = source.slice(index, stop);
+				if (!shellHeader && !(SLASH_FAMILIES.has(family) && DOC_LINE.test(line))) push(line);
 				index = stop;
 				continue;
 			}
@@ -401,6 +404,39 @@ function editPairs(toolInput) {
 	}));
 }
 
+function hasGitAncestor(path) {
+	for (let dir = path; ; dir = dirname(dir)) {
+		if (existsSync(`${dir}/.git`)) return true;
+		if (dirname(dir) === dir) return false;
+	}
+}
+
+function physicalPath(path) {
+	let current = "/";
+	for (const part of path.split("/")) {
+		if (!part || part === ".") continue;
+		if (part === "..") {
+			current = dirname(current);
+			continue;
+		}
+		const next = current === "/" ? `/${part}` : `${current}/${part}`;
+		if (!existsSync(next)) return current;
+		try {
+			current = realpathSync(next);
+		} catch {
+			return current;
+		}
+	}
+	return current;
+}
+
+function insideGitWorkTree(cwd, filePath) {
+	const base = cwd || process.cwd();
+	const abs = resolve(base, filePath);
+	const unreduced = isAbsolute(filePath) ? filePath : `${base}/${filePath}`;
+	return hasGitAncestor(dirname(abs)) || hasGitAncestor(physicalPath(unreduced));
+}
+
 function previousFileText(cwd, filePath) {
 	const abs = resolve(cwd || process.cwd(), filePath);
 	if (!existsSync(abs)) return "";
@@ -432,7 +468,7 @@ function deny(reason) {
 
 function denyReason(filePath, comments) {
 	const sample = comments[0] || "//";
-	return `no-comments: ${filePath} adds a code comment (${sample}). Cut comments that restate the code (implementation-loop 12b). Rewrite without the comment: another prefix (SAFETY:, NOTE:, a doc comment) is refused the same way, so put the reason in a name, a type or the commit message.`;
+	return `no-comments: ${filePath} adds a code comment (${sample}). Cut comments that restate the code (implementation-loop 12b). Rewrite without the comment: another prefix (SAFETY:, NOTE:) is refused the same way, so put the reason in a name, a type or the commit message. Doc comments (///, //!, /** */, a shell file's leading # block) and files outside a git work tree pass.`;
 }
 
 export function noCommentsGuardDecision(event) {
@@ -445,8 +481,9 @@ export function noCommentsGuardDecision(event) {
 	const filePath = toolFilePath(toolInput);
 	if (!isGuardedCodeFile(filePath)) return null;
 
-	const family = commentFamilyFor(filePath);
 	const cwd = event.cwd || process.cwd();
+	if (!insideGitWorkTree(cwd, filePath)) return null;
+	const family = commentFamilyFor(filePath);
 
 	if (toolName === "Write") {
 		const content = writeContent(toolInput);

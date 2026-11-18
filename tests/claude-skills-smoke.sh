@@ -23,7 +23,7 @@ allowed_keys = %w[
 ]
 allowed_tools = %w[Read Write Edit Glob Grep Bash AskUserQuestion Agent Skill WebFetch]
 skills_declaring_agent_preapproval = %w[implement plan-implement]
-skills_without_mutation_preapproval = %w[bug-check review verify-workflow]
+skills_without_mutation_preapproval = %w[review]
 
 paths.each do |path|
   content = File.read(path)

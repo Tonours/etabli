@@ -35,6 +35,27 @@ verify_skill() {
   printf '/%s' "$name"
 }
 
+# Enable only the configured skill's plugin namespace from trusted user settings.
+# Keep hooks disabled and never import user permissions, env or MCP configuration.
+verify_settings() {
+  local skill="${1#/}" settings="$HOME/.claude/settings.json"
+  if [[ "$skill" != *:* ]] || [ ! -e "$settings" ]; then
+    printf '%s\n' '{"disableAllHooks":true}'
+    return
+  fi
+  jq -cse --arg namespace "${skill%%:*}" '
+    if length != 1 then error("settings must contain one JSON object") else .[0] end
+    | if type != "object" then error("settings must be an object") else . end
+    | (.enabledPlugins // {})
+    | if type != "object" then error("enabledPlugins must be an object") else . end
+    | with_entries(select(.value == true and (.key | split("@")[0]) == $namespace))
+    | if length == 0 then {disableAllHooks:true}
+      else {disableAllHooks:true,enabledPlugins:.} end' "$settings" || {
+    echo "cannot read verify plugin settings from trusted user settings; repair the JSON before retrying" >&2
+    return 1
+  }
+}
+
 AUTHOR_CONFIG_PATHS=(CLAUDE.md CLAUDE.local.md AGENTS.md AGENTS.override.md .mcp.json .claude .codex ':(glob)**/CLAUDE.md' ':(glob)**/CLAUDE.local.md' ':(glob)**/AGENTS.md' ':(glob)**/AGENTS.override.md' ':(glob)**/.claude/**' ':(glob)**/.codex/**')
 
 render_template() {
@@ -96,7 +117,14 @@ check_denials() {
 }
 
 usage_line() {
-  jq -r --arg label "$2" --arg version "$3" '"=== usage \($label): claude_version=\($version) turns=\(.num_turns // "?") subtype=\(.subtype // "?") cost=\(.total_cost_usd // "?") denials=\(.permission_denials | length? // "?") | " + ([.modelUsage // {} | to_entries[] | "\(.key) in=\(.value.inputTokens) cache_write=\(.value.cacheCreationInputTokens) cache_read=\(.value.cacheReadInputTokens) out=\(.value.outputTokens)"] | join(" | "))' "$1" 2>/dev/null
+  jq -r --arg label "$2" --arg version "$3" '
+    def n: if type == "number" and . >= 0 then . else "?" end;
+    (.modelUsage | if type == "object" then . else {} end) as $models |
+    "=== usage \($label): claude_version=\($version) turns=\(.num_turns | n) subtype=\(.subtype // "?") cost=\(.total_cost_usd | n) denials=\(.permission_denials | if type == "array" then length else "?" end)" +
+    " is_error=\(.is_error | if type == "boolean" then tostring else "?" end) scope=native-session-cumulative restored=possible modelUsage=\(if ($models | length) > 0 then "reported-including-subagents" else "unknown" end) | " +
+    ([$models | to_entries[] |
+      "\(.key) in=\(.value.inputTokens | n) cache_write=\(.value.cacheCreationInputTokens | n) cache_read=\(.value.cacheReadInputTokens | n) out=\(.value.outputTokens | n) basis=\(.value.costBasis | if . == "list" or . == "managed" then . else "unknown" end)"
+    ] | join(" | "))' "$1" 2>/dev/null
 }
 
 # $1 session JSON, $2 the pass's exit code: a denied pass always vetoes the
@@ -115,6 +143,93 @@ record_usage() {
   echo "$line"
   mkdir -p "$(dirname "$PR_REVIEW_USAGE_LOG")"
   printf '%s\t%s\t%s\n' "$(date '+%F %T')" "$target" "${line#=== usage }" >>"$PR_REVIEW_USAGE_LOG"
+}
+
+# Process timing is advisory: the CLI exit is not the semantic review verdict.
+record_timing() {
+  local line="=== timing $1: elapsed_s=$((SECONDS - $2)) process_exit=$3"
+  printf '%s\n' "$line" >&2 || :
+  { mkdir -p "$(dirname "$PR_REVIEW_USAGE_LOG")" &&
+    printf '%s\t%s\t%s\n' "$(date '+%F %T')" "$USAGE_TARGET" "${line#=== }" >>"$PR_REVIEW_USAGE_LOG";
+  } 2>/dev/null || :
+}
+
+# The checkout root; a clone flagged core.bare=true keeps its files beside .git,
+# and a true bare repository is its own root.
+repo_root() {
+  local dir
+  dir="$(git rev-parse --show-toplevel 2>/dev/null)" && { printf '%s\n' "$dir"; return; }
+  dir="$(git rev-parse --absolute-git-dir)" || return 1
+  printf '%s\n' "${dir%/.git}"
+}
+
+# Fingerprint a recorded review reuses: modes and blob ids of every change from the repo
+# root, sorted, so diff settings and the caller's directory do not move it. Plain file
+# additions under docs/plan/ (the plan archive, committed after the review) are left out;
+# edits count. A git failure or an empty diff prints nothing and returns 1.
+reuse_patch_sha() {
+  local raw root
+  root="$(repo_root)" || return 1
+  raw="$(git -C "$root" -c core.quotePath=false diff --raw --no-abbrev \
+    --no-renames --no-relative --ignore-submodules=none "$1" "$2")" || return 1
+  raw="$(printf '%s\n' "$raw" | { grep -Ev $'^:000000 100644 0+ [0-9a-f]+ A\tdocs/plan/' || :; } | LC_ALL=C sort)"
+  [ -n "$raw" ] || return 1
+  printf '%s\n' "$raw" | shasum -a 256 | cut -d' ' -f1
+}
+# Private opt-in receipts are local to this checkout and survive archive-only commits.
+# read validates one opened snapshot and emits the legacy header + exact report bytes.
+auto_review_receipt() {
+  local root
+  root="$(repo_root)" || return 1
+  node - "$1" "$root" "$2" "$3" "${4:-}" <<'NODE'
+const fs = require('node:fs');
+const path = require('node:path');
+const crypto = require('node:crypto');
+const [action, root, base, patch, reportFile] = process.argv.slice(2);
+let temp;
+try {
+  const repo = fs.realpathSync(root);
+  const dir = path.join(fs.realpathSync(process.env.HOME), '.pr-council-reuse');
+  if (action === 'write') {
+    try { fs.mkdirSync(dir, { mode: 0o700 }); } catch (e) { if (e.code !== 'EEXIST') throw e; }
+  }
+  const privateEntry = (stat) => stat.uid === process.getuid() && (stat.mode & 0o077) === 0;
+  const directory = fs.lstatSync(dir);
+  if (!directory.isDirectory() || !privateEntry(directory)) throw new Error('unsafe receipt directory');
+  const key = crypto.createHash('sha256').update(repo).digest('hex');
+  const file = path.join(dir, `${key}-${base}-${patch}.json`);
+  if (action === 'write') {
+    const report = fs.readFileSync(reportFile);
+    if (!report.length) throw new Error('empty review report');
+    const data = { version: 1, eligible: true, repo, base, patch, createdAt: Math.floor(Date.now() / 1000), report: report.toString('base64') };
+    temp = path.join(dir, `.record-${crypto.randomBytes(12).toString('hex')}`);
+    fs.writeFileSync(temp, JSON.stringify(data) + '\n', { mode: 0o600, flag: 'wx' });
+    fs.renameSync(temp, file);
+    temp = undefined;
+    process.stdout.write(file + '\n');
+  } else {
+    const fd = fs.openSync(file, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+    let data;
+    try {
+      const stat = fs.fstatSync(fd);
+      if (!stat.isFile() || !privateEntry(stat)) throw new Error('unsafe receipt file');
+      data = JSON.parse(fs.readFileSync(fd, 'utf8'));
+    } finally { fs.closeSync(fd); }
+    const now = Math.floor(Date.now() / 1000);
+    if (data.version !== 1 || data.eligible !== true || data.repo !== repo || data.base !== base || data.patch !== patch ||
+        !Number.isSafeInteger(data.createdAt) || data.createdAt > now || now - data.createdAt > 3600 ||
+        typeof data.report !== 'string' || !data.report.length) throw new Error('ineligible receipt');
+    const report = Buffer.from(data.report, 'base64');
+    if (!report.length || report.toString('base64') !== data.report) throw new Error('invalid report bytes');
+    process.stdout.write(`patch-sha256: ${patch}\n`);
+    process.stdout.write(report);
+  }
+} catch (e) {
+  if (temp) { try { fs.unlinkSync(temp); } catch {} }
+  if (action === 'write') console.error('no record: private receipt unavailable; use an explicit output file (' + e.message + ')');
+  process.exitCode = 1;
+}
+NODE
 }
 
 patch_id() { git diff --binary "$1" "$2" | git patch-id --verbatim | cut -d' ' -f1; }
@@ -195,7 +310,7 @@ linked_gh() { run_with_timeout "$LINKED_PR_TIMEOUT" "${GH:-gh}" "$@" 2>/dev/null
 
 validator_checkout() {
   local dest="$1" root origin head
-  root="$(git rev-parse --show-toplevel)" && origin="$(git remote get-url origin)" && head="$(git rev-parse HEAD)" || return 1
+  root="$(repo_root)" && origin="$(git remote get-url origin)" && head="$(git rev-parse HEAD)" || return 1
   git clone -q --shared --no-checkout "$root" "$dest" && git -C "$dest" remote set-url origin "$origin" \
     && git -C "$dest" checkout -q --detach "$head" || return 1
   [ ! -f "$root/.claude/settings.local.json" ] || { mkdir -p "$dest/.claude" && cp "$root/.claude/settings.local.json" "$dest/.claude/"; }
@@ -242,7 +357,7 @@ linked_prs() {
 # REVIEW_VETO_RC on a denial, REVIEW_INCOMPLETE_RC on an error or cap hit, else the claude exit code
 # (1 when claude exited 0 without a session envelope).
 claude_pass() {
-  local label="$1" raw="$2" profile="$3" prompt="$4" rc=0 result_rc=0
+  local label="$1" raw="$2" profile="$3" prompt="$4" rc=0 result_rc=0 started
   shift 4
   [ -n "$CLAUDE" ] || { echo "=== $label: claude binary not found" >&2; return 1; }
   case "$profile" in
@@ -251,9 +366,11 @@ claude_pass() {
     *) echo "=== $label: unknown profile $profile" >&2; return 1 ;;
   esac
   rm -f "$raw.stream.stalled"
+  started=$SECONDS
   run_with_timeout --idle "$CLAUDE_PASS_IDLE" "$raw.stream" "$CLAUDE_PASS_TIMEOUT" "$CLAUDE" -p "$prompt" \
     --output-format stream-json --verbose --max-turns "$CLAUDE_MAX_TURNS" --max-budget-usd "$CLAUDE_MAX_BUDGET_USD" "$@" \
     </dev/null >"$raw.stream" 2>"$raw.err" || rc=$?
+  record_timing "$label" "$started" "$rc"
   jq -cR 'fromjson? | select(type == "object" and .type == "result")' "$raw.stream" 2>/dev/null | tail -n 1 >"$raw"
   if [ "$rc" -ne 0 ]; then
     echo "=== $label: claude exited $rc; stderr tail:" >&2
@@ -281,11 +398,12 @@ claude_pass() {
 # codex_pass <worktree> <report> <model> <effort> <prompt>: one read-only codex exec run
 # without user config (MCP servers, profiles); its final message goes to the report.
 codex_pass() {
-  local tree="$1" report="$2" model="$3" effort="$4" prompt="$5" rc=0
+  local tree="$1" report="$2" model="$3" effort="$4" prompt="$5" rc=0 started=$SECONDS
   run_with_timeout "$CLAUDE_PASS_TIMEOUT" "$CODEX" exec --cd "$tree" --sandbox read-only \
     --ignore-user-config --ephemeral --color never --model "$model" \
     -c model_reasoning_effort="\"$effort\"" --output-last-message "$report" "$prompt" \
     </dev/null >"$report.log" 2>&1 || rc=$?
+  record_timing codex "$started" "$rc"
   if [ "$rc" -eq 0 ] && [ ! -s "$report" ]; then
     echo "=== codex: exited 0 without a final message" >&2
     rc=1
@@ -340,32 +458,66 @@ notify() {
 }
 
 phase_b_output() {
-  awk '/^=== phase B: / { text = ""; seen = 1; next } seen { text = text $0 "\n" } END { printf "%s", text }' "$1" 2>/dev/null
+  awk '/^=== phase B: / { count++; next } count { text = text $0 "\n" }
+    END { if (count == 1) printf "%s", text; else exit 1 }' "$1" 2>/dev/null
 }
 
 validator_run_findings() {
-  phase_b_output "$1" | grep -o '"kind":"run"[^>]*' | grep -F "\"sha\":\"$2\"" | tail -1 | sed -n 's/.*"findings":\([0-9]*\).*/\1/p'
+  local marker
+  marker="$(validator_marker_json "$1" "$2")" || return 1
+  printf '%s' "$marker" | jq -r .findings
 }
 
 validator_marker_json() {
-  local raw
-  raw="$(phase_b_output "$1" | grep -o '"kind":"run"[^>]*' | grep -F "\"sha\":\"$2\"" | tail -1)"
-  [ -n "$raw" ] || return 1
-  raw="{$raw"
-  raw="$(printf '%s' "$raw" | sed -E 's/[[:space:]-]+$//')"
-  printf '%s' "$raw" | jq -e . >/dev/null 2>&1 || return 1
-  printf '%s' "$raw"
+  local lines line raw marker markers='' blocker
+  lines="$(phase_b_output "$1")" || { echo "validator report needs exactly one phase-B header" >&2; return 1; }
+  while IFS= read -r line; do
+    case "$line" in '<!-- claudine:v1 '*|'=== run marker: claudine:v1 '*) ;; *) continue ;; esac
+    raw="$(printf '%s' "$line" | sed -E 's/^(<!-- claudine:v1 |=== run marker: claudine:v1 )//; s/[[:space:]]*--(>)?[[:space:]]*$//')"
+    # Streaming paths preserve duplicate keys that ordinary JSON parsing drops.
+    if ! printf '%s' "$raw" | jq --stream -ne 'reduce inputs as $e ({done:{}, duplicate:false};
+  if ($e|length)==2 then
+    $e[0] as $p | .done as $done
+    | .duplicate = (.duplicate or any(range(1; ($p|length)+1); . as $n | $done[($p[:$n]|tojson)] == true))
+    | .done[($p|tojson)] = true
+  else .done[($e[0][:-1]|tojson)] = true end)
+| select(.duplicate|not)' >/dev/null; then
+      echo "validator marker has duplicate keys or malformed JSON" >&2
+      return 1
+    fi
+    marker="$(printf '%s' "$raw" | jq -cse 'select(length == 1 and (.[0] | type) == "object") | .[0]')" || {
+      echo "validator marker must contain exactly one JSON object" >&2; return 1;
+    }
+    printf '%s' "$marker" | jq -e --arg sha "$2" '.kind == "run" and .sha == $sha' >/dev/null || continue
+    markers="$markers$marker"$'\n'
+  done <<<"$lines"
+  [ -n "$markers" ] || { echo "no validator run marker for ${2:0:8}" >&2; return 1; }
+  blocker="$(printf '%s' "$markers" | jq -sr '
+    if any(.[]; has("lenses") | not) then "run marker has no lenses"
+    elif any(.[]; ((.lenses | type) != "object" and (.lenses | type) != "array")) then "validator lenses are malformed"
+    elif any(.[]; (.lenses | length) == 0 or any(.lenses[]; type != "string")) then "validator lenses are malformed"
+    elif any(.[]; (.security | type) != "string") then "validator security is missing or malformed"
+    elif any(.[]; .security | test("\\S") | not) then "validator security is blank"
+    elif any(.[]; .security | ascii_downcase | gsub("^\\s+|\\s+$"; "") == "ticketed") then "a security finding waits on a ticket"
+    elif any(.[]; .security | ascii_downcase | gsub("^\\s+|\\s+$"; "") | IN("pending", "failed", "error")) then "the security pass is incomplete"
+    elif any(.[]; ([.lenses[] | ascii_downcase | gsub("^\\s+|\\s+$"; "")] | index("pending")) != null) then "a validator lens is still pending"
+    elif any(.[]; [.lenses[] | ascii_downcase | gsub("^\\s+|\\s+$"; "")] | any(. == "failed" or . == "error")) then "a validator lens failed"
+    elif any(.[]; .run | if type == "string" then test("\\S") | not else true end) then "validator run identity is missing or malformed"
+    elif any(.[]; .floor | if type == "string" then test("\\S") | not else true end) then "validator floor is missing or malformed"
+    elif any(.[]; (.suppressed | type) != "number") then "validator suppressed count is invalid"
+    elif any(.[]; .suppressed < 0 or .suppressed != (.suppressed | floor)) then "validator suppressed count is invalid"
+    elif any(.[]; (.findings | type) != "number") then "validator finding count is invalid"
+    elif any(.[]; .findings < 0 or .findings != (.findings | floor)) then "validator finding count is invalid"
+    else empty end')" || return 1
+  [ -z "$blocker" ] || { printf '%s\n' "$blocker" >&2; return 1; }
+  printf '%s' "$markers" | jq -cs 'max_by(.findings)'
 }
 
 validator_approval_body() {
-  local marker blocker
-  marker="$(validator_marker_json "$1" "$2")" || { echo "no validator run marker for ${2:0:8}" >&2; return 1; }
-  blocker="$(printf '%s' "$marker" | jq -r '
-    if .findings != 0 then "validator posted \(.findings) findings"
-    elif .security == "ticketed" then "a security finding waits on a ticket"
-    elif ([.lenses[]?] | index("pending")) != null then "a validator lens is still pending"
-    else empty end')"
-  [ -z "$blocker" ] || { echo "$blocker" >&2; return 1; }
+  local marker findings
+  marker="$(validator_marker_json "$1" "$2")" || return 1
+  findings="$(printf '%s' "$marker" | jq -r .findings)"
+  [ "$findings" = 0 ] || { echo "validator posted $findings findings" >&2; return 1; }
   printf 'Approved after /validator run %s: nothing at or above `%s` posted, %s suppressed.\n<!-- claudine:v1 %s -->' \
     "$(printf '%s' "$marker" | jq -r .run)" "$(printf '%s' "$marker" | jq -r .floor)" \
     "$(printf '%s' "$marker" | jq -r .suppressed)" "$marker"

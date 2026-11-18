@@ -94,6 +94,10 @@ paths.each do |path|
     unless hooks.flat_map { |entry| Array(entry["hooks"]) }.any? { |hook| hook["command"].to_s.include?("read-only-agent-guard.mjs") && hook["command"].to_s.end_with?(" || exit 2") }
       raise "#{path}: the read-only guard command must end with ' || exit 2' so a crashed or missing guard blocks Bash."
     end
+    guard_hooks = hooks.flat_map { |entry| Array(entry["hooks"]) }.select { |hook| hook["command"].to_s.include?("read-only-agent-guard.mjs") }
+    unless guard_hooks.all? { |hook| hook["onFailure"] == "block" && hook["timeout"].is_a?(Integer) && hook["timeout"].between?(1, 30) }
+      raise "#{path}: the read-only guard must set onFailure: block and a timeout of 1 to 30 seconds, so a stalled guard blocks Bash instead of letting it run after the 600 s default."
+    end
     if body.include?("obvault-memory.md") || body.include?("**Memory**")
       raise "#{path}: read-only agents have no memory tools. Remediation: drop the memory step and the Memory output row."
     end

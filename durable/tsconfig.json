@@ -1,0 +1,5 @@
+{
+  "compilerOptions": { "target": "ESNext", "module": "NodeNext", "moduleResolution": "NodeNext", "strict": true, "noEmit": true, "allowImportingTsExtensions": true, "erasableSyntaxOnly": true, "allowJs": true, "checkJs": false, "skipLibCheck": true, "types": ["node", "bun"], "paths": { "@/*": ["./web-src/*"] } },
+  "include": ["src/**/*.ts", "tui/**/*.ts", "shared/**/*.ts", "scripts/**/*.ts", "vite.config.ts", "__tests__/**/*.ts"],
+  "exclude": ["__tests__/web-*.ts", "__tests__/web-*.tsx"]
+}

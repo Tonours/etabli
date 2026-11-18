@@ -14,17 +14,31 @@ all hosts. Missing general evidence is `unknown`, not proof that the native
 capability is unavailable. Source inspection can correct the scope of a claim
 but cannot confirm runtime support.
 
-- Pi may use Task* tools when available.
-- Task* tools are Pi-only unless another runtime explicitly exposes equivalent
-  structured task primitives.
 - Hooks only guard writes (ADR-0036); hooks and commands must not invent
   runtime primitives that the host does not expose.
 - Single writer: `workflow/skills/implementation-loop.md` step 8. The current
   Pi profile remains parent-only while its subagent capability is `unknown`.
+- Pi subagent capability: `pi/extensions/subagents.ts` exposes `subagent`,
+  `bg_wait` and `subagent_supervisor` (isolated `pi -p` children, whole
+  process group stopped); it does not change the parent-only rule above.
 - A Claude `scout`, `reviewer`, or `adversary` agent report whose last line is
   not `STATUS: complete` counts as truncated: rerun or narrow it, never read it
   as clean. Review hunter templates end on the same line on every runner, Pi
   included.
+
+## Background steps
+
+A step expected to last minutes (adversary, council, long check group,
+remote deploy) runs in the background:
+
+- At launch, tell the user its log path and an ETA.
+- Confirm it started from its first output lines right away; a silent start
+  is a failure to fix, not a wait.
+- On success or failure, send a push notification with the outcome
+  (Claude: `PushNotification`; Pi: the harness equivalent, else the final
+  message only).
+- Load deferred tools before first use (Claude: `ToolSearch` for `Monitor`
+  and `PushNotification`).
 
 ## Capability Labels
 
@@ -68,6 +82,28 @@ Delegate only when all are true:
 Keep the critical path local. Use fresh-context reviewer/oracle-style agents
 before writer agents. Do not use subagents to hide uncertainty.
 
+For native Claude Code, choose the context boundary explicitly:
+
+- Keep a small operation in the parent when it already has the needed evidence.
+- Use a fresh, named subagent for a bounded independent investigation; send the
+  question, scope, known references, expected result and stop condition. Do not
+  have the parent explore that same slice while the child works. Return decisive
+  facts and proof references instead of full logs or copied instructions.
+- Use a conversation fork only when it needs the parent's history and that
+  dependency is allowed. Its inherited prefix may reuse the cache, but it is
+  not fresh input. Mandatory independent review always keeps fresh context.
+- Resume a worker for a continuation of its own task, not an evaluator whose
+  contract requires a new review. Stop unused branches; parallelism changes
+  latency, not the account's allocation. Count reported work from all branches,
+  including retries, compaction and synthesis, without adding restored totals.
+
+Preserve the same session and stable model/tool prefix for the same job when
+possible; persist the handoff before a transition. Clear unrelated work rather
+than accumulating it. Compact at a useful boundary, never on a periodic timer.
+Do not force a TTL, disable compaction, weaken permissions or change review
+models to lower a counter. Native Claude recipes and accounting limits:
+`claude/README.md` section "Token usage and session continuity" in Etabli.
+
 ## Retry And Error Rules
 
 - Retry only classified retryable failures: transient provider/runtime errors,
@@ -100,13 +136,8 @@ contract's completion evidence is present.
 
 Pi:
 
-- `TaskExecute` requires explicit subagent tracking capability; package presence
-  alone is not enough.
-- Treat full `TaskExecute` tracking as unconfirmed until `subagents:rpc:ping`,
-  `subagents:rpc:spawn`, and `subagents:rpc:stop` are all confirmed in the
-  active Pi runtime. A direct `Agent` tool can still be confirmed separately; it
-  does not prove that `pi-tasks` can track status, cascade dependencies, or serve
-  `TaskOutput`.
+- Pi has no Task* tracking tools: `pi-tasks` is not installed. Keep task state
+  in `PLAN.md`.
 
 Claude:
 
@@ -115,5 +146,3 @@ Claude:
   `PLAN.md`, as required by `workflow/spec.md`.
 - Hooks do not route or inject context, and they do not replace task state or
   completion evidence.
-- Claude has no Pi Task* equivalent unless the active Claude runtime exposes one
-  separately.

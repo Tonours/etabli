@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -17,6 +17,7 @@ let fixtureCwd = "";
 
 beforeEach(() => {
 	fixtureCwd = mkdtempSync(join(tmpdir(), "etabli-no-comments-fixture-"));
+	mkdirSync(join(fixtureCwd, ".git"));
 });
 
 afterEach(() => {
@@ -236,18 +237,71 @@ describe("unified Claude verdicts", () => {
 		expect(decide(write("c.ts", "// eslint-disable-next-line no-console\nconsole.log(1);\n"))).toBe("allow");
 	});
 
-	test("denies astro comments, JSDoc continuations and duplicated comments", () => {
-		writeFileSync(join(fixtureCwd, "doc.ts"), "/**\n * Existing doc.\n */\nexport const a = 1;\n");
+	test("denies astro comments and duplicated comments", () => {
+		writeFileSync(join(fixtureCwd, "dup.ts"), "/* Existing note. */\nexport const a = 1;\n");
 		expect(decide(write("e.astro", "---\n// note\n---\n"))).toBe("deny");
+		expect(decide(write("dup.ts", "/* Existing note. */\n/* Existing note. */\nexport const a = 1;\n"))).toBe("deny");
+		expect(
+			decide({ tool_name: "edit", tool_input: { path: "dup.ts", oldText: "export const a = 1;", newText: "export const a = 1;\n/* Existing note. */" } }),
+		).toBe("deny");
+		expect(
+			decide({
+				tool_name: "multiedit",
+				tool_input: {
+					path: "dup.ts",
+					edits: [
+						{ oldText: "export const a = 1;", newText: "export const a = 1;\n// Existing note." },
+						{ oldText: "// Existing note.", newText: "/* Existing note. */" },
+					],
+				},
+			}),
+		).toBe("deny");
+		expect(
+			decide({ tool_name: "edit", tool_input: { path: "dup.ts", oldText: "export const a = 1;", newText: "export const a = 2;" } }),
+		).toBe("allow");
+	});
+
+	test("allows doc comments and a shell header, denies other comments", () => {
+		writeFileSync(join(fixtureCwd, "doc.ts"), "/**\n * Existing doc.\n */\nexport const a = 1;\n");
 		expect(
 			decide({ tool_name: "edit", tool_input: { path: "doc.ts", oldText: " * Existing doc.\n", newText: " * Existing doc.\n * new line\n" } }),
-		).toBe("deny");
-		expect(
-			decide({ tool_name: "edit", tool_input: { path: "doc.ts", oldText: "export const a = 1;", newText: "export const a = 1;\n/**\n * Existing doc.\n */" } }),
-		).toBe("deny");
-		expect(
-			decide({ tool_name: "edit", tool_input: { path: "doc.ts", oldText: "export const a = 1;", newText: "export const a = 2;" } }),
 		).toBe("allow");
+		expect(decide(write("lib.rs", "//! Crate docs.\n/// Adds one.\npub fn inc(x: u8) -> u8 { x + 1 }\n"))).toBe("allow");
+		expect(decide(write("lib2.rs", "//// banner\npub fn inc() {}\n"))).toBe("deny");
+		expect(decide(write("api.ts", "/** Adds one. */\nexport const inc = (x: number) => x + 1;\n"))).toBe("allow");
+		expect(decide(write("note.ts", "/* note */\nexport {};\n"))).toBe("deny");
+		expect(decide(write("stars.rs", "/*** ordinary */\npub fn f() {}\n"))).toBe("deny");
+		expect(decide(write("line.ts", "// note\nexport {};\n"))).toBe("deny");
+		expect(decide(write("head.sh", "#!/usr/bin/env bash\n# Deploys the thing.\n#\n# Usage: head.sh\nset -eu\n"))).toBe("allow");
+		expect(decide(write("late.sh", "set -eu\n# restates set\n"))).toBe("deny");
+		expect(decide(write("sub.sh", "\"$(\n# note\n)\"\n"))).toBe("deny");
+		expect(decide(write("head.py", "# note\nx = 1\n"))).toBe("deny");
+	});
+
+	test("guards only files inside a git work tree, lexical or physical", () => {
+		const outside = mkdtempSync(join(tmpdir(), "etabli-no-comments-outside-"));
+		try {
+			const added = "// note\nexport {};\n";
+			expect(noCommentsGuardDecision({ cwd: outside, tool_name: "Write", tool_input: { file_path: "a.ts", content: added } })).toBeNull();
+			expect(noCommentsGuardDecision({ cwd: outside, tool_name: "Write", tool_input: { file_path: join(fixtureCwd, "a.ts"), content: added } })).not.toBeNull();
+			mkdirSync(join(fixtureCwd, "src"));
+			writeFileSync(join(fixtureCwd, "src", "real.ts"), "export {};\n");
+			symlinkSync(join(fixtureCwd, "src"), join(outside, "linked"));
+			symlinkSync(join(fixtureCwd, "src", "real.ts"), join(outside, "file.ts"));
+			const viaLink = (file_path: string) =>
+				noCommentsGuardDecision({ cwd: outside, tool_name: "Write", tool_input: { file_path, content: added } });
+			expect(viaLink("linked/real.ts")).not.toBeNull();
+			expect(viaLink("linked/deep/new.ts")).not.toBeNull();
+			expect(viaLink("file.ts")).not.toBeNull();
+			expect(viaLink("linked/../escape.ts")).not.toBeNull();
+			expect(noCommentsGuardDecision({ cwd: outside, tool_name: "Write", tool_input: { file_path: join(fixtureCwd, "..", "beside.ts"), content: added } })).toBeNull();
+			const worktree = join(outside, "wt");
+			mkdirSync(worktree);
+			writeFileSync(join(worktree, ".git"), "gitdir: /elsewhere\n");
+			expect(viaLink("wt/a.ts")).not.toBeNull();
+		} finally {
+			rmSync(outside, { recursive: true, force: true });
+		}
 	});
 
 	test("lexes strings, comments and regexes per language", () => {
@@ -370,5 +424,134 @@ describe("no-comments extension", () => {
 			input: { path: "src/kept.ts", content: "export const n = 2; // kept\n" },
 		})[0];
 		expect(rewrite).toBeUndefined();
+	});
+});
+
+describe("no-comments lexer edges", () => {
+	const decide = (event: Parameters<typeof noCommentsGuardDecision>[0]) => guardDecision(event);
+	const note = ["// note"];
+	const lex = (family: string, text: string, expected: string[]) => expect(collectCommentLines(text, family)).toEqual(expected);
+
+	test("exempts only real shebang and license lines", () => {
+		lex("python", "#!/usr/bin/env python3\nx = 1\n", []);
+		lex("clike", "// License: MIT\n// licence Apache-2.0\n", []);
+		lex("clike", "// uses a license key\n// mit result\n", ["// uses a license key", "// mit result"]);
+	});
+
+	test("tells line comment starters apart from operators", () => {
+		lex("sql", "SELECT 5 - 3, a-b;\n", []);
+		lex("lua", "x = a-b\n", []);
+		lex("ruby", "# note\n", []);
+	});
+
+	test("ends block comments at the right closer", () => {
+		lex("clike", "/*/ added note\nstill */\nconst a = 1;\n", ["/*/ added note", "still */"]);
+		lex("clike", "/**/\nconst a = 1; // note\n", ["/**/", "// note"]);
+		lex("sql", "/* a /* b */ c */ SELECT 1; -- note\n", ["/* a /* b */ c */", "-- note"]);
+		lex("sql", "/* a /* b */*/ SELECT 1; -- note\n", ["/* a /* b */*/", "-- note"]);
+	});
+
+	test("reads regex literals up to their closing slash only", () => {
+		lex("clike", "const r = /ab\n// note\n", note);
+		lex("clike", "x = /ab", []);
+		lex("clike", "const r = /\\//; // note\n", note);
+		lex("clike", "x = /[///]/;\n", []);
+		lex("clike", 'x = /["]/; // note\n', note);
+		lex("clike", 'x = /a"b/; // note\n', note);
+		lex("clike", "x = /a/ / 2; // note\n", note);
+		lex("clike", 'x = /a/"b // c"\n', []);
+		lex("clike", 'if (a) b(); else return /"/; // note\n', note);
+	});
+
+	test("honours escapes per string family", () => {
+		lex("python", 'x = "a"  # note\n', ["# note"]);
+		lex("python", "x = 'it'\n# note\n", ["# note"]);
+		lex("clike", "x = 'a\\'b'; // note\n", note);
+		lex("clike", "x = `a\\`b` // note\n", note);
+		lex("clike", 's = "\\a\\" b"; // note\n', note);
+		lex("shell", "echo 'a\\'\n# note\n", ["# note"]);
+		lex("shell", 'echo "a\\"b" # note\n', ["# note"]);
+		lex("sql", "SELECT 'a\\'; -- note\n", ["-- note"]);
+		lex("sql", "SELECT $'a\\'; -- note\n", ["-- note"]);
+		lex("go", "x := `a\\`\n// note\n", note);
+		lex("go", 'x := "a\\"b" // note\n', note);
+	});
+
+	test("scans substitutions and template holes only where the language has them", () => {
+		lex("clike", 'x = "it`s"; // note\n', note);
+		lex("shell", "echo 'a`b' # note\n", ["# note"]);
+		lex("clike", 'x = "a${b"; // note\n', note);
+		lex("go", "x := `a${b`\n// note\n", note);
+		lex("clike", "x = `${a}`; // note\n", note);
+		lex("clike", "x = `a`; // note\n", note);
+		lex("shell", "echo `date` # note\n", ["# note"]);
+		lex("clike", `${"$(".repeat(70)}\n// note`, note);
+	});
+
+	test("caps nesting depth without recursing without bound", () => {
+		const nest = (depth: number) => `const x=${"`${".repeat(depth)}0${"}`".repeat(depth)};\n`;
+		expect(collectCommentLines(nest(64), "clike")).toEqual([]);
+		expect(collectCommentLines(nest(65), "clike")).toBeNull();
+		expect(collectCommentLines(nest(20000), "clike")).toBeNull();
+	});
+
+	test("resumes right after the construct that was skipped", () => {
+		lex("clike", 'x\n"a // b"\n', []);
+		lex("shell", 'echo \\a"b # c"\n', []);
+		lex("shell", 'x=$(a)"b # c"\n', []);
+		lex("lua", '--[[ a ]]"x -- y"\n', ["--[[ a ]]"]);
+		lex("lua", 's = [[a]]"x -- y"\n', []);
+		lex("sql", 'SELECT $$a$$"x -- y"\n', []);
+		lex("clike", "const a = [[\n// note\n]];\n", note);
+	});
+
+	test("reads heredocs in shell only", () => {
+		lex("clike", "x = a <<EOF;\n// note\nEOF\n", note);
+		lex("shell", "cat <<-EOF\n\tEOF\n# note\n", ["# note"]);
+		lex("shell", "cat <<EOF\n\tEOF\n# data\nEOF\n", []);
+	});
+
+	test("accepts a path under each input key and names the comment found", () => {
+		const added = "// note\nexport {};\n";
+		for (const key of ["file_path", "path", "filePath"]) {
+			const verdict = decide({ tool_name: "Write", tool_input: { [key]: "k.ts", content: added } });
+			expect(verdict?.hookSpecificOutput.permissionDecisionReason).toContain("k.ts adds a code comment (// note).");
+		}
+		expect(decide({ tool_name: "Write", tool_input: { filePath: "k.ts", content: "/**/\n" } })).not.toBeNull();
+	});
+
+	test("judges an edit without replace_all on its first occurrence only", () => {
+		writeFileSync(join(fixtureCwd, "one.ts"), 'const label = "run";\nrun();\n');
+		const edit = { path: "one.ts", old_string: "run", new_string: "run/* added note */" };
+		expect(decide({ tool_name: "Edit", tool_input: edit })).toBeNull();
+		expect(decide({ tool_name: "Edit", tool_input: { ...edit, replaceAll: false } })).toBeNull();
+		expect(decide({ tool_name: "Edit", tool_input: { ...edit, replace_all: false } })).toBeNull();
+		expect(decide({ tool_name: "Edit", tool_input: { ...edit, replaceAll: true } })).not.toBeNull();
+		expect(decide({ tool_name: "Edit", tool_input: { ...edit, replace_all: true } })).not.toBeNull();
+	});
+
+	test("judges a multi-edit on the whole file, not edit by edit", () => {
+		writeFileSync(join(fixtureCwd, "move.ts"), "// n\nfoo();\nbar();\n");
+		const moved = {
+			path: "move.ts",
+			edits: [
+				{ oldText: "// n\n", newText: "" },
+				{ oldText: "bar();", newText: "// n\nbar();" },
+			],
+		};
+		expect(decide({ tool_name: "MultiEdit", tool_input: moved })).toBeNull();
+	});
+
+	test("falls back to the edit text when the file cannot be read", () => {
+		mkdirSync(join(fixtureCwd, "dir.ts"));
+		const verdict = decide({ tool_name: "Edit", tool_input: { path: "dir.ts", old_string: "x", new_string: "// note" } });
+		expect(verdict?.hookSpecificOutput.permissionDecision).toBe("deny");
+	});
+
+	test("ignores tools that do not write files", () => {
+		const input = { path: "a.ts", old_string: "x", new_string: "// note" };
+		for (const tool_name of ["Read", "Bash", "shell", "run_terminal_command"]) {
+			expect(decide({ tool_name, tool_input: input })).toBeNull();
+		}
 	});
 });

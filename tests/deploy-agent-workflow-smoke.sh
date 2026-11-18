@@ -23,10 +23,20 @@ ln -s "$ROOT_DIR/claude/commands/plan.md" "$HOME_DIR/.claude/commands/plan.md"
 ln -s "$ROOT_DIR/claude/scopes/shared/commands/front-quality.md" "$HOME_DIR/.claude/commands/front-quality.md"
 ln -s "$ROOT_DIR/claude/scopes/shared/commands/plan-loop.md" "$HOME_DIR/.claude/commands/plan-loop.md"
 ln -s "$ROOT_DIR/pi/skills/retired-skill" "$HOME_DIR/.claude/skills/retired-skill"
-ln -s "$ROOT_DIR/claude/scopes/shared/skills/spec" "$HOME_DIR/.claude/skills/spec"
-ln -s "$TMP_DIR/external-skill" "$HOME_DIR/.claude/skills/verify-workflow"
+ln -s "$ROOT_DIR/claude/scopes/shared/skills/adr" "$HOME_DIR/.claude/skills/adr"
+ln -s "$TMP_DIR/external-skill" "$HOME_DIR/.claude/skills/pr"
 mkdir -p "$HOME_DIR/.pi/agent/skills"
 ln -s "$ROOT_DIR/pi/skills/verify" "$HOME_DIR/.pi/agent/skills/verify"
+# Codex home: the live layout (adapter as a relative link to a real file in
+# skills/), a personal folder on a catalog name, a hidden folder, foreign links.
+mkdir -p "$HOME_DIR/.codex/skills/personal-codex" "$HOME_DIR/.codex/skills/linear-ticket-create" "$HOME_DIR/.codex/skills/.system"
+printf 'personal codex rules\n' >"$HOME_DIR/.codex/skills/AGENTS.md"
+ln -s skills/AGENTS.md "$HOME_DIR/.codex/AGENTS.md"
+mkdir -p "$HOME_DIR/.codex/skills/adr" && printf 'personal adr fork\n' >"$HOME_DIR/.codex/skills/adr/SKILL.md"
+ln -s "$TMP_DIR/external-skill" "$HOME_DIR/.codex/skills/foreign-link"
+ln -s "$TMP_DIR/elsewhere/.claude/skills/personal-only" "$HOME_DIR/.codex/skills/personal-only"
+mkdir -p "$TMP_DIR/personal/skills/work/employer-docs-writing"
+ln -s "$TMP_DIR/personal/skills/work/employer-docs-writing" "$HOME_DIR/.codex/skills/employer-docs-writing"
 
 printf '%s\n' '{
   "defaultProvider": "kimi-for-coding",
@@ -132,21 +142,103 @@ assert_absent "$HOME_DIR/.claude/commands/plan-loop.md"
 assert_absent "$HOME_DIR/.claude/commands/plan.md"
 assert_absent "$HOME_DIR/.claude/commands/front-quality.md"
 assert_link "$HOME_DIR/.claude/skills/plan-loop" "$ROOT_DIR/skills/shared/plan-loop"
-assert_link "$HOME_DIR/.claude/skills/spec" "$ROOT_DIR/skills/shared/spec"
-assert_absent "$HOME_DIR/.pi/agent/skills/spec"
-assert_absent "$HOME_DIR/.claude/skills/linear-work"
-assert_absent "$HOME_DIR/.pi/agent/skills/linear-work"
+assert_link "$HOME_DIR/.claude/skills/adr" "$ROOT_DIR/skills/shared/adr"
+assert_absent "$HOME_DIR/.pi/agent/skills/adr"
+assert_absent "$HOME_DIR/.claude/skills/linear-ticket-create"
+assert_absent "$HOME_DIR/.pi/agent/skills/linear-ticket-create"
 # A foreign link on a managed name moves outside the discovery root.
-assert_link "$HOME_DIR/.claude/skills/verify-workflow" "$ROOT_DIR/skills/shared/verify-workflow"
+assert_link "$HOME_DIR/.claude/skills/pr" "$ROOT_DIR/skills/shared/pr"
 if find "$HOME_DIR/.claude/skills" -maxdepth 1 -name '*.bak.*' | grep -q .; then
   printf 'deploy left a skill backup inside the discovery root\n' >&2
   exit 1
 fi
-collision_backups=( "$HOME_DIR/.claude/skills.bak"/verify-workflow.bak.* )
+collision_backups=( "$HOME_DIR/.claude/skills.bak"/pr.bak.* )
 [ "$(readlink "${collision_backups[0]}")" = "$TMP_DIR/external-skill" ] || {
   printf 'deploy did not keep the foreign skill link in skills.bak\n' >&2
   exit 1
 }
+assert_link "$HOME_DIR/.codex/AGENTS.md" "$ROOT_DIR/codex/AGENTS.md"
+codex_backups=( "$HOME_DIR/.codex"/AGENTS.md.bak.* )
+[ -L "${codex_backups[0]}" ] && grep -Fxq 'personal codex rules' "${codex_backups[0]}" || {
+  printf 'deploy replaced the foreign Codex AGENTS.md without a working backup\n' >&2
+  exit 1
+}
+adr_backups=( "$HOME_DIR/.codex/skills.bak"/adr.bak.* )
+grep -Fxq 'personal adr fork' "${adr_backups[0]}/SKILL.md" || {
+  printf 'deploy did not move the personal Codex adr folder to skills.bak\n' >&2
+  exit 1
+}
+[ -d "$HOME_DIR/.codex/skills/.system" ] && [ -d "$HOME_DIR/.codex/skills/linear-ticket-create" ] || {
+  printf 'deploy touched a hidden or out-of-scope Codex folder\n' >&2
+  exit 1
+}
+assert_link "$HOME_DIR/.codex/skills/personal-only" "$TMP_DIR/elsewhere/.claude/skills/personal-only"
+# A foreign link whose path only ends like an out-of-scope catalog skill stays.
+assert_link "$HOME_DIR/.codex/skills/employer-docs-writing" "$TMP_DIR/personal/skills/work/employer-docs-writing"
+assert_link "$HOME_DIR/.codex/workflow" "$ROOT_DIR/workflow"
+assert_link "$HOME_DIR/.codex/PLAN_TEMPLATE.md" "$ROOT_DIR/PLAN_TEMPLATE.md"
+assert_link "$HOME_DIR/.codex/skills/plan-loop" "$ROOT_DIR/skills/shared/plan-loop"
+assert_link "$HOME_DIR/.codex/skills/adr" "$ROOT_DIR/skills/shared/adr"
+[ -d "$HOME_DIR/.codex/skills/personal-codex" ] || { printf 'deploy moved a personal Codex skill folder\n' >&2; exit 1; }
+assert_link "$HOME_DIR/.codex/skills/foreign-link" "$TMP_DIR/external-skill"
+# Codex skills stay out of every root Pi reads.
+assert_absent "$HOME_DIR/.agents"
+# A Codex skills root that resolves inside a Pi root (Pi may scan nested
+# folders) or onto one is refused, not written through.
+SHARED_HOME_DIR="$TMP_DIR/shared-codex-home"
+mkdir -p "$SHARED_HOME_DIR/.pi/agent/skills/codex" "$SHARED_HOME_DIR/.codex"
+ln -s ../.pi/agent/skills/codex "$SHARED_HOME_DIR/.codex/skills"
+if ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --apply --home "$SHARED_HOME_DIR" >"$TMP_DIR/shared-codex.out" 2>&1; then
+  printf 'deploy accepted a Codex skills root inside a Pi root\n' >&2
+  exit 1
+fi
+grep -Fq 'Codex links skipped' "$TMP_DIR/shared-codex.out" || { cat "$TMP_DIR/shared-codex.out" >&2; exit 1; }
+assert_absent "$SHARED_HOME_DIR/.pi/agent/skills/codex/adr"
+assert_link "$SHARED_HOME_DIR/.pi/agent/skills/plan-loop" "$ROOT_DIR/skills/shared/plan-loop"
+AGENTS_HOME_DIR="$TMP_DIR/agents-codex-home"
+mkdir -p "$AGENTS_HOME_DIR/.codex/skills" "$AGENTS_HOME_DIR/.agents"
+ln -s ../.codex/skills "$AGENTS_HOME_DIR/.agents/skills"
+if ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --apply --home "$AGENTS_HOME_DIR" >"$TMP_DIR/agents-codex.out" 2>&1; then
+  printf 'deploy wrote Codex skills into a root Pi reads through ~/.agents/skills\n' >&2
+  exit 1
+fi
+assert_absent "$AGENTS_HOME_DIR/.codex/skills/adr"
+PI_CODEX_HOME_DIR="$TMP_DIR/pi-codex-home"
+mkdir -p "$PI_CODEX_HOME_DIR/.pi/agent"
+ln -s .pi/agent "$PI_CODEX_HOME_DIR/.codex"
+if ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --apply --home "$PI_CODEX_HOME_DIR" >"$TMP_DIR/pi-codex.out" 2>&1; then
+  printf 'deploy wrote the Codex adapter through a ~/.codex link into ~/.pi/agent\n' >&2
+  exit 1
+fi
+assert_link "$PI_CODEX_HOME_DIR/.pi/agent/AGENTS.md" "$ROOT_DIR/workflow/agent-rules.md"
+# A Pi root nested under a Codex destination is refused too.
+NESTED_HOME_DIR="$TMP_DIR/nested-pi-home"
+mkdir -p "$NESTED_HOME_DIR/.codex/skills/adr" "$NESTED_HOME_DIR/.agents"
+printf 'personal adr\n' >"$NESTED_HOME_DIR/.codex/skills/adr/SKILL.md"
+ln -s ../.codex/skills/adr "$NESTED_HOME_DIR/.agents/skills"
+if ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --apply --home "$NESTED_HOME_DIR" >"$TMP_DIR/nested-pi.out" 2>&1; then
+  printf 'deploy accepted a Pi root nested under ~/.codex/skills\n' >&2
+  exit 1
+fi
+grep -Fxq 'personal adr' "$NESTED_HOME_DIR/.agents/skills/SKILL.md" || { printf 'deploy moved a folder Pi reads\n' >&2; exit 1; }
+ENTRY_HOME_DIR="$TMP_DIR/entry-pi-home"
+mkdir -p "$ENTRY_HOME_DIR/.codex/skills/adr" "$ENTRY_HOME_DIR/.agents/skills"
+printf 'personal adr\n' >"$ENTRY_HOME_DIR/.codex/skills/adr/SKILL.md"
+ln -s ../../.codex/skills/adr "$ENTRY_HOME_DIR/.agents/skills/personal"
+if ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --apply --home "$ENTRY_HOME_DIR" >"$TMP_DIR/entry-pi.out" 2>&1; then
+  printf 'deploy accepted a Pi skill entry inside ~/.codex/skills\n' >&2
+  exit 1
+fi
+grep -Fxq 'personal adr' "$ENTRY_HOME_DIR/.agents/skills/personal/SKILL.md" || { printf 'deploy moved a skill Pi reads\n' >&2; exit 1; }
+grep -Fq 'Codex links skipped:' "$TMP_DIR/entry-pi.out" || { cat "$TMP_DIR/entry-pi.out" >&2; exit 1; }
+LOOP_HOME_DIR="$TMP_DIR/loop-codex-home"
+mkdir -p "$LOOP_HOME_DIR"
+ln -s .codex "$LOOP_HOME_DIR/.codex"
+if ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --apply --home "$LOOP_HOME_DIR" >"$TMP_DIR/loop-codex.out" 2>&1; then
+  printf 'deploy accepted an unresolvable ~/.codex\n' >&2
+  exit 1
+fi
+grep -Fq 'Codex links skipped: cannot resolve' "$TMP_DIR/loop-codex.out" || { cat "$TMP_DIR/loop-codex.out" >&2; exit 1; }
 assert_file "$HOME_DIR/.claude/commands/recap.md"
 grep -Fxq 'personal command' "$HOME_DIR/.claude/commands/recap.md"
 assert_link "$HOME_DIR/.claude/commands/commit.md" "$TMP_DIR/external-command.md"
@@ -216,7 +308,6 @@ assert_absent "$HOME_DIR/.claude/skills/frontend-css-ui-ux"
 assert_absent "$HOME_DIR/.claude/skills/css-layout-primitives"
 assert_absent "$HOME_DIR/.claude/skills/css-only-components"
 assert_absent "$HOME_DIR/.claude/skills/css-debugging"
-assert_absent "$HOME_DIR/.claude/skills/react-doctor-100"
 assert_absent "$HOME_DIR/.claude/skills/retired-skill"
 assert_absent "$HOME_DIR/.claude/skills/vercel-react-best-practices"
 assert_absent "$HOME_DIR/.claude/skills/vercel-composition-patterns"
@@ -229,7 +320,7 @@ assert_absent "$HOME_DIR/.claude/scripts/claude-bin.sh"
 assert_absent "$HOME_DIR/.claude/skills/ember-employer-suite"
 assert_absent "$HOME_DIR/.claude/skills/adonisjs-suite"
 
-for retired_surface in .codex .config/devin .agents; do
+for retired_surface in .config/devin .agents; do
   assert_absent "$ISOLATED_HOME_DIR/$retired_surface"
 done
 
@@ -260,15 +351,17 @@ fi
   assert_link "$WORK_HOME_DIR/.claude/scripts/pr-review-watch" "$ROOT_DIR/claude/scopes/work/scripts/pr-review-watch"
   assert_link "$WORK_HOME_DIR/.claude/skills/employer-backend-suite" "$ROOT_DIR/skills/work/employer-backend-suite"
   assert_absent "$WORK_HOME_DIR/.pi/agent/skills/employer-backend-suite"
-  assert_link "$WORK_HOME_DIR/.claude/skills/linear-work" "$ROOT_DIR/skills/work/linear-work"
-  assert_link "$WORK_HOME_DIR/.pi/agent/skills/linear-work" "$ROOT_DIR/skills/work/linear-work"
+  assert_link "$WORK_HOME_DIR/.claude/skills/linear-ticket-create" "$ROOT_DIR/skills/work/linear-ticket-create"
+  assert_link "$WORK_HOME_DIR/.pi/agent/skills/linear-ticket-create" "$ROOT_DIR/skills/work/linear-ticket-create"
   assert_link "$WORK_HOME_DIR/.claude/skills/pr-council-review" "$ROOT_DIR/skills/work/pr-council-review"
-  assert_absent "$WORK_HOME_DIR/.pi/agent/skills/pr-council-review"
+  assert_link "$WORK_HOME_DIR/.pi/agent/skills/pr-council-review" "$ROOT_DIR/skills/work/pr-council-review"
   assert_absent "$WORK_HOME_DIR/.claude/skills/adr"
   assert_absent "$WORK_HOME_DIR/.pi/agent/skills/adonisjs-suite"
   assert_absent "$WORK_HOME_DIR/.claude/skills/adonisjs-suite"
   assert_absent "$WORK_HOME_DIR/.grok"
-  for retired_surface in .codex .config/devin .agents; do
+  assert_link "$WORK_HOME_DIR/.codex/skills/linear-ticket-create" "$ROOT_DIR/skills/work/linear-ticket-create"
+  assert_absent "$WORK_HOME_DIR/.codex/skills/adr"
+  for retired_surface in .config/devin .agents; do
     assert_absent "$WORK_HOME_DIR/$retired_surface"
   done
 ) &
@@ -284,7 +377,7 @@ assert_link "$HOME_DIR/.pi/agent/extensions" "$ROOT_DIR/pi/extensions"
 assert_absent "$HOME_DIR/.pi/agent/subagents.json"
 assert_link "$HOME_DIR/.pi/agent/agents/Explore.md" "$ROOT_DIR/pi/agents/Explore.md"
 assert_link "$HOME_DIR/.pi/agent/skills/plan-loop" "$ROOT_DIR/skills/shared/plan-loop"
-assert_link "$HOME_DIR/.pi/agent/skills/verify-workflow" "$ROOT_DIR/skills/shared/verify-workflow"
+assert_link "$HOME_DIR/.pi/agent/skills/pr" "$ROOT_DIR/skills/shared/pr"
 assert_absent "$HOME_DIR/.pi/agent/skills/verify"
 assert_absent "$HOME_DIR/.pi/agent/skills/vercel-react-best-practices"
 assert_link "$HOME_DIR/.pi/settings.json" "$ROOT_DIR/pi/settings.json"
@@ -344,21 +437,8 @@ function packageBySource(source) {
   return packages.find((entry) => entry && typeof entry === "object" && entry.source === source);
 }
 
-if (!hasObjectSource("npm:@tintinweb/pi-tasks@0.7.1")) {
-  throw new Error("missing scoped Pi tasks package");
-}
-
-if (packages.some((entry) => typeof entry === "string" && entry === "npm:pi-subagents") ||
-    packages.some((entry) => {
-      const source = sourceOf(entry);
-      return typeof source === "string" && source.startsWith("npm:@tintinweb/pi-subagents");
-    })) {
-  throw new Error("pi-subagents must converge to the tracked object entry, tintinweb variants dropped");
-}
-
-const piSubagents = packageBySource("npm:pi-subagents@0.77.0");
-if (!piSubagents || JSON.stringify(piSubagents.skills) !== "[]") {
-  throw new Error("tracked npm:pi-subagents entry missing or not skill-silenced");
+if (packages.some((entry) => /^npm:(pi-subagents|@tintinweb\/pi-subagents)(@|$)/.test(sourceOf(entry) ?? ""))) {
+  throw new Error("retired pi-subagents package was kept");
 }
 
 if (hasObjectSource("local:etabli-workflow")) {
@@ -373,8 +453,8 @@ if (!Array.isArray(settings.skills) || !settings.skills.every((pattern) => patte
   throw new Error("top-level skills deny-list missing or not deny-only");
 }
 
-if (packages.some((entry) => sourceOf(entry) === "npm:@tintinweb/pi-tasks")) {
-  throw new Error("unpinned Pi tasks package was kept");
+if (packages.some((entry) => /^npm:(@tintinweb\/pi-tasks|pi-lens)(@|$)/.test(sourceOf(entry) ?? ""))) {
+  throw new Error("retired pi-tasks or pi-lens package was kept");
 }
 
 if (packages.some((entry) => {
@@ -429,6 +509,19 @@ if grep -q '^WOULD_' "$SECOND_DRY_RUN_OUTPUT"; then
   exit 1
 fi
 
+# Check mode reports Codex drift and exits 1.
+rm "$HOME_DIR/.codex/AGENTS.md" "$HOME_DIR/.codex/skills/plan-loop"
+if ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --check --home "$HOME_DIR" >"$TMP_DIR/codex-drift.out" 2>&1; then
+  printf 'check mode passed with Codex drift\n' >&2
+  exit 1
+fi
+grep -Fq 'Codex AGENTS.md missing' "$TMP_DIR/codex-drift.out" && grep -Fq 'Codex skill plan-loop missing' "$TMP_DIR/codex-drift.out" || {
+  printf 'check mode did not name the Codex drift:\n' >&2
+  cat "$TMP_DIR/codex-drift.out" >&2
+  exit 1
+}
+ETABLI_SKIP_LIVE_CHECKS=1 "$DEPLOY_SCRIPT" --apply --home "$HOME_DIR" >/dev/null
+
 wait "$DRY_RUN_PID"
 if [ -e "$DRY_HOME_DIR" ]; then
   printf 'dry-run created target home: %s\n' "$DRY_HOME_DIR" >&2
@@ -448,7 +541,7 @@ node "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" "$local_settings" "$ROOT
 jq -e '.defaultProvider == "zai" and .defaultModel == "glm-5.3" and (.enabledModels | index("custom/provider-model")) != null and (.enabledModels | index("zai/glm-5.3-flash")) != null and (.enabledModels | index("cursor/claude-sonnet-5@300k")) == null' "$local_settings" >/dev/null
 
 local_settings="$TMP_DIR/custom-default.json"
-printf '%s\n' '{"packages":["npm:mitsupi",{"source":"npm:pi-lens","skills":["lens"]},{"source":"npm:pi-lens@4.0.0"},{"source":"git:github.com/badlogic/pi-skills@feature/topic","skills":["danger"]},"https://github.com/badlogic/pi-skills.git@main","npm:@zhushanwen/pi-ask-user"]}' >"$local_settings"
+printf '%s\n' '{"packages":["npm:pi-cursor-sdk",{"source":"npm:pi-autoresearch@1.9.0"},"npm:@narumitw/pi-goal@0.54.11",{"source":"npm:pi-simplify"},"npm:pi-subagents@0.77.0","npm:mitsupi",{"source":"npm:pi-lens","skills":["lens"]},{"source":"npm:pi-lens@4.0.0"},{"source":"git:github.com/badlogic/pi-skills@feature/topic","skills":["danger"]},"https://github.com/badlogic/pi-skills.git@main","npm:@zhushanwen/pi-ask-user"]}' >"$local_settings"
 node "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" "$local_settings" "$ROOT_DIR/pi/agent/settings.json" 0 smoke >/dev/null
 node - "$local_settings" "$ROOT_DIR/pi/agent/settings.json" <<'NODE'
 const fs = require("node:fs");
@@ -459,6 +552,11 @@ const identities = sources.map(identity);
 if (new Set(identities).size !== identities.length) throw new Error(`pinned sync duplicated a package: ${sources.join(", ")}`);
 for (const entry of tracked.packages) {
   if (!sources.includes(entry.source)) throw new Error(`pinned sync did not install the tracked ${entry.source}`);
+}
+for (const source of sources) {
+  if (/^npm:(pi-cursor-sdk|pi-autoresearch|@narumitw\/pi-goal|pi-simplify|pi-subagents)(@|$)/.test(source) || source.includes("github.com/badlogic/pi-skills")) {
+    throw new Error(`retired Pi package survived sync: ${source}`);
+  }
 }
 if (!sources.includes("npm:@zhushanwen/pi-ask-user")) throw new Error("pinned sync dropped a local-only package");
 if (sources.length !== tracked.packages.length + 1) throw new Error(`pinned sync kept ${sources.length} entries for ${tracked.packages.length} tracked plus 1 local`);
@@ -551,5 +649,55 @@ grep -Fq "cwd-pi/pi runs before" "$TMP_DIR/pi-empty-entry.out" || {
   cat "$TMP_DIR/pi-empty-entry.out" >&2
   exit 1
 }
+
+# Check mode on a live home also runs the skill-load checks: healthy links with
+# invalid skill governance must fail, aggregated into the Summary line.
+LIVE_HOME="$TMP_DIR/live-home"
+mkdir -p "$LIVE_HOME/.claude/skills/herdr" "$LIVE_HOME/.pi/agent/npm/node_modules" "$TMP_DIR/live-bin" "$TMP_DIR/live-pi-bin"
+printf -- '---\nname: herdr\ndescription: stub herdr\n---\nstub\n' >"$LIVE_HOME/.claude/skills/herdr/SKILL.md"
+ln -s "$NODE_BIN" "$TMP_DIR/live-bin/node"
+printf '#!/bin/sh\nexit 1\n' >"$TMP_DIR/live-pi-bin/pi"
+chmod +x "$TMP_DIR/live-pi-bin/pi"
+env -u CLAUDE_CONFIG_DIR HOME="$LIVE_HOME" ETABLI_SKIP_LIVE_CHECKS=1 "$NODE_BIN" "$DEPLOY_SCRIPT" --apply --home "$LIVE_HOME" >/dev/null
+live_check() {
+  local path="$1"
+  shift
+  # Stray fixture-home overrides must not redirect the live checks away from HOME.
+  env -u CLAUDE_CONFIG_DIR CLAUDE_SKILL_LOAD_HOME="$TMP_DIR/stray-home" PI_SKILL_LOAD_HOME="$TMP_DIR/stray-home" \
+    CLAUDE_SKILL_LOAD_REPO="$TMP_DIR/stray-repo" PI_SKILL_LOAD_NO_REPO=1 \
+    HOME="$LIVE_HOME" PATH="$path" \
+    "$NODE_BIN" "$DEPLOY_SCRIPT" --check --home "$LIVE_HOME" "$@"
+}
+# A fixture home cannot own the repo's pi/extensions/node_modules link, so that
+# one issue stays reported; the healthy neighbor has no unresolved entry.
+live_check "$TMP_DIR/live-bin:/usr/bin:/bin" >"$TMP_DIR/live-ok.out" 2>&1 || :
+grep -q '^Summary: .* 0 unresolved' "$TMP_DIR/live-ok.out" && ! grep -q '^FAIL' "$TMP_DIR/live-ok.out" || {
+  printf 'live check failed on a healthy home:\n' >&2
+  cat "$TMP_DIR/live-ok.out" >&2
+  exit 1
+}
+grep -q 'Claude tracked settings' "$TMP_DIR/live-ok.out" && { printf 'check mode must not run the settings sync:\n' >&2; cat "$TMP_DIR/live-ok.out" >&2; exit 1; }
+grep -q 'SKIP .*Pi skill load check' "$TMP_DIR/live-ok.out" || { printf 'live check must say it skipped the Pi leg without pi:\n' >&2; cat "$TMP_DIR/live-ok.out" >&2; exit 1; }
+mkdir -p "$LIVE_HOME/.claude/skills/ungoverned-personal"
+printf -- '---\nname: ungoverned-personal\ndescription: stub\n---\nstub\n' >"$LIVE_HOME/.claude/skills/ungoverned-personal/SKILL.md"
+mkdir -p "$LIVE_HOME/.agents/skills/stale.bak.1"
+live_check "$TMP_DIR/live-pi-bin:$TMP_DIR/live-bin:/usr/bin:/bin" >"$TMP_DIR/live-bad.out" 2>&1 &&
+  { printf 'live check passed with healthy links but invalid skill governance\n' >&2; exit 1; }
+grep -Fq 'ungoverned skill on the surface: ungoverned-personal' "$TMP_DIR/live-bad.out" &&
+  grep -Fq 'stale skill backup(s) Pi may load' "$TMP_DIR/live-bad.out" &&
+  grep -Fq 'scripts/claude-skill-load-check --fix' "$TMP_DIR/live-bad.out" &&
+  grep -q '^Summary: .* 2 unresolved' "$TMP_DIR/live-bad.out" || {
+  printf 'live check must report both skill checks with remediation and aggregate them:\n' >&2
+  cat "$TMP_DIR/live-bad.out" >&2
+  exit 1
+}
+ETABLI_SKIP_SKILL_LOAD_CHECKS=1 live_check "$TMP_DIR/live-pi-bin:$TMP_DIR/live-bin:/usr/bin:/bin" >"$TMP_DIR/live-skip.out" 2>&1 || :
+grep -q 'SKIP *skill load checks (ETABLI_SKIP_SKILL_LOAD_CHECKS=1)' "$TMP_DIR/live-skip.out" &&
+  grep -q '^Summary: .* 0 unresolved' "$TMP_DIR/live-skip.out" || {
+  printf 'the skill-check seam must skip both checks and say so:\n' >&2
+  cat "$TMP_DIR/live-skip.out" >&2
+  exit 1
+}
+rm -rf "$LIVE_HOME/.claude/skills/ungoverned-personal" "$LIVE_HOME/.agents/skills/stale.bak.1"
 
 printf 'deploy agent workflow smoke test: ok\n'

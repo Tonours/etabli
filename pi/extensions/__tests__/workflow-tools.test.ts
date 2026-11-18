@@ -2,23 +2,21 @@ import { describe, expect, test } from "bun:test";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import workflowTools from "../workflow-tools.ts";
 
-const TASKS = ["TaskCreate", "TaskList", "TaskGet", "TaskUpdate", "TaskOutput", "TaskStop", "TaskExecute"];
 const DELEGATION = ["subagent", "bg_wait", "subagent_supervisor"];
 const OTHERS = ["read", "bash", "mcp", "mcpScript", "goal_complete", "ask_user"];
 const LOADER = "load_workflow_tools";
-type Group = "tasks" | "delegation";
 type Loader = {
 	name: string;
-	execute: (id: string, params: { group: Group }) => Promise<{
+	execute: (id: string, params: Record<string, never>) => Promise<{
 		content: { type: string; text: string }[];
 		details: { added: string[] };
 		isError?: boolean;
 	}>;
 };
 
-function fixture(initial = [...OTHERS, ...TASKS, ...DELEGATION], argv: string[] = [], eager?: string) {
+function fixture(initial = [...OTHERS, ...DELEGATION], argv: string[] = [], eager?: string) {
 	let active = [...initial];
-	const registered = new Set([...OTHERS, ...TASKS, ...DELEGATION]);
+	const registered = new Set([...OTHERS, ...DELEGATION]);
 	const mutations: string[][] = [];
 	let loader: Loader | undefined;
 	let start: ((event: { reason: string }) => void) | undefined;
@@ -48,9 +46,9 @@ function fixture(initial = [...OTHERS, ...TASKS, ...DELEGATION], argv: string[] 
 		start(reason = "startup") { start?.({ reason }); },
 		externalChange(names: string[]) { active = [...names]; },
 		removeTool(name: string) { registered.delete(name); active = active.filter((item) => item !== name); },
-		async load(group: Group) {
+		async load() {
 			if (!loader) throw new Error("loader was not registered");
-			return loader.execute("fixture-call", { group });
+			return loader.execute("fixture-call", {});
 		},
 	};
 }
@@ -60,50 +58,49 @@ describe("workflow tools", () => {
 		const run = fixture();
 		run.start();
 		expect(run.active).toEqual([...OTHERS, LOADER]);
-		const tasks = await run.load("tasks");
-		expect(tasks.details.added).toEqual(TASKS);
-		expect(run.active).toEqual([...OTHERS, LOADER, ...TASKS]);
-		expect((await run.load("delegation")).details.added).toEqual(DELEGATION);
-		expect(new Set(run.active)).toEqual(new Set([...OTHERS, LOADER, ...TASKS, ...DELEGATION]));
+		expect((await run.load()).details.added).toEqual(DELEGATION);
+		expect(run.active).toEqual([...OTHERS, LOADER, ...DELEGATION]);
 		const writes = run.mutations.length;
-		expect((await run.load("tasks")).details.added).toEqual([]);
+		expect((await run.load()).details.added).toEqual([]);
 		expect(run.mutations).toHaveLength(writes);
 	});
 
 	test("never restores tools that were inactive or disappeared", async () => {
-		const run = fixture([...OTHERS, "TaskCreate", "subagent"]);
+		const run = fixture([...OTHERS, "subagent", "bg_wait"]);
 		run.start();
 		run.removeTool("subagent");
-		const writes = run.mutations.length;
-		expect((await run.load("delegation")).isError).toBe(true);
-		expect(run.mutations).toHaveLength(writes);
-		expect((await run.load("tasks")).details.added).toEqual(["TaskCreate"]);
-		expect(run.active).not.toContain("TaskExecute");
+		expect((await run.load()).details.added).toEqual(["bg_wait"]);
+		expect(run.active).not.toContain("subagent");
+		expect(run.active).not.toContain("subagent_supervisor");
+		const gone = fixture([...OTHERS, "subagent"]);
+		gone.start();
+		gone.removeTool("subagent");
+		const writes = gone.mutations.length;
+		expect((await gone.load()).isError).toBe(true);
+		expect(gone.mutations).toHaveLength(writes);
 	});
 
 	test("respects other extensions before and after initialization", async () => {
 		const run = fixture();
-		run.externalChange([...OTHERS, "TaskCreate", "subagent", LOADER, "other-tool"]);
+		run.externalChange([...OTHERS, "subagent", LOADER, "other-tool"]);
 		run.start();
 		run.externalChange([...run.active.filter((name) => name !== "mcp"), "bg_wait"]);
-		await run.load("tasks");
+		await run.load();
 		expect(run.active).toContain("other-tool");
 		expect(run.active).toContain("bg_wait");
+		expect(run.active).toContain("subagent");
 		expect(run.active).not.toContain("mcp");
-		expect(run.active).not.toContain("TaskExecute");
+		expect(run.active).not.toContain("subagent_supervisor");
 	});
 
 	test("reinitializes from current policy on each session lifecycle event", async () => {
 		const run = fixture();
 		for (const reason of ["startup", "new", "resume", "fork", "reload"]) {
-			run.externalChange([...OTHERS, ...TASKS, ...DELEGATION, LOADER]);
+			run.externalChange([...OTHERS, ...DELEGATION, LOADER]);
 			run.start(reason);
 			expect(run.active).toEqual([...OTHERS, LOADER]);
-			await run.load("delegation");
+			await run.load();
 		}
-		const separate = fixture([...OTHERS, "TaskCreate"]);
-		separate.start();
-		expect((await separate.load("delegation")).isError).toBe(true);
 	});
 
 	test("adds no loader overhead when no target tools are active", () => {

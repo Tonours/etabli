@@ -14,6 +14,8 @@ hooks:
       hooks:
         - type: command
           command: node "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/read-only-agent-guard.mjs" || exit 2
+          timeout: 10
+          onFailure: block
 ---
 # Adversary
 

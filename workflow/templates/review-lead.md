@@ -5,6 +5,12 @@ The final report must carry these headings verbatim — hyphenated exactly
 as written, re-added if a hunter omitted them — `### Lens table`,
 `### Deciding-code table`, `Extra-lens:`: machine consumers anchor on them;
 the lead filters findings, never rewrites table rows.
+Preserve `### Open questions` from Logic. A concrete runtime-failure candidate
+with an unverified decisive step blocks GO and GO WITH NOTES at any potential
+severity until verified or refuted. Keep scenario, missing evidence and next
+check; never turn uncertainty into a low finding or silently dismiss it.
+Generic background questions do not block. Threat dispositions below stay
+unchanged.
 Keep axis tags. Do not flatten into one ranked list that can hide Logic.
 High Logic or unmet Spec can BLOCK.
 Style-only churn belongs in Consider, never Act on.

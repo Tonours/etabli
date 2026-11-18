@@ -26,7 +26,7 @@ done
 checkout_count="$(grep -Ec 'uses:[[:space:]]+actions/checkout@' "$WORKFLOW")"
 annotated_uses_count="$(grep -Ec 'uses:[[:space:]]+[^[:space:]]+@[0-9a-f]{40}[[:space:]]+# v[0-9]' "$WORKFLOW")"
 persist_credentials_count="$(grep -Ec '^[[:space:]]+persist-credentials:[[:space:]]+false$' "$WORKFLOW")"
-[ "$checkout_count" -eq 2 ] || fail "expected exactly two checkout steps"
+[ "$checkout_count" -eq 3 ] || fail "expected exactly three checkout steps"
 [ "$annotated_uses_count" -eq "$(grep -Ec 'uses:[[:space:]]' "$WORKFLOW")" ] ||
   fail "every pinned action needs its version tag comment"
 [ "$persist_credentials_count" -eq "$checkout_count" ] ||
@@ -56,13 +56,13 @@ grep -Eq 'uses:[[:space:]]+actions/setup-node@[0-9a-f]{40}[[:space:]]+# v[0-9]' 
   fail "CI needs a SHA-pinned actions/setup-node step"
 
 setup_bun_count="$(grep -Ec 'uses:[[:space:]]+oven-sh/setup-bun@' "$WORKFLOW")"
-[ "$setup_bun_count" -eq 2 ] &&
+[ "$setup_bun_count" -eq 3 ] &&
   [ "$(grep -Ec '^[[:space:]]+bun-version:[[:space:]]+"[0-9]+[.][0-9]+[.][0-9]+"$' "$WORKFLOW")" -eq "$setup_bun_count" ] ||
-  fail "both CI jobs must pin an exact bun version"
-[ "$(grep -Ec '^[[:space:]]+node-version:[[:space:]]+"[0-9]+[.][0-9]+[.][0-9]+"$' "$WORKFLOW")" -eq 2 ] ||
-  fail "both CI jobs must pin an exact Node version"
-[ "$(grep -Ec 'run:[[:space:]]+bun --version && node --version$' "$WORKFLOW")" -eq 2 ] ||
-  fail "both CI jobs must print the bun and node versions"
+  fail "all three CI jobs must pin an exact bun version"
+[ "$(grep -Ec '^[[:space:]]+node-version:[[:space:]]+"[0-9]+[.][0-9]+[.][0-9]+"$' "$WORKFLOW")" -eq 3 ] ||
+  fail "all three CI jobs must pin an exact Node version"
+[ "$(grep -Ec 'run:[[:space:]]+bun --version && node --version$' "$WORKFLOW")" -eq 3 ] ||
+  fail "all three CI jobs must print the bun and node versions"
 
 while IFS= read -r -d '' entry; do
   case "$entry" in
@@ -167,6 +167,47 @@ commit_file() {
 commit_file clean.txt 'nothing secret'
 git -C "$hook_clone" push -q origin HEAD:refs/heads/main 2>"$hook_tmp/clean.err" ||
   fail "pre-push blocked a clean push: $(cat "$hook_tmp/clean.err")"
+clean_sha="$(git -C "$hook_clone" rev-parse HEAD)"
+git --git-dir="$hook_tmp/remote.git" symbolic-ref HEAD refs/heads/main
+commit_file reviewed.env "GITHUB_TOKEN=$(printf 'gh%s_%s' p "$(openssl rand -hex 18)")"
+reviewed_sha="$(git -C "$hook_clone" rev-parse HEAD)"
+commit_file .gitleaksignore "$reviewed_sha:reviewed.env:github-pat:1"
+git --git-dir="$hook_tmp/remote.git" fetch -q "$hook_clone" HEAD:refs/heads/main
+git -C "$hook_clone" fetch -q origin
+commit_file topic.txt 'new branch with a reviewed historical fixture'
+git -C "$hook_clone" push -q origin HEAD:refs/heads/reviewed-topic 2>"$hook_tmp/reviewed-topic.err" ||
+  fail "new-ref scan rejected a fingerprint from the advertised remote default branch: $(cat "$hook_tmp/reviewed-topic.err")"
+reviewed_base="$(git --git-dir="$hook_tmp/remote.git" rev-parse refs/heads/main)"
+git --git-dir="$hook_tmp/remote.git" update-ref refs/heads/unreviewed "$(git -C "$hook_clone" rev-parse HEAD)"
+git --git-dir="$hook_tmp/remote.git" update-ref refs/heads/main "$clean_sha"
+git --git-dir="$hook_tmp/remote.git" symbolic-ref HEAD refs/heads/unreviewed
+if git -C "$hook_clone" push -q origin HEAD:refs/heads/unreviewed-topic 2>"$hook_tmp/unreviewed-head.err"; then
+  fail "new-ref scan trusted exemptions from an unreviewed remote HEAD branch"
+fi
+grep -Fq 'leaks found' "$hook_tmp/unreviewed-head.err" || fail "unreviewed remote HEAD must scan without exemptions"
+git --git-dir="$hook_tmp/remote.git" update-ref --no-deref HEAD "$reviewed_base"
+if git -C "$hook_clone" push -q origin HEAD:refs/heads/detached-topic 2>"$hook_tmp/detached-head.err"; then
+  fail "new-ref scan trusted exemptions from a detached remote HEAD"
+fi
+grep -Fq 'leaks found' "$hook_tmp/detached-head.err" || fail "detached remote HEAD must scan without exemptions"
+git --git-dir="$hook_tmp/remote.git" symbolic-ref HEAD refs/heads/main
+git --git-dir="$hook_tmp/remote.git" update-ref refs/heads/main "$reviewed_base"
+git --git-dir="$hook_tmp/remote.git" update-ref -d refs/heads/unreviewed
+remote_only_sha="$(git --git-dir="$hook_tmp/remote.git" -c user.name=t -c user.email=t@example.invalid commit-tree "$clean_sha^{tree}" -m remote-only)"
+git --git-dir="$hook_tmp/remote.git" update-ref refs/heads/main "$remote_only_sha"
+if git -C "$hook_clone" push -q origin HEAD:refs/heads/missing-base-topic 2>"$hook_tmp/missing-base.err"; then
+  fail "new-ref scan accepted an unavailable advertised default commit"
+fi
+grep -Fq 'Fetch the remote and retry' "$hook_tmp/missing-base.err" || fail "unavailable remote default needs fetch remediation"
+if printf 'refs/heads/topic %s refs/heads/topic %040d\n' "$(git -C "$hook_clone" rev-parse HEAD)" 0 |
+  (cd "$hook_clone" && .githooks/pre-push origin "$hook_tmp/unavailable.git") >"$hook_tmp/unavailable.out" 2>&1; then
+  fail "new-ref scan accepted a failed remote default lookup"
+fi
+grep -Fq 'cannot verify the remote default branch' "$hook_tmp/unavailable.out" || fail "failed remote lookup needs connectivity remediation"
+git --git-dir="$hook_tmp/remote.git" update-ref -d refs/heads/reviewed-topic
+git --git-dir="$hook_tmp/remote.git" update-ref refs/heads/main "$clean_sha"
+git -C "$hook_clone" reset -q --hard "$clean_sha"
+git -C "$hook_clone" fetch -q --prune origin
 commit_file config.env "GITHUB_TOKEN=$(printf 'gh%s_%s' p "$(openssl rand -hex 18)")"
 if git -C "$hook_clone" push -q origin HEAD:refs/heads/main 2>"$hook_tmp/secret.err"; then
   fail "pre-push let a commit with a GitHub token through"
@@ -212,6 +253,9 @@ git -C "$hook_clone" add .gitleaksignore
 git -C "$hook_clone" commit -qm 'hide and revert the dummy leak'
 if git -C "$hook_clone" push -q origin HEAD:refs/heads/main 2>"$hook_tmp/suppressed.err"; then
   fail "pre-push let a candidate fingerprint suppress a reverted secret"
+fi
+if git -C "$hook_clone" push -q origin HEAD:refs/heads/suppressed-topic 2>"$hook_tmp/suppressed-topic.err"; then
+  fail "new-ref scan let a candidate fingerprint suppress a reverted secret"
 fi
 
 scan="$ROOT_DIR/.githooks/scan-secrets"

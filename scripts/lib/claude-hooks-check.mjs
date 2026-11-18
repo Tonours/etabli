@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { bypassesRtkGuard, hookScriptNames, identityOf, isRetiredHookCommand, loadFragment } from "./claude-hooks-fragment.mjs";
+import { hookScriptNames, identityOf, isRetiredHookCommand, loadFragment } from "./claude-hooks-fragment.mjs";
 
 const claudeDir = process.argv[2];
 const repoDir = process.argv[3];
@@ -32,7 +32,6 @@ if (typeof live === "object" && live !== null && live.disableAllHooks === true) 
 }
 const liveIdentities = new Set();
 const retiredWired = [];
-const guardBypass = [];
 const hooksObj = typeof live === "object" && live !== null && typeof live.hooks === "object" && live.hooks !== null && !Array.isArray(live.hooks) ? live.hooks : {};
 for (const [event, groups] of Object.entries(hooksObj)) {
   if (!Array.isArray(groups)) continue;
@@ -43,7 +42,6 @@ for (const [event, groups] of Object.entries(hooksObj)) {
       if (typeof hook !== "object" || hook === null || Array.isArray(hook)) continue;
       liveIdentities.add(identityOf(event, group.matcher, hook));
       if (isRetiredHookCommand(hook.command)) retiredWired.push(`${event}/${group.matcher ?? ""}: ${hook.command}`);
-      if (bypassesRtkGuard(event, group.matcher, hook.command)) guardBypass.push(`${event}/${group.matcher ?? ""}: ${hook.command}`);
     }
   }
 }
@@ -58,12 +56,9 @@ for (const [event, groups] of Object.entries(fragment.hooks ?? {})) {
     }
   }
 }
-if (missing.length || retiredWired.length || guardBypass.length) {
+if (missing.length || retiredWired.length) {
   for (const entry of missing) console.error(`claude-hooks-check: not wired: ${entry}`);
   for (const entry of retiredWired) console.error(`claude-hooks-check: retired hook still wired: ${entry}`);
-  for (const entry of guardBypass) {
-    console.error(`claude-hooks-check: custom Bash PreToolUse hook calls rtk outside rtk-guard: ${entry} (edit it by hand to drop the rtk call; rtk-guard already delegates to rtk hook claude)`);
-  }
   console.error(remedy);
   process.exit(1);
 }

@@ -80,4 +80,3 @@ alone is insufficient.
    survives; material deltas need a fresh pass. Never stamp a new hash onto an
    old verdict.
 
-Binding and inspection details: `workflow/skills/execution-quality.md`.

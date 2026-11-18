@@ -1,12 +1,19 @@
 ---
 name: pr-council-review
-description: Runs a cross-family review of one PR (code-review + thermo-nuclear + codex, then the validator skill as the council), dry-run by default. Use when a GitHub PR needs the full council review; not for local diffs (review).
-argument-hint: "<PR number or URL> [owner/repo] [--post] [--phase-a-model <alias>] [--no-codex] [--codex-model <model>]"
+description: Runs the cross-family council review of one GitHub PR, dry-run unless --post. Use when a PR needs the council verdict; not for local diffs (review).
+argument-hint: "<PR number or URL> [owner/repo] [--post] [--phase-a-model <alias>] [--no-codex] [--codex-model <model>] [--reuse-review <file>]"
 allowed-tools: [Bash, Read, Glob, Grep]
 ---
 
-Run `~/.claude/scripts/pr-council-review/run.sh $ARGUMENTS` from the repository
-the PR belongs to, and stream its output.
+Run `~/.claude/scripts/pr-council-review/run.sh` with the arguments of the
+request, in their order (the PR, then its flags), from the repository the PR
+belongs to, and stream its output unchanged. The watcher keeps its full canonical
+stream. If the harness files Bash output, `<log-file>` is that file; read phase B
+first, then relevant phase A evidence:
+`bash -c '. ~/.claude/scripts/pr-council-review/lib.sh && phase_b_output "$1"' _ "<log-file>"`.
+If output stays inline, read phase B in that stream.
+A nonzero helper exit means incomplete. Process exit zero is not approval;
+read the validator verdict, findings, denial and run markers.
 
 The script does the orchestration; you do not re-run any of the passes yourself.
 To run a round again (interrupted, or a new head), run the same command again.
@@ -84,6 +91,55 @@ without its run marker as incomplete, and retries neither on the same head.
 Without `--post` the validator prints the review payload it would submit and
 writes nothing to GitHub. Pass `--post` whenever the request is to publish the
 review; no separate confirmation.
+
+Reused phase A: `--reuse-review <file>` (`PR_COUNCIL_REUSE_REVIEW`) skips
+phase A when the file's first line `patch-sha256: <hex>` equals the PR's
+fingerprint, printed for a local head by `run.sh --reuse-sha origin/<base>`: modes
+and blob ids of every change from the repo root, additions of regular
+(mode 100644) files under `docs/plan/` (the plan archive, committed after the
+review) left out; a git failure, an empty diff or an uncommitted or untracked
+change prints no fingerprint; the file then stands as phase A's
+report and the validator still runs. A missing, unreadable or different hash,
+or a validator review already on the head (phase A only mode), prints
+`reuse refused` and runs phase A in full. Pass a file only when its
+recorded passes match phase A on the same acceptance criteria: two
+fresh-context reviews plus a cross-family pass with effective-model provenance.
+
+Prepare that file after fetching the base and committing the reviewed patch:
+`run.sh --record-review origin/<base> <complete-round-report> <reuse-file>`.
+Keep the destination outside the checkout or ignored. A private same-directory
+temporary file is renamed atomically; failures preserve its previous contents.
+Directory destinations refuse. It writes the fingerprint header and exact report bytes, refusing missing/empty
+reports, dirty workspaces, masked index flags and Git repository/index/object-store
+environment overrides. Both modes also refuse configured `core.worktree` and
+config-read errors, and disable fsmonitor. Ordinary diff settings still work.
+Submodule checkouts also refuse; retain their Git config and use full phase A.
+The recorder uses Node's rename primitive so a concurrent directory also refuses.
+Packaging certifies no review: verify eligibility/provenance before passing it.
+The file stays private; the validator still examines its findings against code.
+
+Automatic reuse is opt-in at recording: after checking those eligibility and
+provenance requirements, run `run.sh --record-review origin/<base>
+<complete-round-report> --eligible-review`. This explicitly attests eligibility;
+it does not prove it. Only this mode writes an auto-discoverable private JSON
+record under `~/.pr-council-reuse/` (directory 0700, files 0600) and prints its
+path. Explicit legacy output files are never automatically discovered.
+With `--post` and no explicit reuse file, the script checks the same canonical
+checkout path, merge-base and patch fingerprint, with a maximum age of 3600 s;
+an archive-only commit preserves the fingerprint. Other clones/worktrees,
+expired or future-dated records, unsafe paths, and invalid/empty records run
+full phase A. The validated private snapshot supplies the exact report bytes.
+Old records remain on disk until manually removed. `--no-reuse` disables both
+automatic and explicit reuse and forces phase A; use it when requesting fresh
+`--phase-a-model` or `--phase-a-effort` passes, which discovery otherwise skips.
+Automatic reuse does not apply in dry-run or phase-a-only mode.
+
+Council effort stays `high` by default. `PR_COUNCIL_VALIDATOR_EFFORT=medium`
+is an explicit opt-in for phase B alone; phase A keeps its council effort.
+Precedence for phase B is `--effort`, then `PR_COUNCIL_VALIDATOR_EFFORT`, then
+`PR_COUNCIL_EFFORT`, then `high`. Phase-a-only mode forces `high` for both.
+Validator author/approval gates remain unchanged; a viewer comment is not
+validator proof. No quality-equivalence or token-savings claim is established.
 
 When the script exits, report: the PR, what each phase found, how many phase A
 candidates survived the skeptic gate, whether anything was posted, and the path

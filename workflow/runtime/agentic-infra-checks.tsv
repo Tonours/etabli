@@ -1,6 +1,7 @@
 # profile	group	label	target
 core	pi	pi-tests	builtin:pi-tests
 core	shell-docs	deploy-agent-workflow-smoke	tests/deploy-agent-workflow-smoke.sh
+core	shell-docs	deploy-hosts-smoke	tests/deploy-hosts-smoke.sh
 core	shell-docs	surfaces-test	tests/surfaces.test.mjs
 core	shell-docs	workflow-contract-coverage-smoke	tests/workflow-contract-coverage-smoke.sh
 core	shell-docs	plan-cleanup-smoke	tests/plan-cleanup-smoke.sh
@@ -13,8 +14,13 @@ core	shell-docs	supply-chain-smoke	tests/supply-chain-smoke.sh
 core	pi	skill-lock	builtin:skill-lock
 core	shell-docs	guards-active	tests/guards-active-smoke.sh
 core	shell-docs	skill-hygiene	tests/skill-hygiene-smoke.sh
+core	shell-docs	entry-chain-budget	tests/entry-chain-budget-smoke.sh
 full	shell-docs	pr-review-gates-smoke	tests/pr-review-gates-smoke.sh
 full	shell-docs	pr-review-flow-smoke	tests/pr-review-flow-smoke.sh
+full	shell-docs	pr-review-registration-smoke	tests/pr-review-registration-smoke.sh
+full	shell-docs	pr-review-import-smoke	tests/pr-review-import-smoke.sh
+full	shell-docs	pr-review-requests-smoke	tests/pr-review-requests-smoke.sh
+full	shell-docs	pr-review-own-only-smoke	tests/pr-review-own-only-smoke.sh
 full	shell-docs	pr-review-signals-smoke	tests/pr-review-signals-smoke.sh
 full	shell-docs	workflow-scaffold-smoke	tests/workflow-scaffold-smoke.sh
 full	shell-docs	workflow-scaffold-check-smoke	tests/workflow-scaffold-check-smoke.sh
@@ -42,3 +48,9 @@ full	shell-docs	claude-statusline-smoke	tests/claude-statusline-smoke.sh
 full	shell-docs	security-audit-glm-smoke	tests/security-audit-glm-smoke.sh
 full	shell-docs	security-audit-sandbox-smoke	tests/security-audit-sandbox-smoke.sh
 full	shell-docs	mutation-probe-test	tests/mutation-probe.test.mjs
+full	shell-docs	pr-review-lifecycle-smoke	tests/pr-review-lifecycle-smoke.sh
+full	shell-docs	pr-review-private-smoke	tests/pr-review-private-smoke.sh
+full	shell-docs	routine-run-smoke	tests/routine-run-smoke.sh
+full	shell-docs	routine-adopt-smoke	tests/routine-adopt-smoke.sh
+core	durable	durable-typecheck	builtin:durable-typecheck
+core	durable	durable-tests	builtin:durable-tests
