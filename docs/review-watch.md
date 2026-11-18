@@ -132,6 +132,14 @@ and records it in `stop-survivors`, so every later stop, and `install.sh
 --own-only`, fails until that process has exited. Check it with `ps -p <pid>`
 and end it by hand.
 
+Known limits of `stop`, accepted: a child that leaves the run's process group
+(`setsid`, `setpgid`) and whose parents exit before the next check is out of
+reach, and the stop then succeeds while it lives. A stale pid file whose pid now
+belongs to a process whose command line holds the runner path and the key is
+taken for the run (`process_matches`). The checks between a live group leader
+and its group signal, or a start time and a pid signal, are the usual
+check-then-signal window.
+
 ## Launch ownership and diagnostics
 
 Each attempt has an immutable private launcher and a one-shot token. Herdr and
