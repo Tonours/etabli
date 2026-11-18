@@ -145,10 +145,6 @@ are read again right before the job is booted out (under 5 minutes). The
 reserved name and label, a name bound to another label, and a label bound to
 another name are refused.
 
-What it changes for launchd: the main process of the job becomes the wrapper,
-so a stop reaches the command one step later, and a signal shows as the exit
-code 128+n.
-
 Exit codes of `adopt` and `release`: 0 done; 2 refused, nothing changed; 1
 failed (the original is put back) or a leftover waits for the next command; 75
 another adopt, release or settling holds the lock; 74 the lock or the folder
@@ -185,6 +181,33 @@ slot is under 10 minutes away: the command then exits 2 and the folder stays
 | `incomplete` | a `pending` file waits for settling |
 | `broken` | `adopt.failed` is present: the restore failed |
 | `native` | `source: native`, written by its own routine |
+
+## What adoption changes for launchd
+
+Nothing else about the job changes: same label, same schedule, same log files,
+same environment.
+
+- The main process of the job is now the wrapper, not the command. The command
+  is its child.
+- A stop sent to the job (`launchctl kill`, `bootout`, a logout) reaches the
+  wrapper first. The wrapper passes `TERM` and `HUP` on, and `INT` as `TERM`, so
+  the command gets the signal one step later. It then waits for the command and
+  does not exit before it.
+- A command that a signal ended no longer shows as a signal. The wrapper exits
+  with the shell's 128+n (143 for `TERM`), and launchd sees an exit code. The
+  record says the same: `exit` 143, and `signal` `TERM` when the wrapper passed
+  it on.
+- A `KILL` sent to the wrapper alone leaves the command running, and the lock
+  with it, until the command ends.
+- The job runs `/bin/bash <routine.sh> run <name> -- <command...>`. A tool that
+  rewrites the plist and drops that prefix makes the job `unwrapped`, and the
+  records stop.
+
+Assumption A1: `Nice` and `LowPriorityIO` set on the job still apply to the
+command, since it is a child of the wrapper and inherits both. This is not yet
+proved. Check it on the first adopted run of a job that sets them: `ps -o nice=
+-p <command pid>` must print the value from the plist. If it does not,
+`release` that job.
 
 ## A routine that writes its own record (`native`)
 
