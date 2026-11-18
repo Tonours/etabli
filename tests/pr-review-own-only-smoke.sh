@@ -401,18 +401,40 @@ install_fixture; touch "$STATE_DIR/off"
 l="$(key_of acme/widgets 24)"; author acme/widgets 24 someone; reserve "$l" council tok24
 mkdir -p "$TMP_DIR/late"
 printf 'trap '"'"'( trap "" TERM; exec sleep 300 ) & echo $! >"%s"; exit 0'"'"' TERM\nwhile :; do sleep 1; done\n' "$TMP_DIR/late/child" >"$TMP_DIR/late/review-run.sh"
-printf 'trap "exit 143" TERM\n/bin/bash "%s" "$1" &\necho $! >"%s"\nwait\n' "$TMP_DIR/late/review-run.sh" "$TMP_DIR/late/runner" >"$TMP_DIR/late/launch-run.sh"
+printf 'trap '"'"'kill -TERM $c; wait $c; exit 143'"'"' TERM\n/bin/bash "%s" "$1" & c=$!\necho $c >"%s"\nwait\n' "$TMP_DIR/late/review-run.sh" "$TMP_DIR/late/runner" >"$TMP_DIR/late/launch-run.sh"
 # As in production: the supervisor leads the group, the runner is its child and not a leader.
 perl -e 'setpgrp(0, 0); exec @ARGV' /bin/bash "$TMP_DIR/late/launch-run.sh" "$l" & supervisor=$!
 sleep 1
 printf '%s\n' "$(cat "$TMP_DIR/late/runner")" >"$l.pid"
 mkdir -p "$l.execution"; printf '%s\n' "$supervisor" >"$l.execution/pid"
 rc=0; /bin/bash "$SCRIPTS/install.sh" --own-only >/dev/null 2>&1 || rc=$?
-[ "$rc" = 0 ] || fail "install --own-only with a child started on TERM exit $rc"
 child="$(cat "$TMP_DIR/late/child" 2>/dev/null || true)"; [ -n "$child" ] || fail 'the TERM handler started no child'
 sleep 1
-if ps -p "$child" -o stat= 2>/dev/null | grep -qv Z; then kill -KILL "$child"; fail 'install --own-only left a child started by the TERM handler alive'; fi
-pass 'install --own-only kills a child the runner starts while handling TERM'
+# Either stop proved the child the run's and killed it, or it refused to report success.
+if ps -p "$child" -o stat= 2>/dev/null | grep -qv Z; then
+  kill -KILL "$child"
+  [ "$rc" != 0 ] || fail 'install --own-only succeeded with a child started by the TERM handler alive'
+  [ ! -e "$LAUNCHCTL_CALLS" ] || fail 'job loaded while a stopped run left a process'
+fi
+pass 'install --own-only never succeeds while a child the runner starts on TERM lives'
+
+install_fixture; touch "$STATE_DIR/off"
+l="$(key_of acme/widgets 27)"; author acme/widgets 27 someone; reserve "$l" council tok27
+mkdir -p "$TMP_DIR/gone"
+printf '( trap "" TERM; exec sleep 300 ) &\necho $! >"%s"\nexit 0\n' "$TMP_DIR/gone/child" >"$TMP_DIR/gone/body.sh"
+printf 'trap "" TERM\n/bin/bash "%s"\nsleep 300\n' "$TMP_DIR/gone/body.sh" >"$TMP_DIR/gone/launch-run.sh"
+perl -e 'setpgrp(0, 0); exec @ARGV' /bin/bash "$TMP_DIR/gone/launch-run.sh" "$l" & supervisor=$!
+sleep 1
+mkdir -p "$l.execution"; printf '%s\n' "$supervisor" >"$l.execution/pid"
+stray="$(cat "$TMP_DIR/gone/child")"
+# The leader dies on its own: the group it leaves holds a process no recorded pid proves.
+( sleep 2; kill -KILL "$supervisor" ) &
+rc=0; /bin/bash "$SCRIPTS/install.sh" --own-only >/dev/null 2>&1 || rc=$?
+alive=0; ps -p "$stray" -o stat= 2>/dev/null | grep -qv Z && alive=1
+kill -KILL "$stray" 2>/dev/null || true
+# Seen in the group while its leader lived, the stray is the run's and is killed by its own pid.
+[ "$alive" = 0 ] && [ "$rc" = 0 ] || fail "a stray seen in the run's group survived its leader (rc $rc, alive $alive)"
+pass 'stop kills a process seen in the run group after the leader dies'
 
 install_fixture; touch "$STATE_DIR/off"
 l="$(key_of acme/widgets 25)"; author acme/widgets 25 someone; reserve "$l" council tok25
