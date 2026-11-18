@@ -397,12 +397,15 @@ install_fixture; touch "$STATE_DIR/off"
 l="$(key_of acme/widgets 24)"; author acme/widgets 24 someone; reserve "$l" council tok24
 mkdir -p "$TMP_DIR/late"
 printf 'trap '"'"'( trap "" TERM; exec sleep 300 ) & echo $! >"%s"; exit 0'"'"' TERM\nwhile :; do sleep 1; done\n' "$TMP_DIR/late/child" >"$TMP_DIR/late/review-run.sh"
-perl -e 'setpgrp(0, 0); exec @ARGV' /bin/bash "$TMP_DIR/late/review-run.sh" "$l" & live=$!
-printf '%s\n' "$live" >"$l.pid"
+printf 'trap "exit 143" TERM\n/bin/bash "%s" "$1" &\necho $! >"%s"\nwait\n' "$TMP_DIR/late/review-run.sh" "$TMP_DIR/late/runner" >"$TMP_DIR/late/launch-run.sh"
+# As in production: the supervisor leads the group, the runner is its child and not a leader.
+perl -e 'setpgrp(0, 0); exec @ARGV' /bin/bash "$TMP_DIR/late/launch-run.sh" "$l" & supervisor=$!
 sleep 1
+printf '%s\n' "$(cat "$TMP_DIR/late/runner")" >"$l.pid"
+mkdir -p "$l.execution"; printf '%s\n' "$supervisor" >"$l.execution/pid"
 rc=0; /bin/bash "$SCRIPTS/install.sh" --own-only >/dev/null 2>&1 || rc=$?
 [ "$rc" = 0 ] || fail "install --own-only with a child started on TERM exit $rc"
-child="$(cat "$TMP_DIR/late/child" 2>/dev/null)"; [ -n "$child" ] || fail 'the TERM handler started no child'
+child="$(cat "$TMP_DIR/late/child" 2>/dev/null || true)"; [ -n "$child" ] || fail 'the TERM handler started no child'
 sleep 1
 if ps -p "$child" -o stat= 2>/dev/null | grep -qv Z; then kill -KILL "$child"; fail 'install --own-only left a child started by the TERM handler alive'; fi
 pass 'install --own-only kills a child the runner starts while handling TERM'
