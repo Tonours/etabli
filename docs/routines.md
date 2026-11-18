@@ -3,8 +3,8 @@
 A routine is a scheduled job with an end. Each run of a wrapped routine leaves
 the same small record under `~/.claude/state/routines/<name>/` (override the
 folder with `ETABLI_ROUTINES_DIR`), so one reader can say what ran, when and
-how it ended. This page is record contract v1 and the `run` wrapper; adoption
-of existing launchd jobs is described when it ships.
+how it ended. This page is record contract v1, the `run` wrapper, and
+`adopt`, `release` and `status`, which wrap existing launchd calendar jobs.
 
 Names match `[a-z0-9-]{1,40}`. The name `fleet-improvement` and the label
 `com.tonours.fleet-improvement` are reserved for a routine that writes its own
@@ -99,7 +99,7 @@ characters removed). The wrapper exits with the command's status.
 | 74 | the lock or the folder could not be set up; nothing run, nothing recorded |
 | 2 | refused: invalid or reserved name, native folder, malformed call |
 
-`adopt`, `release` and `status` exit 2 with "not implemented" until they ship.
+`adopt` and `release` use the same codes (see below); `status` exits 0.
 
 ### Lock
 
@@ -123,6 +123,69 @@ that pid and birth.
 The wrapper then keeps waiting for the command and ignores further signals
 while it writes the end record: `ok` when the status is 0, else `failed`.
 
+## Adoption
+
+```
+routine.sh adopt <label> [--name <name>] [--cap <n>]
+routine.sh release <label>
+routine.sh status
+```
+
+`adopt` rewrites `~/Library/LaunchAgents/<label>.plist` so launchd starts
+`/bin/bash <routine.sh> run <name> -- <original command...>`, reloads the job,
+and writes the manifest. `release` puts the saved original back. The name
+defaults to the last dot component of the label. The default `cap` is the most
+slots on one local day plus 2; an existing `cap` file is kept.
+
+A plist is adopted only if it is a simple calendar job: no `Program`,
+`KeepAlive`, `RunAtLoad` true, `StartInterval`, `Month` or `Day`, and no entry
+between 01:00 and 02:59. Weekday 7 is stored as 0 and equal entries are merged.
+The job must be loaded, not running, and have no slot in the next 10 minutes; both
+are read again right before the job is booted out (under 5 minutes). The
+reserved name and label, a name bound to another label, and a label bound to
+another name are refused.
+
+What it changes for launchd: the main process of the job becomes the wrapper,
+so a stop reaches the command one step later, and a signal shows as the exit
+code 128+n.
+
+Exit codes of `adopt` and `release`: 0 done; 2 refused, nothing changed; 1
+failed (the original is put back) or a leftover waits for the next command; 75
+another adopt, release or settling holds the lock; 74 the lock or the folder
+could not be set up. `status` prints one line per routine and a `lock:` line
+telling whether the Perl lock works (exit 74 if not).
+
+### How a change stays safe
+
+Every `adopt` and `release` holds a kernel lock on `adopt.lock` in the routines
+folder (descriptor 9, inherited by `launchctl`, so a killed command whose
+`launchctl` still runs keeps it). Files are staged as `*.next`, then published
+in a fixed order: the origin `plist.before.<id>` and the `cap`, then the
+wrapped plist swap, then the commit, a rename of `routine.json.next` over
+`routine.json` (release: `routine.json` to `routine.released.json`). `pending`
+(kind and id) and `plist.prev` (the plist in place before the swap) are written
+first and deleted last. A failure before the commit restores `plist.prev` and
+reloads the job. If the restore fails, `adopt.failed` is left, with the manual
+commands printed.
+
+Any later `adopt` or `release` first settles every folder holding a `pending`:
+a committed change only has its leftovers deleted, without calling launchd; an
+uncommitted one is put back, unless the job is loaded with the plist already
+equal to `plist.prev`. The job is never booted out for that while it runs or a
+slot is under 10 minutes away: the command then exits 2 and the folder stays
+`incomplete`.
+
+### States shown by `status`
+
+| State | Meaning |
+| --- | --- |
+| `adopted` | manifest present, plist wrapped (loaded or not) |
+| `released` | `routine.released.json` only |
+| `unwrapped` | manifest present but the plist was rewritten by hand; `adopt` wraps it again and keeps the old origin |
+| `incomplete` | a `pending` file waits for settling |
+| `broken` | `adopt.failed` is present: the restore failed |
+| `native` | `source: native`, written by its own routine |
+
 ## A routine that writes its own record (`native`)
 
 It owes the same files in the same format, each through a temporary file and a
@@ -138,4 +201,10 @@ and no `run.lock`.
 Read only when set, for the smoke test: `ROUTINE_TEST_PERL` (replaces
 `/usr/bin/perl` in the lock check), `ROUTINE_TEST_PS` (replaces `ps`),
 `ROUTINE_TEST_HOLD=<point>:<file>` (wait at `busy`, `identity`, `go`, `after-go`
-or `end` until the file exists; `<file>.reached` says it got there).
+or `end`, and in `adopt` and `release` at `staging`, `staged`, `unloaded`,
+`verified`, `committed` or `prev-deleted`, until the file exists; `<file>.reached`
+says it got there). Also `ROUTINE_TEST_FAIL` (comma list: `mv:<origin|cap|commit|swap>`,
+`rm:<released|prev|pending>`, `stage-next`, `stage-manifest`) and `ROUTINE_TEST_CLOCK`
+(a file holding `weekday hour minute`). `ROUTINE_PLISTBUDDY`, `ROUTINE_PLUTIL`,
+`ROUTINE_LAUNCHCTL`, `ROUTINE_LAUNCHAGENTS_DIR`, `ROUTINE_UID` and `ROUTINE_TZ` replace
+the tools, folder, user id and time zone.
