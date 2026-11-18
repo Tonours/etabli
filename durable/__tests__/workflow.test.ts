@@ -201,8 +201,8 @@ test("a root planner can discover files but only mutates code in READY", async (
   try {
     f.planner.setResponses([
       fauxAssistantMessage([
-        fauxToolCall("bash", { command: "ls -1" }),
-        fauxToolCall("bash", { command: "rg --files" }),
+        fauxToolCall("bash", { command: "ls -1" }, { id: "draft-list" }),
+        fauxToolCall("bash", { command: "grep -rlF -- 'test -f result.txt' ." }, { id: "draft-search" }),
         fauxToolCall("write", { path: "draft.txt", content: "draft" }),
         fauxToolCall("edit", { path: "check.sh", edits: [{ oldText: "result.txt", newText: "draft.txt" }] }),
         fauxToolCall("bash", { command: "touch draft-shell.txt" }),
@@ -237,9 +237,11 @@ test("a root planner can discover files but only mutates code in READY", async (
       isError: true,
       content: expect.arrayContaining([expect.objectContaining({ text: expect.stringContaining("durable guard: plan requires READY") })]),
     });
-    expect(results.filter((result) => result.toolName === "bash" &&
-      result.content.some((part) => part.type === "text" && part.text.includes("check.sh")),
-    )).toHaveLength(2);
+    for (const toolCallId of ["draft-list", "draft-search"]) {
+      expect(results.find((result) => result.toolCallId === toolCallId)?.content).toEqual(
+        expect.arrayContaining([expect.objectContaining({ text: expect.stringContaining("check.sh") })]),
+      );
+    }
     expect(results.some((result) => result.toolName === "read" &&
       result.content.some((part) => part.type === "text" && part.text.includes("test -f result.txt")),
     )).toBe(true);
