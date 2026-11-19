@@ -6,6 +6,14 @@ replaces a lens, weakens the skeptic gate, or changes the emit contract.
 
 These additions, and only these.
 
+## Shell forms
+
+Use one shell command per tool call. Do not chain commands with `;` or rely on
+variable assignments from earlier calls. In Git reads, use the supplied SHA
+directly or brace an already-set variable and quote the whole argument, as in
+`git show "${H}:<path>"`. Quote any shell word that starts with `=`, as in
+`echo '====='`. Include these rules in shell instructions to delegates.
+
 ## Extra candidate findings for step 6
 
 Review passes already ran against this same PR head, in a scratch worktree
@@ -21,7 +29,7 @@ checked out at `{{HEAD_SHA}}`, over the diff `{{MERGE_BASE}}...{{HEAD_SHA}}`:
 Read every one of those files. Treat every finding they contain as a
 **candidate finding**, exactly like the ones your own lenses and your delegated
 `pr-review-toolkit` agents produce. They enter step 6 with no privilege: verify
-each against the codebase at `{{HEAD_SHA}}` with `git show {{HEAD_SHA}}:<path>`,
+each against the codebase at `{{HEAD_SHA}}` with `git show "{{HEAD_SHA}}:<path>"`,
 and discard on the skill's own criteria — intentional behaviour read as a
 defect, exaggerated severity, a convention claim you cannot point to in a
 retrieved file, anything without a `file:line` citation, anything whose
