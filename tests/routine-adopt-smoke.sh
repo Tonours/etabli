@@ -1303,9 +1303,11 @@ editor_setup() {
 t_editor_roundtrip() {
   editor_setup
   E capabilities || fail "probe"; has "$CASE/out" '"routine_editor":1' "capability"
+  chmod 600 "$M"
   local desc='{"description":"Quoted \"note\" 🍋"}'
   E edit "$NAME" "$REV" "$desc" || fail "description: $(cat "$CASE/out")"
   has "$CASE/out" '"status":"applied"' "saved"
+  eq "$(/usr/bin/perl -e 'printf "%03o", (stat $ARGV[0])[2]&0777' "$M")" 600 "preserve manifest permissions"
   untouched "$L" "description"
   E editor "$NAME" || fail "reopen"
   has "$CASE/out" 'Quoted \"note\" 🍋' "escaped description"
@@ -1348,9 +1350,7 @@ t_editor_refusals() {
     pbt 'Set :StartCalendarInterval:Hour 16' "$where"
     E edit "$NAME" "$REV" '{"description":"new"}' && fail "accepted drift"
     has "$CASE/out" '"code":"conflict"' "calendar drift"
-    if [ "$where" = "$AG/$L.plist" ]; then
-      Rl "$L"; eq $? 2 "release preserves the committed owner calendar on drift"
-    fi
+    Rl "$L"; eq $? 2 "release refuses calendar drift in either copy"
     cp "$CASE/clean" "$where"
     pbt 'Set :ProgramArguments:6 /different' "$where"
     E editor "$NAME" && fail "accepted argument drift"
@@ -1413,6 +1413,22 @@ t_editor_uses_producer_clock() {
   untouched "$L" "producer timezone"
 }
 
+t_editor_elapsed_margins() {
+  editor_setup
+  local change='{"slots":[{"hour":3,"minute":0}]}'
+  export ROUTINE_TZ=Europe/Paris
+  A "$L" || fail "refresh timezone"
+  E editor "$NAME" || fail "open"
+  REV=$(mval "$CASE/out" revision)
+  # 2027-03-28 01:59:30 CET, followed by 03:00 CEST in 30 seconds.
+  echo 1806195570 >"$CASE/clock"
+  E edit "$NAME" "$REV" "$change"; eq $? 75 "DST margin"
+  # Same Sunday in winter, 17:50:01 in Paris. The original 18:00 is 599s away.
+  echo 1800809401 >"$CASE/clock"
+  E edit "$NAME" "$REV" "$change"; eq $? 75 "partial-minute margin"
+  untouched "$L" "elapsed-time refusal"
+}
+
 t_editor_rechecks_identity_and_run_lock() {
   editor_setup
   local f="$RD/$NAME"
@@ -1431,6 +1447,24 @@ t_editor_rechecks_identity_and_run_lock() {
   : >"$CASE/h"; wait "$BGPID" && fail "stale description published"
   has "$CASE/out.h" '"code":"conflict"' "atomic description"
   untouched "$L" "late refusal"
+}
+
+t_editor_verified_calendar_drift() {
+  editor_setup
+  local change='{"slots":[{"hour":13,"minute":42}]}'
+  cp "$AG/$L.plist" "$CASE/initial"
+  held verified edit "$NAME" "$REV" "$change"
+  printf '\n' >>"$M"
+  : >"$CASE/h"; wait "$BGPID" && fail "accepted changed manifest after reload"
+  has "$CASE/out.h" '"code":"conflict"' "late manifest conflict after restoration"
+  plist_is "$L" "$CASE/initial" "restored calendar"
+  E editor "$NAME" || fail "reopen"
+  REV=$(mval "$CASE/out" revision)
+  held verified edit "$NAME" "$REV" "$change"
+  pbt 'Set :StartCalendarInterval:0:Minute 23' "$FK/loaded/$L"
+  : >"$CASE/h"; wait "$BGPID" && fail "published an unverified loaded calendar"
+  has "$CASE/out.h" '"code":"recovery"' "unsettled loaded drift"
+  [ -e "$RD/$NAME/pending" ] || fail "lost recovery evidence"
 }
 
 t_editor_description_limit() {
@@ -1457,6 +1491,16 @@ t_editor_failure_and_crash() {
   has "$CASE/out" '"code":"recovery"' "failed rollback"
   [ -f "$RD/$NAME/adopt.failed" ] || fail "missing manual recovery instructions"
   held verified edit "$NAME" "$REV" "$change"; kill_held
+  reset_calls
+  local unrelated
+  unrelated=$(printf '%064d' 7)
+  E edit "$NAME" "$unrelated" "$change" && fail "unrelated stale request settled the transaction"
+  has "$CASE/out" '"code":"conflict"' "unrelated revision"
+  untouched "$L" "stale recovery"
+  FAKE_LCTL_FAIL="print:*" E edit "$NAME" "$REV" "$change" && fail "indeterminate print treated as absent"
+  has "$CASE/out" '"code":"recovery"' "indeterminate service"
+  cmp -s "$AG/$L.plist" "$FK/loaded/$L" || fail "disk changed after failed service check"
+  untouched "$L" "indeterminate service"
   reset_calls
   E editor "$NAME" && fail "pending read"
   has "$CASE/out" '"code":"recovery"' "pending"

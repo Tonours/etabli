@@ -50,27 +50,38 @@ $SLOTS"
   else
     return 1
   fi
-  job_state "$label"
+  local rc
+  job_state "$label"; rc=$?
+  [ "$rc" = 0 ] || [ "$rc" = 113 ] || return 1
   if [ "$JOB_LOADED" = 1 ]; then
     loaded_matches "$dst" "$disk_key" || return 1
     $CMP -s "$dst" "$f/plist.prev" && return 0
     SLOTS="$calendars"
     zone=$(system_tz) || return 1
     if [ "$JOB_RUNNING" = 1 ] || TZ="$zone" slot_within "$margin"; then return 2; fi
+    "$LCTL" bootout "gui/$(user_id)/$label" >/dev/null 2>&1 || return 1
   fi
-  restore_prev "$label" "$f/plist.prev" && loaded_matches "$f/plist.prev" "$prev_key"
+  install_plist "$f/plist.prev" "$label" &&
+    "$LCTL" bootstrap "gui/$(user_id)" "$dst" >/dev/null 2>&1 &&
+    job_state "$label" && $CMP -s "$dst" "$f/plist.prev" && loaded_matches "$f/plist.prev" "$prev_key"
 }
 
 # Confirm the original command (every argument), the wrapper and both copies
 # of the calendar. Refuse unfamiliar launchctl output as unverifiable.
 verify_disk() {
-  local origin="$C_FOLDER/$E_ORIGIN" i
+  local origin="$C_FOLDER/$E_ORIGIN" i key saved active saved_status active_status
   [ -f "$E_PLIST" ] && [ -O "$E_PLIST" ] && [ ! -L "$E_PLIST" ] &&
     [ "$(/usr/bin/wc -c <"$E_PLIST")" -le "$PLIST_MAX_BYTES" ] || return 1
   [ -f "$origin" ] && [ -O "$origin" ] && [ ! -L "$origin" ] &&
     [ "$(pb 'Print :Label' "$origin")" = "$C_LABEL" ] || return 1
   validate_plist "$E_PLIST" "$C_LABEL" && [ "$(calendar_key <<<"$SLOTS")" = "$E_OLD" ] || return 1
   is_wrapped "$E_PLIST" "$C_NAME" && [ "${PARGS[1]}" -ef "$ROUTINE_SELF" ] || return 1
+  # A calendar save reloads the complete plist. Preserve the adopted settings outside the calendar and wrapper.
+  for key in StandardOutPath StandardErrorPath EnvironmentVariables RunAtLoad Nice LowPriorityIO; do
+    saved=$(pb "Print :$key" "$origin"); saved_status=$?
+    active=$(pb "Print :$key" "$E_PLIST"); active_status=$?
+    [ "$saved_status" = "$active_status" ] && [ "$saved" = "$active" ] || return 1
+  done
   E_ARGS=("${PARGS[@]}")
   read_args "$origin"
   [ "$PARGC" -gt 0 ] && [ "${#E_ARGS[@]}" -eq "$((PARGC + 5))" ] || return 1
@@ -149,6 +160,16 @@ cmd_editor() {
     if [ "$op" != edit ] || [ "$(/usr/bin/head -n 1 "$C_FOLDER/pending" 2>/dev/null)" != edit ]; then
       edit_error recovery 'An interrupted operation needs settlement. Retry the save or run the owner adoption command when the job is idle.'; return 1
     fi
+    local pending_after pending_before current candidate
+    { IFS= read -r f; IFS= read -r pending_after; IFS= read -r pending_before; } <"$C_FOLDER/pending"
+    current=$(editor_data revision "$manifest") || { edit_error recovery 'Repair the incomplete edit.'; return 1; }
+    if [ "$expected" != "$pending_before" ]; then edit_error conflict 'Reopen the routine before retrying this edit.'; return 1; fi
+    if [ "$current" = "$pending_before" ]; then
+      candidate=$(editor_data inspect "$manifest" "$C_NAME" "$expected" "$changes") || { printf '%s\n' "$candidate"; return 1; }
+      if [ "$(printf '%s\n' "$candidate" | /usr/bin/sed -n '6p')" != "$pending_after" ]; then
+        edit_error conflict 'Retry the original pending change or reconcile the routine.'; return 1
+      fi
+    fi
     lock_run_for_edit || return $?
     settle_folder "$C_FOLDER" || { edit_error recovery 'Cannot safely settle the previous edit. Check status and retry when idle.'; return 1; }
   fi
@@ -175,7 +196,8 @@ cmd_editor() {
   trap 'on_cmd_signal 130' INT
   trap 'on_cmd_signal 129' HUP
   if ! printf 'edit\n%s\n%s\n' "$C_ID" "$E_REV" >"$C_FOLDER/pending" ||
-     ! printf '%s\n' "$next" >"$C_FOLDER/routine.json.next"; then
+     ! (umask 077; printf '%s\n' "$next" >"$C_FOLDER/routine.json.next") ||
+     ! /usr/bin/perl -e 'my @s=stat $ARGV[0]; @s && chmod($s[2]&0777, $ARGV[1]) or exit 1' "$manifest" "$C_FOLDER/routine.json.next"; then
     stage_fail "cannot stage the manifest"; edit_error apply 'Check the records directory permissions and retry.'; return 1
   fi
   if [ "$E_NEW" != "$E_OLD" ]; then

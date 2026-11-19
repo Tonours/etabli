@@ -2,6 +2,7 @@
 use strict;
 use warnings;
 use JSON::PP;
+use Time::HiRes qw(time);
 use Digest::SHA qw(sha256_hex);
 
 my $json = JSON::PP->new->utf8->canonical->allow_nonref;
@@ -56,6 +57,28 @@ sub calendar_key {
 }
 
 my $op = shift;
+if ($op eq 'near') {
+    my ($margin, $clock) = @ARGV;
+    my $now = time();
+    my $fixture_utc = 0;
+    if (length $clock) {
+        open my $fh, '<', $clock or exit 2;
+        my $line = <$fh> // ''; chomp $line;
+        if ($line =~ /\A(\d) (\d+) (\d+)\z/) {
+            # Existing fixtures supply a Sunday-based local weekday and an exact minute.
+            $now = (3 + $1) * 86400 + $2 * 3600 + $3 * 60;
+            $fixture_utc = 1;
+        } elsif ($line =~ /\A\d+(?:\.\d+)?\z/) { $now = 0 + $line }
+        else { exit 2 }
+    }
+    my %slots;
+    while (<STDIN>) { chomp; $slots{$_} = 1 }
+    for (my $at = int($now / 60) * 60; $at < $now + $margin * 60; $at += 60) {
+        my @t = $fixture_utc ? gmtime($at) : localtime($at);
+        exit 0 if $slots{"n $t[2] $t[1]"} || $slots{"$t[6] $t[2] $t[1]"};
+    }
+    exit 1;
+}
 if ($op eq 'capabilities') { print $json->encode({routine_editor => 1}), "\n"; exit }
 if ($op eq 'error') { reject(@ARGV) }
 if ($op eq 'revision') { print sha256_hex(raw_manifest($ARGV[0])); exit }

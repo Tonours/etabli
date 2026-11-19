@@ -405,35 +405,13 @@ system_tz() {
   printf '%s' "$t"
 }
 
-# Local weekday, hour and minute; ROUTINE_TEST_CLOCK is a file holding "W H M".
-now_parts() {
-  local line
-  if [ -n "${ROUTINE_TEST_CLOCK:-}" ]; then
-    read -r NOW_W NOW_H NOW_M <"$ROUTINE_TEST_CLOCK"
-  else
-    line=$(/bin/date +'%w %H %M')
-    set -- $line
-    NOW_W=$1; NOW_H=$((10#$2)); NOW_M=$((10#$3))
-  fi
-}
-
-# 0 when a slot of $SLOTS comes less than $1 minutes from now (or is due now).
+# Check each local minute spanned by the real-time margin, including the current one.
 slot_within() {
-  local wd h m delta nowmin
-  now_parts
-  nowmin=$((NOW_W * 1440 + NOW_H * 60 + NOW_M))
-  while IFS=' ' read -r wd h m; do
-    [ -n "$h" ] || continue
-    if [ "$wd" = n ]; then
-      delta=$(( ((h * 60 + m) - (NOW_H * 60 + NOW_M) + 1440) % 1440 ))
-    else
-      delta=$(( ((wd * 1440 + h * 60 + m) - nowmin + 10080) % 10080 ))
-    fi
-    [ "$delta" -lt "$1" ] && return 0
-  done <<EOF
-$SLOTS
-EOF
-  return 1
+  local rc
+  editor_data near "$1" "${ROUTINE_TEST_CLOCK:-}" <<<"$SLOTS"
+  rc=$?
+  # An unreadable clock must keep the service loaded.
+  [ "$rc" != 1 ]
 }
 
 # --- plists ----------------------------------------------------------------
@@ -600,7 +578,7 @@ make_wrapped() { # src dst name
 job_state() {
   local state
   JOB_LOADED=0; JOB_RUNNING=0; JOB_OUT=""
-  JOB_OUT=$("$LCTL" print "gui/$(user_id)/$1" 2>/dev/null) || return 1
+  JOB_OUT=$("$LCTL" print "gui/$(user_id)/$1" 2>/dev/null) || return $?
   JOB_LOADED=1
   state=$(printf '%s\n' "$JOB_OUT" | /usr/bin/grep -m 1 $'^\tstate = ')
   [ "$state" = $'\tstate = not running' ] || JOB_RUNNING=1
@@ -968,6 +946,9 @@ swap_job() { # new plist, what to verify (wrapper|origin|edit)
   else
     job_state "$label"
     if [ "$JOB_LOADED" != 1 ]; then stage_fail "the job is no longer loaded"; return 2; fi
+    if [ "$want" = origin ] && { ! $CMP -s "$C_FOLDER/plist.prev" "$dst" || ! loaded_matches "$dst" "$(calendar_key <<<"$SLOTS")"; }; then
+      stage_fail "the loaded definition changed before release"; return 2
+    fi
     if [ "$JOB_RUNNING" = 1 ]; then stage_fail "the job is running"; return 2; fi
     if slot_within 5; then stage_fail "a slot comes in less than 5 minutes"; return 2; fi
   fi
@@ -1009,8 +990,11 @@ publish_and_commit() { # origin name (adopt)
     if [ "$C_SWAP" = 0 ]; then
       verify_edit_base || { stage_fail "the installed definition changed"; return 3; }
       edit_margins 5 || { stage_fail "a job is running or a slot is near"; return 2; }
-    elif [ "$(editor_data revision "$f/routine.json")" != "$E_REV" ]; then
-      rollback "the manifest changed before publication"; return 1
+    elif [ "$(editor_data revision "$f/routine.json")" != "$E_REV" ] ||
+         ! $CMP -s "$E_PLIST" "$f/plist.next" || ! job_state "$C_LABEL" || ! loaded_matches "$E_PLIST" "$E_NEW"; then
+      rollback "the installed definition changed before publication"
+      [ -e "$f/pending" ] && return 1
+      return 3
     fi
   fi
   trap '' TERM INT HUP
@@ -1073,6 +1057,7 @@ do_release() {
   job_state "$C_LABEL"
   [ "$JOB_LOADED" = 1 ] || { die "refused: $C_LABEL is not loaded"; return 2; }
   [ "$JOB_RUNNING" = 0 ] || { die "refused: $C_LABEL is running"; return 2; }
+  loaded_matches "$plist" "$(calendar_key <<<"$SLOTS")" || { die "refused: the loaded job differs from the installed definition"; return 2; }
   if slot_within 10; then die "refused: a slot of $C_LABEL comes in less than 10 minutes"; return 2; fi
 
   C_ID=$(new_id)
