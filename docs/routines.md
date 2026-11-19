@@ -25,8 +25,8 @@ record: the wrapper refuses that name, and a folder whose manifest says
 | `off` | the owner | stops this routine; `off` in the parent folder stops all |
 | `run.lock` | the wrapper, once | an empty regular file, never removed or renamed |
 
-`go.<run>` and `summary.<run>` are short-lived files of one run; the next
-holder deletes any it finds.
+`go.<run>`, its cancellation markers and `summary.<run>` are short-lived
+files of one run. The next holder deletes any it finds.
 
 ### `routine.json`
 
@@ -124,6 +124,8 @@ wrapper is alive (same pid and same birth second), so a wrapper killed before
 that pid and birth.
 
 `TERM` and `HUP` are passed to the command as the same signal, `INT` as `TERM`.
+Before `go`, the wrapper also records the signal beside the gate so a child
+starting concurrently can exit without executing the command.
 The wrapper then keeps waiting for the command and ignores further signals
 while it writes the end record: `ok` when the status is 0, else `failed`.
 

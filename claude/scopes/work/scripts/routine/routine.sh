@@ -150,10 +150,11 @@ read_summary() {
 on_signal() {
   wait_interrupted=1
   sig_sent="$1"
+  # A signal sent during fork can arrive before the child resets its traps.
+  # Keep that cancellation visible to the gate even if the child misses it.
+  if [ ! -f "$folder/go.$run" ]; then : >"$folder/go.$run.$1"; fi
   if [ -n "$cmd_pid" ]; then
     kill -"$1" "$cmd_pid" 2>/dev/null
-  else
-    pending_signal="$1"
   fi
 }
 
@@ -166,14 +167,14 @@ finish() {
   write_last "$state" "$3" "$4" "$ended" "$st" "$sig" "$5"
   journal_append "$(printf '{"v":1,"name":"%s","kind":"run","run":"%s","state":"%s","started":"%s","ended":"%s","exit":%s,"signal":%s,"summary":"%s"}' \
     "$name" "$run" "$state" "$started" "$ended" "$st" "$(jq_s "$sig")" "$5")"
-  /bin/rm -f "$folder/go.$run" "$ROUTINE_SUMMARY"
+  /bin/rm -f "$folder/go.$run" "$folder/go.$run.HUP" "$folder/go.$run.TERM" "$ROUTINE_SUMMARY"
   routine_lock_release
   exec 9>&-
   return "$st"
 }
 
 cmd_run() {
-  local name="${1:-}" dir folder lock_st today cap cnt future d r tmp st wait_interrupted pending_signal=""
+  local name="${1:-}" dir folder lock_st today cap cnt future d r tmp st wait_interrupted
   if ! valid_name "$name"; then die "invalid routine name: $name"; return 2; fi
   shift
   if [ "${1:-}" != -- ] || [ "$#" -lt 2 ]; then die "usage: routine.sh run <name> -- <command...>"; return 2; fi
@@ -276,14 +277,16 @@ cmd_run() {
   # The command's process: a subshell that waits for go.<run>, then execs.
   (
     trap - TERM HUP
-    while [ ! -f "$folder/go.$run" ]; do
+    while :; do
+      [ ! -f "$folder/go.$run.HUP" ] || exit 129
+      [ ! -f "$folder/go.$run.TERM" ] || exit 143
+      [ ! -f "$folder/go.$run" ] || break
       [ "$(born_of "$$")" = "$self_born" ] || exit 0
       /bin/sleep 0.1
     done
     exec "$@"
   ) <&0 &
   cmd_pid=$!
-  if [ -n "$pending_signal" ]; then kill -"$pending_signal" "$cmd_pid" 2>/dev/null; fi
   hold identity
   cmd_born=$(born_of "$cmd_pid")
   if [ -z "$cmd_born" ]; then
