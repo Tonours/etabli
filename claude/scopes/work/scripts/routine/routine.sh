@@ -277,13 +277,13 @@ cmd_run() {
   # The command's process: a subshell that waits for go.<run>, then execs.
   (
     trap - TERM HUP
-    while :; do
-      [ ! -f "$folder/go.$run.HUP" ] || exit 129
-      [ ! -f "$folder/go.$run.TERM" ] || exit 143
-      [ ! -f "$folder/go.$run" ] || break
+    while [ ! -f "$folder/go.$run" ] &&
+          [ ! -f "$folder/go.$run.HUP" ] && [ ! -f "$folder/go.$run.TERM" ]; do
       [ "$(born_of "$$")" = "$self_born" ] || exit 0
       /bin/sleep 0.1
     done
+    [ ! -f "$folder/go.$run.HUP" ] || exit 129
+    [ ! -f "$folder/go.$run.TERM" ] || exit 143
     exec "$@"
   ) <&0 &
   cmd_pid=$!
