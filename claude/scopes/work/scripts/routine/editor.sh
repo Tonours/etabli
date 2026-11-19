@@ -18,6 +18,56 @@ set_calendar() { # staged plist, normalized weekday/hour/minute lines
   "$PLUTIL" -lint "$1" >/dev/null
 }
 
+# Prefix present values so an empty plist string stays distinct from an absent key.
+registry_matches() { # plist, launchctl target, service plist path (empty for a domain), print output
+  local plist="$1" registry home
+  if registry=$(pb 'Print :EnvironmentVariables:ETABLI_ROUTINES_DIR' "$plist"); then registry="=$registry"; else registry=-; fi
+  if home=$(pb 'Print :EnvironmentVariables:HOME' "$plist"); then home="=$home"; else home=-; fi
+  editor_data registry "$dir" "$2" "$3" "$registry" "$home" <<<"$4"
+}
+
+loaded_registry_matches() {
+  registry_matches "$1" "gui/$(user_id)/$2" "$(launch_dir)/$2.plist" "$JOB_OUT"
+}
+
+domain_registry_matches() {
+  local target="gui/$(user_id)" domain
+  domain=$("$LCTL" print "$target" 2>/dev/null) &&
+    registry_matches "$1" "$target" "" "$domain"
+}
+
+plist_hash() { editor_data plist-hash "$1" "$PLIST_MAX_BYTES"; }
+
+# The folder inode binds a receipt to the registry verified while the service
+# was loaded, including the short interval when launchctl cannot describe it.
+write_pending() { # folder, kind, desired id, base revision, snapshot hashes or phase
+  local f="$1" identity
+  identity=$(editor_data folder-id "$f") &&
+    printf '%s\n' "$2" "$3" "$4" "$identity" "$5" >"$f/pending.next" &&
+    /bin/mv -f "$f/pending.next" "$f/pending"
+}
+
+seal_plists() {
+  local f="$1" prev next
+  prev=$(plist_hash "$f/plist.prev") && next=$(plist_hash "$f/plist.next") &&
+    write_pending "$f" "$C_KIND" "$C_ID" "$E_REV" "$prev $next"
+}
+
+read_pending() {
+  local f="$1" folder_id extra
+  [ -f "$f/pending" ] && [ -O "$f/pending" ] && [ ! -L "$f/pending" ] || return 1
+  { IFS= read -r P_KIND && IFS= read -r P_AFTER && IFS= read -r P_BEFORE &&
+    IFS= read -r folder_id && IFS= read -r P_PROOF && ! IFS= read -r extra; } <"$f/pending" &&
+    [ "$folder_id" = "$(editor_data folder-id "$f")" ] && [ -n "$folder_id" ] &&
+    [[ $P_BEFORE =~ ^[0-9a-f]{64}$ ]]
+}
+
+check_plists() {
+  local f="$1" prev next
+  prev=$(plist_hash "$f/plist.prev") && next=$(plist_hash "$f/plist.next") &&
+    [ "$P_PROOF" = "$prev $next" ]
+}
+
 loaded_arguments_match() { # label, calendar key, arguments expected from disk
   local label="$1" key="$2"
   shift 2
@@ -28,23 +78,24 @@ loaded_matches() { # expected plist, calendar key. JOB_OUT comes from job_state.
   local label
   label=$(pb 'Print :Label' "$1") || return 1
   read_args "$1"
-  loaded_arguments_match "$label" "$2" "${PARGS[@]}"
+  loaded_registry_matches "$1" "$label" && loaded_arguments_match "$label" "$2" "${PARGS[@]}"
 }
 
 # Roll back only a recognizable state of this swap. An externally replaced
 # plist or a loaded job with different arguments/triggers needs owner repair.
 restore_edit() {
-  local label="$1" f="$2" margin="$3" dst prev_key disk_key calendars zone
+  local label="$1" f="$2" margin="$3" dst prev_key disk_key disk_hash calendars zone
   case "$label" in ''|*[!A-Za-z0-9._-]*|"$RESERVED_LABEL") return 1 ;; esac
+  read_pending "$f" && check_plists "$f" || return 1
   dst="$(launch_dir)/$label.plist"
   [ "$(pb 'Print :Label' "$f/plist.prev")" = "$label" ] && is_wrapped "$f/plist.prev" "${f##*/}" &&
     [ "${PARGS[1]}" -ef "$ROUTINE_SELF" ] && parse_slots "$f/plist.prev" || return 1
   prev_key=$(calendar_key <<<"$SLOTS")
   calendars="$SLOTS"
   if $CMP -s "$dst" "$f/plist.prev"; then
-    disk_key="$prev_key"
+    disk_key="$prev_key"; disk_hash="${P_PROOF%% *}"
   elif $CMP -s "$dst" "$f/plist.next" && parse_slots "$dst"; then
-    disk_key=$(calendar_key <<<"$SLOTS")
+    disk_key=$(calendar_key <<<"$SLOTS"); disk_hash="${P_PROOF##* }"
     calendars="$calendars
 $SLOTS"
   else
@@ -56,12 +107,14 @@ $SLOTS"
   if [ "$JOB_LOADED" = 1 ]; then
     loaded_matches "$dst" "$disk_key" || return 1
     $CMP -s "$dst" "$f/plist.prev" && return 0
+    domain_registry_matches "$f/plist.prev" || return 1
     SLOTS="$calendars"
     zone=$(system_tz) || return 1
     if [ "$JOB_RUNNING" = 1 ] || TZ="$zone" slot_within "$margin"; then return 2; fi
     "$LCTL" bootout "gui/$(user_id)/$label" >/dev/null 2>&1 || return 1
   fi
-  install_plist "$f/plist.prev" "$label" &&
+  domain_registry_matches "$f/plist.prev" || return 1
+  install_plist "$f/plist.prev" "$label" "" "$disk_hash" "${P_PROOF%% *}" &&
     "$LCTL" bootstrap "gui/$(user_id)" "$dst" >/dev/null 2>&1 &&
     job_state "$label" && $CMP -s "$dst" "$f/plist.prev" && loaded_matches "$f/plist.prev" "$prev_key"
 }
@@ -69,17 +122,17 @@ $SLOTS"
 # Confirm the original command (every argument), the wrapper and both copies
 # of the calendar. Refuse unfamiliar launchctl output as unverifiable.
 verify_disk() {
-  local origin="$C_FOLDER/$E_ORIGIN" i key saved active saved_status active_status
-  [ -f "$E_PLIST" ] && [ -O "$E_PLIST" ] && [ ! -L "$E_PLIST" ] &&
-    [ "$(/usr/bin/wc -c <"$E_PLIST")" -le "$PLIST_MAX_BYTES" ] || return 1
+  local plist="${1:-$E_PLIST}" calendar="${2:-$E_OLD}" origin="$C_FOLDER/$E_ORIGIN" i key saved active saved_status active_status
+  [ -f "$plist" ] && [ -O "$plist" ] && [ ! -L "$plist" ] &&
+    [ "$(/usr/bin/wc -c <"$plist")" -le "$PLIST_MAX_BYTES" ] || return 1
   [ -f "$origin" ] && [ -O "$origin" ] && [ ! -L "$origin" ] &&
     [ "$(pb 'Print :Label' "$origin")" = "$C_LABEL" ] || return 1
-  validate_plist "$E_PLIST" "$C_LABEL" && [ "$(calendar_key <<<"$SLOTS")" = "$E_OLD" ] || return 1
-  is_wrapped "$E_PLIST" "$C_NAME" && [ "${PARGS[1]}" -ef "$ROUTINE_SELF" ] || return 1
+  validate_plist "$plist" "$C_LABEL" && [ "$(calendar_key <<<"$SLOTS")" = "$calendar" ] || return 1
+  is_wrapped "$plist" "$C_NAME" && [ "${PARGS[1]}" -ef "$ROUTINE_SELF" ] || return 1
   # A calendar save reloads the complete plist. Preserve the adopted settings outside the calendar and wrapper.
   for key in StandardOutPath StandardErrorPath EnvironmentVariables RunAtLoad Nice LowPriorityIO; do
     saved=$(pb "Print :$key" "$origin"); saved_status=$?
-    active=$(pb "Print :$key" "$E_PLIST"); active_status=$?
+    active=$(pb "Print :$key" "$plist"); active_status=$?
     [ "$saved_status" = "$active_status" ] && [ "$saved" = "$active" ] || return 1
   done
   E_ARGS=("${PARGS[@]}")
@@ -89,11 +142,14 @@ verify_disk() {
   return 0
 }
 
-verify_edit_base() {
+verify_edit_identity() {
   E_ZONE=$(system_tz) || return 1
   [ "$(editor_data revision "$C_FOLDER/routine.json")" = "$E_REV" ] &&
-    [ "$E_ZONE" = "$(manifest_get "$C_FOLDER/routine.json" tz)" ] && verify_disk &&
-    job_state "$C_LABEL" && loaded_arguments_match "$C_LABEL" "$E_OLD" "${E_ARGS[@]}"
+    [ "$E_ZONE" = "$(manifest_get "$C_FOLDER/routine.json" tz)" ] && verify_disk "$@"
+}
+
+verify_edit_base() {
+  verify_edit_identity && job_state "$C_LABEL" && loaded_registry_matches "$E_PLIST" "$C_LABEL" && loaded_arguments_match "$C_LABEL" "$E_OLD" "${E_ARGS[@]}"
 }
 
 edit_margins() {
@@ -114,10 +170,134 @@ lock_run_for_edit() {
   E_RUN_LOCKED=1
 }
 
+inspect_request() {
+  local result
+  result=$(editor_data inspect "$manifest" "$C_NAME" "$1" "$2") || { printf '%s\n' "$result"; return 1; }
+  {
+    IFS= read -r C_LABEL; IFS= read -r E_ORIGIN; IFS= read -r E_REV
+    IFS= read -r E_OLD; IFS= read -r E_NEW; IFS= read -r C_ID
+    IFS= read -r response; IFS= read -r next || true
+  } <<<"$result"
+  E_PLIST="$(launch_dir)/$C_LABEL.plist"
+}
+
+# Classify the disk and service before taking the run lock, and again under it.
+# An absent service has no environment to inspect. Only a sealed pair from
+# this exact routine folder authorizes resuming the unload/install interval.
+pending_service() {
+  local f="$1" label="$2" dst="$(launch_dir)/$2.plist" rc
+  P_DISK=base
+  if [ "$P_PROOF" != staging ] && [ "$P_PROOF" != none ]; then
+    check_plists "$f" || return 1
+    if $CMP -s "$dst" "$f/plist.next"; then P_DISK=desired
+    elif ! $CMP -s "$dst" "$f/plist.prev"; then return 1
+    fi
+  fi
+  [ -f "$dst" ] && [ -O "$dst" ] && [ ! -L "$dst" ] && parse_slots "$dst" || return 1
+  job_state "$label"; rc=$?
+  if [ "$rc" = 113 ]; then
+    [ "$P_PROOF" != staging ] && [ "$P_PROOF" != none ] && domain_registry_matches "$dst"; return $?
+  fi
+  [ "$rc" = 0 ] && loaded_matches "$dst" "$(calendar_key <<<"$SLOTS")"
+}
+
+settle_before_publication() {
+  local f="$1" manifest="$1/routine.json" label E_RUN_LOCKED=0
+  [ "$(editor_data revision "$manifest")" = "$P_BEFORE" ] || return 1
+  label=$(manifest_get "$manifest" label) || return 1
+  case "$label" in ''|*[!A-Za-z0-9._-]*|"$RESERVED_LABEL") return 1 ;; esac
+  if [ "$P_PROOF" = staging ] || [ "$P_PROOF" = none ]; then
+    C_FOLDER="$f"; C_NAME="${f##*/}"
+    inspect_request "$P_BEFORE" '{}' >/dev/null && verify_edit_base || return 1
+    [ "$P_PROOF" = staging ] && return 0
+    [ "$P_KIND" = edit ] && [ ! -e "$f/plist.prev" ] && [ ! -e "$f/plist.next" ] || return 1
+  else
+    pending_service "$f" "$label" || return 1
+  fi
+  if [ "$P_KIND" = edit ]; then
+    [ "$(editor_data revision "$f/routine.json.next")" = "$P_AFTER" ] || return 1
+    C_FOLDER="$f"; lock_run_for_edit >&2 || return 1
+  fi
+  [ "$P_PROOF" != none ] || return 0
+  restore_edit "$label" "$f" 10
+}
+
+pending_error() { edit_error recovery 'Cannot verify the interrupted operation. Reconcile the job and its staged records.'; }
+
+verify_published_edit() {
+  inspect_request "" '{}' >/dev/null && [ "$E_REV" = "$P_AFTER" ] && verify_edit_base || return 1
+  [ "$P_PROOF" = none ] || { [[ $P_PROOF =~ ^[0-9a-f]{64}\ [0-9a-f]{64}$ ]] &&
+    [ "$(plist_hash "$E_PLIST")" = "${P_PROOF##* }" ]; }
+}
+
+pending_edit() {
+  local base changes
+  read_pending "$C_FOLDER" && [ "$P_KIND" = edit ] || { pending_error; return 1; }
+  base=$(editor_data revision "$manifest") || { pending_error; return 1; }
+  if [ "$base" = "$P_AFTER" ]; then
+    verify_published_edit || { pending_error; return 1; }
+    if [ "$op" = editor ]; then printf '%s\n' "$response"; return 0; fi
+    if [ "$expected" != "$base" ]; then edit_error conflict 'The edit has already been published. Reopen the routine.'; return 1; fi
+    lock_run_for_edit || return $?
+    settle_folder "$C_FOLDER" || { pending_error; return 1; }
+    perform_edit "$1"; return $?
+  fi
+  if [ "$op" = edit ] && [ "$expected" != "$P_BEFORE" ]; then
+    edit_error conflict 'Reopen the routine before retrying this edit.'; return 1
+  fi
+  [ "$base" = "$P_BEFORE" ] && [ "$P_PROOF" != staging ] &&
+    [ "$(editor_data revision "$C_FOLDER/routine.json.next")" = "$P_AFTER" ] ||
+    { pending_error; return 1; }
+  changes=$(editor_data pending-changes "$manifest" "$C_FOLDER/routine.json.next") &&
+    inspect_request "$base" "$changes" >/dev/null && [ "$C_ID" = "$P_AFTER" ] ||
+    { pending_error; return 1; }
+  if [ "$op" = edit ]; then
+    inspect_request "$expected" "$1" || return 1
+    [ "$C_ID" = "$P_AFTER" ] || { edit_error conflict 'Retry the original pending change or reconcile the routine.'; return 1; }
+  fi
+  verify_pending_edit || { pending_error; return 1; }
+  if [ "$op" = editor ]; then
+    inspect_request "" '{}' >/dev/null && [ "$E_REV" = "$base" ] || { pending_error; return 1; }
+    editor_data preview "$response" "$changes"; return $?
+  fi
+  lock_run_for_edit || return $?
+  verify_pending_edit || { pending_error; return 1; }
+  edit_margins 10 || { edit_error busy 'Retry when the job is idle and both calendars are at least ten minutes away.' 75; return $?; }
+  if [ "$P_PROOF" != none ]; then
+    if [ "$JOB_LOADED" = 1 ] && [ "$P_DISK" = base ]; then
+      apply_staged_calendar || return $?
+    else
+      C_SWAP=1
+      if [ "$JOB_LOADED" = 0 ]; then
+        if [ "$P_DISK" = base ]; then
+          install_plist "$C_FOLDER/plist.next" "$C_LABEL" swap "${P_PROOF%% *}" "${P_PROOF##* }" ||
+            { pending_error; return 1; }
+        fi
+        [ "$(plist_hash "$E_PLIST")" = "${P_PROOF##* }" ] &&
+          "$LCTL" bootstrap "gui/$(user_id)" "$E_PLIST" >/dev/null 2>&1 || { pending_error; return 1; }
+      fi
+    fi
+  fi
+  finish_edit
+}
+
+verify_pending_edit() {
+  read_pending "$C_FOLDER" && [ "$P_KIND" = edit ] && [ "$P_BEFORE" = "$E_REV" ] &&
+    [ "$P_AFTER" = "$C_ID" ] && [ "$(editor_data revision "$C_FOLDER/routine.json.next")" = "$C_ID" ] &&
+    pending_service "$C_FOLDER" "$C_LABEL" || return 1
+  if [ "$E_NEW" = "$E_OLD" ]; then
+    [ "$P_PROOF" = none ] && [ ! -e "$C_FOLDER/plist.prev" ] && [ ! -e "$C_FOLDER/plist.next" ] &&
+      verify_edit_identity
+  else
+    [[ $P_PROOF =~ ^[0-9a-f]{64}\ [0-9a-f]{64}$ ]] && verify_edit_identity "$C_FOLDER/plist.prev" "$E_OLD" &&
+      verify_disk "$C_FOLDER/plist.next" "$E_NEW"
+  fi
+}
+
 cmd_editor() {
   local -a E_ARGS
   local E_ZONE E_RUN_LOCKED=0
-  local op="$1" changes='{}' expected="" result response next rc f
+  local op="$1" changes='{}' expected="" response next rc f
   shift
   C_NAME="${1:-}"
   if ! valid_name "$C_NAME"; then edit_error invalid 'Supply a registered routine name.' 2; return $?; fi
@@ -140,10 +320,12 @@ cmd_editor() {
      [ ! -O "$manifest" ] || [ -L "$manifest" ]; then
     edit_error conflict 'Check ownership and replace linked routine records before editing.'; return 1
   fi
-  local source
-  source=$(manifest_get "$manifest" source) || { edit_error conflict 'Repair the unreadable manifest.'; return 1; }
-  if [ "$source" != adopt ]; then
-    edit_error unsupported 'Use the owning producer for this routine.' 2; return $?
+  if [ ! -e "$C_FOLDER/pending" ]; then
+    local source
+    source=$(manifest_get "$manifest" source) || { edit_error conflict 'Repair the unreadable manifest.'; return 1; }
+    if [ "$source" != adopt ]; then
+      edit_error unsupported 'Use the owning producer for this routine.' 2; return $?
+    fi
   fi
   if [ -L "$dir/adopt.lock" ] || [ ! -f "$dir/adopt.lock" ] || [ ! -O "$dir/adopt.lock" ] || ! exec 9<"$dir/adopt.lock"; then
     edit_error recovery 'Check the adoption lock and its permissions.'; return 1
@@ -157,30 +339,15 @@ cmd_editor() {
     fi
   done
   if [ -e "$C_FOLDER/pending" ] || [ -e "$C_FOLDER/plist.prev" ] || [ -e "$C_FOLDER/adopt.failed" ]; then
-    if [ "$op" != edit ] || [ "$(/usr/bin/head -n 1 "$C_FOLDER/pending" 2>/dev/null)" != edit ]; then
-      edit_error recovery 'An interrupted operation needs settlement. Retry the save or run the owner adoption command when the job is idle.'; return 1
-    fi
-    local pending_after pending_before current candidate
-    { IFS= read -r f; IFS= read -r pending_after; IFS= read -r pending_before; } <"$C_FOLDER/pending"
-    current=$(editor_data revision "$manifest") || { edit_error recovery 'Repair the incomplete edit.'; return 1; }
-    if [ "$expected" != "$pending_before" ]; then edit_error conflict 'Reopen the routine before retrying this edit.'; return 1; fi
-    if [ "$current" = "$pending_before" ]; then
-      candidate=$(editor_data inspect "$manifest" "$C_NAME" "$expected" "$changes") || { printf '%s\n' "$candidate"; return 1; }
-      if [ "$(printf '%s\n' "$candidate" | /usr/bin/sed -n '6p')" != "$pending_after" ]; then
-        edit_error conflict 'Retry the original pending change or reconcile the routine.'; return 1
-      fi
-    fi
-    lock_run_for_edit || return $?
-    settle_folder "$C_FOLDER" || { edit_error recovery 'Cannot safely settle the previous edit. Check status and retry when idle.'; return 1; }
+    C_KIND=edit
+    pending_edit "$changes"; return $?
   fi
+  perform_edit "$changes"
+}
+
+perform_edit() {
   C_KIND=edit
-  result=$(editor_data inspect "$manifest" "$C_NAME" "$expected" "$changes") || { printf '%s\n' "$result"; return 1; }
-  {
-    IFS= read -r C_LABEL; IFS= read -r E_ORIGIN; IFS= read -r E_REV
-    IFS= read -r E_OLD; IFS= read -r E_NEW; IFS= read -r C_ID
-    IFS= read -r response; IFS= read -r next || true
-  } <<<"$result"
-  E_PLIST="$(launch_dir)/$C_LABEL.plist"
+  inspect_request "$expected" "$1" || return 1
   if ! verify_edit_base; then
     edit_error conflict 'The job, plist, time zone or saved adoption identity differs. Reconcile the adoption before editing.'; return 1
   fi
@@ -195,7 +362,7 @@ cmd_editor() {
   trap 'on_cmd_signal 143' TERM
   trap 'on_cmd_signal 130' INT
   trap 'on_cmd_signal 129' HUP
-  if ! printf 'edit\n%s\n%s\n' "$C_ID" "$E_REV" >"$C_FOLDER/pending" ||
+  if ! write_pending "$C_FOLDER" edit "$C_ID" "$E_REV" staging ||
      ! (umask 077; printf '%s\n' "$next" >"$C_FOLDER/routine.json.next") ||
      ! /usr/bin/perl -e 'my @s=stat $ARGV[0]; @s && chmod($s[2]&0777, $ARGV[1]) or exit 1' "$manifest" "$C_FOLDER/routine.json.next"; then
     stage_fail "cannot stage the manifest"; edit_error apply 'Check the records directory permissions and retry.'; return 1
@@ -206,15 +373,28 @@ cmd_editor() {
        [ "$(/usr/bin/wc -c <"$C_FOLDER/plist.next")" -gt "$PLIST_MAX_BYTES" ]; then
       stage_fail "cannot stage the calendar"; edit_error apply 'Check the size and permissions of the staged plist.'; return 1
     fi
+    seal_plists "$C_FOLDER" || { stage_fail "cannot seal staged plists"; edit_failure; return 1; }
     hold staged
-    swap_job "$C_FOLDER/plist.next" edit; rc=$?
-    case "$rc" in
-      0) ;;
-      2) edit_error busy 'The job started or a calendar slot is now near. Retry later.' 75; return $? ;;
-      3) edit_error conflict 'The loaded or saved definition changed. Reopen after reconciliation.'; return 1 ;;
-      *) edit_failure; return 1 ;;
-    esac
+    apply_staged_calendar || return $?
+  else
+    write_pending "$C_FOLDER" edit "$C_ID" "$E_REV" none || { stage_fail "cannot seal manifest"; edit_failure; return 1; }
   fi
+  finish_edit
+}
+
+apply_staged_calendar() {
+  local rc
+  swap_job "$C_FOLDER/plist.next" edit; rc=$?
+  case "$rc" in
+    0) return 0 ;;
+    2) edit_error busy 'The job started or a calendar slot is now near. Retry later.' 75; return $? ;;
+    3) edit_error conflict 'The loaded or saved definition changed. Reopen after reconciliation.'; return 1 ;;
+    *) edit_failure; return 1 ;;
+  esac
+}
+
+finish_edit() {
+  local rc
   publish_and_commit ""; rc=$?
   case "$rc" in
     0) ;;

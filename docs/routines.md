@@ -210,19 +210,38 @@ it to null for daily, or supply 0–7 for weekly. Sunday 7 becomes 0 and
 duplicate entries collapse. An empty slot list is invalid. Reordering the
 same slots leaves the definition unchanged.
 
-The read holds the existing adoption lock and reports pending recovery without
-changing the job. Saving verifies the revision and the installed job under the
-same lock. It compares the label, plist path, wrapper, original arguments and
-calendar with disk and the loaded launchd service. The run lock also covers a
-child still running after the wrapper has exited. Both calendars must be at
-least ten minutes away at entry and five minutes away at the final check.
-Description edits commit by atomic manifest rename. For a changed calendar,
-the producer stages the wrapped plist, reloads once, verifies the loaded
-calendar and arguments, then commits by manifest rename. The transaction records both
-manifest hashes.
-A retry can settle an interrupted swap or clean up a committed transaction.
-Refresh and re-adoption retain the description. Release restores the original
-command under the edited calendar.
+The read holds the existing adoption lock. For a verifiable interrupted save
+before publication, it returns the original manifest revision and fields, plus
+a `pendingChanges` object containing only the changed `description` and/or
+`slots`. Inspection leaves the records and job untouched. After explicit owner
+confirmation, pass that revision and `pendingChanges` to `edit`. An incomplete
+or unrecognized transaction returns the typed `recovery` error.
+
+Saving compares the manifest revision, label, plist path, wrapper, original
+arguments and calendar under the adoption lock. The installed plist and loaded
+service must both select the observed registry. The producer resolves the
+registry using the service environment, plist overrides and GUI account home.
+The run lock also covers a child still running after the wrapper has exited.
+Both calendars must be at least ten minutes away at entry and five minutes
+away at the final check.
+
+Description edits commit by atomic manifest rename. A calendar edit stages
+the wrapped plist, reloads once, verifies the loaded calendar and arguments,
+then commits the manifest. The transaction records the registry and routine
+folder identities, both manifest hashes and the byte hashes of both plist
+snapshots. An independent plist edit during unload leaves the transaction
+available for reconciliation.
+
+A matching retry resumes from the installed and loaded state. During an
+interrupted unload the producer checks the GUI domain environment and sealed
+plist. If the desired job is already loaded, it verifies the service and
+publishes the manifest without reloading. If publication finished before
+cleanup, opening the editor verifies and returns the effective fields and
+current revision. A save against that revision finishes cleanup before
+applying its changes. Retrying the old revision reports a conflict.
+
+Refresh and re-adoption retain the description. Release verifies the loaded
+original arguments and edited calendar before retiring the manifest.
 
 A refusal exits nonzero and returns
 `{"status":"error","code":"<code>","message":"<action>"}` on stdout. Keep

@@ -100,6 +100,43 @@ if ($op eq 'request') {
     print $json->encode($change);
     exit;
 }
+if ($op eq 'folder-id') {
+    my ($dir, $name) = $ARGV[0] =~ m{\A(.*)/([^/]+)\z} or exit 1;
+    my @id;
+    for ($dir, "$dir/$name") {
+        my @st = stat $_;
+        exit 1 unless @st && -d _ && -o _ && !-l $_;
+        push @id, @st[0, 1];
+    }
+    print join ':', @id, $name;
+    exit;
+}
+if ($op eq 'plist-hash') {
+    my ($path, $limit) = @ARGV;
+    exit 1 unless -f $path && -o _ && !-l $path;
+    open my $fh, '<:raw', $path or exit 1;
+    my $n = read $fh, my $bytes, $limit + 1;
+    exit 1 unless defined $n && $n > 0 && $n <= $limit;
+    print sha256_hex($bytes);
+    exit;
+}
+if ($op eq 'pending-changes') {
+    my ($base, $next) = map { object(raw_manifest($_)) or exit 1 } @ARGV;
+    my %changes;
+    $changes{slots} = slots($next->{slots})
+        if calendar_key(slots($base->{slots})) ne calendar_key(slots($next->{slots}));
+    $changes{description} = description($next->{description})
+        if ($base->{description} // '') ne ($next->{description} // '');
+    print $json->encode(\%changes);
+    exit;
+}
+if ($op eq 'preview') {
+    my ($original, $changes) = map { object($_) or exit 1 } @ARGV;
+    $original->{pendingChanges} = $changes;
+    print $json->encode($original), "\n";
+    exit;
+}
+
 if ($op eq 'inspect') {
     my ($file, $name, $expected, $changes) = @ARGV;
     my $bytes = raw_manifest($file);
@@ -127,6 +164,52 @@ if ($op eq 'inspect') {
     $reply->{status} = $changed ? 'applied' : 'unchanged' if $expected;
     print join("\n", $m->{label}, $m->{origin}, $rev, $old, $new, sha256_hex($next), $json->encode($reply)), "\n";
     print $next if $changed;
+    exit;
+}
+
+# The editor's environment selects an observation directory. Only the service
+# environment (or its GUI account's default home) selects the wrapper's directory.
+if ($op eq 'registry') {
+    my ($dir, $target, $path, $disk_dir, $disk_home) = @ARGV;
+    my ($uid) = $target =~ m{\Agui/(\d+)(?:/[^/]+)?\z} or exit 1;
+    local $/;
+    my $print = <STDIN>;
+    exit 1 unless $print =~ /\A\Q$target\E = \{\n/;
+    exit 1 if length($path) && $print !~ /^\tpath = \Q$path\E$/m;
+    my %blocks;
+    while ($print =~ /^\t([^\n=]*environment) = \{\n(.*?)^\t\}$/msg) {
+        my ($block, $entries) = ($1, $2);
+        exit 1 unless $block =~ /\A(?:default environment|inherited environment|environment)\z/
+            && !exists $blocks{$block};
+        my %values;
+        for (split /\n/, $entries) {
+            /^\t\t([^=\s]+) => ([^\r\n]*)$/ or exit 1;
+            exit 1 if exists $values{$1};
+            $values{$1} = $2;
+        }
+        $blocks{$block} = \%values;
+    }
+    my $headers = () = $print =~ /^\t[^\t\n=]*environment\s*=/mg;
+    exit 1 unless keys(%blocks) && keys(%blocks) == $headers;
+    my %session = map { %{ $blocks{$_} // {} } } ('default environment', 'inherited environment');
+    my %loaded = (%session, %{ $blocks{environment} // {} });
+    my %installed = length($path) ? %session : %loaded;
+    for ([ETABLI_ROUTINES_DIR => $disk_dir], [HOME => $disk_home]) {
+        my ($key, $value) = @$_;
+        $installed{$key} = substr($value, 1) if $value ne '-';
+    }
+    # A service print must agree with the registry selected after reload.
+    my @wanted = stat $dir;
+    exit 1 unless @wanted;
+    for my $env (\%installed, length($path) ? \%loaded : ()) {
+        exit 1 if length($env->{BASH_ENV} // '');
+        my $home = $env->{HOME} // (getpwuid($uid))[7] // '';
+        my $registry = $env->{ETABLI_ROUTINES_DIR};
+        $registry = "$home/.claude/state/routines" if !length($registry // '') && $home =~ m{\A/};
+        exit 1 unless defined $registry && $registry =~ m{\A/} && $registry !~ /[[:cntrl:]]/;
+        my @actual = stat $registry;
+        exit 1 unless @actual && $actual[0] == $wanted[0] && $actual[1] == $wanted[1];
+    }
     exit;
 }
 

@@ -176,6 +176,11 @@ sub newnode {
 }
 if ($mode eq 'events') {
   my $plist = load_plist($ARGV[0]);
+  if (my $env = walk($plist, 'EnvironmentVariables')) {
+    print "\tenvironment = {\n";
+    printf "\t\t%s => %s\n", $_->[0], $_->[1][1] for @{$env->[1]};
+    print "\t}\n";
+  }
   my $cal = walk($plist, 'StartCalendarInterval') or exit;
   my $label = walk($plist, 'Label')->[1];
   my $i = 0;
@@ -266,6 +271,12 @@ case "${FAKE_LCTL_HOLD:-}" in
 esac
 case "$verb" in
   print)
+    if [ "$1" = gui/501 ]; then
+      printf '%s = {\n\tinherited environment = {\n' "$1"
+      if [ -f "$D/domain-env" ]; then cat "$D/domain-env"; else cat "$D/inherited"; fi
+      printf '\t}\n}\n'
+      exit 0
+    fi
     label="${1##*/}"
     [ -f "$D/loaded/$label" ] || { echo "Could not find service \"$label\"" >&2; exit 113; }
     pc=0; [ -f "$D/prints.$label" ] && pc=$(cat "$D/prints.$label")
@@ -276,6 +287,9 @@ case "$verb" in
     args=$(/usr/bin/perl -0777 -ne 'if (m{<key>ProgramArguments</key>\s*<array>(.*?)</array>}s) { for my $a ($1 =~ m{<string>(.*?)</string>}gs) { $a =~ s/&amp;/&/g; print "\t\t$a\n" } }' "$D/loaded/$label")
     first=$(printf '%s\n' "$args" | /usr/bin/sed -n '1s/^\t\t//p')
     printf '%s = {\n\tstate = %s\n\tpath = %s\n\n\tprogram = %s\n\targuments = {\n%s\n\t}\n' "$1" "$state" "$(cat "$D/paths/$label")" "$first" "$args"
+    printf '\tinherited environment = {\n'
+    cat "$D/inherited"
+    printf '\t}\n'
     /usr/bin/perl "${0%/*}/plistfake.pl" events "$D/loaded/$label"
     echo '}'
     ;;
@@ -354,6 +368,7 @@ new_case() {
   export ETABLI_ROUTINES_DIR="$CASE/routines" ROUTINE_LAUNCHAGENTS_DIR="$AG" FAKE_LCTL_DIR="$FK" ROUTINE_TEST_CLOCK="$CASE/clock"
   RD="$ETABLI_ROUTINES_DIR"
   mkdir -p "$AG" "$FK"
+  printf '\t\tETABLI_ROUTINES_DIR => %s\n' "$RD" >"$FK/inherited"
   echo "1 12 0" >"$CASE/clock"
   unset FAKE_LCTL_FAIL FAKE_LCTL_HOLD FAKE_LCTL_RUN_FROM ROUTINE_TEST_FAIL ROUTINE_TEST_HOLD ROUTINE_TEST_PERL
 }
@@ -1502,9 +1517,9 @@ t_editor_failure_and_crash() {
   cmp -s "$AG/$L.plist" "$FK/loaded/$L" || fail "disk changed after failed service check"
   untouched "$L" "indeterminate service"
   reset_calls
-  E editor "$NAME" && fail "pending read"
-  has "$CASE/out" '"code":"recovery"' "pending"
-  eq "$(ncalls)" 0 "passive read"
+  E editor "$NAME" || fail "read pending preview"
+  has "$CASE/out" '"pendingChanges":{"slots"' "pending calendar"
+  untouched "$L" "passive preview"
   echo "1 13 40" >"$CASE/clock"
   E edit "$NAME" "$REV" "$change" && fail "settled too near the new slot"
   untouched "$L" "settlement margin"
@@ -1516,6 +1531,171 @@ t_editor_failure_and_crash() {
   E editor "$NAME" || fail "settled read"
   has "$CASE/out" '"minute":42' "committed calendar"
   untouched "$L" "committed retry"
+}
+
+t_editor_registry_identity() {
+  editor_setup
+  cp -R "$RD" "$CASE/copy"
+  ETABLI_ROUTINES_DIR="$CASE/copy" E editor "$NAME" && fail "opened copied record"
+  ETABLI_ROUTINES_DIR="$CASE/copy" E edit "$NAME" "$REV" '{"description":"copy"}' && fail "edited copied record"
+  [ ! -e "$CASE/copy/$NAME/run.lock" ] || fail "opened the wrong run lock"
+  printf '\t\tETABLI_ROUTINES_DIR => %s\n' "$CASE/copy" >"$FK/domain-env"
+  E edit "$NAME" "$REV" '{"slots":[{"hour":13,"minute":42}]}' && fail "unloaded despite changed domain"
+  rm "$FK/domain-env"
+  pbt 'Add :EnvironmentVariables dict' "$FK/loaded/$L"
+  pbt "Add :EnvironmentVariables:ETABLI_ROUTINES_DIR string $CASE/copy" "$FK/loaded/$L"
+  ETABLI_ROUTINES_DIR="$CASE/copy" E editor "$NAME" && fail "ignored the registry used after bootstrap"
+  cp "$AG/$L.plist" "$FK/loaded/$L"
+  untouched "$L" "copied registry"
+  printf '\t\tHOME => %s\n' "$CASE/job home" >"$FK/inherited"
+  mkdir -p "$CASE/job home/.claude/state"
+  mv "$RD" "$CASE/job home/.claude/state/routines"
+  ETABLI_ROUTINES_DIR="$CASE/job home/.claude/state/routines" E editor "$NAME" || fail "job HOME"
+  printf '\t\tETABLI_ROUTINES_DIR => relative\n' >"$FK/inherited"
+  ETABLI_ROUTINES_DIR="$CASE/job home/.claude/state/routines" E editor "$NAME" && fail "unproven registry"
+  has "$CASE/out" '"code":"conflict"' "relative registry"
+}
+
+t_editor_plist_environment() {
+  new_case
+  put brain-cron
+  L=$LAB; NAME=brain-cron; EDITOR_ENTRY=$R
+  lctl bootout "gui/501/$L" || fail "setup"
+  pbt 'Add :EnvironmentVariables dict' "$AG/$L.plist" &&
+    pbt "Add :EnvironmentVariables:ETABLI_ROUTINES_DIR string $RD" "$AG/$L.plist" || fail "setup environment"
+  lctl bootstrap gui/501 "$AG/$L.plist" && A "$L" || fail "setup adoption"
+  printf '\t\tETABLI_ROUTINES_DIR => %s\n' "$CASE/other" >"$FK/inherited"
+  E editor "$NAME" || fail "honor job override"
+  pbt 'Set :EnvironmentVariables:ETABLI_ROUTINES_DIR /different' "$FK/loaded/$L"
+  E editor "$NAME" && fail "ignored loaded override"
+  has "$CASE/out" '"code":"conflict"' "loaded environment drift"
+}
+
+t_editor_pending_description_and_copy() {
+  editor_setup
+  held verified edit "$NAME" "$REV" '{"description":"text"}'; kill_held
+  cp -R "$RD" "$CASE/copy"
+  rm "$CASE/copy/$NAME/run.lock"
+  ETABLI_ROUTINES_DIR="$CASE/copy" E editor "$NAME" && fail "previewed copied receipt"
+  ETABLI_ROUTINES_DIR="$CASE/copy" E edit "$NAME" "$REV" '{"description":"text"}' && fail "confirmed copied receipt"
+  ETABLI_ROUTINES_DIR="$CASE/copy" A "$L" && fail "owner settled copied receipt"
+  [ ! -e "$CASE/copy/$NAME/run.lock" ] || fail "used copied run lock"
+  E editor "$NAME" || fail "preview description"
+  has "$CASE/out" '"pendingChanges":{"description":"text"}' "only changed fields"
+  E edit "$NAME" "$REV" '{"description":"text"}' || fail "publish description"
+  untouched "$L" "description crash and retry"
+}
+
+t_editor_interrupted_preview() {
+  local pt change='{"description":"updated","slots":[{"hour":13,"minute":42}]}'
+  for pt in staged unloaded moved-swap bootstrapped verified; do
+    editor_setup
+    held "$pt" edit "$NAME" "$REV" "$change"; kill_held
+    local snapshot=$(snap "$RD")
+    E editor "$NAME" || fail "preview $pt: $(cat "$CASE/out")"
+    eq "$(mval "$CASE/out" revision)" "$REV" "base revision"
+    /usr/bin/perl -MJSON::PP -0777 -ne '
+      $r=decode_json($_); exit !($r->{fields}{description} eq "" && $r->{fields}{slots}[0]{hour} == 18 &&
+        $r->{pendingChanges}{description} eq "updated" && $r->{pendingChanges}{slots}[0]{minute} == 42)
+    ' "$CASE/out" || fail "preview fields at $pt"
+    eq "$(snap "$RD")" "$snapshot" "passive preview"
+    E edit "$NAME" "$REV" '{"description":"other"}' && fail "accepted different retry"
+    E edit "$NAME" "$REV" "$change" || fail "resume $pt: $(cat "$CASE/out" "$CASE/err")"
+    eq "$(grep -c '^bootout ' "$FK/calls")" 1 "one unload across $pt and retry"
+    eq "$(grep -c '^bootstrap ' "$FK/calls")" 1 "one bootstrap across $pt and retry"
+    E editor "$NAME" || fail "reopen"
+    has "$CASE/out" '"description":"updated"' "published description"
+  done
+}
+
+t_editor_recovers_failed_rollback() {
+  editor_setup
+  local change='{"slots":[{"hour":13,"minute":42}]}'
+  FAKE_LCTL_FAIL='bootstrap:*' E edit "$NAME" "$REV" "$change" && fail "accepted failed restore"
+  [ -f "$RD/$NAME/adopt.failed" ] || fail "missing failed restore record"
+  E editor "$NAME" || fail "preview failed restore"
+  E edit "$NAME" "$REV" "$change" || fail "resume failed restore"
+  [ ! -e "$RD/$NAME/adopt.failed" ] || fail "orphan failed restore record"
+  E editor "$NAME" || fail "reopen after failed restore"
+  has "$CASE/out" '"minute":42' "effective schedule"
+}
+
+t_editor_published_pending() {
+  local pt rev state
+  for pt in committed prev-deleted; do
+    editor_setup
+    held "$pt" edit "$NAME" "$REV" '{"slots":[{"hour":13,"minute":42}]}'; kill_held
+    state=$(snap "$RD")
+    E editor "$NAME" || fail "open after $pt"
+    rev=$(mval "$CASE/out" revision)
+    [ "$rev" != "$REV" ] && ! grep -q pendingChanges "$CASE/out" || fail "published preview"
+    has "$CASE/out" '"minute":42' "effective fields"
+    eq "$(snap "$RD")" "$state" "read leaves cleanup pending"
+    E edit "$NAME" "$rev" '{"description":"follow-up"}' || fail "fresh save after $pt: $(cat "$CASE/out")"
+    [ ! -e "$RD/$NAME/pending" ] || fail "cleanup incomplete"
+    has "$M" '"description":"follow-up"' "fresh edit"
+    eq "$(grep -c '^bootout ' "$FK/calls")" 1 "one unload through fresh edit"
+    eq "$(grep -c '^bootstrap ' "$FK/calls")" 1 "one bootstrap through fresh edit"
+  done
+}
+
+t_editor_unloaded_registry_drift() {
+  editor_setup
+  held moved-swap edit "$NAME" "$REV" '{"slots":[{"hour":13,"minute":42}]}'; kill_held
+  printf '\t\tETABLI_ROUTINES_DIR => %s\n' "$CASE/elsewhere" >"$FK/inherited"
+  E editor "$NAME" && fail "accepted changed domain environment"
+  E edit "$NAME" "$REV" '{"slots":[{"hour":13,"minute":42}]}' && fail "bootstrapped with wrong registry"
+  A "$L" && fail "rolled back with wrong registry"
+  [ -f "$RD/$NAME/pending" ] && [ ! -f "$FK/loaded/$L" ] || fail "lost evidence"
+}
+
+t_editor_damaged_recovery() {
+  local artifact change='{"slots":[{"hour":13,"minute":42}]}'
+  for artifact in plist.prev plist.next routine.json.next pending; do
+    editor_setup
+    held verified edit "$NAME" "$REV" "$change"; kill_held
+    case "$artifact" in
+      pending) sed -n '1,3p' "$RD/$NAME/pending" >"$CASE/legacy"; cp "$CASE/legacy" "$RD/$NAME/pending" ;;
+      routine.json.next) echo >>"$RD/$NAME/$artifact" ;;
+      *) pbt 'Set :ProgramArguments:6 /damaged' "$RD/$NAME/$artifact" || fail "damage $artifact" ;;
+    esac
+    reset_calls
+    E editor "$NAME" && fail "previewed damaged $artifact"
+    E edit "$NAME" "$REV" "$change" && fail "resumed damaged $artifact"
+    has "$CASE/out" '"code":"recovery"' "damaged proof"
+    A "$L" && fail "owner settled damaged $artifact"
+    untouched "$L" "$artifact"
+    [ -e "$RD/$NAME/pending" ] || fail "lost evidence"
+  done
+}
+
+t_editor_unloaded_plist_drift() {
+  local pt
+  for pt in unloaded moved-swap; do
+    editor_setup
+    held "$pt" edit "$NAME" "$REV" '{"slots":[{"hour":13,"minute":42}]}'
+    printf '\n' >>"$AG/$L.plist"
+    cp "$AG/$L.plist" "$CASE/independent"
+    : >"$CASE/h"; wait "$BGPID" && fail "accepted independent edit at $pt"
+    cmp -s "$AG/$L.plist" "$CASE/independent" || fail "lost independent bytes"
+    has "$CASE/out.h" '"code":"recovery"' "disk drift at $pt"
+    [ -f "$RD/$NAME/pending" ] && [ ! -e "$FK/loaded/$L" ] || fail "missing recovery state"
+  done
+}
+
+t_release_late_loaded_drift() {
+  local drift
+  for drift in 'Set :ProgramArguments:1 /independent' 'Set :StartCalendarInterval:0:Minute 5'; do
+    editor_setup
+    E edit "$NAME" "$REV" '{"slots":[{"hour":13,"minute":42}]}' || fail "setup change"
+    held verified release "$L"
+    pbt "$drift" "$FK/loaded/$L" || fail "damage loaded service"
+    reset_calls
+    : >"$CASE/h"; wait "$BGPID" && fail "retired manifest after drift"
+    A "$L" && fail "restored over unfamiliar service"
+    [ -f "$M" ] && [ -f "$RD/$NAME/pending" ] || fail "lost release evidence"
+    untouched "$L" "release drift"
+  done
 }
 
 t_bash32_and_no_jq() {

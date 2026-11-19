@@ -591,6 +591,9 @@ install_plist() { # src label [failure point]
   dst="$(launch_dir)/$2.plist"
   tmp="$(launch_dir)/.$2.plist.routine.$$"
   /bin/cp "$1" "$tmp" || return 1
+  if [ -n "${4:-}" ] && { [ "$(plist_hash "$tmp")" != "$5" ] || [ "$(plist_hash "$dst")" != "$4" ]; }; then
+    /bin/rm -f "${tmp:?}"; return 3
+  fi
   if [ -n "${3:-}" ]; then
     mvp "$3" "$tmp" "$dst" || { /bin/rm -f "${tmp:?}"; return 1; }
   else
@@ -694,7 +697,7 @@ rollback() {
   trap '' TERM INT HUP
   die "$C_KIND $C_LABEL failed: $1"
   if [ "$C_SWAP" = 1 ]; then
-    if [ "$C_KIND" = edit ]; then
+    if [ "$C_KIND" = edit ] || [ "$C_KIND" = release ]; then
       restore_edit "$C_LABEL" "$C_FOLDER" 5
     else
       restore_prev "$C_LABEL" "$C_FOLDER/plist.prev"
@@ -733,13 +736,21 @@ settle_folder() { # folder
       if [ "$revision" = "$id" ]; then committed=1
       elif [ "$revision" != "$before" ]; then die "$name: the manifest changed during the interrupted edit; reconcile it before recovery"; return 1
       fi ;;
-    adopt) [ -n "$id" ] && [ -f "$f/routine.json" ] && [ "$(manifest_get "$f/routine.json" command)" = "$id" ] && committed=1 ;;
+    adopt) [ -z "$before" ] || { die "$name: invalid adoption transaction"; return 1; }; [ -n "$id" ] && [ -f "$f/routine.json" ] && [ "$(manifest_get "$f/routine.json" command)" = "$id" ] && committed=1 ;;
     release) [ ! -e "$f/routine.json" ] && committed=1 ;;
+    *) die "$name: missing transaction identity; reconcile the records"; return 1 ;;
   esac
   C_KIND="${kind:-adopt}"
-  if [ "$kind" = edit ] && [ -f "$prev" ] && [ "$committed" = 0 ]; then
-    label=$(manifest_get "$f/routine.json" label)
-    ( C_FOLDER="$f"; lock_run_for_edit >&2 && restore_edit "$label" "$f" 10 ) || { die "$name: cannot safely restore edit; check the job, then retry"; return 1; }
+  if [ "$kind" = edit ] || [ "$kind" = release ]; then
+    read_pending "$f" || { die "$name: unverified transaction identity; reconcile the records"; return 1; }
+    if [ "$committed" = 1 ] && [ "$kind" = edit ]; then
+      ( C_FOLDER="$f"; C_NAME="$name"; manifest="$f/routine.json"; verify_published_edit ) || return 1
+    elif [ "$committed" = 1 ]; then
+      [ "$(editor_data revision "$f/routine.released.json")" = "$P_BEFORE" ] || return 1
+    else
+      ( settle_before_publication "$f" ); restore_status=$?
+      [ "$restore_status" = 0 ] || { die "$name: cannot safely settle $kind; check the job and staged files"; return "$restore_status"; }
+    fi
   elif [ -f "$prev" ] && [ "$committed" = 0 ]; then
     label=$(pb 'Print :Label' "$prev")
     [ -n "$label" ] || label=$(manifest_get "$f/routine.json" label)
@@ -938,6 +949,14 @@ swap_job() { # new plist, what to verify (wrapper|origin|edit)
   local new="$1" want="$2" label="$C_LABEL" uid dst
   uid=$(user_id)
   dst="$(launch_dir)/$label.plist"
+  if [ "$want" != wrapper ]; then
+    read_pending "$C_FOLDER" && check_plists "$C_FOLDER" || { die "unverified staged plists"; return 1; }
+    if ! domain_registry_matches "$new"; then
+      stage_fail "cannot verify the registry for bootstrap"
+      [ "$want" = edit ] && return 3
+      return 2
+    fi
+  fi
   if [ "$want" = edit ]; then
     if ! $CMP -s "$C_FOLDER/plist.prev" "$dst" || ! verify_edit_base; then
       stage_fail "the installed definition changed"; return 3
@@ -956,8 +975,22 @@ swap_job() { # new plist, what to verify (wrapper|origin|edit)
   C_SWAP=1
   "$LCTL" bootout "gui/$uid/$label" >/dev/null 2>&1 || { rollback "bootout failed"; return 1; }
   hold unloaded
-  install_plist "$new" "$label" swap || { rollback "cannot write the plist"; return 1; }
+  if [ "$want" = wrapper ]; then
+    install_plist "$new" "$label" swap
+  else
+    domain_registry_matches "$new" || { die "cannot verify the registry after unload; check the pending transaction"; return 1; }
+    install_plist "$new" "$label" swap "${P_PROOF%% *}" "${P_PROOF##* }"
+  fi
+  case $? in
+    0) ;;
+    3) die "plist changed during unload; reconcile the installed plist and pending transaction"; return 1 ;;
+    *) rollback "cannot write the plist"; return 1 ;;
+  esac
+  if [ "$want" != wrapper ] && [ "$(plist_hash "$dst")" != "${P_PROOF##* }" ]; then
+    die "installed plist changed before bootstrap; reconcile the pending transaction"; return 1
+  fi
   "$LCTL" bootstrap "gui/$uid" "$dst" >/dev/null 2>&1 || { rollback "bootstrap failed"; return 1; }
+  if [ "$want" = edit ]; then hold bootstrapped; fi
   job_state "$label"
   if [ "$JOB_LOADED" != 1 ]; then rollback "the job is not loaded after bootstrap"; return 1; fi
   if [ "$want" = edit ]; then
@@ -986,11 +1019,24 @@ publish_and_commit() { # origin name (adopt)
     fi
   fi
   hold verified
-  if [ "$C_KIND" = edit ]; then
+  if [ "$C_KIND" = release ]; then
+    if ! read_pending "$f" || ! check_plists "$f" ||
+       [ "$(editor_data revision "$f/routine.json")" != "$P_BEFORE" ] ||
+       ! $CMP -s "$(launch_dir)/$C_LABEL.plist" "$f/plist.next" ||
+       ! verify_disk "$f/plist.prev" "$E_OLD" ||
+       ! job_state "$C_LABEL" || ! loaded_registry_matches "$f/plist.next" "$C_LABEL" ||
+       ! loaded_arguments_match "$C_LABEL" "$E_OLD" "${E_ARGS[@]:5}"; then
+      die "release: the restored definition changed before publication; reconcile the pending transaction"
+      return 1
+    fi
+  elif [ "$C_KIND" = edit ]; then
+    if [ "$(editor_data revision "$f/routine.json.next")" != "$C_ID" ]; then
+      die "edit: staged manifest changed before publication"; return 1
+    fi
     if [ "$C_SWAP" = 0 ]; then
       verify_edit_base || { stage_fail "the installed definition changed"; return 3; }
       edit_margins 5 || { stage_fail "a job is running or a slot is near"; return 2; }
-    elif [ "$(editor_data revision "$f/routine.json")" != "$E_REV" ] ||
+    elif ! read_pending "$f" || ! check_plists "$f" || ! verify_edit_identity "$E_PLIST" "$E_NEW" ||
          ! $CMP -s "$E_PLIST" "$f/plist.next" || ! job_state "$C_LABEL" || ! loaded_matches "$E_PLIST" "$E_NEW"; then
       rollback "the installed definition changed before publication"
       [ -e "$f/pending" ] && return 1
@@ -1012,6 +1058,7 @@ publish_and_commit() { # origin name (adopt)
   fi
   rmp prev "$f/plist.prev" || { die "$C_KIND $C_LABEL is done; a leftover stays for the next command"; return 1; }
   hold prev-deleted
+  if [ "$C_KIND" = edit ]; then /bin/rm -f "${f:?}/adopt.failed" || return 1; fi
   rmp pending "$f/pending" || { die "$C_KIND $C_LABEL is done; a leftover stays for the next command"; return 1; }
   return 0
 }
@@ -1041,6 +1088,7 @@ do_release() {
   done
   if [ -z "$folder" ]; then die "refused: no adopted routine has the label $C_LABEL"; return 2; fi
   C_FOLDER="$folder"; C_NAME="${folder##*/}"
+  E_REV=$(editor_data revision "$folder/routine.json") || return 1
   src=$(manifest_get "$folder/routine.json" source)
   if [ "$src" != adopt ]; then die "refused: $C_NAME belongs to '$src', not to adopt"; return 2; fi
   origin=$(manifest_get "$folder/routine.json" origin)
@@ -1054,6 +1102,8 @@ do_release() {
     die "refused: the installed calendar differs from routine.json; reconcile it before release"
     return 2
   fi
+  E_PLIST="$plist"; E_ORIGIN="$origin"; E_OLD=$(calendar_key <<<"$SLOTS")
+  verify_disk || { die "refused: the installed wrapper differs from the saved adoption"; return 2; }
   job_state "$C_LABEL"
   [ "$JOB_LOADED" = 1 ] || { die "refused: $C_LABEL is not loaded"; return 2; }
   [ "$JOB_RUNNING" = 0 ] || { die "refused: $C_LABEL is running"; return 2; }
@@ -1065,7 +1115,7 @@ do_release() {
   trap 'on_cmd_signal 143' TERM
   trap 'on_cmd_signal 130' INT
   trap 'on_cmd_signal 129' HUP
-  printf 'release\n%s\n' "$C_ID" >"$folder/pending" || { stage_fail "cannot write pending"; return 1; }
+  write_pending "$folder" release "$C_ID" "$E_REV" staging || { stage_fail "cannot write pending"; return 1; }
   save_prev "$plist" "$folder" || { stage_fail "cannot save the plist"; return 1; }
   hold staging
   if tf stage-next || ! /bin/cp "$folder/$origin" "$folder/plist.next"; then stage_fail "cannot stage the origin"; return 1; fi
@@ -1077,6 +1127,7 @@ do_release() {
     set_calendar "$folder/plist.next" "$current_slots" || { stage_fail "cannot preserve the edited calendar"; return 1; }
   fi
   SLOTS="$current_slots"
+  seal_plists "$folder" || { stage_fail "cannot seal staged plists"; return 1; }
   hold staged
   swap_job "$folder/plist.next" origin || return $?
   publish_and_commit "" || return $?
