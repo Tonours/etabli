@@ -1368,6 +1368,18 @@ t_editor_roundtrip() {
   has "$CASE/out" 'Quoted \"note\" 🍋' "readopted description"
 }
 
+t_release_bootstrap_failure_restores_edited_wrapper() {
+  editor_setup
+  E edit "$NAME" "$REV" '{"slots":[{"hour":13,"minute":42}],"description":"edited job"}' || fail "setup edit"
+  cp "$AG/$L.plist" "$CASE/edited.plist"
+  cp "$M" "$CASE/edited.json"
+  FAKE_LCTL_FAIL="$(fail_next bootstrap)" Rl "$L" && fail "released after failed bootstrap"
+  plist_is "$L" "$CASE/edited.plist" "restored edited wrapper"
+  cmp -s "$M" "$CASE/edited.json" || fail "lost edited manifest"
+  [ ! -e "$RD/$NAME/pending" ] && [ ! -e "$RD/$NAME/adopt.failed" ] || fail "release left recovery evidence"
+  E editor "$NAME" || fail "cannot reopen after rollback"
+}
+
 t_editor_refusals() {
   editor_setup
   local change
