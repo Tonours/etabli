@@ -11,6 +11,7 @@
 # refused or malformed call.
 
 ROUTINE_SELF="${BASH_SOURCE[0]}"
+case "$ROUTINE_SELF" in */*) ;; *) ROUTINE_SELF="./$ROUTINE_SELF" ;; esac
 RESERVED_NAME=fleet-improvement
 RESERVED_LABEL=com.tonours.fleet-improvement
 JOURNAL_LINES=250
@@ -56,7 +57,7 @@ born_of() {
 # Returns 0 when taken, 75 when another holder has it, 74 for any other cause.
 routine_lock_try() {
   local perl="${ROUTINE_TEST_PERL:-/usr/bin/perl}" st
-  "$perl" -e 'use Fcntl qw(:flock); open(my $h, ">&=", 9) or exit 74; flock($h, LOCK_EX|LOCK_NB) or exit 75'
+  "$perl" -e 'use Fcntl qw(:flock); open(my $h, ">&=", shift) or exit 74; flock($h, LOCK_EX|LOCK_NB) or exit 75' "${1:-9}"
   st=$?
   case "$st" in 0|75) return "$st" ;; *) return 74 ;; esac
 }
@@ -149,10 +150,11 @@ read_summary() {
 on_signal() {
   wait_interrupted=1
   sig_sent="$1"
+  # A signal sent during fork can arrive before the child resets its traps.
+  # Keep that cancellation visible to the gate even if the child misses it.
+  if [ ! -f "$folder/go.$run" ]; then : >"$folder/go.$run.$1"; fi
   if [ -n "$cmd_pid" ]; then
     kill -"$1" "$cmd_pid" 2>/dev/null
-  else
-    pending_signal="$1"
   fi
 }
 
@@ -165,14 +167,14 @@ finish() {
   write_last "$state" "$3" "$4" "$ended" "$st" "$sig" "$5"
   journal_append "$(printf '{"v":1,"name":"%s","kind":"run","run":"%s","state":"%s","started":"%s","ended":"%s","exit":%s,"signal":%s,"summary":"%s"}' \
     "$name" "$run" "$state" "$started" "$ended" "$st" "$(jq_s "$sig")" "$5")"
-  /bin/rm -f "$folder/go.$run" "$ROUTINE_SUMMARY"
+  /bin/rm -f "$folder/go.$run" "$folder/go.$run.HUP" "$folder/go.$run.TERM" "$ROUTINE_SUMMARY"
   routine_lock_release
   exec 9>&-
   return "$st"
 }
 
 cmd_run() {
-  local name="${1:-}" dir folder lock_st today cap cnt future d r tmp st wait_interrupted pending_signal=""
+  local name="${1:-}" dir folder lock_st today cap cnt future d r tmp st wait_interrupted
   if ! valid_name "$name"; then die "invalid routine name: $name"; return 2; fi
   shift
   if [ "${1:-}" != -- ] || [ "$#" -lt 2 ]; then die "usage: routine.sh run <name> -- <command...>"; return 2; fi
@@ -275,14 +277,16 @@ cmd_run() {
   # The command's process: a subshell that waits for go.<run>, then execs.
   (
     trap - TERM HUP
-    while [ ! -f "$folder/go.$run" ]; do
+    while [ ! -f "$folder/go.$run" ] &&
+          [ ! -f "$folder/go.$run.HUP" ] && [ ! -f "$folder/go.$run.TERM" ]; do
       [ "$(born_of "$$")" = "$self_born" ] || exit 0
       /bin/sleep 0.1
     done
+    [ ! -f "$folder/go.$run.HUP" ] || exit 129
+    [ ! -f "$folder/go.$run.TERM" ] || exit 143
     exec "$@"
   ) <&0 &
   cmd_pid=$!
-  if [ -n "$pending_signal" ]; then kill -"$pending_signal" "$cmd_pid" 2>/dev/null; fi
   hold identity
   cmd_born=$(born_of "$cmd_pid")
   if [ -z "$cmd_born" ]; then
@@ -404,35 +408,13 @@ system_tz() {
   printf '%s' "$t"
 }
 
-# Local weekday, hour and minute; ROUTINE_TEST_CLOCK is a file holding "W H M".
-now_parts() {
-  local line
-  if [ -n "${ROUTINE_TEST_CLOCK:-}" ]; then
-    read -r NOW_W NOW_H NOW_M <"$ROUTINE_TEST_CLOCK"
-  else
-    line=$(/bin/date +'%w %H %M')
-    set -- $line
-    NOW_W=$1; NOW_H=$((10#$2)); NOW_M=$((10#$3))
-  fi
-}
-
-# 0 when a slot of $SLOTS comes less than $1 minutes from now (or is due now).
+# Check each local minute spanned by the real-time margin, including the current one.
 slot_within() {
-  local wd h m delta nowmin
-  now_parts
-  nowmin=$((NOW_W * 1440 + NOW_H * 60 + NOW_M))
-  while IFS=' ' read -r wd h m; do
-    [ -n "$h" ] || continue
-    if [ "$wd" = n ]; then
-      delta=$(( ((h * 60 + m) - (NOW_H * 60 + NOW_M) + 1440) % 1440 ))
-    else
-      delta=$(( ((wd * 1440 + h * 60 + m) - nowmin + 10080) % 10080 ))
-    fi
-    [ "$delta" -lt "$1" ] && return 0
-  done <<EOF
-$SLOTS
-EOF
-  return 1
+  local rc
+  editor_data near "$1" "${ROUTINE_TEST_CLOCK:-}" <<<"$SLOTS"
+  rc=$?
+  # An unreadable clock must keep the service loaded.
+  [ "$rc" != 1 ]
 }
 
 # --- plists ----------------------------------------------------------------
@@ -445,8 +427,10 @@ top_keys() { pb Print "$1" | /usr/bin/sed -n 's/^    \([^ ][^ ]*\) = .*$/\1/p'; 
 read_args() {
   local i=0 v
   PARGS=()
-  while v=$(pb "Print :ProgramArguments:$i" "$1"); do
-    PARGS[$i]="$v"
+  # Keep literal trailing newlines distinct from PlistBuddy's output terminator.
+  while v=$(pb "Print :ProgramArguments:$i" "$1" && printf .); do
+    v=${v%.}
+    PARGS[$i]="${v%$'\n'}"
     i=$((i + 1))
     [ "$i" -lt 500 ] || break
   done
@@ -599,7 +583,7 @@ make_wrapped() { # src dst name
 job_state() {
   local state
   JOB_LOADED=0; JOB_RUNNING=0; JOB_OUT=""
-  JOB_OUT=$("$LCTL" print "gui/$(user_id)/$1" 2>/dev/null) || return 1
+  JOB_OUT=$("$LCTL" print "gui/$(user_id)/$1" 2>/dev/null) || return $?
   JOB_LOADED=1
   state=$(printf '%s\n' "$JOB_OUT" | /usr/bin/grep -m 1 $'^\tstate = ')
   [ "$state" = $'\tstate = not running' ] || JOB_RUNNING=1
@@ -612,6 +596,9 @@ install_plist() { # src label [failure point]
   dst="$(launch_dir)/$2.plist"
   tmp="$(launch_dir)/.$2.plist.routine.$$"
   /bin/cp "$1" "$tmp" || return 1
+  if [ -n "${4:-}" ] && { [ "$(plist_hash "$tmp")" != "$5" ] || [ "$(plist_hash "$dst")" != "$4" ]; }; then
+    /bin/rm -f "${tmp:?}"; return 3
+  fi
   if [ -n "${3:-}" ]; then
     mvp "$3" "$tmp" "$dst" || { /bin/rm -f "${tmp:?}"; return 1; }
   else
@@ -715,13 +702,17 @@ rollback() {
   trap '' TERM INT HUP
   die "$C_KIND $C_LABEL failed: $1"
   if [ "$C_SWAP" = 1 ]; then
-    restore_prev "$C_LABEL" "$C_FOLDER/plist.prev"
+    if [ "$C_KIND" = edit ] || [ "$C_KIND" = release ]; then
+      restore_edit "$C_LABEL" "$C_FOLDER" 5
+    else
+      restore_prev "$C_LABEL" "$C_FOLDER/plist.prev"
+    fi
     restore_status=$?
     case "$restore_status" in
       0) ;;
       2)
         undo_published
-        die "$C_LABEL is running; rollback will resume on the next command"
+        die "$C_LABEL is busy; rollback will resume on the next command"
         return 1
         ;;
       *) leave_failed "$C_FOLDER" "$C_LABEL" "$C_FOLDER/plist.prev"; return 1 ;;
@@ -742,14 +733,30 @@ on_cmd_signal() {
 }
 
 settle_folder() { # folder
-  local f="$1" kind="" id="" committed=0 label dst prev="$1/plist.prev" name="${1##*/}" restore_status
-  if [ -f "$f/pending" ]; then { IFS= read -r kind; IFS= read -r id; } <"$f/pending"; fi
+  local f="$1" kind="" id="" before="" revision committed=0 label dst prev="$1/plist.prev" name="${1##*/}" restore_status
+  if [ -f "$f/pending" ]; then { IFS= read -r kind; IFS= read -r id; IFS= read -r before || true; } <"$f/pending"; fi
   case "$kind" in
-    adopt) [ -n "$id" ] && [ -f "$f/routine.json" ] && [ "$(manifest_get "$f/routine.json" command)" = "$id" ] && committed=1 ;;
+    edit)
+      revision=$(editor_data revision "$f/routine.json") || return 1
+      if [ "$revision" = "$id" ]; then committed=1
+      elif [ "$revision" != "$before" ]; then die "$name: the manifest changed during the interrupted edit; reconcile it before recovery"; return 1
+      fi ;;
+    adopt) [ -z "$before" ] || { die "$name: invalid adoption transaction"; return 1; }; [ -n "$id" ] && [ -f "$f/routine.json" ] && [ "$(manifest_get "$f/routine.json" command)" = "$id" ] && committed=1 ;;
     release) [ ! -e "$f/routine.json" ] && committed=1 ;;
+    *) die "$name: missing transaction identity; reconcile the records"; return 1 ;;
   esac
   C_KIND="${kind:-adopt}"
-  if [ -f "$prev" ] && [ "$committed" = 0 ]; then
+  if [ "$kind" = edit ] || [ "$kind" = release ]; then
+    read_pending "$f" || { die "$name: unverified transaction identity; reconcile the records"; return 1; }
+    if [ "$committed" = 1 ] && [ "$kind" = edit ]; then
+      ( C_FOLDER="$f"; C_NAME="$name"; manifest="$f/routine.json"; verify_published_edit ) || return 1
+    elif [ "$committed" = 1 ]; then
+      [ "$(editor_data revision "$f/routine.released.json")" = "$P_BEFORE" ] || return 1
+    else
+      ( settle_before_publication "$f" ); restore_status=$?
+      [ "$restore_status" = 0 ] || { die "$name: cannot safely settle $kind; check the job and staged files"; return "$restore_status"; }
+    fi
+  elif [ -f "$prev" ] && [ "$committed" = 0 ]; then
     label=$(pb 'Print :Label' "$prev")
     [ -n "$label" ] || label=$(manifest_get "$f/routine.json" label)
     if [ -z "$label" ]; then die "$name: incomplete, and the label of plist.prev cannot be read"; return 1; fi
@@ -915,8 +922,12 @@ do_adopt() {
   adopted=""
   if [ "$mode" != new ]; then adopted=$(manifest_get "$folder/routine.json" adopted); fi
   [ -n "$adopted" ] || adopted=$(now_iso)
-  if tf stage-manifest || ! printf '{"v":1,"name":"%s","label":"%s","tz":"%s","slots":%s,"adopted":"%s","source":"adopt","origin":"%s","command":"%s"}\n' \
-      "$C_NAME" "$C_LABEL" "$tzv" "$(slots_json)" "$adopted" "$origin_name" "$C_ID" >"$folder/routine.json.next"; then
+  local description_member=""
+  if [ -n "${cur:-}" ] && [ -f "$folder/$cur" ]; then
+    description_member=$(editor_data description-member "$folder/$cur") || { stage_fail "invalid saved description"; return 1; }
+  fi
+  if tf stage-manifest || ! printf '{"v":1,"name":"%s","label":"%s","tz":"%s","slots":%s,"adopted":"%s","source":"adopt","origin":"%s","command":"%s"%s}\n' \
+      "$C_NAME" "$C_LABEL" "$tzv" "$(slots_json)" "$adopted" "$origin_name" "$C_ID" "$description_member" >"$folder/routine.json.next"; then
     stage_fail "cannot write the manifest"; return 1
   fi
   manifest_bytes=$(/usr/bin/wc -c <"$folder/routine.json.next") || { stage_fail "cannot size the manifest"; return 1; }
@@ -939,23 +950,64 @@ do_adopt() {
 
 # The last check, then bootout, the new plist, bootstrap, verification. On
 # failure everything is back (rollback) and the return value is non-zero.
-swap_job() { # new plist, what to verify (wrapper|origin)
+swap_job() { # new plist, what to verify (wrapper|origin|edit)
   local new="$1" want="$2" label="$C_LABEL" uid dst
   uid=$(user_id)
   dst="$(launch_dir)/$label.plist"
-  job_state "$label"
-  if [ "$JOB_LOADED" != 1 ]; then stage_fail "the job is no longer loaded"; return 2; fi
-  if [ "$JOB_RUNNING" = 1 ]; then stage_fail "the job is running"; return 2; fi
-  if slot_within 5; then stage_fail "a slot comes in less than 5 minutes"; return 2; fi
+  if [ "$want" != wrapper ]; then
+    read_pending "$C_FOLDER" && check_plists "$C_FOLDER" || { die "unverified staged plists"; return 1; }
+    if ! domain_registry_matches "$new"; then
+      stage_fail "cannot verify the registry for bootstrap"
+      [ "$want" = edit ] && return 3
+      return 2
+    fi
+  fi
+  if [ "$want" = edit ]; then
+    if ! $CMP -s "$C_FOLDER/plist.prev" "$dst" || ! verify_edit_base; then
+      stage_fail "the installed definition changed"; return 3
+    fi
+    if ! edit_margins 5; then stage_fail "a job is running or a slot is near"; return 2; fi
+  else
+    job_state "$label"
+    if [ "$JOB_LOADED" != 1 ]; then stage_fail "the job is no longer loaded"; return 2; fi
+    if [ "$want" = origin ] && { ! $CMP -s "$C_FOLDER/plist.prev" "$dst" ||
+        ! verify_disk "$dst" "$E_OLD" "$new" || ! loaded_matches "$dst" "$E_OLD"; }; then
+      stage_fail "the loaded definition changed before release"; return 2
+    fi
+    if [ "$JOB_RUNNING" = 1 ]; then stage_fail "the job is running"; return 2; fi
+    if slot_within 5; then stage_fail "a slot comes in less than 5 minutes"; return 2; fi
+  fi
+  if [ "$want" = origin ] && { [ "$(plist_hash "$C_FOLDER/$E_ORIGIN")" != "$release_origin_hash" ] ||
+       [ "$(editor_data revision "$C_FOLDER/routine.json")" != "$P_BEFORE" ]; }; then
+    stage_fail "the saved adoption changed before release"; return 2
+  fi
   C_PHASE=swap
   C_SWAP=1
   "$LCTL" bootout "gui/$uid/$label" >/dev/null 2>&1 || { rollback "bootout failed"; return 1; }
   hold unloaded
-  install_plist "$new" "$label" swap || { rollback "cannot write the plist"; return 1; }
+  if [ "$want" = wrapper ]; then
+    install_plist "$new" "$label" swap
+  else
+    domain_registry_matches "$new" || { die "cannot verify the registry after unload; check the pending transaction"; return 1; }
+    install_plist "$new" "$label" swap "${P_PROOF%% *}" "${P_PROOF##* }"
+  fi
+  case $? in
+    0) ;;
+    3) die "plist changed during unload; reconcile the installed plist and pending transaction"; return 1 ;;
+    *) rollback "cannot write the plist"; return 1 ;;
+  esac
+  if [ "$want" != wrapper ] && [ "$(plist_hash "$dst")" != "${P_PROOF##* }" ]; then
+    die "installed plist changed before bootstrap; reconcile the pending transaction"; return 1
+  fi
   "$LCTL" bootstrap "gui/$uid" "$dst" >/dev/null 2>&1 || { rollback "bootstrap failed"; return 1; }
+  if [ "$want" = edit ]; then hold bootstrapped; fi
   job_state "$label"
   if [ "$JOB_LOADED" != 1 ]; then rollback "the job is not loaded after bootstrap"; return 1; fi
-  if [ "$want" = wrapper ]; then
+  if [ "$want" = edit ]; then
+    if ! $CMP -s "$new" "$dst" || ! loaded_matches "$new" "$E_NEW"; then
+      rollback "loaded job differs from the staged arguments or schedule"; return 1
+    fi
+  elif [ "$want" = wrapper ]; then
     case "$JOB_OUT" in *"$SELF"*) ;; *) rollback "the job does not run the wrapper"; return 1 ;; esac
   else
     $CMP -s "$new" "$dst" || { rollback "the plist in place is not the origin"; return 1; }
@@ -977,9 +1029,34 @@ publish_and_commit() { # origin name (adopt)
     fi
   fi
   hold verified
+  if [ "$C_KIND" = release ]; then
+    if ! read_pending "$f" || ! check_plists "$f" ||
+       ! $CMP -s "$(launch_dir)/$C_LABEL.plist" "$f/plist.next" ||
+       ! verify_disk "$f/plist.prev" "$E_OLD" "$f/plist.next" ||
+       ! job_state "$C_LABEL" || ! loaded_registry_matches "$f/plist.next" "$C_LABEL" ||
+       ! loaded_arguments_match "$C_LABEL" "$E_OLD" "${E_ARGS[@]:5}" ||
+       [ "$(editor_data revision "$f/routine.json")" != "$P_BEFORE" ] ||
+       [ "$(plist_hash "$f/$E_ORIGIN")" != "$release_origin_hash" ]; then
+      die "release: the restored definition changed before publication; reconcile the pending transaction"
+      return 1
+    fi
+  elif [ "$C_KIND" = edit ]; then
+    if [ "$(editor_data revision "$f/routine.json.next")" != "$C_ID" ]; then
+      die "edit: staged manifest changed before publication"; return 1
+    fi
+    if [ "$C_SWAP" = 0 ]; then
+      verify_edit_base || { stage_fail "the installed definition changed"; return 3; }
+      edit_margins 5 || { stage_fail "a job is running or a slot is near"; return 2; }
+    elif ! read_pending "$f" || ! check_plists "$f" || ! verify_edit_identity "$E_PLIST" "$E_NEW" ||
+         ! $CMP -s "$E_PLIST" "$f/plist.next" || ! job_state "$C_LABEL" || ! loaded_matches "$E_PLIST" "$E_NEW"; then
+      rollback "the installed definition changed before publication"
+      [ -e "$f/pending" ] && return 1
+      return 3
+    fi
+  fi
   trap '' TERM INT HUP
   C_PHASE=commit
-  if [ "$C_KIND" = adopt ]; then
+  if [ "$C_KIND" != release ]; then
     mvp commit "$f/routine.json.next" "$f/routine.json" || { rollback "cannot commit the manifest"; return 1; }
   else
     mvp commit "$f/routine.json" "$f/routine.released.json" || { rollback "cannot commit the manifest"; return 1; }
@@ -992,6 +1069,7 @@ publish_and_commit() { # origin name (adopt)
   fi
   rmp prev "$f/plist.prev" || { die "$C_KIND $C_LABEL is done; a leftover stays for the next command"; return 1; }
   hold prev-deleted
+  if [ "$C_KIND" = edit ]; then /bin/rm -f "${f:?}/adopt.failed" || return 1; fi
   rmp pending "$f/pending" || { die "$C_KIND $C_LABEL is done; a leftover stays for the next command"; return 1; }
   return 0
 }
@@ -1011,7 +1089,7 @@ cmd_release() {
 }
 
 do_release() {
-  local folder="" d origin plist src
+  local folder="" d origin plist src release_origin_hash
   SELF=$(self_path) || SELF=""
   plist="$(launch_dir)/$C_LABEL.plist"
   for d in "$dir"/*/; do
@@ -1021,6 +1099,7 @@ do_release() {
   done
   if [ -z "$folder" ]; then die "refused: no adopted routine has the label $C_LABEL"; return 2; fi
   C_FOLDER="$folder"; C_NAME="${folder##*/}"
+  E_REV=$(editor_data revision "$folder/routine.json") || return 1
   src=$(manifest_get "$folder/routine.json" source)
   if [ "$src" != adopt ]; then die "refused: $C_NAME belongs to '$src', not to adopt"; return 2; fi
   origin=$(manifest_get "$folder/routine.json" origin)
@@ -1030,9 +1109,17 @@ do_release() {
   [ -f "$plist" ] || { die "refused: no plist at $plist"; return 2; }
   if ! is_wrapped "$plist" "$C_NAME"; then die "refused: $C_NAME is unwrapped (the plist lost the wrapper); run adopt $C_LABEL again first, so the hand-written plist becomes the new origin"; return 2; fi
   parse_slots "$plist" || { die "refused: $C_LABEL: $WHY"; return 2; }
+  if [ "$(editor_data calendar "$folder/routine.json")" != "$(calendar_key <<<"$SLOTS")" ]; then
+    die "refused: the installed calendar differs from routine.json; reconcile it before release"
+    return 2
+  fi
+  E_PLIST="$plist"; E_ORIGIN="$origin"; E_OLD=$(calendar_key <<<"$SLOTS")
+  release_origin_hash=$(plist_hash "$folder/$origin") || { die "cannot verify the saved origin"; return 2; }
+  verify_disk || { die "refused: the installed wrapper differs from the saved adoption"; return 2; }
   job_state "$C_LABEL"
   [ "$JOB_LOADED" = 1 ] || { die "refused: $C_LABEL is not loaded"; return 2; }
   [ "$JOB_RUNNING" = 0 ] || { die "refused: $C_LABEL is running"; return 2; }
+  loaded_matches "$plist" "$(calendar_key <<<"$SLOTS")" || { die "refused: the loaded job differs from the installed definition"; return 2; }
   if slot_within 10; then die "refused: a slot of $C_LABEL comes in less than 10 minutes"; return 2; fi
 
   C_ID=$(new_id)
@@ -1040,10 +1127,19 @@ do_release() {
   trap 'on_cmd_signal 143' TERM
   trap 'on_cmd_signal 130' INT
   trap 'on_cmd_signal 129' HUP
-  printf 'release\n%s\n' "$C_ID" >"$folder/pending" || { stage_fail "cannot write pending"; return 1; }
+  write_pending "$folder" release "$C_ID" "$E_REV" staging || { stage_fail "cannot write pending"; return 1; }
   save_prev "$plist" "$folder" || { stage_fail "cannot save the plist"; return 1; }
   hold staging
   if tf stage-next || ! /bin/cp "$folder/$origin" "$folder/plist.next"; then stage_fail "cannot stage the origin"; return 1; fi
+  # Keep the effective calendar when removing the wrapper. A matching origin
+  # can be restored byte for byte, as before.
+  local current_slots="$SLOTS"
+  parse_slots "$folder/plist.next" || { stage_fail "cannot read the saved calendar"; return 1; }
+  if [ "$current_slots" != "$SLOTS" ]; then
+    set_calendar "$folder/plist.next" "$current_slots" || { stage_fail "cannot preserve the edited calendar"; return 1; }
+  fi
+  SLOTS="$current_slots"
+  seal_plists "$folder" || { stage_fail "cannot seal staged plists"; return 1; }
   hold staged
   swap_job "$folder/plist.next" origin || return $?
   publish_and_commit "" || return $?
@@ -1118,13 +1214,18 @@ main() {
   local sub="${1:-}"
   [ "$#" -eq 0 ] || shift
   case "$sub" in
+    capabilities) editor_data capabilities ;;
+    edit|editor) cmd_editor "$sub" "$@" ;;
     run) cmd_run "$@" ;;
     adopt) cmd_adopt "$@" ;;
     release) cmd_release "$@" ;;
     status) cmd_status "$@" ;;
-    *) die "usage: routine.sh run|adopt|release|status ..."; return 2 ;;
+    *) die "usage: routine.sh run|adopt|release|status|capabilities|editor|edit ..."; return 2 ;;
   esac
 }
 
+case "${1:-}" in
+  adopt|release|edit|editor|capabilities) . "${ROUTINE_SELF%/*}/editor.sh" || exit 74 ;;
+esac
 main "$@"
 exit $?

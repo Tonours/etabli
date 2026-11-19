@@ -788,6 +788,8 @@ EOF
   wait_gone "$BGPID"
   wait "$BGPID"; eq $? 129 "pending HUP exit"
   eq "$(jf "$FOLDER/last.json" signal)" HUP "forwarded signal"
+  eq "$(jf "$FOLDER/runs.jsonl" exit)" 129 "journaled cancellation"
+  wait_lock_free "$FOLDER"
   [ ! -e "$CASE/a" ] || fail "the command ran without identity"
 }
 
