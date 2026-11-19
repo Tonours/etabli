@@ -424,8 +424,10 @@ top_keys() { pb Print "$1" | /usr/bin/sed -n 's/^    \([^ ][^ ]*\) = .*$/\1/p'; 
 read_args() {
   local i=0 v
   PARGS=()
-  while v=$(pb "Print :ProgramArguments:$i" "$1"); do
-    PARGS[$i]="$v"
+  # Keep literal trailing newlines distinct from PlistBuddy's output terminator.
+  while v=$(pb "Print :ProgramArguments:$i" "$1" && printf .); do
+    v=${v%.}
+    PARGS[$i]="${v%$'\n'}"
     i=$((i + 1))
     [ "$i" -lt 500 ] || break
   done
@@ -972,6 +974,10 @@ swap_job() { # new plist, what to verify (wrapper|origin|edit)
     if [ "$JOB_RUNNING" = 1 ]; then stage_fail "the job is running"; return 2; fi
     if slot_within 5; then stage_fail "a slot comes in less than 5 minutes"; return 2; fi
   fi
+  if [ "$want" = origin ] && { [ "$(plist_hash "$C_FOLDER/$E_ORIGIN")" != "$release_origin_hash" ] ||
+       [ "$(editor_data revision "$C_FOLDER/routine.json")" != "$P_BEFORE" ]; }; then
+    stage_fail "the saved adoption changed before release"; return 2
+  fi
   C_PHASE=swap
   C_SWAP=1
   "$LCTL" bootout "gui/$uid/$label" >/dev/null 2>&1 || { rollback "bootout failed"; return 1; }
@@ -1022,11 +1028,12 @@ publish_and_commit() { # origin name (adopt)
   hold verified
   if [ "$C_KIND" = release ]; then
     if ! read_pending "$f" || ! check_plists "$f" ||
-       [ "$(editor_data revision "$f/routine.json")" != "$P_BEFORE" ] ||
        ! $CMP -s "$(launch_dir)/$C_LABEL.plist" "$f/plist.next" ||
-       ! verify_disk "$f/plist.prev" "$E_OLD" ||
+       ! verify_disk "$f/plist.prev" "$E_OLD" "$f/plist.next" ||
        ! job_state "$C_LABEL" || ! loaded_registry_matches "$f/plist.next" "$C_LABEL" ||
-       ! loaded_arguments_match "$C_LABEL" "$E_OLD" "${E_ARGS[@]:5}"; then
+       ! loaded_arguments_match "$C_LABEL" "$E_OLD" "${E_ARGS[@]:5}" ||
+       [ "$(editor_data revision "$f/routine.json")" != "$P_BEFORE" ] ||
+       [ "$(plist_hash "$f/$E_ORIGIN")" != "$release_origin_hash" ]; then
       die "release: the restored definition changed before publication; reconcile the pending transaction"
       return 1
     fi
@@ -1079,7 +1086,7 @@ cmd_release() {
 }
 
 do_release() {
-  local folder="" d origin plist src
+  local folder="" d origin plist src release_origin_hash
   SELF=$(self_path) || SELF=""
   plist="$(launch_dir)/$C_LABEL.plist"
   for d in "$dir"/*/; do
@@ -1104,6 +1111,7 @@ do_release() {
     return 2
   fi
   E_PLIST="$plist"; E_ORIGIN="$origin"; E_OLD=$(calendar_key <<<"$SLOTS")
+  release_origin_hash=$(plist_hash "$folder/$origin") || { die "cannot verify the saved origin"; return 2; }
   verify_disk || { die "refused: the installed wrapper differs from the saved adoption"; return 2; }
   job_state "$C_LABEL"
   [ "$JOB_LOADED" = 1 ] || { die "refused: $C_LABEL is not loaded"; return 2; }

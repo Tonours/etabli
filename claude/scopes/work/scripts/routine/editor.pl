@@ -57,6 +57,39 @@ sub calendar_key {
 }
 
 my $op = shift;
+# Compare plist values with their types intact. Only the calendar and the
+# five arguments prepended by adoption are allowed to differ.
+if ($op eq 'same-definition') {
+    my ($plutil, @files) = @ARGV;
+    my @definitions;
+    for my $file (@files) {
+        # JSON conversion collapses integral reals into integers. The adoption
+        # schema permits no real, data or date values, even inside its dictionaries.
+        my %converted;
+        for my $format (qw(xml1 json)) {
+            open my $fh, '-|', $plutil, '-convert', $format, '-o', '-', '--', $file or exit 1;
+            local $/;
+            $converted{$format} = <$fh>;
+            close $fh or exit 1;
+        }
+        exit 1 if $converted{xml1} =~ /<(?:real|data|date)\b/;
+        my $definition = object($converted{json}) or exit 1;
+        my $calendar = $definition->{StartCalendarInterval};
+        my @slots = ref($calendar) eq 'ARRAY' ? @$calendar : ($calendar);
+        exit 1 unless @slots;
+        for my $slot (@slots) {
+            exit 1 unless ref($slot) eq 'HASH';
+            exit 1 if grep { $json->encode($_) !~ /\A[0-9]+\z/ } values %$slot;
+        }
+        my $args = $definition->{ProgramArguments};
+        exit 1 unless ref($args) eq 'ARRAY' && @$args && @$args <= 500;
+        exit 1 if grep { $json->encode($_) !~ /\A"/ || /[\x00\r\n]/ } @$args;
+        delete $definition->{StartCalendarInterval};
+        push @definitions, $definition;
+    }
+    splice @{$definitions[0]{ProgramArguments}}, 0, 5;
+    exit($json->encode($definitions[0]) eq $json->encode($definitions[1]) ? 0 : 1);
+}
 if ($op eq 'near') {
     my ($margin, $clock) = @ARGV;
     my $now = time();

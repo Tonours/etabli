@@ -92,7 +92,7 @@ sub parse_node {
     return ['array', \@a];
   }
   return ['array', []] if $$r =~ s{^<array/>}{};
-  return [$1, unesc($2)] if $$r =~ s{^<(string|integer)>(.*?)</\1>}{}s;
+  return [$1, unesc($2)] if $$r =~ s{^<(string|integer|real)>(.*?)</\1>}{}s;
   return ['string', ''] if $$r =~ s{^<string/>}{};
   return ['bool', $1] if $$r =~ s{^<(true|false)/>}{};
   die "unsupported element\n";
@@ -196,6 +196,22 @@ if ($mode eq 'events') {
   exit;
 }
 if ($mode eq 'plutil') {
+  if (@ARGV == 6 && join(' ', @ARGV[0..4]) eq '-convert xml1 -o - --') {
+    print emit(load_plist($ARGV[5]), 0); exit 0;
+  }
+  if (@ARGV == 6 && join(' ', @ARGV[0..4]) eq '-convert json -o - --') {
+    require JSON::PP;
+    sub json_value {
+      my ($kind, $value) = @{$_[0]};
+      return { map { $_->[0] => json_value($_->[1]) } @$value } if $kind eq 'dict';
+      return [map { json_value($_) } @$value] if $kind eq 'array';
+      return 0 + $value if $kind eq 'integer' || $kind eq 'real';
+      return $value eq 'true' ? JSON::PP::true() : JSON::PP::false() if $kind eq 'bool';
+      return "$value";
+    }
+    print JSON::PP::encode_json(json_value(load_plist($ARGV[5])));
+    exit 0;
+  }
   my ($flag, $file) = @ARGV;
   exit 64 unless defined $flag && $flag eq '-lint';
   eval { load_plist($file) };
@@ -271,6 +287,10 @@ case "${FAKE_LCTL_HOLD:-}" in
 esac
 case "$verb" in
   print)
+    if [ -e "$D/hold-print" ]; then
+      : >"$D/hold-print.reached"
+      while [ -e "$D/hold-print" ]; do /bin/sleep 0.1; done
+    fi
     if [ "$1" = gui/501 ]; then
       printf '%s = {\n\tinherited environment = {\n' "$1"
       if [ -f "$D/domain-env" ]; then cat "$D/domain-env"; else cat "$D/inherited"; fi
@@ -1588,7 +1608,9 @@ t_editor_pending_description_and_copy() {
 
 t_editor_initial_description_receipt() {
   editor_setup
-  held edit-intent edit "$NAME" "$REV" '{"description":"requested"}'; kill_held
+  held edit-intent edit "$NAME" "$REV" '{
+    "description": "requested"
+  }'; kill_held
   E editor "$NAME" || fail "reopen initial description intent"
   has "$CASE/out" '"pendingChanges":{"description":"requested"}' "original request"
   E edit "$NAME" "$REV" '{"description":"requested"}' || fail "resume initial description"
@@ -1706,6 +1728,52 @@ t_release_refuses_changed_origin_before_bootout() {
   pbt 'Add :WorkingDirectory string /private/tmp' "$origin" || fail "fixture origin setting"
   Rl "$L" && fail "released unsupported saved setting"
   untouched "$L" "unsupported saved setting"
+}
+
+t_release_refuses_trailing_newline_and_rechecks_sealed_origin() {
+  local origin
+  editor_setup
+  origin="$RD/$NAME/$(mval "$M" origin)"
+  /usr/bin/perl -pi -e 's{cron-run\.sh</string>}{cron-run.sh\n</string>}' "$origin"
+  Rl "$L" && fail "released a different argument"
+  untouched "$L" "argument with trailing newline"
+  editor_setup
+  origin="$RD/$NAME/$(mval "$M" origin)"
+  held staged release "$L"
+  pbt 'Set :ProgramArguments:1 changed' "$origin" || fail "fixture saved command"
+  : >"$CASE/h"
+  wait "$BGPID" && fail "released a changed saved command"
+  untouched "$L" "saved origin after sealing"
+}
+
+t_release_preserves_plist_types_and_checks_origin_at_publication() {
+  local origin plist
+  editor_setup
+  origin="$RD/$NAME/$(mval "$M" origin)"
+  /usr/bin/perl -0777 -pi -e 's{(<key>Minute</key>\s*)<integer>(\d+)</integer>}{${1}<string>$2</string>}' "$origin"
+  Rl "$L" && fail "accepted a string in the saved calendar"
+  untouched "$L" "saved calendar type"
+
+  editor_setup
+  origin="$RD/$NAME/$(mval "$M" origin)"
+  for plist in "$origin" "$AG/$L.plist" "$FK/loaded/$L"; do
+    pbt 'Add :Nice integer 1' "$plist" || fail "fixture priority"
+  done
+  E editor "$NAME" || fail "integer priority should match"
+  /usr/bin/perl -0777 -pi -e 's{(<key>Nice</key>\s*)<integer>1</integer>}{${1}<real>1.0</real>}' "$origin"
+  Rl "$L" && fail "accepted a real in place of an integer priority"
+  untouched "$L" "saved priority type"
+
+  editor_setup
+  origin="$RD/$NAME/$(mval "$M" origin)"
+  held verified release "$L"
+  : >"$FK/hold-print"
+  : >"$CASE/h"
+  wait_for "$FK/hold-print.reached"
+  pbt 'Set :ProgramArguments:1 changed' "$origin" || fail "fixture late origin"
+  rm "$FK/hold-print"
+  wait "$BGPID" && fail "retired registration after late origin drift"
+  [ -f "$M" ] && [ -f "$RD/$NAME/pending" ] || fail "lost recovery evidence"
 }
 
 t_release_late_loaded_drift() {

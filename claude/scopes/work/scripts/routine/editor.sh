@@ -125,24 +125,16 @@ $SLOTS"
 # Confirm the original command (every argument), the wrapper and both copies
 # of the calendar. Refuse unfamiliar launchctl output as unverifiable.
 verify_disk() {
-  local plist="${1:-$E_PLIST}" calendar="${2:-$E_OLD}" origin="${3:-$C_FOLDER/$E_ORIGIN}" i key saved active saved_status active_status
+  local plist="${1:-$E_PLIST}" calendar="${2:-$E_OLD}" origin="${3:-$C_FOLDER/$E_ORIGIN}"
   [ -f "$plist" ] && [ -O "$plist" ] && [ ! -L "$plist" ] &&
     [ "$(/usr/bin/wc -c <"$plist")" -le "$PLIST_MAX_BYTES" ] || return 1
   [ -f "$origin" ] && [ -O "$origin" ] && [ ! -L "$origin" ] &&
     [ "$(/usr/bin/wc -c <"$origin")" -le "$PLIST_MAX_BYTES" ] && validate_plist "$origin" "$C_LABEL" || return 1
+  if [ "$#" -ge 3 ] && [ "$(calendar_key <<<"$SLOTS")" != "$calendar" ]; then return 1; fi
   validate_plist "$plist" "$C_LABEL" && [ "$(calendar_key <<<"$SLOTS")" = "$calendar" ] || return 1
   is_wrapped "$plist" "$C_NAME" && [ "${PARGS[1]}" -ef "$ROUTINE_SELF" ] || return 1
-  # A calendar save reloads the complete plist. Preserve the adopted settings outside the calendar and wrapper.
-  for key in StandardOutPath StandardErrorPath EnvironmentVariables RunAtLoad Nice LowPriorityIO; do
-    saved=$(pb "Print :$key" "$origin"); saved_status=$?
-    active=$(pb "Print :$key" "$plist"); active_status=$?
-    [ "$saved_status" = "$active_status" ] && [ "$saved" = "$active" ] || return 1
-  done
   E_ARGS=("${PARGS[@]}")
-  read_args "$origin"
-  [ "$PARGC" -gt 0 ] && [ "${#E_ARGS[@]}" -eq "$((PARGC + 5))" ] || return 1
-  for ((i=0; i<PARGC; i++)); do [ "${E_ARGS[i+5]}" = "${PARGS[i]}" ] || return 1; done
-  return 0
+  editor_data same-definition "$PLUTIL" "$plist" "$origin"
 }
 
 verify_edit_identity() {
