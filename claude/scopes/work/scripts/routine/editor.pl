@@ -132,6 +132,10 @@ if ($op eq 'pending-changes') {
 }
 if ($op eq 'preview') {
     my ($original, $changes) = map { object($_) or exit 1 } @ARGV;
+    delete $changes->{description} if exists $changes->{description} &&
+        $changes->{description} eq $original->{fields}{description};
+    delete $changes->{slots} if exists $changes->{slots} &&
+        calendar_key($changes->{slots}) eq calendar_key($original->{fields}{slots});
     $original->{pendingChanges} = $changes;
     print $json->encode($original), "\n";
     exit;

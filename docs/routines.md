@@ -214,8 +214,9 @@ The read holds the existing adoption lock. For a verifiable interrupted save
 before publication, it returns the original manifest revision and fields, plus
 a `pendingChanges` object containing only the changed `description` and/or
 `slots`. Inspection leaves the records and job untouched. After explicit owner
-confirmation, pass that revision and `pendingChanges` to `edit`. An incomplete
-or unrecognized transaction returns the typed `recovery` error.
+confirmation, pass that revision and `pendingChanges` to `edit`. The producer records the requested fields before preparing replacement files, so the
+same confirmation can finish an interruption during staging. An unrecognized
+transaction returns the typed `recovery` error.
 
 Saving compares the manifest revision, label, plist path, wrapper, original
 arguments and calendar under the adoption lock. The installed plist and loaded

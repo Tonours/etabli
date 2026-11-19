@@ -41,10 +41,11 @@ plist_hash() { editor_data plist-hash "$1" "$PLIST_MAX_BYTES"; }
 # The folder inode binds a receipt to the registry verified while the service
 # was loaded, including the short interval when launchctl cannot describe it.
 write_pending() { # folder, kind, desired id, base revision, snapshot hashes or phase
-  local f="$1" identity
-  identity=$(editor_data folder-id "$f") &&
-    printf '%s\n' "$2" "$3" "$4" "$identity" "$5" >"$f/pending.next" &&
-    /bin/mv -f "$f/pending.next" "$f/pending"
+  local f="$1" identity temp
+  identity=$(editor_data folder-id "$f") && temp=$(/usr/bin/mktemp "$f/.pending.XXXXXX") || return 1
+  if printf '%s\n' "$2" "$3" "$4" "$identity" "$5" >"$temp" && /bin/mv -f "$temp" "$f/pending"; then return 0; fi
+  /bin/rm -f "$temp"
+  return 1
 }
 
 seal_plists() {
@@ -59,7 +60,9 @@ read_pending() {
   { IFS= read -r P_KIND && IFS= read -r P_AFTER && IFS= read -r P_BEFORE &&
     IFS= read -r folder_id && IFS= read -r P_PROOF && ! IFS= read -r extra; } <"$f/pending" &&
     [ "$folder_id" = "$(editor_data folder-id "$f")" ] && [ -n "$folder_id" ] &&
-    [[ $P_BEFORE =~ ^[0-9a-f]{64}$ ]]
+    [[ $P_BEFORE =~ ^[0-9a-f]{64}$ ]] || return 1
+  P_INTENT=""
+  if [[ $P_PROOF = "staging "* ]]; then P_INTENT=${P_PROOF#staging }; P_PROOF=staging; fi
 }
 
 check_plists() {
@@ -122,11 +125,11 @@ $SLOTS"
 # Confirm the original command (every argument), the wrapper and both copies
 # of the calendar. Refuse unfamiliar launchctl output as unverifiable.
 verify_disk() {
-  local plist="${1:-$E_PLIST}" calendar="${2:-$E_OLD}" origin="$C_FOLDER/$E_ORIGIN" i key saved active saved_status active_status
+  local plist="${1:-$E_PLIST}" calendar="${2:-$E_OLD}" origin="${3:-$C_FOLDER/$E_ORIGIN}" i key saved active saved_status active_status
   [ -f "$plist" ] && [ -O "$plist" ] && [ ! -L "$plist" ] &&
     [ "$(/usr/bin/wc -c <"$plist")" -le "$PLIST_MAX_BYTES" ] || return 1
   [ -f "$origin" ] && [ -O "$origin" ] && [ ! -L "$origin" ] &&
-    [ "$(pb 'Print :Label' "$origin")" = "$C_LABEL" ] || return 1
+    [ "$(/usr/bin/wc -c <"$origin")" -le "$PLIST_MAX_BYTES" ] && validate_plist "$origin" "$C_LABEL" || return 1
   validate_plist "$plist" "$C_LABEL" && [ "$(calendar_key <<<"$SLOTS")" = "$calendar" ] || return 1
   is_wrapped "$plist" "$C_NAME" && [ "${PARGS[1]}" -ef "$ROUTINE_SELF" ] || return 1
   # A calendar save reloads the complete plist. Preserve the adopted settings outside the calendar and wrapper.
@@ -245,6 +248,19 @@ pending_edit() {
   if [ "$op" = edit ] && [ "$expected" != "$P_BEFORE" ]; then
     edit_error conflict 'Reopen the routine before retrying this edit.'; return 1
   fi
+  if [ "$P_PROOF" = staging ] && [ -n "$P_INTENT" ]; then
+    # Staging precedes every service operation. Rebuild partial files only after
+    # matching the durable intent and verifying the unchanged installed base.
+    [ "$base" = "$P_BEFORE" ] && inspect_request "$base" "$P_INTENT" >/dev/null &&
+      [ "$C_ID" = "$P_AFTER" ] && verify_edit_base || { pending_error; return 1; }
+    if [ "$op" = editor ]; then
+      inspect_request "" '{}' >/dev/null && editor_data preview "$response" "$P_INTENT"
+      return $?
+    fi
+    inspect_request "$expected" "$1" || return 1
+    [ "$C_ID" = "$P_AFTER" ] || { edit_error conflict 'Retry the original pending change.'; return 1; }
+    perform_edit "$1"; return $?
+  fi
   [ "$base" = "$P_BEFORE" ] && [ "$P_PROOF" != staging ] &&
     [ "$(editor_data revision "$C_FOLDER/routine.json.next")" = "$P_AFTER" ] ||
     { pending_error; return 1; }
@@ -362,11 +378,13 @@ perform_edit() {
   trap 'on_cmd_signal 143' TERM
   trap 'on_cmd_signal 130' INT
   trap 'on_cmd_signal 129' HUP
-  if ! write_pending "$C_FOLDER" edit "$C_ID" "$E_REV" staging ||
-     ! (umask 077; printf '%s\n' "$next" >"$C_FOLDER/routine.json.next") ||
+  write_pending "$C_FOLDER" edit "$C_ID" "$E_REV" "staging $1" || { edit_failure; return 1; }
+  hold edit-intent
+  if ! (umask 077; printf '%s\n' "$next" >"$C_FOLDER/routine.json.next") ||
      ! /usr/bin/perl -e 'my @s=stat $ARGV[0]; @s && chmod($s[2]&0777, $ARGV[1]) or exit 1' "$manifest" "$C_FOLDER/routine.json.next"; then
     stage_fail "cannot stage the manifest"; edit_error apply 'Check the records directory permissions and retry.'; return 1
   fi
+  hold edit-manifest-staged
   if [ "$E_NEW" != "$E_OLD" ]; then
     if ! save_prev "$E_PLIST" "$C_FOLDER" || ! /bin/cp "$C_FOLDER/plist.prev" "$C_FOLDER/plist.next" ||
        ! set_calendar "$C_FOLDER/plist.next" "$(printf '%s' "$E_NEW" | /usr/bin/tr '|' '\n')" ||

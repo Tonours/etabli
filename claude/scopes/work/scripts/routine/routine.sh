@@ -965,7 +965,8 @@ swap_job() { # new plist, what to verify (wrapper|origin|edit)
   else
     job_state "$label"
     if [ "$JOB_LOADED" != 1 ]; then stage_fail "the job is no longer loaded"; return 2; fi
-    if [ "$want" = origin ] && { ! $CMP -s "$C_FOLDER/plist.prev" "$dst" || ! loaded_matches "$dst" "$(calendar_key <<<"$SLOTS")"; }; then
+    if [ "$want" = origin ] && { ! $CMP -s "$C_FOLDER/plist.prev" "$dst" ||
+        ! verify_disk "$dst" "$E_OLD" "$new" || ! loaded_matches "$dst" "$E_OLD"; }; then
       stage_fail "the loaded definition changed before release"; return 2
     fi
     if [ "$JOB_RUNNING" = 1 ]; then stage_fail "the job is running"; return 2; fi

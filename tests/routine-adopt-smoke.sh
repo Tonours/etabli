@@ -1586,9 +1586,18 @@ t_editor_pending_description_and_copy() {
   untouched "$L" "description crash and retry"
 }
 
+t_editor_initial_description_receipt() {
+  editor_setup
+  held edit-intent edit "$NAME" "$REV" '{"description":"requested"}'; kill_held
+  E editor "$NAME" || fail "reopen initial description intent"
+  has "$CASE/out" '"pendingChanges":{"description":"requested"}' "original request"
+  E edit "$NAME" "$REV" '{"description":"requested"}' || fail "resume initial description"
+  untouched "$L" "description-only staging"
+}
+
 t_editor_interrupted_preview() {
   local pt change='{"description":"updated","slots":[{"hour":13,"minute":42}]}'
-  for pt in staged unloaded moved-swap bootstrapped verified; do
+  for pt in edit-intent edit-manifest-staged staged unloaded moved-swap bootstrapped verified; do
     editor_setup
     held "$pt" edit "$NAME" "$REV" "$change"; kill_held
     local snapshot=$(snap "$RD")
@@ -1681,6 +1690,22 @@ t_editor_unloaded_plist_drift() {
     has "$CASE/out.h" '"code":"recovery"' "disk drift at $pt"
     [ -f "$RD/$NAME/pending" ] && [ ! -e "$FK/loaded/$L" ] || fail "missing recovery state"
   done
+}
+
+t_release_refuses_changed_origin_before_bootout() {
+  local origin
+  editor_setup
+  origin="$RD/$NAME/$(mval "$M" origin)"
+  held staging release "$L"
+  pbt 'Set :ProgramArguments:1 changed' "$origin" || fail "fixture origin command"
+  touch "$CASE/h"
+  wait "$BGPID" && fail "released changed arguments"
+  untouched "$L" "staged command"
+  editor_setup
+  origin="$RD/$NAME/$(mval "$M" origin)"
+  pbt 'Add :WorkingDirectory string /private/tmp' "$origin" || fail "fixture origin setting"
+  Rl "$L" && fail "released unsupported saved setting"
+  untouched "$L" "unsupported saved setting"
 }
 
 t_release_late_loaded_drift() {
