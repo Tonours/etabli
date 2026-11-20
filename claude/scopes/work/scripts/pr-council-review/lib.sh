@@ -103,12 +103,35 @@ extract_result() {
   jq -r .result "$1"
 }
 
+hook_refusal_ids() {
+  local ids
+  if [ -r "$1" ] && ids="$(jq -cRn '[inputs | fromjson? | select(type == "object" and .type == "user")
+    | .message.content[]? | select(type == "object" and .type == "tool_result" and .is_error == true)
+    | select((.content | if type == "array" then map(.text? // "") | join("") else tostring end)
+      | test("^PreToolUse:[A-Za-z_]+ hook error: "))
+    | .tool_use_id | strings]' "$1" 2>/dev/null)"; then
+    printf '%s\n' "$ids"
+  else
+    echo '[]'
+  fi
+}
+
 check_denials() {
-  local count denials
-  if ! count="$(jq -e '.permission_denials | if type == "array" then length else error("not an array") end' "$1" 2>/dev/null)" \
-    || ! denials="$(jq -r '.permission_denials[] | "\(.tool_name): \(.tool_input.command // .tool_input.file_path // (.tool_input | tostring))"' "$1" 2>/dev/null)"; then
+  local count denials refused_count refused hooks
+  hooks="$(hook_refusal_ids "$1.stream")"
+  local list='.permission_denials | if type == "array" then . else error("not an array") end'
+  local refusal='(.tool_use_id as $id | $id != null and ($hooks | index($id)) != null)'
+  local line='"\(.tool_name): \(.tool_input.command // .tool_input.file_path // (.tool_input | tostring))"'
+  if ! count="$(jq -e --argjson hooks "$hooks" "$list | map(select($refusal | not)) | length" "$1" 2>/dev/null)" \
+    || ! denials="$(jq -r --argjson hooks "$hooks" "$list | .[] | select($refusal | not) | $line" "$1" 2>/dev/null)" \
+    || ! refused_count="$(jq -e --argjson hooks "$hooks" "$list | map(select($refusal)) | length" "$1" 2>/dev/null)" \
+    || ! refused="$(jq -r --argjson hooks "$hooks" "$list | .[] | select($refusal) | $line" "$1" 2>/dev/null)"; then
     echo "=== cannot read permission denials from $1, the pass is unverified" >&2
     return 2
+  fi
+  if [ "$refused_count" -gt 0 ]; then
+    echo "=== $refused_count hook refusal(s), not a veto:" >&2
+    printf '%s\n' "$refused" >&2
   fi
   [ "$count" -gt 0 ] || return 0
   echo "=== $count permission denial(s), the pass is incomplete:" >&2
