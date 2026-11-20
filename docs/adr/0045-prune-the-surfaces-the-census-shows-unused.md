@@ -18,7 +18,8 @@ bar, this change deletes:
   the installer step. Measured savings were 1.8 % of tokens in November, while
   its prefixes cost a rule in every prompt and a bypass list in the hook
   checks. `rtk-guard.mjs` joins the retired hook names, so
-  `claude-hooks-merge` removes the installed entry.
+  `claude-hooks-merge` removes the installed entry. ADR-0049 keeps a bare
+  `rtk hook claude` the owner installs.
 - Cold contracts, read in at most a couple of sessions: `contract-details.md`,
   `memory.md`, `project-constraints.md`, `verification-report-template.md`,
   the evidence-pack schema and template, and the `long-loop`,

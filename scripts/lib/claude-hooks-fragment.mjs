@@ -69,15 +69,8 @@ export const RETIRED_HOOK_COMMANDS = Object.freeze([
   ...["outcome-metric-emit.mjs", "proof-shadow.mjs", "plan-ready-guard.mjs", "plan-commit-guard.mjs", "ledger-auto-emit.mjs", "correction-emit.mjs", "notification-classify.mjs", "session-state.mjs", "detect-adr-signal.mjs", "rtk-guard.mjs"].map(
     (name) => `node "\${CLAUDE_CONFIG_DIR:-$HOME/.claude}/hooks/${name}"`,
   ),
-  "rtk hook claude",
 ]);
 
-const SIMPLE_RTK_CLAUDE_HOOK = /^[ \t]*(?:[A-Za-z0-9_.\/-]*\/)?rtk(?:[ \t]+-[A-Za-z0-9_-]+)*[ \t]+hook[ \t]+claude(?:[ \t]+-[A-Za-z0-9_-]+)*[ \t]*$/;
-
-function isSimpleRtkClaudeHook(command) {
-  return SIMPLE_RTK_CLAUDE_HOOK.test(command);
-}
-
 export function isRetiredHookCommand(command) {
-  return typeof command === "string" && (RETIRED_HOOK_COMMANDS.includes(command) || isSimpleRtkClaudeHook(command));
+  return typeof command === "string" && RETIRED_HOOK_COMMANDS.includes(command);
 }
