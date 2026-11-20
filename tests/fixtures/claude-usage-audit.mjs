@@ -94,7 +94,7 @@ export function writeFixture(dir, now = Date.now()) {
     assistant({ sid: "sess-sdk", ts: at(29), id: "b-assign", model: "claude-sonnet-5-5", u: "invalid", content: [{ type: "tool_use", id: "bash-assign", name: "Bash", input: { command: `API_TOKEN=x/${MARKER}` } }, { type: "tool_use", id: "bash-path", name: "Bash", input: { command: `$(cat ${MARKER})` } }] }),
     toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-assign-res", toolUseId: "bash-assign", chars: 40 }),
     toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-path-res", toolUseId: "bash-path", chars: 40 }),
-    assistant({ sid: "sess-sdk", ts: at(29), id: "b-escaped", model: "claude-sonnet-5-5", u: null, content: [{ type: "tool_use", id: "bash-escaped", name: "Bash", input: { command: `export TOKEN=part1\\ ${MARKER}` } }] }),
+    assistant({ sid: "sess-sdk", ts: at(29), id: "b-escaped", model: "claude-sonnet-5-5", u: null, content: [{ type: "tool_use", id: "bash-escaped", name: "Bash", input: { command: `export TOKEN=part1\\ echo` } }] }),
     toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-escaped-res", toolUseId: "bash-escaped", chars: 40 }),
     { type: "assistant", sessionId: "sess-sdk", timestamp: { toString: null }, message: { id: "msg-badts", model: "claude-sonnet-5-5", usage: usage(1, 0, 0, 1) } },
     assistant({ sid: "sess-sdk", ts: at(28), id: "b3", model: "constructor", u: usage(1, 0, 0, 2) }),

@@ -56,6 +56,8 @@ describe("claude-usage-audit", () => {
     const words = Object.keys(out.f_toolResults.bashTopLeadingWords);
     assert.ok(words.includes("(assignment)"), words.join(" "));
     assert.ok(words.includes("(other)"), words.join(" "));
+    assert.equal(out.f_toolResults.bashTopLeadingWords["(assignment)"].count, 2);
+    assert.equal(words.includes("echo"), false);
   });
 
   test("buckets Bash result sizes on inclusive upper bounds", () => {

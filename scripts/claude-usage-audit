@@ -121,12 +121,13 @@ const RTK_PASSTHRU = new Set(['bypass', 'proxy', 'run']);
 function bashLead(cmd) {
   let s = (typeof cmd === 'string' ? cmd : '').trim();
   let viaRtk = false;
+  const assigned = /^(export\s+)?[A-Za-z_][A-Za-z0-9_]*=/.test(s);
   for (let guard = 0; guard < 20; guard++) {
     const before = s;
     s = s.replace(/^#[^\n]*\n\s*/, '');
     s = s.replace(/^cd\s+("[^"]*"|'[^']*'|\S+)\s*(&&|;|\n)\s*/, '');
-    s = s.replace(/^(export\s+)?[A-Za-z_][A-Za-z0-9_]*=("[^"]*"|'[^']*'|\S*)\s*(&&|;|\n)\s*/, '');
-    s = s.replace(/^(export\s+)?[A-Za-z_][A-Za-z0-9_]*=("[^"]*"|'[^']*'|\S*)\s+/, '');
+    s = s.replace(/^(export\s+)?[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\\.|[^\s"'\\])*\s*(&&|;|\n)\s*/, '');
+    s = s.replace(/^(export\s+)?[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\\.|[^\s"'\\])*(\s+|$)/, '');
     s = s.replace(/^(source|\.)\s+\S+\s*(&&|;)\s*/, '');
     s = s.replace(/^(time|sudo|command|exec|nohup)\s+/, '');
     s = s.replace(/^timeout\s+\S+\s+/, '');
@@ -140,7 +141,7 @@ function bashLead(cmd) {
     }
     if (s === before) break;
   }
-  let w = s.split(/[\s;|&]+/)[0] || '(empty)';
+  let w = s.split(/[\s;|&]+/)[0] || (assigned ? '(assignment)' : '(empty)');
   w = w.replace(/^["']|["']$/g, '');
   if (w.includes('=')) return { word: '(assignment)', viaRtk };
   if (w.includes('/')) w = path.basename(w);
@@ -149,7 +150,7 @@ function bashLead(cmd) {
 const SHELL_WORDS = ['.', '[', '[[', 'alias', 'break', 'case', 'cd', 'command', 'continue', 'declare', 'echo', 'eval', 'exec', 'exit', 'export', 'false', 'for', 'function', 'if', 'local', 'printf', 'pwd', 'read', 'return', 'set', 'shift', 'source', 'test', 'trap', 'true', 'type', 'unset', 'until', 'wait', 'while'];
 let knownWords = null;
 function safeWord(w) {
-  if (w === '(empty)') return w;
+  if (w === '(empty)' || w === '(assignment)') return w;
   if (w.includes('=')) return '(assignment)';
   if (!knownWords) {
     knownWords = new Set(SHELL_WORDS);
