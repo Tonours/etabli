@@ -142,6 +142,7 @@ function bashLead(cmd) {
   }
   let w = s.split(/[\s;|&]+/)[0] || '(empty)';
   w = w.replace(/^["']|["']$/g, '');
+  if (w.includes('=')) return { word: '(assignment)', viaRtk };
   if (w.includes('/')) w = path.basename(w);
   return { word: safeWord(w.slice(0, 40)), viaRtk };
 }
@@ -243,7 +244,7 @@ async function processFile(file) {
       if (o.type === 'assistant') {
         schema.assistantLinesTotal += 1;
         const u = m.usage;
-        if (!u) { schema.assistantNoUsage += 1; continue; }
+        if (u == null) { schema.assistantNoUsage += 1; continue; }
         if (typeof u !== 'object' || Array.isArray(u)) { schema.parseErrors += 1; continue; }
         if (m.model === '<synthetic>') { schema.syntheticModelTurns += 1; continue; }
         const id = [m.id, o.uuid].find((x) => typeof x === 'string' && x);
