@@ -1,7 +1,7 @@
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -56,13 +56,14 @@ describe("claude-usage-audit", () => {
     const words = Object.keys(out.f_toolResults.bashTopLeadingWords);
     assert.ok(words.includes("(assignment)"), words.join(" "));
     assert.ok(words.includes("(other)"), words.join(" "));
-    assert.equal(out.f_toolResults.bashTopLeadingWords["(assignment)"].count, 2);
+    assert.equal(out.f_toolResults.bashTopLeadingWords["(assignment)"].count, 3);
     assert.equal(words.includes("echo"), false);
+    assert.equal(words.includes("git"), false);
   });
 
   test("buckets Bash result sizes on inclusive upper bounds", () => {
     const calls = Object.fromEntries(out.f_toolResults.bashResultSizeHistogram.map((b) => [b.bucket, b.calls]));
-    assert.deepEqual(calls, { "<=4000": 4, "<=8000": 1, "<=15000": 1, "<=20000": 1, "<=30000": 1, "<=50000": 0, "<=128000": 0, ">128000": 1 });
+    assert.deepEqual(calls, { "<=4000": 6, "<=8000": 1, "<=15000": 1, "<=20000": 1, "<=30000": 1, "<=50000": 0, "<=128000": 0, ">128000": 1 });
     const chars = out.f_toolResults.bashResultSizeHistogram.reduce((sum, b) => sum + b.chars, 0);
     assert.equal(chars, expected.bashResultChars);
   });
@@ -83,8 +84,14 @@ describe("claude-usage-audit", () => {
       const missing = audit("--claude-dir", empty);
       assert.equal(missing.status, 2);
       assert.match(missing.stderr, /cannot read .*projects/);
-      mkdirSync(join(empty, "projects"));
+      mkdirSync(join(empty, "projects", "locked"), { recursive: true });
+      chmodSync(join(empty, "projects", "locked"), 0);
       const child = audit("--claude-dir", empty);
+      chmodSync(join(empty, "projects", "locked"), 0o700);
+      if (process.getuid?.() !== 0) {
+        assert.equal(JSON.parse(child.stdout).schema.unreadableDirs, 1);
+        assert.match(child.stderr, /skipped unreadable .*locked/);
+      }
       assert.equal(child.status, 0, child.stderr);
       const result = JSON.parse(child.stdout);
       assert.equal(result.a_total.turns, 0);

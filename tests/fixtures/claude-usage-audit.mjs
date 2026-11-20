@@ -7,7 +7,7 @@
  * mixes Opus and Sonnet turns, one with a non-numeric token count. The sdk
  * session carries a non-string cwd, tool name and timestamp, two non-object usages,
  * Bash commands whose first word is an assignment, an escaped assignment value or a
- * substitution, and a model named
+ * substitution (bare or inside an assignment or a cd target), and a model named
  * like an Object property; none may drop later turns. A Bash call just before the
  * window returns inside it and must keep its bucket; an older Bash call with a
  * non-string command must not drop later rows. sess-resumed started before the
@@ -71,8 +71,8 @@ export function writeFixture(dir, now = Date.now()) {
   writeFileSync(join(project, "sess-resumed.jsonl"), jsonl([
     assistant({ sid: "sess-resumed", ts: new Date(now - 8 * 86400e3).toISOString(), id: "r0", u: usage(1, 0, 15000, 1), extra: { entrypoint: "cli" } }),
     assistant({ sid: "sess-resumed", ts: new Date(now - 30 * 86400e3).toISOString(), id: "old", u: usage(999, 0, 0, 999) }),
-    assistant({ sid: "sess-resumed", ts: at(7 * 1440 + 1), id: "early", u: usage(1, 0, 0, 1), content: [{ type: "tool_use", id: "bash-early", name: "Bash", input: { command: "ls" } }] }),
-    toolResult({ sid: "sess-resumed", ts: at(7 * 1440 - 1), uuid: "u-res-early", toolUseId: "bash-early", chars: 30000 }),
+    assistant({ sid: "sess-resumed", ts: at(7 * 1440 + 60), id: "early", u: usage(1, 0, 0, 1), content: [{ type: "tool_use", id: "bash-early", name: "Bash", input: { command: "ls" } }] }),
+    toolResult({ sid: "sess-resumed", ts: at(7 * 1440 - 60), uuid: "u-res-early", toolUseId: "bash-early", chars: 30000 }),
     { type: "assistant", sessionId: "sess-resumed", timestamp: at(8 * 1440), message: { id: "msg-oddcmd", content: [{ type: "tool_use", id: "bash-odd", name: "Bash", input: { command: { toString: null } } }] } },
     assistant({ sid: "sess-resumed", ts: at(20), id: "r1", u: usage(1, 90000, 0, 3), extra: { perTurnEffort: { toString: null } } }),
   ]));
@@ -96,6 +96,9 @@ export function writeFixture(dir, now = Date.now()) {
     toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-path-res", toolUseId: "bash-path", chars: 40 }),
     assistant({ sid: "sess-sdk", ts: at(29), id: "b-escaped", model: "claude-sonnet-5-5", u: null, content: [{ type: "tool_use", id: "bash-escaped", name: "Bash", input: { command: `export TOKEN=part1\\ echo` } }] }),
     toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-escaped-res", toolUseId: "bash-escaped", chars: 40 }),
+    assistant({ sid: "sess-sdk", ts: at(29), id: "b-subst", model: "claude-sonnet-5-5", u: null, content: [{ type: "tool_use", id: "bash-subst", name: "Bash", input: { command: "export LABEL=$(echo git )" } }, { type: "tool_use", id: "bash-cdsubst", name: "Bash", input: { command: "cd $(echo /tmp) && git status" } }] }),
+    toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-subst-res", toolUseId: "bash-subst", chars: 40 }),
+    toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-cdsubst-res", toolUseId: "bash-cdsubst", chars: 40 }),
     { type: "assistant", sessionId: "sess-sdk", timestamp: { toString: null }, message: { id: "msg-badts", model: "claude-sonnet-5-5", usage: usage(1, 0, 0, 1) } },
     assistant({ sid: "sess-sdk", ts: at(28), id: "b3", model: "constructor", u: usage(1, 0, 0, 2) }),
     assistant({ sid: "sess-sdk", ts: at(29), id: "b2", model: "claude-sonnet-5-5", u: usage(10, 40000, 220000, 20) }),
@@ -104,7 +107,7 @@ export function writeFixture(dir, now = Date.now()) {
   return {
     bashSizes,
     bashExtraCalls: 2,
-    bashResultChars: [...bashSizes, 30000, 40, 40, 40].reduce((a, b) => a + b, 0),
+    bashResultChars: [...bashSizes, 30000, 40, 40, 40, 40, 40].reduce((a, b) => a + b, 0),
     mainTurns: 8,
     subagentTurns: 4,
     firstTurnCtx: { cli: 20010, "sdk-cli": 40010 },

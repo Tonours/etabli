@@ -119,15 +119,15 @@ function userText(msg) {
 }
 const RTK_PASSTHRU = new Set(['bypass', 'proxy', 'run']);
 function bashLead(cmd) {
-  let s = (typeof cmd === 'string' ? cmd : '').trim();
+  const full = (typeof cmd === 'string' ? cmd : '').trim();
+  let s = full;
   let viaRtk = false;
-  const assigned = /^(export\s+)?[A-Za-z_][A-Za-z0-9_]*=/.test(s);
+  const expanded = () => /[$`\\]/.test(full.slice(0, full.length - s.length));
   for (let guard = 0; guard < 20; guard++) {
     const before = s;
     s = s.replace(/^#[^\n]*\n\s*/, '');
     s = s.replace(/^cd\s+("[^"]*"|'[^']*'|\S+)\s*(&&|;|\n)\s*/, '');
-    s = s.replace(/^(export\s+)?[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\\.|[^\s"'\\])*\s*(&&|;|\n)\s*/, '');
-    s = s.replace(/^(export\s+)?[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\\.|[^\s"'\\])*(\s+|$)/, '');
+    if (/^(export\s+)?[A-Za-z_][A-Za-z0-9_]*=/.test(s)) return { word: '(assignment)', viaRtk };
     s = s.replace(/^(source|\.)\s+\S+\s*(&&|;)\s*/, '');
     s = s.replace(/^(time|sudo|command|exec|nohup)\s+/, '');
     s = s.replace(/^timeout\s+\S+\s+/, '');
@@ -137,11 +137,12 @@ function bashLead(cmd) {
       s = s.replace(/^rtk\s+/, '');
       const sub = s.split(/\s+/)[0];
       if (RTK_PASSTHRU.has(sub)) s = s.replace(/^\S+\s+/, '');
-      else return { word: `rtk ${safeWord(sub)}`, viaRtk };
+      else return { word: expanded() ? '(other)' : `rtk ${safeWord(sub)}`, viaRtk };
     }
     if (s === before) break;
   }
-  let w = s.split(/[\s;|&]+/)[0] || (assigned ? '(assignment)' : '(empty)');
+  if (expanded()) return { word: '(other)', viaRtk };
+  let w = s.split(/[\s;|&]+/)[0] || '(empty)';
   w = w.replace(/^["']|["']$/g, '');
   if (w.includes('=')) return { word: '(assignment)', viaRtk };
   if (w.includes('/')) w = path.basename(w);
@@ -164,7 +165,11 @@ function safeWord(w) {
 // ---------- file discovery ----------
 async function walk(dir, out) {
   let ents;
-  try { ents = await fs.readdir(dir, { withFileTypes: true }); } catch { return; }
+  try { ents = await fs.readdir(dir, { withFileTypes: true }); } catch (e) {
+    schema.unreadableDirs += 1;
+    console.error(`claude-usage-audit: skipped unreadable ${dir} (${e.code || e.message})`);
+    return;
+  }
   for (const e of ents) {
     const p = path.join(dir, e.name);
     if (e.isDirectory()) await walk(p, out);
@@ -180,7 +185,7 @@ const seenUuid = new Set();
 const seenToolResult = new Set();
 const toolUseInfo = new Map();  // tool_use id -> {name, lead, viaRtk}
 const agentMeta = new Map();    // agentId -> meta
-const schema = { assistantLinesTotal: 0, assistantLinesDuplicate: 0, assistantNoUsage: 0, cacheCreationUnsplit: 0, sidechainInMainFile: 0, subagentFilesWithoutMeta: 0, parseErrors: 0, linesSkippedApiRequest: 0, filesScanned: 0, bytesScanned: 0, effortFieldMissing: 0, syntheticModelTurns: 0 };
+const schema = { assistantLinesTotal: 0, assistantLinesDuplicate: 0, assistantNoUsage: 0, cacheCreationUnsplit: 0, sidechainInMainFile: 0, subagentFilesWithoutMeta: 0, parseErrors: 0, linesSkippedApiRequest: 0, filesScanned: 0, bytesScanned: 0, effortFieldMissing: 0, syntheticModelTurns: 0, unreadableDirs: 0 };
 
 const records = []; // deduped assistant turns
 const toolChars = new Map(); // group -> {calls, chars, images, mainChars, subChars}
