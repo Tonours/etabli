@@ -7,9 +7,9 @@ import { backupFile, machineLocalNames, writeJsonAtomic } from "./surfaces.mjs";
 const [localPath, trackedPath, dryRunRaw, timestamp, mode, homeDir] =
   process.argv.slice(2);
 const dryRun = dryRunRaw === "1";
-if (!localPath || !trackedPath || !["deploy", "install"].includes(mode)) {
+if (!localPath || !trackedPath || !["deploy", "install", "check"].includes(mode)) {
   console.error(
-    "usage: claude-settings-sync.mjs <local> <tracked> <dryRun> <timestamp> <deploy|install> [home]",
+    "usage: claude-settings-sync.mjs <local> <tracked> <dryRun> <timestamp> <deploy|install|check> [home]",
   );
   process.exit(2);
 }
@@ -24,13 +24,32 @@ const SCALAR_KEYS = new Set([
 ]);
 const PERMISSION_KEYS = new Set(["defaultMode"]);
 const ATTRIBUTION_KEYS = new Set(["commit", "pr"]);
-const ENV_KEYS = new Set(["CLAUDE_CODE_SUBAGENT_MODEL"]);
+const ENV_KEYS = new Set([
+  "CLAUDE_CODE_SUBAGENT_MODEL",
+  "CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS",
+]);
+const NUMERIC_KEYS = new Map([
+  ["autoCompactWindow", { min: 100000, max: undefined }],
+  ["bashOutputMaxChars", { min: 4000, max: 128000 }],
+  ["skillListingMaxDescChars", { min: 1, max: undefined }],
+]);
+const EFFORTS = new Set(["low", "medium", "high", "xhigh"]);
+const MODEL_ID = /^claude-[a-z0-9-]+$/;
 const ALLOWED_TOP_LEVEL = new Set([
   "skillOverrides",
   "permissions",
   "attribution",
   "env",
+  "modelSettings",
+  ...NUMERIC_KEYS.keys(),
   ...SCALAR_KEYS,
+]);
+const GATES = new Map([
+  ["env.CLAUDE_CODE_SUBAGENT_MODEL", [2, 1, 251]],
+  ["env.CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS", [2, 1, 299]],
+  ["modelSettings", [2, 1, 251]],
+  ["autoCompactWindow", [2, 1, 288]],
+  ["bashOutputMaxChars", [2, 1, 261]],
 ]);
 
 function fail(message) {
@@ -125,6 +144,50 @@ if (tracked.env !== undefined) {
     if (typeof value !== "string" || value.length === 0) {
       fail(`env[${name}] must be a non-empty string`);
     }
+    if (
+      name === "CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS" &&
+      (!/^[1-9]\d*$/.test(value) ||
+        !Number.isSafeInteger(Number(value)) ||
+        Number(value) < 100000)
+    ) {
+      fail(`env[${name}] must be a decimal string of at least 100000`);
+    }
+  }
+}
+for (const [key, { min, max }] of NUMERIC_KEYS) {
+  const value = tracked[key];
+  if (value === undefined) continue;
+  if (
+    !Number.isInteger(value) ||
+    value < min ||
+    (max !== undefined && value > max)
+  ) {
+    fail(
+      `${key} must be an integer ${max === undefined ? `of at least ${min}` : `between ${min} and ${max}`}`,
+    );
+  }
+}
+if (tracked.modelSettings !== undefined) {
+  if (
+    typeof tracked.modelSettings !== "object" ||
+    tracked.modelSettings === null ||
+    Array.isArray(tracked.modelSettings)
+  ) {
+    fail("modelSettings must be an object");
+  }
+  for (const [id, entry] of Object.entries(tracked.modelSettings)) {
+    if (!MODEL_ID.test(id)) fail(`modelSettings key ${JSON.stringify(id)} is not a model id`);
+    if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+      fail(`modelSettings[${id}] must be an object`);
+    }
+    for (const field of Object.keys(entry)) {
+      if (field !== "effortLevel") {
+        fail(`modelSettings[${id}].${field} is not allowed; permitted fields: effortLevel`);
+      }
+    }
+    if (!EFFORTS.has(entry.effortLevel)) {
+      fail(`modelSettings[${id}].effortLevel must be one of ${[...EFFORTS].join(", ")}`);
+    }
   }
 }
 for (const key of SCALAR_KEYS) {
@@ -164,15 +227,75 @@ if (
   fail("local settings env must be an object; refusing to merge");
 }
 
-let managedEnv = tracked.env;
-if (Object.keys(managedEnv ?? {}).length > 0) {
+function isPlainObject(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+const gatedWanted = [
+  ...Object.keys(tracked.env ?? {}).map((name) => `env.${name}`),
+  ...(tracked.modelSettings !== undefined ? ["modelSettings"] : []),
+  ...[...NUMERIC_KEYS.keys()].filter((key) => tracked[key] !== undefined && GATES.has(key)),
+];
+let probed = null;
+if (gatedWanted.length > 0) {
   const version = spawnSync("claude", ["--version"], { encoding: "utf8", timeout: 5000, maxBuffer: 4096 });
   const match = /^(\d+)\.(\d+)\.(\d+)(?:\s|$)/.exec(version.stdout ?? "");
-  const [major, minor, patch] = match ? match.slice(1).map(Number) : [];
-  const supported = !version.error && version.status === 0 && (major > 2 || (major === 2 && (minor > 1 || (minor === 1 && patch >= 251))));
-  if (!supported) {
-    console.error("WARN           Claude env default skipped: requires Claude Code >=2.1.251 on PATH; install/upgrade it and rerun deploy");
-    managedEnv = undefined;
+  if (!version.error && version.status === 0 && match) probed = match.slice(1).map(Number);
+}
+function gatedOut(label) {
+  const gate = GATES.get(label);
+  if (!gate) return false;
+  const ok =
+    probed !== null &&
+    (probed[0] > gate[0] ||
+      (probed[0] === gate[0] &&
+        (probed[1] > gate[1] || (probed[1] === gate[1] && probed[2] >= gate[2]))));
+  if (!ok) {
+    console.error(
+      `WARN           ${label} skipped: requires Claude Code >=${gate.join(".")} on PATH; install/upgrade it and rerun deploy`,
+    );
+  }
+  return !ok;
+}
+
+let managedEnv = tracked.env;
+if (managedEnv !== undefined) {
+  managedEnv = Object.fromEntries(
+    Object.entries(managedEnv).filter(([name]) => !gatedOut(`env.${name}`)),
+  );
+  if (Object.keys(managedEnv).length === 0) managedEnv = undefined;
+}
+let managedModelSettings = tracked.modelSettings;
+if (managedModelSettings !== undefined && gatedOut("modelSettings")) {
+  managedModelSettings = undefined;
+}
+if (managedModelSettings !== undefined && localSettings.modelSettings !== undefined) {
+  if (!isPlainObject(localSettings.modelSettings)) {
+    fail("local settings modelSettings must be an object; refusing to merge");
+  }
+  for (const id of Object.keys(managedModelSettings)) {
+    const entry = localSettings.modelSettings[id];
+    if (entry !== undefined && !isPlainObject(entry)) {
+      fail(`local settings modelSettings[${id}] must be an object; refusing to merge`);
+    }
+  }
+}
+const managedNumerics = {};
+for (const key of NUMERIC_KEYS.keys()) {
+  if (tracked[key] !== undefined && !gatedOut(key)) managedNumerics[key] = tracked[key];
+}
+
+if (managedNumerics.autoCompactWindow !== undefined && isPlainObject(localSettings.modelSettings)) {
+  for (const [id, entry] of Object.entries(localSettings.modelSettings)) {
+    if (
+      isPlainObject(entry) &&
+      Object.hasOwn(entry, "autoCompactWindow") &&
+      entry.autoCompactWindow !== managedNumerics.autoCompactWindow
+    ) {
+      console.error(
+        `WARN           local modelSettings.${MODEL_ID.test(id) ? id : "<model>"}.autoCompactWindow overrides the tracked autoCompactWindow for that model`,
+      );
+    }
   }
 }
 
@@ -246,6 +369,12 @@ function trackedMatchesLocal() {
       return false;
     }
   }
+  for (const [key, value] of Object.entries(managedNumerics)) {
+    if (localSettings[key] !== value) return false;
+  }
+  for (const [id, entry] of Object.entries(managedModelSettings ?? {})) {
+    if (localSettings.modelSettings?.[id]?.effortLevel !== entry.effortLevel) return false;
+  }
   return true;
 }
 
@@ -258,11 +387,20 @@ if (unchanged) {
   process.exit(0);
 }
 
+if (mode === "check") {
+  console.log(
+    "DRIFT          Claude tracked settings differ from the tracked fragment; run scripts/deploy-agent-workflow --apply",
+  );
+  process.exit(1);
+}
+
 const keyCount = Object.keys(trackedMap).length;
 const settingsKeyCount =
   Object.keys(tracked.permissions ?? {}).length +
   Object.keys(tracked.attribution ?? {}).length +
   Object.keys(managedEnv ?? {}).length +
+  Object.keys(managedModelSettings ?? {}).length +
+  Object.keys(managedNumerics).length +
   [...SCALAR_KEYS].filter((key) => tracked[key] !== undefined).length;
 if (dryRun) {
   if (mode === "deploy") {
@@ -271,6 +409,18 @@ if (dryRun) {
     );
   }
   process.exit(0);
+}
+
+function hasUnsafeNumber(value, seen = new Set()) {
+  if (typeof value === "number") {
+    return !Number.isFinite(value) || (Number.isInteger(value) && !Number.isSafeInteger(value));
+  }
+  if (typeof value !== "object" || value === null || seen.has(value)) return false;
+  seen.add(value);
+  return Object.values(value).some((child) => hasUnsafeNumber(child, seen));
+}
+if (!localMissing && hasUnsafeNumber(localSettings)) {
+  fail("local settings hold a number that cannot round-trip through JSON; refusing to rewrite");
 }
 
 const backup = localMissing ? null : backupFile(localPath, { stamp: timestamp });
@@ -299,6 +449,16 @@ if (!localMissing && mode === "deploy") {
       console.log(`SET            ${key} -> ${tracked[key]}`);
     }
   }
+  for (const [id, entry] of Object.entries(managedModelSettings ?? {}).sort(
+    ([a], [b]) => a.localeCompare(b),
+  )) {
+    console.log(`SET            modelSettings.${id}.effortLevel -> ${entry.effortLevel}`);
+  }
+  for (const [key, value] of Object.entries(managedNumerics).sort(([a], [b]) =>
+    a.localeCompare(b),
+  )) {
+    console.log(`SET            ${key} -> ${value}`);
+  }
 }
 
 localSettings.skillOverrides = mergedMap;
@@ -321,6 +481,19 @@ for (const key of SCALAR_KEYS) {
   if (tracked[key] !== undefined) {
     localSettings[key] = tracked[key];
   }
+}
+if (
+  managedModelSettings !== undefined &&
+  (Object.keys(managedModelSettings).length > 0 || localSettings.modelSettings !== undefined)
+) {
+  const merged = { ...(localSettings.modelSettings ?? {}) };
+  for (const [id, entry] of Object.entries(managedModelSettings)) {
+    merged[id] = { ...(merged[id] ?? {}), effortLevel: entry.effortLevel };
+  }
+  localSettings.modelSettings = merged;
+}
+for (const [key, value] of Object.entries(managedNumerics)) {
+  localSettings[key] = value;
 }
 writeJsonAtomic(localPath, localSettings);
 
