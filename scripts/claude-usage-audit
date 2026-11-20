@@ -136,14 +136,19 @@ function bashLead(cmd) {
       s = s.replace(/^rtk\s+/, '');
       const sub = s.split(/\s+/)[0];
       if (RTK_PASSTHRU.has(sub)) s = s.replace(/^\S+\s+/, '');
-      else return { word: `rtk ${sub}`, viaRtk };
+      else return { word: `rtk ${safeWord(sub)}`, viaRtk };
     }
     if (s === before) break;
   }
   let w = s.split(/[\s;|&]+/)[0] || '(empty)';
   w = w.replace(/^["']|["']$/g, '');
   if (w.includes('/')) w = path.basename(w);
-  return { word: w.slice(0, 40), viaRtk };
+  return { word: safeWord(w.slice(0, 40)), viaRtk };
+}
+function safeWord(w) {
+  if (w === '(empty)') return w;
+  if (w.includes('=')) return '(assignment)';
+  return /^[\w.+:@%-]+$/.test(w) ? w : '(other)';
 }
 
 // ---------- file discovery ----------
@@ -239,6 +244,7 @@ async function processFile(file) {
         schema.assistantLinesTotal += 1;
         const u = m.usage;
         if (!u) { schema.assistantNoUsage += 1; continue; }
+        if (typeof u !== 'object' || Array.isArray(u)) { schema.parseErrors += 1; continue; }
         if (m.model === '<synthetic>') { schema.syntheticModelTurns += 1; continue; }
         const id = [m.id, o.uuid].find((x) => typeof x === 'string' && x);
         if (!id) { schema.parseErrors += 1; continue; }
@@ -324,7 +330,15 @@ async function processFile(file) {
 // ---------- run ----------
 const t0 = Date.now();
 const files = [];
-await walk(path.join(CLAUDE_DIR, 'projects'), files);
+const projectsDir = path.join(CLAUDE_DIR, 'projects');
+try {
+  if (!(await fs.stat(projectsDir)).isDirectory()) throw new Error('not a directory');
+  await fs.readdir(projectsDir);
+} catch (e) {
+  console.error(`claude-usage-audit: cannot read ${projectsDir} (${e.code || e.message})`);
+  process.exit(2);
+}
+await walk(projectsDir, files);
 // Main files first so tool_use maps and session cwd exist; order inside does not matter for usage.
 files.sort((a, b) => Number(/\/subagents\//.test(a)) - Number(/\/subagents\//.test(b)));
 for (const f of files) {

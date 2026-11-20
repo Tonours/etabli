@@ -1,7 +1,7 @@
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,7 +33,7 @@ describe("claude-usage-audit", () => {
     assert.equal(out.schema.dedupedAssistantTurns, expected.mainTurns + expected.subagentTurns);
     assert.equal(out.schema.assistantLinesDuplicate, 1);
     assert.equal(out.schema.syntheticModelTurns, 1);
-    assert.equal(out.schema.parseErrors, 6);
+    assert.equal(out.schema.parseErrors, 7);
     assert.equal(out.a_total.output, 100 + 80 + 7 + 20 + 20 + 40 + 40 + 10 + 5 + 2 + 3 + 4);
     assert.equal(out.a_total.input, 10 + 5 + 1 + 10 + 1 + 10 + 10 + 10 + 10 + 1 + 1);
     assert.equal(out.a_tokensByModel.constructor.main.output, 2);
@@ -52,9 +52,15 @@ describe("claude-usage-audit", () => {
     assert.deepEqual(out.b_subagents.agentToolCallsBySubagentTypeAndModelParam, { "general-purpose|(unset)": 1 });
   });
 
+  test("never prints assignment values or odd leading words", () => {
+    const words = Object.keys(out.f_toolResults.bashTopLeadingWords);
+    assert.ok(words.includes("(assignment)"), words.join(" "));
+    assert.ok(words.includes("(other)"), words.join(" "));
+  });
+
   test("buckets Bash result sizes on inclusive upper bounds", () => {
     const calls = Object.fromEntries(out.f_toolResults.bashResultSizeHistogram.map((b) => [b.bucket, b.calls]));
-    assert.deepEqual(calls, { "<=4000": 1, "<=8000": 1, "<=15000": 1, "<=20000": 1, "<=30000": 1, "<=50000": 0, "<=128000": 0, ">128000": 1 });
+    assert.deepEqual(calls, { "<=4000": 3, "<=8000": 1, "<=15000": 1, "<=20000": 1, "<=30000": 1, "<=50000": 0, "<=128000": 0, ">128000": 1 });
     const chars = out.f_toolResults.bashResultSizeHistogram.reduce((sum, b) => sum + b.chars, 0);
     assert.equal(chars, expected.bashResultChars);
   });
@@ -72,6 +78,10 @@ describe("claude-usage-audit", () => {
   test("handles a home without transcripts and rejects a bad window", () => {
     const empty = mkdtempSync(join(tmpdir(), "usage-audit-empty-"));
     try {
+      const missing = audit("--claude-dir", empty);
+      assert.equal(missing.status, 2);
+      assert.match(missing.stderr, /cannot read .*projects/);
+      mkdirSync(join(empty, "projects"));
       const child = audit("--claude-dir", empty);
       assert.equal(child.status, 0, child.stderr);
       const result = JSON.parse(child.stdout);
