@@ -7,3 +7,7 @@ cf7178da6e81fa5e8ac199215ae4e6dd92742135:claude/benchmarks/token-budget/manifest
 cf7178da6e81fa5e8ac199215ae4e6dd92742135:claude/benchmarks/token-budget/manifest.v2.json:generic-api-key:250
 d350541c8b7e71b30df3d101cfab0f394064b519:pi/extensions/__tests__/filter-output.test.ts:generic-api-key:81
 d5c38f08ba7244622112be07e226cbd4c9929689:t8b-runs/2026-09-25/campaign-freeze.json:generic-api-key:94
+def4e638b133994a460cadaf5d15c5cb397e67c8:t8b-runs/2026-09-25/campaign-freeze.json:generic-api-key:94
+0e1edecb7f4fcd0ec47d653629517d7138da038a:tests/jev-shadow-smoke.sh:curl-auth-header:23
+5dbbf0c7f0bd23c5cdec99fc84d45f173157cbbe:claude/benchmarks/token-budget/manifest.v2.json:generic-api-key:231
+5dbbf0c7f0bd23c5cdec99fc84d45f173157cbbe:claude/benchmarks/token-budget/manifest.v2.json:generic-api-key:250
