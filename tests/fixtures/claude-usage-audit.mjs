@@ -14,7 +14,9 @@
  * non-string command must not drop later rows. sess-resumed started before the
  * window: its in-window turn is not a first turn, and its effort is not a string. Its subagent
  * starts just inside the window: the parent's model comes from a turn before it. agent-locked's
- * meta file is made unreadable by the test.
+ * meta file is made unreadable by the test. sess-stale's file was last written before the window,
+ * yet its in-window subagent still finds the parent's model. b-split streams one cache write
+ * unsplit, then split into the 1h bucket: it counts once, in 1h.
  * Two files without session ids are two sessions: the old one never marks the new one resumed.
  * MARKER also sits in printed metadata (model, effort, entrypoint, compaction trigger, meta
  * agentType and model, tool name): each must print as a class. The cli session switches to
@@ -23,7 +25,7 @@
  * The new one also carries a non-string compaction trigger and two id-less turns,
  * which cannot be deduplicated and count as parse errors, not turns.
  */
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 export const MARKER = "FABRICATED_CONTENT_MARKER";
@@ -94,6 +96,17 @@ export function writeFixture(dir, now = Date.now()) {
   ]));
   writeFileSync(join(project, "sess-cli", "subagents", "agent-locked.jsonl"), jsonl([]));
   writeFileSync(join(project, "sess-cli", "subagents", "agent-locked.meta.json"), "{}");
+  const stale = new Date(now - 8 * 86400e3);
+  writeFileSync(join(project, "sess-stale.jsonl"), jsonl([
+    assistant({ sid: "sess-stale", ts: stale.toISOString(), id: "st0", model: "claude-opus-5-5", u: usage(0, 0, 0, 1) }),
+  ]));
+  utimesSync(join(project, "sess-stale.jsonl"), stale, stale);
+  mkdirSync(join(project, "sess-stale", "subagents"), { recursive: true });
+  writeFileSync(join(project, "sess-stale", "subagents", "agent-stale.meta.json"), JSON.stringify({ agentType: "stale-parent" }));
+  writeFileSync(join(project, "sess-stale", "subagents", "agent-stale.jsonl"), jsonl([
+    assistant({ sid: "sess-stale", ts: at(30), id: "sa1", model: "claude-opus-5-5", u: usage(0, 0, 0, 1), extra: { isSidechain: true } }),
+  ]));
+
   writeFileSync(join(project, "nosid-old.jsonl"), jsonl([
     { type: "user", timestamp: new Date(now - 9 * 86400e3).toISOString(), uuid: "u-nosid-old", message: { content: "x" } },
   ]));
@@ -123,19 +136,21 @@ export function writeFixture(dir, now = Date.now()) {
     toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-rtk-res", toolUseId: "bash-rtk", chars: 40 }),
     toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-notrtk-res", toolUseId: "bash-notrtk", chars: 40 }),
     { type: "assistant", sessionId: "sess-sdk", timestamp: { toString: null }, message: { id: "msg-badts", model: "claude-sonnet-5-5", usage: usage(1, 0, 0, 1) } },
+    assistant({ sid: "sess-sdk", ts: at(28), id: "b-split", model: "claude-sonnet-5-5", u: { input_tokens: 0, cache_creation_input_tokens: 10000, cache_read_input_tokens: 0, output_tokens: 1 } }),
+    assistant({ sid: "sess-sdk", ts: at(28), id: "b-split", model: "claude-sonnet-5-5", u: usage(0, 0, 10000, 1) }),
     assistant({ sid: "sess-sdk", ts: at(28), id: "b3", model: "constructor", u: usage(1, 0, 0, 2), extra: { effort: MARKER } }),
     assistant({ sid: "sess-sdk", ts: at(29), id: "b2", model: "claude-sonnet-5-5", u: usage(10, 40000, 220000, 20) }),
   ]));
 
   return {
-    // Counted turns: cli a1 a2 a-switch a4, subagents s1..s4 and l1, resumed r1, nosid n1, sdk b1 b3 b2.
-    totalOutput: 100 + 80 + 1 + 7 + 40 + 40 + 10 + 5 + 3 + 4 + 20 + 2 + 20 + 1,
-    totalInput: 10 + 5 + 1 + 1 + 10 + 10 + 10 + 0 + 1 + 1 + 10 + 1 + 10 + 0,
+    // Counted turns: cli a1 a2 a-switch a4, subagents s1..s4, l1 and sa1, b-split, resumed r1, nosid n1, sdk b1 b3 b2.
+    totalOutput: 100 + 80 + 1 + 7 + 40 + 40 + 10 + 5 + 3 + 4 + 20 + 2 + 20 + 1 + 1 + 1,
+    totalInput: 10 + 5 + 1 + 1 + 10 + 10 + 10 + 0 + 1 + 1 + 10 + 1 + 10 + 0 + 0 + 0,
     // malformed json, null line, timestamp object, b-falsy, b-assign, two id-less turns, trigger object.
     parseErrors: 8,
     bashResultChars: [...bashSizes, 30000, 40, 40, 40, 40, 40, 40, 40, 40, 40].reduce((a, b) => a + b, 0),
-    mainTurns: 9,
-    subagentTurns: 5,
+    mainTurns: 10,
+    subagentTurns: 6,
     firstTurnCtx: { cli: 20010, "sdk-cli": 40010 },
   };
 }

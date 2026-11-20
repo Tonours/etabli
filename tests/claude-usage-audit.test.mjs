@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import { MARKER, writeFixture } from "./fixtures/claude-usage-audit.mjs";
 
 const script = fileURLToPath(new URL("../scripts/claude-usage-audit", import.meta.url));
+const skipped = (file) => new RegExp(`skipped unreadable ${file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\(`);
 const audit = (...args) => spawnSync(process.execPath, [script, ...args], { encoding: "utf8" });
 
 describe("claude-usage-audit", () => {
@@ -36,11 +37,12 @@ describe("claude-usage-audit", () => {
 
   test("dedups streamed lines and skips synthetic, malformed and out-of-window rows", () => {
     assert.equal(out.schema.dedupedAssistantTurns, expected.mainTurns + expected.subagentTurns);
-    assert.equal(out.schema.assistantLinesDuplicate, 1);
+    assert.equal(out.schema.assistantLinesDuplicate, 2);
     assert.equal(out.schema.syntheticModelTurns, 1);
     assert.equal(out.schema.parseErrors, expected.parseErrors);
     assert.equal(out.a_total.output, expected.totalOutput);
     assert.equal(out.a_total.input, expected.totalInput);
+    assert.deepEqual([out.a_tokensByModel["claude-sonnet-5-5"].main.cacheWrite5m, out.a_tokensByModel["claude-sonnet-5-5"].main.cacheWrite1h], [0, 40000 + 220000 + 10000]);
   });
 
   test("keeps the reference top-level sections", () => {
@@ -59,7 +61,7 @@ describe("claude-usage-audit", () => {
   test("reports an unreadable subagent meta file", () => {
     if (process.getuid?.() === 0) return;
     assert.equal(out.schema.unreadableFiles, 1);
-    assert.match(stderr, /skipped unreadable \S*agent-locked\.meta\.json \(/);
+    assert.match(stderr, skipped(join(dir, "projects", "-tmp-fabricated-project", "sess-cli", "subagents", "agent-locked.meta.json")));
   });
 
   test("resolves tool results after every file, whatever the order", () => {
@@ -73,8 +75,9 @@ describe("claude-usage-audit", () => {
     assert.deepEqual(out.b_subagents.byType["(other)"].ranOnModel, { "claude-opus-5-5": 1 });
     assert.equal(out.b_subagents.differentModelFromParent, 1);
     assert.equal(out.b_subagents.byModel["claude-sonnet-5-5"].tokens.output, 40 + 40 + 5);
-    assert.equal(out.b_subagents.byModel["claude-opus-5-5"].tokens.output, 10 + 1);
-    assert.equal(out.b_subagents.runs, 3);
+    assert.equal(out.b_subagents.byModel["claude-opus-5-5"].tokens.output, 10 + 1 + 1);
+    assert.equal(out.b_subagents.runs, 4);
+    assert.equal(out.b_subagents.byType["stale-parent"].sameModelAsParent, 1);
     assert.equal(out.b_subagents.byType["late-start"].sameModelAsParent, 1);
     assert.equal(out.b_subagents.parentModelUnknown, 0);
     assert.deepEqual(out.b_subagents.agentToolCallsBySubagentTypeAndModelParam, { "general-purpose|(unset)": 1, "(other)|(other)": 1, "general-purpose|sonnet": 1 });
@@ -121,8 +124,8 @@ describe("claude-usage-audit", () => {
         assert.equal(schema.unreadableDirs, 1);
         assert.equal(schema.unreadableFiles, 1);
         assert.equal(schema.filesScanned, 0);
-        assert.match(child.stderr, /skipped unreadable \S*locked \(/);
-        assert.match(child.stderr, /skipped unreadable \S*locked\.jsonl \(/);
+        assert.match(child.stderr, skipped(join(empty, "projects", "locked")));
+        assert.match(child.stderr, skipped(join(empty, "projects", "locked.jsonl")));
       }
       assert.equal(child.status, 0, child.stderr);
       const result = JSON.parse(child.stdout);

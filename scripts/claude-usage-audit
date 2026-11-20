@@ -159,7 +159,7 @@ async function walk(dir, out) {
     const p = path.join(dir, e.name);
     if (e.isDirectory()) await walk(p, out);
     else if (e.isFile() && e.name.endsWith('.jsonl')) {
-      try { const st = await fs.stat(p); if (st.mtimeMs >= START) out.push(p); } catch { /* vanished */ }
+      try { const st = await fs.stat(p); out.push({ file: p, recent: st.mtimeMs >= START }); } catch { /* vanished */ }
     }
   }
 }
@@ -306,8 +306,9 @@ async function processFile(file) {
         if (!id) { schema.parseErrors += 1; continue; }
         const key = `${id}|${typeof o.requestId === 'string' ? o.requestId : ''}`;
         const cc = count(u.cache_creation_input_tokens);
-        let cw5m = cc, cw1h = 0;
+        let cw5m = cc, cw1h = 0, split = false;
         if (u.cache_creation && (u.cache_creation.ephemeral_1h_input_tokens != null || u.cache_creation.ephemeral_5m_input_tokens != null)) {
+          split = true;
           cw1h = count(u.cache_creation.ephemeral_1h_input_tokens);
           cw5m = count(u.cache_creation.ephemeral_5m_input_tokens);
         } else if (cc) schema.cacheCreationUnsplit += 1;
@@ -318,12 +319,15 @@ async function processFile(file) {
         const prev = seenMsg.get(key);
         if (prev) {
           schema.assistantLinesDuplicate += 1;
-          for (const f of ['input', 'cw5m', 'cw1h', 'cr', 'output', 'thinking']) prev.tok[f] = Math.max(prev.tok[f], tok[f]);
+          for (const f of ['input', 'cr', 'output', 'thinking']) prev.tok[f] = Math.max(prev.tok[f], tok[f]);
+          // A split row wins over an unsplit one: maxing the buckets separately would count one write twice.
+          if (split && !prev.split) { prev.tok.cw5m = cw5m; prev.tok.cw1h = cw1h; prev.split = true; }
+          else if (split === prev.split) for (const f of ['cw5m', 'cw1h']) prev.tok[f] = Math.max(prev.tok[f], tok[f]);
           continue;
         }
         if (o.effort == null && o.perTurnEffort == null) schema.effortFieldMissing += 1;
         const effort = [o.perTurnEffort, o.effort].find((x) => typeof x === 'string' && x);
-        const rec = { ts, sid, sidechain, agentId, model: typeof m.model === 'string' && m.model ? modelClass(m.model) : '(none)', tok, effort: effort ? effortClass(effort) : '(none)', cwd: o.cwd };
+        const rec = { ts, sid, sidechain, agentId, split, model: typeof m.model === 'string' && m.model ? modelClass(m.model) : '(none)', tok, effort: effort ? effortClass(effort) : '(none)', cwd: o.cwd };
         seenMsg.set(key, rec);
         records.push(rec);
         continue;
@@ -389,7 +393,16 @@ try {
   console.error(`claude-usage-audit: cannot read ${projectsDir} (${e.code || e.message})`);
   process.exit(2);
 }
-await walk(projectsDir, files);
+const found = [];
+await walk(projectsDir, found);
+// Files written in the window, plus the session file and sibling agent files of every recent
+// subagent file: a parent last written before the cutoff still gives its model at spawn.
+const sessionOf = (f) => /^(.*)\/subagents\/agent-[^/]+\.jsonl$/.exec(f)?.[1];
+const recentSessions = new Set(found.filter((f) => f.recent).map((f) => sessionOf(f.file)).filter(Boolean));
+for (const { file, recent } of found) {
+  const owner = sessionOf(file) ?? file.replace(/\.jsonl$/, '');
+  if (recent || recentSessions.has(owner)) files.push(file);
+}
 for (const f of files) {
   try { await processFile(f); } catch (e) {
     schema.unreadableFiles += 1;
