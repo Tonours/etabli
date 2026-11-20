@@ -6,8 +6,8 @@
  * JSON null line followed by a valid turn that must still count. Subagent sub2
  * mixes Opus and Sonnet turns, one with a non-numeric token count. The sdk
  * session carries a non-string cwd, tool name and timestamp, two non-object usages,
- * Bash commands whose first word is an assignment, an escaped assignment value or a
- * substitution or quote (bare, inside an assignment or in a cd target), and a model named
+ * Bash commands built to tempt a command-word parser (assignments, substitutions,
+ * quotes), one rtk call behind cd and an assignment, one not, and a model named
  * like an Object property; none may drop later turns. A Bash call just before the
  * window returns inside it and must keep its bucket; an older Bash call with a
  * non-string command must not drop later rows. sess-resumed started before the
@@ -96,10 +96,13 @@ export function writeFixture(dir, now = Date.now()) {
     toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-path-res", toolUseId: "bash-path", chars: 40 }),
     assistant({ sid: "sess-sdk", ts: at(29), id: "b-escaped", model: "claude-sonnet-5-5", u: null, content: [{ type: "tool_use", id: "bash-escaped", name: "Bash", input: { command: `export TOKEN=part1\\ echo` } }] }),
     toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-escaped-res", toolUseId: "bash-escaped", chars: 40 }),
-    assistant({ sid: "sess-sdk", ts: at(29), id: "b-subst", model: "claude-sonnet-5-5", u: null, content: [{ type: "tool_use", id: "bash-subst", name: "Bash", input: { command: "export LABEL=$(echo git )" } }, { type: "tool_use", id: "bash-cdsubst", name: "Bash", input: { command: "cd $(echo /tmp) && git status" } }, { type: "tool_use", id: "bash-cdquote", name: "Bash", input: { command: 'cd foo";"echo' } }] }),
+    assistant({ sid: "sess-sdk", ts: at(29), id: "b-subst", model: "claude-sonnet-5-5", u: null, content: [{ type: "tool_use", id: "bash-subst", name: "Bash", input: { command: "export LABEL=$(echo git )" } }, { type: "tool_use", id: "bash-cdsubst", name: "Bash", input: { command: "cd $(echo /tmp) && git status" } }, { type: "tool_use", id: "bash-cdquote", name: "Bash", input: { command: 'cd foo";"echo' } }, { type: "tool_use", id: "bash-ifs", name: "Bash", input: { command: "$(echo${IFS}/git )" } }, { type: "tool_use", id: "bash-rtk", name: "Bash", input: { command: "cd /tmp && FOO=1 rtk git status" } }, { type: "tool_use", id: "bash-notrtk", name: "Bash", input: { command: "echo rtk status" } }] }),
     toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-subst-res", toolUseId: "bash-subst", chars: 40 }),
     toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-cdsubst-res", toolUseId: "bash-cdsubst", chars: 40 }),
     toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-cdquote-res", toolUseId: "bash-cdquote", chars: 40 }),
+    toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-ifs-res", toolUseId: "bash-ifs", chars: 40 }),
+    toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-rtk-res", toolUseId: "bash-rtk", chars: 40 }),
+    toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-notrtk-res", toolUseId: "bash-notrtk", chars: 40 }),
     { type: "assistant", sessionId: "sess-sdk", timestamp: { toString: null }, message: { id: "msg-badts", model: "claude-sonnet-5-5", usage: usage(1, 0, 0, 1) } },
     assistant({ sid: "sess-sdk", ts: at(28), id: "b3", model: "constructor", u: usage(1, 0, 0, 2) }),
     assistant({ sid: "sess-sdk", ts: at(29), id: "b2", model: "claude-sonnet-5-5", u: usage(10, 40000, 220000, 20) }),
@@ -108,7 +111,7 @@ export function writeFixture(dir, now = Date.now()) {
   return {
     bashSizes,
     bashExtraCalls: 2,
-    bashResultChars: [...bashSizes, 30000, 40, 40, 40, 40, 40, 40].reduce((a, b) => a + b, 0),
+    bashResultChars: [...bashSizes, 30000, 40, 40, 40, 40, 40, 40, 40, 40, 40].reduce((a, b) => a + b, 0),
     mainTurns: 8,
     subagentTurns: 4,
     firstTurnCtx: { cli: 20010, "sdk-cli": 40010 },

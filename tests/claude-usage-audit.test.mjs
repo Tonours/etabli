@@ -52,18 +52,16 @@ describe("claude-usage-audit", () => {
     assert.deepEqual(out.b_subagents.agentToolCallsBySubagentTypeAndModelParam, { "general-purpose|(unset)": 1 });
   });
 
-  test("never prints assignment values or odd leading words", () => {
-    const words = Object.keys(out.f_toolResults.bashTopLeadingWords);
-    assert.ok(words.includes("(assignment)"), words.join(" "));
-    assert.ok(words.includes("(other)"), words.join(" "));
-    assert.equal(out.f_toolResults.bashTopLeadingWords["(assignment)"].count, 3);
-    assert.equal(words.includes("echo"), false);
-    assert.equal(words.includes("git"), false);
+  test("prints no Bash command words", () => {
+    assert.equal("bashTopLeadingWords" in out.f_toolResults, false);
+    for (const word of ["echo", "git", "cat", "API_TOKEN", "LABEL"]) assert.equal(raw.includes(`"${word}`), false, word);
+    assert.equal(out.f_toolResults.bashCallsTotal, Object.values(out.f_toolResults.bashResultSizeHistogram).reduce((n, b) => n + b.calls, 0));
+    assert.equal(out.f_toolResults.bashCallsExplicitRtk, 1);
   });
 
   test("buckets Bash result sizes on inclusive upper bounds", () => {
     const calls = Object.fromEntries(out.f_toolResults.bashResultSizeHistogram.map((b) => [b.bucket, b.calls]));
-    assert.deepEqual(calls, { "<=4000": 7, "<=8000": 1, "<=15000": 1, "<=20000": 1, "<=30000": 1, "<=50000": 0, "<=128000": 0, ">128000": 1 });
+    assert.deepEqual(calls, { "<=4000": 10, "<=8000": 1, "<=15000": 1, "<=20000": 1, "<=30000": 1, "<=50000": 0, "<=128000": 0, ">128000": 1 });
     const chars = out.f_toolResults.bashResultSizeHistogram.reduce((sum, b) => sum + b.chars, 0);
     assert.equal(chars, expected.bashResultChars);
   });
