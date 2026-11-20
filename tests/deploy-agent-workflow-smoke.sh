@@ -670,13 +670,36 @@ live_check() {
 }
 # A fixture home cannot own the repo's pi/extensions/node_modules link, so that
 # one issue stays reported; the healthy neighbor has no unresolved entry.
+SETTINGS_BEFORE="$(cat "$LIVE_HOME/.claude/settings.json")"
+BACKUPS_BEFORE="$({ ls "$LIVE_HOME/.claude/"settings.json.bak.* 2>/dev/null || true; } | wc -l)"
 live_check "$TMP_DIR/live-bin:/usr/bin:/bin" >"$TMP_DIR/live-ok.out" 2>&1 || :
 grep -q '^Summary: .* 0 unresolved' "$TMP_DIR/live-ok.out" && ! grep -q '^FAIL' "$TMP_DIR/live-ok.out" || {
   printf 'live check failed on a healthy home:\n' >&2
   cat "$TMP_DIR/live-ok.out" >&2
   exit 1
 }
-grep -q 'Claude tracked settings' "$TMP_DIR/live-ok.out" && { printf 'check mode must not run the settings sync:\n' >&2; cat "$TMP_DIR/live-ok.out" >&2; exit 1; }
+grep -q '^SYNC .*Claude tracked settings' "$TMP_DIR/live-ok.out" && { printf 'check mode writes nothing: the settings sync ran:\n' >&2; cat "$TMP_DIR/live-ok.out" >&2; exit 1; }
+[ "$(cat "$LIVE_HOME/.claude/settings.json")" = "$SETTINGS_BEFORE" ] && [ "$({ ls "$LIVE_HOME/.claude/"settings.json.bak.* 2>/dev/null || true; } | wc -l)" = "$BACKUPS_BEFORE" ] || {
+  printf 'check mode writes nothing: settings or backups changed\n' >&2
+  exit 1
+}
+# Tracked-settings drift on a live home fails the check, names --apply and
+# leaves the file untouched.
+jq '.skillListingMaxDescChars = 999' "$LIVE_HOME/.claude/settings.json" >"$TMP_DIR/drifted.json" && mv "$TMP_DIR/drifted.json" "$LIVE_HOME/.claude/settings.json"
+DRIFTED="$(cat "$LIVE_HOME/.claude/settings.json")"
+live_check "$TMP_DIR/live-bin:/usr/bin:/bin" >"$TMP_DIR/live-drift.out" 2>&1 &&
+  { printf 'live check passed with tracked-settings drift\n' >&2; exit 1; }
+grep -q '^DRIFT .*--apply' "$TMP_DIR/live-drift.out" &&
+  grep -q '^Summary: .* 1 unresolved' "$TMP_DIR/live-drift.out" || {
+  printf 'live check must report tracked-settings drift as unresolved, naming --apply:\n' >&2
+  cat "$TMP_DIR/live-drift.out" >&2
+  exit 1
+}
+[ "$(cat "$LIVE_HOME/.claude/settings.json")" = "$DRIFTED" ] && [ "$({ ls "$LIVE_HOME/.claude/"settings.json.bak.* 2>/dev/null || true; } | wc -l)" = "$BACKUPS_BEFORE" ] || {
+  printf 'the drift check must not write settings or backups\n' >&2
+  exit 1
+}
+jq '.skillListingMaxDescChars = 400' "$LIVE_HOME/.claude/settings.json" >"$TMP_DIR/drifted.json" && mv "$TMP_DIR/drifted.json" "$LIVE_HOME/.claude/settings.json"
 grep -q 'SKIP .*Pi skill load check' "$TMP_DIR/live-ok.out" || { printf 'live check must say it skipped the Pi leg without pi:\n' >&2; cat "$TMP_DIR/live-ok.out" >&2; exit 1; }
 mkdir -p "$LIVE_HOME/.claude/skills/ungoverned-personal"
 printf -- '---\nname: ungoverned-personal\ndescription: stub\n---\nstub\n' >"$LIVE_HOME/.claude/skills/ungoverned-personal/SKILL.md"
@@ -692,7 +715,7 @@ grep -Fq 'ungoverned skill on the surface: ungoverned-personal' "$TMP_DIR/live-b
   exit 1
 }
 ETABLI_SKIP_SKILL_LOAD_CHECKS=1 live_check "$TMP_DIR/live-pi-bin:$TMP_DIR/live-bin:/usr/bin:/bin" >"$TMP_DIR/live-skip.out" 2>&1 || :
-grep -q 'SKIP *skill load checks (ETABLI_SKIP_SKILL_LOAD_CHECKS=1)' "$TMP_DIR/live-skip.out" &&
+grep -q 'SKIP *skill load and settings drift checks (ETABLI_SKIP_SKILL_LOAD_CHECKS=1)' "$TMP_DIR/live-skip.out" &&
   grep -q '^Summary: .* 0 unresolved' "$TMP_DIR/live-skip.out" || {
   printf 'the skill-check seam must skip both checks and say so:\n' >&2
   cat "$TMP_DIR/live-skip.out" >&2
