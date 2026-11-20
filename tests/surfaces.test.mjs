@@ -949,6 +949,21 @@ describe("Claude managed env", () => {
       const [key, value] = Object.entries(extra)[0];
       assert.equal(JSON.parse(readFileSync(f.settings))[key], value);
     }
+    for (const raw of [
+      '{"skillOverrides":{},"skillListingMaxDescChars":0.9999999999999999999999}',
+      '{"skillOverrides":{},"bashOutputMaxChars":3999.9999999999999999999}',
+      '{"skillOverrides":{},"autoCompactWindow":99999.999999999999999999}',
+    ]) {
+      const f = trackedFixture({}, { skillOverrides: {}, env: { TOKEN: secret } });
+      writeFileSync(f.tracked, raw);
+      const bytes = readFileSync(f.settings, "utf8");
+      const child = f.run("rawbad");
+      assert.equal(child.status, 1, raw);
+      assert.match(child.stderr, /^claude-settings-sync: tracked fragment .*round-trip/);
+      assert.doesNotMatch(child.stdout + child.stderr, new RegExp(secret));
+      assert.equal(readFileSync(f.settings, "utf8"), bytes);
+      assert.equal(existsSync(`${f.settings}.bak.rawbad`), false);
+    }
   });
   test("rejects invalid tracked modelSettings before backup or write", () => {
     const bad = [
@@ -1116,7 +1131,7 @@ describe("Claude managed env", () => {
     const bytes = readFileSync(f.settings, "utf8");
     const child = f.run();
     assert.equal(child.status, 1);
-    assert.match(child.stderr, /^claude-settings-sync: autoCompactWindow must be an integer/);
+    assert.match(child.stderr, /^claude-settings-sync: tracked fragment .*round-trip/);
     assert.equal(readFileSync(f.settings, "utf8"), bytes);
     assert.equal(existsSync(`${f.settings}.bak.first`), false);
   });

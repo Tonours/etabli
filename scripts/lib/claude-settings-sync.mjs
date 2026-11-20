@@ -69,6 +69,9 @@ const tracked = readJson(trackedPath, "tracked fragment");
 if (typeof tracked !== "object" || tracked === null || Array.isArray(tracked)) {
   fail("tracked fragment must be a JSON object");
 }
+if (hasLossyNumber(fs.readFileSync(trackedPath, "utf8"))) {
+  fail("tracked fragment holds a number that cannot round-trip through JSON; refusing to sync");
+}
 const topKeys = Object.keys(tracked);
 for (const key of topKeys) {
   if (!ALLOWED_TOP_LEVEL.has(key)) {
