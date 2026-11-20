@@ -1,22 +1,23 @@
 #!/usr/bin/env node
 // Claude Code token usage audit. Reads ~/.claude/projects/**/*.jsonl, prints one JSON object of aggregates.
-// Usage: scripts/claude-usage-audit [--days 7] [--claude-dir ~/.claude]
-// No message content is printed: only counts, token sums, tool names, project basenames.
-import { createReadStream, promises as fs } from 'node:fs';
-import { createInterface } from 'node:readline';
+// Usage: scripts/claude-usage-audit [--days 7] [--claude-dir ~/.claude] [--seven-day-used-pct N]
+// No message content or tool input is printed: only counts, token sums and labels. Every printed
+// label goes through one of the class functions below; free-form identifiers (tool names, subagent
+// types, project basenames) print only when they look like identifiers.
+import { promises as fs } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 
 const args = process.argv.slice(2);
 if (args.includes('-h') || args.includes('--help')) {
-  console.log('Usage: claude-usage-audit [--days N] [--claude-dir DIR]\nPrints one JSON object of token, cache, subagent, session and tool-result aggregates over the last N days (default 7).\nThe output names project basenames: keep it private.');
+  console.log('Usage: claude-usage-audit [--days N] [--claude-dir DIR] [--seven-day-used-pct N]\nPrints one JSON object of token, cache, subagent, session and tool-result aggregates over the last N days (default 7).\n--seven-day-used-pct records the statusline rate_limits.seven_day.used_percentage read at the reset.\nThe output names project basenames, tool names and subagent types: keep it private.');
   process.exit(0);
 }
-const FLAGS = new Set(['--days', '--claude-dir']);
+const FLAGS = new Set(['--days', '--claude-dir', '--seven-day-used-pct']);
 const given = new Map();
 for (let i = 0; i < args.length; i += 2) {
   if (!FLAGS.has(args[i]) || args[i + 1] === undefined || args[i + 1].startsWith('--')) {
-    console.error(`usage: claude-usage-audit [--days N] [--claude-dir DIR] (bad argument: ${args[i]})`);
+    console.error(`usage: claude-usage-audit [--days N] [--claude-dir DIR] [--seven-day-used-pct N] (bad argument: ${args[i]})`);
     process.exit(2);
   }
   given.set(args[i], args[i + 1]);
@@ -26,6 +27,11 @@ const DAYS = Number(opt('--days', '7'));
 const CLAUDE_DIR = opt('--claude-dir', path.join(homedir(), '.claude')).replace(/^~(?=$|\/)/, homedir());
 if (!Number.isFinite(DAYS) || DAYS <= 0 || DAYS > 3650) {
   console.error('--days must be a positive number of at most 3650');
+  process.exit(2);
+}
+const USED_PCT = given.has('--seven-day-used-pct') ? Number(given.get('--seven-day-used-pct')) : null;
+if (USED_PCT !== null && !(Number.isFinite(USED_PCT) && USED_PCT >= 0 && USED_PCT <= 100)) {
+  console.error('--seven-day-used-pct must be a number from 0 to 100');
   process.exit(2);
 }
 const NOW = Date.now();
@@ -62,11 +68,34 @@ function costUSD(model, u) {
   return (u.input * p.in + u.cw5m * p.in * 1.25 + u.cw1h * p.in * 2 + u.cr * p.cr + u.output * p.out) / 1e6;
 }
 
+// ---------- printed labels ----------
+// Transcript strings reach the output only through these functions.
+const EFFORTS = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
+const TRIGGERS = new Set(['auto', 'manual']);
+const ENTRYPOINTS = new Set(['cli', 't3-code', 'remote', 'mcp']);
+const modelClass = (v) => (typeof v === 'string' && /^claude-[a-z0-9-]{1,40}(\[[a-z0-9]{1,8}\])?$/.test(v) ? v : '(other)');
+const effortClass = (v) => (EFFORTS.has(v) ? v : '(other)');
+const triggerClass = (v) => (TRIGGERS.has(v) ? v : '(other)');
+const entrypointClass = (v) => (ENTRYPOINTS.has(v) || /^(sdk|claude)-[a-z]{2,12}$/.test(v) ? v : '(other)');
+const identClass = (v) => (typeof v === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test(v) ? v : '(other)');
+// Agent/Task model param and meta model: a fixed family class.
+const modelParamClass = (v) => {
+  if (v === undefined || v === null || v === '') return '(unset)';
+  if (typeof v !== 'string') return '(other)';
+  if (v === 'inherit') return 'inherit';
+  return /(?:^|[^a-z])(opus|sonnet|haiku|fable)(?:[^a-z]|$)/i.exec(v)?.[1].toLowerCase() ?? '(other)';
+};
+
 // ---------- helpers ----------
 const zeroTok = () => ({ input: 0, cw5m: 0, cw1h: 0, cr: 0, output: 0, thinking: 0, turns: 0, usd: 0 });
 function addTok(dst, u, usd) {
   dst.input += u.input; dst.cw5m += u.cw5m; dst.cw1h += u.cw1h; dst.cr += u.cr; dst.output += u.output;
   dst.thinking += u.thinking; dst.turns += 1; dst.usd += usd;
+}
+function mergeTok(dst, src) { for (const f of Object.keys(dst)) dst[f] += src[f]; }
+const SLASH_COMMANDS = [['/clear', 'clearCmd'], ['/compact', 'compactCmd']];
+function countSlashCommands(text) {
+  for (const [name, key] of SLASH_COMMANDS) if (text.includes(`<command-name>${name}</command-name>`)) events[key] += 1;
 }
 const count = (x) => (Number.isFinite(x) && x >= 0 ? x : 0);
 const rawTotal = (t) => t.input + t.cw5m + t.cw1h + t.cr + t.output;
@@ -140,8 +169,9 @@ const seenMsg = new Map();      // key -> record (dedup by message.id + requestI
 const seenUuid = new Set();
 const seenToolResult = new Set();
 const toolUseInfo = new Map();  // tool_use id -> {name, viaRtk}
+const toolResults = [];         // {id, chars, images, sidechain}; names resolve once every file is read
 const agentMeta = new Map();    // agentId -> meta
-const schema = { assistantLinesTotal: 0, assistantLinesDuplicate: 0, assistantNoUsage: 0, cacheCreationUnsplit: 0, sidechainInMainFile: 0, subagentFilesWithoutMeta: 0, parseErrors: 0, linesSkippedApiRequest: 0, filesScanned: 0, bytesScanned: 0, effortFieldMissing: 0, syntheticModelTurns: 0, unreadableDirs: 0 };
+const schema = { assistantLinesTotal: 0, assistantLinesDuplicate: 0, assistantNoUsage: 0, cacheCreationUnsplit: 0, sidechainInMainFile: 0, subagentFilesWithoutMeta: 0, parseErrors: 0, linesSkippedApiRequest: 0, filesScanned: 0, bytesScanned: 0, effortFieldMissing: 0, syntheticModelTurns: 0, unreadableDirs: 0, unreadableFiles: 0 };
 
 const records = []; // deduped assistant turns
 const toolChars = new Map(); // group -> {calls, chars, images, mainChars, subChars}
@@ -156,7 +186,7 @@ const LEAD_STRIPS = [
   /^#[^\n]*\n\s*/,
   new RegExp(String.raw`^cd\s+${WORD}\s*(?:&&|;|\n)\s*`),
   new RegExp(String.raw`^(?:export\s+)?[A-Za-z_][A-Za-z0-9_]*=${WORD}?\s*(?:&&|;|\n)\s*`),
-  new RegExp(String.raw`^(?:export\s+)?[A-Za-z_][A-Za-z0-9_]*=${WORD}?\s+`),
+  new RegExp(String.raw`^[A-Za-z_][A-Za-z0-9_]*=${WORD}?\s+`),
   new RegExp(String.raw`^(?:source|\.)\s+${WORD}\s*(?:&&|;)\s*`),
   /^(time|sudo|command|exec|nohup)\s+/,
   new RegExp(String.raw`^timeout\s+${WORD}\s+`),
@@ -177,12 +207,20 @@ const bigResults = { over20k: 0, over20kChars: 0, over50k: 0, over50kChars: 0 };
 const BASH_BUCKETS = [4000, 8000, 15000, 20000, 30000, 50000, 128000];
 const bashHistogram = [...BASH_BUCKETS.map((max) => `<=${max}`), `>${BASH_BUCKETS.at(-1)}`].map((bucket) => ({ bucket, calls: 0, chars: 0 }));
 let toolResultCharsTotal = 0;
-const agentCalls = new Map(); // `${subagent_type}|${model}` -> count
+// `${subagent_type}\n${model class}` -> count. subagent_type is tool input: it prints only when a
+// subagent meta file names the same type (mapped at output).
+const agentCalls = new Map();
 const events = { compactBoundary: new Map(), compactSummaryLines: 0, clearCmd: 0, compactCmd: 0, scheduledTaskFire: 0 };
 const sessionCwd = new Map();
 const sessionEntry = new Map();
 const sessionStart = new Map();
 let fileSeq = 0;
+function firstSeen(uuid) {
+  if (!uuid) return true;
+  if (seenUuid.has(uuid)) return false;
+  seenUuid.add(uuid);
+  return true;
+}
 
 async function readMeta(file) {
   const metaPath = file.replace(/\.jsonl$/, '.meta.json');
@@ -197,12 +235,17 @@ async function processFile(file) {
     fileAgentId = path.basename(file, '.jsonl').replace(/^agent-/, '');
     meta = await readMeta(file);
     if (!meta) schema.subagentFilesWithoutMeta += 1;
-    if (meta && typeof meta === 'object') for (const k of ['agentType', 'parentAgentId', 'model']) if (meta[k] !== undefined && typeof meta[k] !== 'string') delete meta[k];
-    agentMeta.set(fileAgentId, { ...(meta && typeof meta === 'object' ? meta : {}), file: true });
+    const m = meta && typeof meta === 'object' ? meta : {};
+    agentMeta.set(fileAgentId, {
+      file: true, hasMeta: Object.keys(m).length > 0, agentType: m.agentType === undefined ? undefined : identClass(m.agentType),
+      parentAgentId: typeof m.parentAgentId === 'string' ? m.parentAgentId : undefined,
+      model: m.model === undefined ? undefined : modelParamClass(m.model),
+    });
   }
+  const handle = await fs.open(file, 'r'); // a failure here is counted as an unreadable file by the caller
   schema.filesScanned += 1;
-  const rl = createInterface({ input: createReadStream(file, { encoding: 'utf8' }), crlfDelay: Infinity });
-  for await (const line of rl) {
+  try {
+  for await (const line of handle.readLines({ encoding: 'utf8' })) {
     try {
       schema.bytesScanned += line.length;
       if (line.startsWith('{"type":"api-request')) { schema.linesSkippedApiRequest += 1; continue; }
@@ -210,7 +253,8 @@ async function processFile(file) {
       let o;
       try { o = JSON.parse(line); } catch { schema.parseErrors += 1; continue; }
       if (!o || typeof o !== 'object') { schema.parseErrors += 1; continue; }
-      for (const k of ['cwd', 'entrypoint']) if (o[k] !== undefined && typeof o[k] !== 'string') delete o[k];
+      if (o.cwd !== undefined && typeof o.cwd !== 'string') delete o.cwd;
+      if (o.entrypoint !== undefined) o.entrypoint = typeof o.entrypoint === 'string' ? entrypointClass(o.entrypoint) : undefined;
       if (o.timestamp !== undefined && typeof o.timestamp !== 'string') { schema.parseErrors += 1; continue; }
       const ts = o.timestamp ? Date.parse(o.timestamp) : NaN;
       const inWindow = Number.isFinite(ts) && ts >= START && ts <= NOW + 3600e3;
@@ -218,10 +262,11 @@ async function processFile(file) {
       if (o.type === 'assistant') {
         for (const c of Array.isArray(m.content) ? m.content : []) {
           if (c?.type !== 'tool_use' || toolUseInfo.has(c.id)) continue;
-          const info = { name: typeof c.name === 'string' ? c.name : '(invalid)' };
+          const info = { name: typeof c.name === 'string' ? identClass(c.name) : '(invalid)' };
           if (c.name === 'Bash') info.viaRtk = typeof c.input?.command === 'string' && leadsWithRtk(c.input.command);
           if (inWindow && (c.name === 'Agent' || c.name === 'Task')) {
-            const k = `${c.input?.subagent_type || '(default)'}|${c.input?.model || '(unset)'}`;
+            const type = typeof c.input?.subagent_type === 'string' && c.input.subagent_type ? c.input.subagent_type : '(default)';
+            const k = `${type}\n${modelParamClass(c.input?.model)}`;
             agentCalls.set(k, (agentCalls.get(k) || 0) + 1);
           }
           toolUseInfo.set(c.id, info);
@@ -263,7 +308,8 @@ async function processFile(file) {
           continue;
         }
         if (o.effort == null && o.perTurnEffort == null) schema.effortFieldMissing += 1;
-        const rec = { ts, sid, sidechain, agentId, model: typeof m.model === 'string' && m.model ? m.model : '(none)', tok, effort: [o.perTurnEffort, o.effort].find((x) => typeof x === 'string' && x) || '(none)', cwd: o.cwd, file };
+        const effort = [o.perTurnEffort, o.effort].find((x) => typeof x === 'string' && x);
+        const rec = { ts, sid, sidechain, agentId, model: typeof m.model === 'string' && m.model ? modelClass(m.model) : '(none)', tok, effort: effort ? effortClass(effort) : '(none)', cwd: o.cwd };
         seenMsg.set(key, rec);
         records.push(rec);
         continue;
@@ -275,51 +321,46 @@ async function processFile(file) {
           for (const c of m.content) {
             if (c?.type !== 'tool_result' || seenToolResult.has(c.tool_use_id)) continue;
             seenToolResult.add(c.tool_use_id);
-            const info = toolUseInfo.get(c.tool_use_id) || { name: '(unmatched)' };
-            const { chars, images } = textLen(c.content);
-            toolResultCharsTotal += chars;
-            const group = info.name.startsWith('mcp__') ? `mcp__${info.name.split('__')[1]}` : info.name;
-            for (const [map, k] of [[toolChars, group], [toolCharsByTool, info.name]]) {
-              const g = bump(map, k, () => ({ calls: 0, chars: 0, images: 0, mainChars: 0, subChars: 0, maxChars: 0 }));
-              g.calls += 1; g.chars += chars; g.images += images; g.maxChars = Math.max(g.maxChars, chars);
-              if (sidechain) g.subChars += chars; else g.mainChars += chars;
-            }
-            if (chars > 20000) { bigResults.over20k += 1; bigResults.over20kChars += chars; }
-            if (chars > 50000) { bigResults.over50k += 1; bigResults.over50kChars += chars; }
-            if (info.name === 'Bash') {
-              bashCounts.calls += 1; if (info.viaRtk) bashCounts.viaRtk += 1;
-              const i = BASH_BUCKETS.findIndex((max) => chars <= max);
-              const slot = bashHistogram[i < 0 ? BASH_BUCKETS.length : i];
-              slot.calls += 1; slot.chars += chars;
-            }
+            toolResults.push({ id: c.tool_use_id, ...textLen(c.content), sidechain });
           }
         }
-        if (o.uuid && seenUuid.has(o.uuid)) continue;
-        if (o.uuid) seenUuid.add(o.uuid);
+        if (!firstSeen(o.uuid)) continue;
         if (o.isCompactSummary) events.compactSummaryLines += 1;
-        if (!sidechain) {
-          const t = userText(m);
-          if (t.includes('<command-name>/clear</command-name>')) events.clearCmd += 1;
-          if (t.includes('<command-name>/compact</command-name>')) events.compactCmd += 1;
-        }
+        if (!sidechain) countSlashCommands(userText(m));
         continue;
       }
 
       if (o.type === 'system') {
-        if (o.uuid && seenUuid.has(o.uuid)) continue;
-        if (o.uuid) seenUuid.add(o.uuid);
+        if (!firstSeen(o.uuid)) continue;
         if (o.subtype === 'compact_boundary') {
-          const trig = o.compactMetadata?.trigger ?? '(unknown)';
-          if (typeof trig !== 'string') { schema.parseErrors += 1; continue; }
-          events.compactBoundary.set(trig, (events.compactBoundary.get(trig) || 0) + 1);
+          const trig = o.compactMetadata?.trigger;
+          if (trig !== undefined && typeof trig !== 'string') { schema.parseErrors += 1; continue; }
+          const k = trig === undefined ? '(unknown)' : triggerClass(trig);
+          events.compactBoundary.set(k, (events.compactBoundary.get(k) || 0) + 1);
         } else if (o.subtype === 'scheduled_task_fire') events.scheduledTaskFire += 1;
-        else if (o.subtype === 'local_command' && !sidechain) {
-          const t = typeof o.content === 'string' ? o.content : '';
-          if (t.includes('<command-name>/clear</command-name>')) events.clearCmd += 1;
-          if (t.includes('<command-name>/compact</command-name>')) events.compactCmd += 1;
-        }
+        else if (o.subtype === 'local_command' && !sidechain) countSlashCommands(typeof o.content === 'string' ? o.content : '');
       }
     } catch { schema.parseErrors += 1; }
+  }
+  } finally { await handle.close(); }
+}
+
+function countToolResult({ id, chars, images, sidechain }) {
+  const info = toolUseInfo.get(id) || { name: '(unmatched)' };
+  toolResultCharsTotal += chars;
+  const group = info.name.startsWith('mcp__') ? `mcp__${info.name.split('__')[1]}` : info.name;
+  for (const [map, k] of [[toolChars, group], [toolCharsByTool, info.name]]) {
+    const g = bump(map, k, () => ({ calls: 0, chars: 0, images: 0, mainChars: 0, subChars: 0, maxChars: 0 }));
+    g.calls += 1; g.chars += chars; g.images += images; g.maxChars = Math.max(g.maxChars, chars);
+    if (sidechain) g.subChars += chars; else g.mainChars += chars;
+  }
+  if (chars > 20000) { bigResults.over20k += 1; bigResults.over20kChars += chars; }
+  if (chars > 50000) { bigResults.over50k += 1; bigResults.over50kChars += chars; }
+  if (info.name === 'Bash') {
+    bashCounts.calls += 1; if (info.viaRtk) bashCounts.viaRtk += 1;
+    const i = BASH_BUCKETS.findIndex((max) => chars <= max);
+    const slot = bashHistogram[i < 0 ? BASH_BUCKETS.length : i];
+    slot.calls += 1; slot.chars += chars;
   }
 }
 
@@ -335,25 +376,34 @@ try {
   process.exit(2);
 }
 await walk(projectsDir, files);
-// Main files first so tool_use maps and session cwd exist; order inside does not matter for usage.
-files.sort((a, b) => Number(/\/subagents\//.test(a)) - Number(/\/subagents\//.test(b)));
 for (const f of files) {
-  try { await processFile(f); } catch (e) { schema.parseErrors += 1; }
+  try { await processFile(f); } catch (e) {
+    schema.unreadableFiles += 1;
+    console.error(`claude-usage-audit: skipped unreadable ${f} (${e.code || e.message})`);
+  }
 }
+// Every tool_use is indexed by now, whatever the file order.
+for (const r of toolResults) countToolResult(r);
 
 // ---------- aggregate ----------
 const out = {
   meta: {
     generatedAt: new Date(NOW).toISOString(), windowDays: DAYS, windowStart: new Date(START).toISOString(),
-    claudeDir: CLAUDE_DIR.replace(homedir(), '~'), files: files.length, elapsedSec: 0,
+    claudeDir: CLAUDE_DIR.replace(homedir(), '~'), files: files.length, elapsedSec: 0, sevenDayUsedPct: USED_PCT,
     weights: 'usd = list-price equivalent: input*Pin + cacheWrite5m*1.25*Pin + cacheWrite1h*2*Pin + cacheRead*Pcr + output*Pout (USD/MTok, Anthropic first-party list prices; subscription plans are not billed this way, use as relative weight only)',
     prices: PRICES,
   },
 };
 
 const domModel = (map) => { let best = null, bv = -1; for (const [k, v] of map) if (v > bv) { best = k; bv = v; } return best; };
-const sessionModelTurns = new Map();
 const agentModelTurns = new Map();
+// Parent model at spawn: the model of the parent's last turn at or before the subagent's first turn.
+const parentTurns = new Map(); // `session:${sid}` or `agent:${agentId}` -> [{ts, model}]
+function modelAt(turns, ts) {
+  let model = null, best = -Infinity;
+  for (const t of turns || []) if (t.ts <= ts && t.ts >= best) { best = t.ts; model = t.model; }
+  return model;
+}
 const agentTypeOf = (id) => {
   const m = agentMeta.get(id);
   if (m?.agentType) return m.agentType;
@@ -379,7 +429,7 @@ const big = { over200k: zeroTok(), allMain: zeroTok() };
 for (const r of records) {
   const usd = costUSD(r.model, r.tok);
   const ctx = r.tok.input + r.tok.cr + r.tok.cw5m + r.tok.cw1h;
-  r.ctx = ctx; r.usd = usd;
+  bump(parentTurns, r.sidechain ? `agent:${r.agentId}` : `session:${r.sid}`, () => []).push({ ts: r.ts, model: r.model });
   addTok(total, r.tok, usd);
   const bm = (byModel[r.model] ||= { main: zeroTok(), sub: zeroTok() });
   addTok(r.sidechain ? bm.sub : bm.main, r.tok, usd);
@@ -416,8 +466,6 @@ for (const r of records) {
     addTok(run.tok, r.tok, usd); run.peak = Math.max(run.peak, ctx);
     addTok(bump(subByModel, r.model, () => ({ runs: 0, tok: zeroTok() })).tok, r.tok, usd);
   } else {
-    const mt = bump(sessionModelTurns, r.sid, () => new Map());
-    mt.set(r.model, (mt.get(r.model) || 0) + 1);
     const s = bump(sessions, r.sid, () => ({ turns: 0, peak: 0, firstTs: Infinity, lastTs: 0, firstCtx: 0, minCtx: Infinity, tok: zeroTok() }));
     s.turns += 1; s.peak = Math.max(s.peak, ctx); s.minCtx = Math.min(s.minCtx, ctx);
     if (r.ts < s.firstTs) { s.firstTs = r.ts; s.firstCtx = ctx; }
@@ -430,21 +478,18 @@ for (const r of records) {
 
 // subagent breakdown
 let subSameModel = 0, subDiffModel = 0, subParentUnknown = 0;
-const sameModelByType = new Map();
 for (const [aid, run] of agentRuns) {
   const type = agentTypeOf(aid);
   const model = domModel(agentModelTurns.get(aid) || new Map());
   const meta = agentMeta.get(aid) || {};
-  const parentModel = meta.parentAgentId
-    ? domModel(agentModelTurns.get(meta.parentAgentId) || new Map())
-    : domModel(sessionModelTurns.get(run.sid) || new Map());
+  const parentModel = modelAt(parentTurns.get(meta.parentAgentId ? `agent:${meta.parentAgentId}` : `session:${run.sid}`), agentFirst.get(aid).ts);
   const t = bump(subByType, type, () => ({ runs: 0, tok: zeroTok(), models: Object.create(null), byParentEntrypoint: Object.create(null), requestedModel: Object.create(null), sameAsParent: 0, peakCtx: [] , firstCtx: []}));
   t.runs += 1; t.peakCtx.push(run.peak);
-  for (const f of ['input', 'cw5m', 'cw1h', 'cr', 'output', 'thinking', 'turns', 'usd']) t.tok[f] += run.tok[f];
+  mergeTok(t.tok, run.tok);
   t.models[model] = (t.models[model] || 0) + 1;
   const pep = sessionEntry.get(run.sid) || '(unknown)';
   const pe = (t.byParentEntrypoint[pep] ||= Object.create(null)); pe[model] = (pe[model] || 0) + 1;
-  const rq = meta.model || (agentMeta.has(aid) && Object.keys(meta).length > 1 ? '(unset-in-meta)' : '(no-meta)');
+  const rq = meta.model || (meta.hasMeta ? '(unset-in-meta)' : '(no-meta)');
   t.requestedModel[rq] = (t.requestedModel[rq] || 0) + 1;
   const af = agentFirst.get(aid); if (af) t.firstCtx.push(af.ctx);
   if (!parentModel) subParentUnknown += 1;
@@ -480,7 +525,7 @@ const fmtTok = (t) => ({
 const share = (a, b) => (b ? round((100 * a) / b, 1) : null);
 
 const subTotal = zeroTok();
-for (const m of Object.values(byModel)) for (const f of Object.keys(subTotal)) subTotal[f] += m.sub[f];
+for (const m of Object.values(byModel)) mergeTok(subTotal, m.sub);
 
 out.a_tokensByModel = Object.fromEntries(Object.entries(byModel).sort((x, y) => (y[1].main.usd + y[1].sub.usd) - (x[1].main.usd + x[1].sub.usd))
   .map(([k, v]) => [k, { main: fmtTok(v.main), subagent: fmtTok(v.sub) }]));
@@ -501,7 +546,11 @@ out.b_subagents = {
     sharePctUsdOfAll: share(v.tok.usd, total.usd), tokens: fmtTok(v.tok), firstTurnCtx: dist(v.firstCtx), peakCtx: dist(v.peakCtx),
   }])),
   byModel: Object.fromEntries([...subByModel.entries()].map(([k, v]) => [k, { runs: v.runs, sharePctUsdOfAll: share(v.tok.usd, total.usd), tokens: fmtTok(v.tok) }])),
-  agentToolCallsBySubagentTypeAndModelParam: Object.fromEntries([...agentCalls.entries()].sort((a, b) => b[1] - a[1])),
+  agentToolCallsBySubagentTypeAndModelParam: Object.fromEntries([...[...agentCalls.entries()].reduce((acc, [k, n]) => {
+    const [type, model] = k.split('\n');
+    const label = `${type === '(default)' || subByType.has(type) ? type : '(other)'}|${model}`;
+    return acc.set(label, (acc.get(label) || 0) + n);
+  }, new Map()).entries()].sort((a, b) => b[1] - a[1])),
 };
 
 const sess = [...sessions.values()];
@@ -536,7 +585,7 @@ out.e_cache = {
   pctOfInputSide: { uncached: share(cache.input, inTot), write5m: share(cache.cw5m, inTot), write1h: share(cache.cw1h, inTot), read: share(cache.cr, inTot) },
   readToWriteRatio: round(cache.cr / Math.max(1, cache.cw5m + cache.cw1h), 2),
   missTurns_cr0_ctxOver50k: cache.missTurns, missTurnsMain: cache.missTurnsMain, missTurnsSub: cache.missTurnsSub,
-  missCtxTokens: cache.missCtxTokens, missUsd: round(cache.missUsd), missSharePctUsd: share(cache.missUsd, total.usd), missByModel: cache.missByModel,
+  missCtxTokens: cache.missCtxTokens, missUsd: round(cache.missUsd), missSharePctUsd: share(cache.missUsd, total.usd), missPctOfTurns: share(cache.missTurns, records.length), missByModel: cache.missByModel,
 };
 
 const topN = (map, n, key) => [...map.entries()].sort((a, b) => b[1][key] - a[1][key]).slice(0, n);
@@ -548,7 +597,8 @@ out.f_toolResults = {
   bashCallsTotal: bashCounts.calls,
   rtkRewriteNote: 'PreToolUse rewrites are not recorded in transcripts (tool_use.input and wireToolInputs hold the model-written command); viaRtk counts only commands the model itself prefixed with rtk, as a lower bound: a cd step or assignment holding an expansion before rtk is not counted',
   bashResultSizeHistogram: bashHistogram,
-  resultsOver20kChars: bigResults.over20k, resultsOver20kTotalChars: bigResults.over20kChars, resultsOver50kChars: bigResults.over50k, resultsOver50kTotalChars: bigResults.over50kChars,
+  resultsOver20kChars: bigResults.over20k, resultsOver20kTotalChars: bigResults.over20kChars, resultsOver20kPctOfChars: share(bigResults.over20kChars, toolResultCharsTotal),
+  resultsOver50kChars: bigResults.over50k, resultsOver50kTotalChars: bigResults.over50kChars,
 };
 
 const startedInWindow = [...sessions].filter(([sid]) => !(sessionStart.get(sid) < START));
