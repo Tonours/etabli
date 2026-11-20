@@ -6,7 +6,8 @@
  * JSON null line followed by a valid turn that must still count. Subagent sub2
  * mixes Opus and Sonnet turns, one with a non-numeric token count. The sdk
  * session carries a non-string cwd, tool name and timestamp, two non-object usages,
- * Bash commands whose first word is an assignment or a substitution, and a model named
+ * Bash commands whose first word is an assignment, an escaped assignment value or a
+ * substitution, and a model named
  * like an Object property; none may drop later turns. A Bash call just before the
  * window returns inside it and must keep its bucket; an older Bash call with a
  * non-string command must not drop later rows. sess-resumed started before the
@@ -93,6 +94,8 @@ export function writeFixture(dir, now = Date.now()) {
     assistant({ sid: "sess-sdk", ts: at(29), id: "b-assign", model: "claude-sonnet-5-5", u: "invalid", content: [{ type: "tool_use", id: "bash-assign", name: "Bash", input: { command: `API_TOKEN=x/${MARKER}` } }, { type: "tool_use", id: "bash-path", name: "Bash", input: { command: `$(cat ${MARKER})` } }] }),
     toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-assign-res", toolUseId: "bash-assign", chars: 40 }),
     toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-path-res", toolUseId: "bash-path", chars: 40 }),
+    assistant({ sid: "sess-sdk", ts: at(29), id: "b-escaped", model: "claude-sonnet-5-5", u: null, content: [{ type: "tool_use", id: "bash-escaped", name: "Bash", input: { command: `export TOKEN=part1\\ ${MARKER}` } }] }),
+    toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-escaped-res", toolUseId: "bash-escaped", chars: 40 }),
     { type: "assistant", sessionId: "sess-sdk", timestamp: { toString: null }, message: { id: "msg-badts", model: "claude-sonnet-5-5", usage: usage(1, 0, 0, 1) } },
     assistant({ sid: "sess-sdk", ts: at(28), id: "b3", model: "constructor", u: usage(1, 0, 0, 2) }),
     assistant({ sid: "sess-sdk", ts: at(29), id: "b2", model: "claude-sonnet-5-5", u: usage(10, 40000, 220000, 20) }),
@@ -101,7 +104,7 @@ export function writeFixture(dir, now = Date.now()) {
   return {
     bashSizes,
     bashExtraCalls: 2,
-    bashResultChars: [...bashSizes, 30000, 40, 40].reduce((a, b) => a + b, 0),
+    bashResultChars: [...bashSizes, 30000, 40, 40, 40].reduce((a, b) => a + b, 0),
     mainTurns: 8,
     subagentTurns: 4,
     firstTurnCtx: { cli: 20010, "sdk-cli": 40010 },
