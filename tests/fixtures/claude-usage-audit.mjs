@@ -7,7 +7,8 @@
  * mixes Opus and Sonnet turns, one with a non-numeric token count. The sdk
  * session carries a non-string cwd, tool name and timestamp and a model named
  * like an Object property; none may drop later turns. A Bash call just before the
- * window returns inside it and must keep its bucket.
+ * window returns inside it and must keep its bucket; an older Bash call with a
+ * non-string command must not drop later rows.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -49,6 +50,7 @@ export function writeFixture(dir, now = Date.now()) {
     `{"type":"assistant", ${MARKER} not json`,
     assistant({ sid: "sess-cli", ts: at(7 * 1440 + 1), id: "early", u: usage(1, 0, 0, 1), content: [{ type: "tool_use", id: "bash-early", name: "Bash", input: { command: "ls" } }] }),
     toolResult({ sid: "sess-cli", ts: at(7 * 1440 - 1), uuid: "u-res-early", toolUseId: "bash-early", chars: 30000 }),
+    { type: "assistant", sessionId: "sess-cli", timestamp: at(8 * 1440), message: { id: "msg-oddcmd", content: [{ type: "tool_use", id: "bash-odd", name: "Bash", input: { command: { toString: null } } }] } },
     "null",
     assistant({ sid: "sess-cli", ts: at(50), id: "a4", u: usage(1, 0, 0, 7) }),
   ];
