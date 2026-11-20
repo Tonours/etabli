@@ -147,15 +147,19 @@ const records = []; // deduped assistant turns
 const toolChars = new Map(); // group -> {calls, chars, images, mainChars, subChars}
 const toolCharsByTool = new Map();
 // The seed's rule: rtk is the leading command once comments, cd/source steps,
-// env assignments and wrappers are stripped. Anchored strips in a bounded loop, no nested quantifier.
+// env assignments and wrappers are stripped. A stripped argument or value must be one
+// literal word (plain, or quoted without expansion); anything with $, a backtick, a
+// backslash or a paren stops the strip, so a word inside it is never taken for rtk.
+// Anchored strips in a bounded loop, no nested quantifier.
+const WORD = String.raw`(?:'[^']*'|"[^"$` + '`' + String.raw`\\]*"|[^\s$` + '`' + String.raw`\\'"();&|<>]+)`;
 const LEAD_STRIPS = [
   /^#[^\n]*\n\s*/,
-  /^cd\s+("[^"]*"|'[^']*'|\S+)\s*(&&|;|\n)\s*/,
-  /^(export\s+)?[A-Za-z_][A-Za-z0-9_]*=("[^"]*"|'[^']*'|\S*)\s*(&&|;|\n)\s*/,
-  /^(export\s+)?[A-Za-z_][A-Za-z0-9_]*=("[^"]*"|'[^']*'|\S*)\s+/,
-  /^(source|\.)\s+\S+\s*(&&|;)\s*/,
+  new RegExp(String.raw`^cd\s+${WORD}\s*(?:&&|;|\n)\s*`),
+  new RegExp(String.raw`^(?:export\s+)?[A-Za-z_][A-Za-z0-9_]*=${WORD}?\s*(?:&&|;|\n)\s*`),
+  new RegExp(String.raw`^(?:export\s+)?[A-Za-z_][A-Za-z0-9_]*=${WORD}?\s+`),
+  new RegExp(String.raw`^(?:source|\.)\s+${WORD}\s*(?:&&|;)\s*`),
   /^(time|sudo|command|exec|nohup)\s+/,
-  /^timeout\s+\S+\s+/,
+  new RegExp(String.raw`^timeout\s+${WORD}\s+`),
   /^[({]\s*/,
 ];
 function leadsWithRtk(command) {
@@ -542,7 +546,7 @@ out.f_toolResults = {
   topTools: Object.fromEntries(topN(toolCharsByTool, 15, 'chars').map(([k, v]) => [k, { calls: v.calls, chars: v.chars, maxChars: v.maxChars }])),
   bashCallsExplicitRtk: bashCounts.viaRtk,
   bashCallsTotal: bashCounts.calls,
-  rtkRewriteNote: 'PreToolUse rewrites are not recorded in transcripts (tool_use.input and wireToolInputs hold the model-written command); viaRtk counts only commands the model itself prefixed with rtk',
+  rtkRewriteNote: 'PreToolUse rewrites are not recorded in transcripts (tool_use.input and wireToolInputs hold the model-written command); viaRtk counts only commands the model itself prefixed with rtk, as a lower bound: a cd step or assignment holding an expansion before rtk is not counted',
   bashResultSizeHistogram: bashHistogram,
   resultsOver20kChars: bigResults.over20k, resultsOver20kTotalChars: bigResults.over20kChars, resultsOver50kChars: bigResults.over50k, resultsOver50kTotalChars: bigResults.over50kChars,
 };

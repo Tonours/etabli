@@ -7,7 +7,7 @@
  * mixes Opus and Sonnet turns, one with a non-numeric token count. The sdk
  * session carries a non-string cwd, tool name and timestamp, two non-object usages,
  * Bash commands built to tempt a command-word parser (assignments, substitutions,
- * quotes), one rtk call behind cd and an assignment, one not, and a model named
+ * quotes), one rtk call behind cd and an assignment, two that only mention rtk inside a value, and a model named
  * like an Object property; none may drop later turns. A Bash call just before the
  * window returns inside it and must keep its bucket; an older Bash call with a
  * non-string command must not drop later rows. sess-resumed started before the
@@ -94,9 +94,9 @@ export function writeFixture(dir, now = Date.now()) {
     assistant({ sid: "sess-sdk", ts: at(29), id: "b-assign", model: "claude-sonnet-5-5", u: "invalid", content: [{ type: "tool_use", id: "bash-assign", name: "Bash", input: { command: `API_TOKEN=x/${MARKER}` } }, { type: "tool_use", id: "bash-path", name: "Bash", input: { command: `$(cat ${MARKER})` } }] }),
     toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-assign-res", toolUseId: "bash-assign", chars: 40 }),
     toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-path-res", toolUseId: "bash-path", chars: 40 }),
-    assistant({ sid: "sess-sdk", ts: at(29), id: "b-escaped", model: "claude-sonnet-5-5", u: null, content: [{ type: "tool_use", id: "bash-escaped", name: "Bash", input: { command: `export TOKEN=part1\\ echo` } }] }),
+    assistant({ sid: "sess-sdk", ts: at(29), id: "b-escaped", model: "claude-sonnet-5-5", u: null, content: [{ type: "tool_use", id: "bash-escaped", name: "Bash", input: { command: `export TOKEN=part1\\ rtk ls` } }] }),
     toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-escaped-res", toolUseId: "bash-escaped", chars: 40 }),
-    assistant({ sid: "sess-sdk", ts: at(29), id: "b-subst", model: "claude-sonnet-5-5", u: null, content: [{ type: "tool_use", id: "bash-subst", name: "Bash", input: { command: "export LABEL=$(echo git )" } }, { type: "tool_use", id: "bash-cdsubst", name: "Bash", input: { command: "cd $(echo /tmp) && git status" } }, { type: "tool_use", id: "bash-cdquote", name: "Bash", input: { command: 'cd foo";"echo' } }, { type: "tool_use", id: "bash-ifs", name: "Bash", input: { command: "$(echo${IFS}/git )" } }, { type: "tool_use", id: "bash-rtk", name: "Bash", input: { command: "cd /tmp && FOO=1 rtk git status" } }, { type: "tool_use", id: "bash-notrtk", name: "Bash", input: { command: "echo rtk status" } }] }),
+    assistant({ sid: "sess-sdk", ts: at(29), id: "b-subst", model: "claude-sonnet-5-5", u: null, content: [{ type: "tool_use", id: "bash-subst", name: "Bash", input: { command: "export LABEL=$(echo git )" } }, { type: "tool_use", id: "bash-cdsubst", name: "Bash", input: { command: "cd $(echo /tmp) && git status" } }, { type: "tool_use", id: "bash-cdquote", name: "Bash", input: { command: 'cd foo";"echo' } }, { type: "tool_use", id: "bash-ifs", name: "Bash", input: { command: "$(echo${IFS}/git )" } }, { type: "tool_use", id: "bash-rtk", name: "Bash", input: { command: "cd /tmp && FOO=1 rtk git status" } }, { type: "tool_use", id: "bash-notrtk", name: "Bash", input: { command: "export LABEL=$(echo rtk status)" } }] }),
     toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-subst-res", toolUseId: "bash-subst", chars: 40 }),
     toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-cdsubst-res", toolUseId: "bash-cdsubst", chars: 40 }),
     toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-cdquote-res", toolUseId: "bash-cdquote", chars: 40 }),
