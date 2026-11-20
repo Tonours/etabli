@@ -15,11 +15,16 @@ describe("claude-usage-audit", () => {
   let expected;
   let out;
   let raw;
+  let stderr;
   before(() => {
     dir = mkdtempSync(join(tmpdir(), "usage-audit-"));
     expected = writeFixture(dir);
+    const lockedMeta = join(dir, "projects", "-tmp-fabricated-project", "sess-cli", "subagents", "agent-locked.meta.json");
+    chmodSync(lockedMeta, 0);
     const child = audit("--days", "7", "--claude-dir", dir);
+    chmodSync(lockedMeta, 0o600);
     assert.equal(child.status, 0, child.stderr);
+    stderr = child.stderr;
     raw = child.stdout;
     out = JSON.parse(raw);
   });
@@ -51,6 +56,12 @@ describe("claude-usage-audit", () => {
     assert.equal(out.f_toolResults.topTools["(other)"].calls, 1);
   });
 
+  test("reports an unreadable subagent meta file", () => {
+    if (process.getuid?.() === 0) return;
+    assert.equal(out.schema.unreadableFiles, 1);
+    assert.match(stderr, /skipped unreadable \S*agent-locked\.meta\.json \(/);
+  });
+
   test("resolves tool results after every file, whatever the order", () => {
     assert.equal(out.f_toolResults.topTools.Read.calls, 1);
     assert.equal("(unmatched)" in out.f_toolResults.topGroups, false);
@@ -62,8 +73,10 @@ describe("claude-usage-audit", () => {
     assert.deepEqual(out.b_subagents.byType["(other)"].ranOnModel, { "claude-opus-5-5": 1 });
     assert.equal(out.b_subagents.differentModelFromParent, 1);
     assert.equal(out.b_subagents.byModel["claude-sonnet-5-5"].tokens.output, 40 + 40 + 5);
-    assert.equal(out.b_subagents.byModel["claude-opus-5-5"].tokens.output, 10);
-    assert.equal(out.b_subagents.runs, 2);
+    assert.equal(out.b_subagents.byModel["claude-opus-5-5"].tokens.output, 10 + 1);
+    assert.equal(out.b_subagents.runs, 3);
+    assert.equal(out.b_subagents.byType["late-start"].sameModelAsParent, 1);
+    assert.equal(out.b_subagents.parentModelUnknown, 0);
     assert.deepEqual(out.b_subagents.agentToolCallsBySubagentTypeAndModelParam, { "general-purpose|(unset)": 1, "(other)|(other)": 1, "general-purpose|sonnet": 1 });
   });
 

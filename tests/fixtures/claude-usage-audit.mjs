@@ -12,7 +12,9 @@
  * like an Object property; none may drop later turns. A Bash call just before the
  * window returns inside it and must keep its bucket; an older Bash call with a
  * non-string command must not drop later rows. sess-resumed started before the
- * window: its in-window turn is not a first turn, and its effort is not a string.
+ * window: its in-window turn is not a first turn, and its effort is not a string. Its subagent
+ * starts just inside the window: the parent's model comes from a turn before it. agent-locked's
+ * meta file is made unreadable by the test.
  * Two files without session ids are two sessions: the old one never marks the new one resumed.
  * MARKER also sits in printed metadata (model, effort, entrypoint, compaction trigger, meta
  * agentType and model, tool name): each must print as a class. The cli session switches to
@@ -61,7 +63,7 @@ export function writeFixture(dir, now = Date.now()) {
     toolResult({ sid: "sess-cli", ts: at(55), uuid: "u-res-subread", toolUseId: "sub-read", chars: 40 }),
     `{"type":"assistant", ${MARKER} not json`,
     "null",
-    assistant({ sid: "sess-cli", ts: at(50), id: "a4", u: usage(1, 0, 0, 7), content: [{ type: "tool_use", id: "agent-1", name: "Agent", input: { subagent_type: `${MARKER}-type`, model: `${MARKER}-model` } }, { type: "tool_use", id: "agent-2", name: "Task", input: { subagent_type: "general-purpose", model: "claude-sonnet-5-5" } }] }),
+    assistant({ sid: "sess-cli", ts: at(50), id: "a4", u: usage(1, 0, 0, 7), content: [{ type: "tool_use", id: "agent-1", name: "Agent", input: { subagent_type: `unknown\n${MARKER}`, model: `${MARKER}-model` } }, { type: "tool_use", id: "agent-2", name: "Task", input: { subagent_type: "general-purpose", model: "claude-sonnet-5-5" } }] }),
   ];
   writeFileSync(join(project, "sess-cli.jsonl"), jsonl(cli));
 
@@ -85,6 +87,13 @@ export function writeFixture(dir, now = Date.now()) {
     assistant({ sid: "sess-resumed", ts: at(20), id: "r1", u: usage(1, 90000, 0, 3), extra: { perTurnEffort: { toString: null } } }),
   ]));
 
+  mkdirSync(join(project, "sess-resumed", "subagents"), { recursive: true });
+  writeFileSync(join(project, "sess-resumed", "subagents", "agent-late.meta.json"), JSON.stringify({ agentType: "late-start" }));
+  writeFileSync(join(project, "sess-resumed", "subagents", "agent-late.jsonl"), jsonl([
+    assistant({ sid: "sess-resumed", ts: at(7 * 1440 - 30), id: "l1", model: "claude-opus-5-5", u: usage(0, 0, 0, 1), extra: { isSidechain: true } }),
+  ]));
+  writeFileSync(join(project, "sess-cli", "subagents", "agent-locked.jsonl"), jsonl([]));
+  writeFileSync(join(project, "sess-cli", "subagents", "agent-locked.meta.json"), "{}");
   writeFileSync(join(project, "nosid-old.jsonl"), jsonl([
     { type: "user", timestamp: new Date(now - 9 * 86400e3).toISOString(), uuid: "u-nosid-old", message: { content: "x" } },
   ]));
@@ -119,14 +128,14 @@ export function writeFixture(dir, now = Date.now()) {
   ]));
 
   return {
-    // Counted turns: cli a1 a2 a-switch a4, subagents s1..s4, resumed r1, nosid n1, sdk b1 b3 b2.
-    totalOutput: 100 + 80 + 1 + 7 + 40 + 40 + 10 + 5 + 3 + 4 + 20 + 2 + 20,
-    totalInput: 10 + 5 + 1 + 1 + 10 + 10 + 10 + 0 + 1 + 1 + 10 + 1 + 10,
+    // Counted turns: cli a1 a2 a-switch a4, subagents s1..s4 and l1, resumed r1, nosid n1, sdk b1 b3 b2.
+    totalOutput: 100 + 80 + 1 + 7 + 40 + 40 + 10 + 5 + 3 + 4 + 20 + 2 + 20 + 1,
+    totalInput: 10 + 5 + 1 + 1 + 10 + 10 + 10 + 0 + 1 + 1 + 10 + 1 + 10 + 0,
     // malformed json, null line, timestamp object, b-falsy, b-assign, two id-less turns, trigger object.
     parseErrors: 8,
     bashResultChars: [...bashSizes, 30000, 40, 40, 40, 40, 40, 40, 40, 40, 40].reduce((a, b) => a + b, 0),
     mainTurns: 9,
-    subagentTurns: 4,
+    subagentTurns: 5,
     firstTurnCtx: { cli: 20010, "sdk-cli": 40010 },
   };
 }

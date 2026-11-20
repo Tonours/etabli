@@ -169,6 +169,7 @@ const seenMsg = new Map();      // key -> record (dedup by message.id + requestI
 const seenUuid = new Set();
 const seenToolResult = new Set();
 const toolUseInfo = new Map();  // tool_use id -> {name, viaRtk}
+const parentTurns = new Map();  // `session:${sid}` or `agent:${agentId}` -> [{ts, model}], any timestamp
 const toolResults = [];         // {id, chars, images, sidechain}; names resolve once every file is read
 const agentMeta = new Map();    // agentId -> meta
 const schema = { assistantLinesTotal: 0, assistantLinesDuplicate: 0, assistantNoUsage: 0, cacheCreationUnsplit: 0, sidechainInMainFile: 0, subagentFilesWithoutMeta: 0, parseErrors: 0, linesSkippedApiRequest: 0, filesScanned: 0, bytesScanned: 0, effortFieldMissing: 0, syntheticModelTurns: 0, unreadableDirs: 0, unreadableFiles: 0 };
@@ -207,8 +208,9 @@ const bigResults = { over20k: 0, over20kChars: 0, over50k: 0, over50kChars: 0 };
 const BASH_BUCKETS = [4000, 8000, 15000, 20000, 30000, 50000, 128000];
 const bashHistogram = [...BASH_BUCKETS.map((max) => `<=${max}`), `>${BASH_BUCKETS.at(-1)}`].map((bucket) => ({ bucket, calls: 0, chars: 0 }));
 let toolResultCharsTotal = 0;
-// `${subagent_type}\n${model class}` -> count. subagent_type is tool input: it prints only when a
-// subagent meta file names the same type (mapped at output).
+// `${subagent_type}|${model class}` -> count. subagent_type is tool input: identClass at parse
+// keeps it to one identifier (no `|`, no newline), and it prints only when a subagent meta file
+// names the same type (mapped at output).
 const agentCalls = new Map();
 const events = { compactBoundary: new Map(), compactSummaryLines: 0, clearCmd: 0, compactCmd: 0, scheduledTaskFire: 0 };
 const sessionCwd = new Map();
@@ -224,7 +226,15 @@ function firstSeen(uuid) {
 
 async function readMeta(file) {
   const metaPath = file.replace(/\.jsonl$/, '.meta.json');
-  try { return JSON.parse(await fs.readFile(metaPath, 'utf8')); } catch { return null; }
+  let text;
+  try { text = await fs.readFile(metaPath, 'utf8'); } catch (e) {
+    if (e.code !== 'ENOENT') {
+      schema.unreadableFiles += 1;
+      console.error(`claude-usage-audit: skipped unreadable ${metaPath} (${e.code || e.message})`);
+    }
+    return null;
+  }
+  try { return JSON.parse(text); } catch { schema.parseErrors += 1; return null; }
 }
 
 async function processFile(file) {
@@ -265,8 +275,8 @@ async function processFile(file) {
           const info = { name: typeof c.name === 'string' ? identClass(c.name) : '(invalid)' };
           if (c.name === 'Bash') info.viaRtk = typeof c.input?.command === 'string' && leadsWithRtk(c.input.command);
           if (inWindow && (c.name === 'Agent' || c.name === 'Task')) {
-            const type = typeof c.input?.subagent_type === 'string' && c.input.subagent_type ? c.input.subagent_type : '(default)';
-            const k = `${type}\n${modelParamClass(c.input?.model)}`;
+            const type = c.input?.subagent_type ? identClass(c.input.subagent_type) : '(default)';
+            const k = `${type}|${modelParamClass(c.input?.model)}`;
             agentCalls.set(k, (agentCalls.get(k) || 0) + 1);
           }
           toolUseInfo.set(c.id, info);
@@ -278,8 +288,12 @@ async function processFile(file) {
       if (!sidechain && o.cwd && !sessionCwd.has(sid)) sessionCwd.set(sid, o.cwd);
       if (!sidechain && o.entrypoint && !sessionEntry.has(sid)) sessionEntry.set(sid, o.entrypoint);
       if (!sidechain && Number.isFinite(ts) && !(sessionStart.get(sid) <= ts)) sessionStart.set(sid, ts);
-      if (!inWindow) continue;
       const agentId = isSubFile ? fileAgentId : (o.isSidechain ? (typeof o.agentId === 'string' && o.agentId ? o.agentId : `sidechain:${sid}`) : null);
+      // Parent model history, before the window filter: a subagent launched just before the cutoff still finds it.
+      if (o.type === 'assistant' && Number.isFinite(ts) && typeof m.model === 'string' && m.model && m.model !== '<synthetic>') {
+        bump(parentTurns, sidechain ? `agent:${agentId}` : `session:${sid}`, () => []).push({ ts, model: modelClass(m.model) });
+      }
+      if (!inWindow) continue;
       if (!isSubFile && o.isSidechain === true) schema.sidechainInMainFile += 1;
 
       if (o.type === 'assistant') {
@@ -398,7 +412,6 @@ const out = {
 const domModel = (map) => { let best = null, bv = -1; for (const [k, v] of map) if (v > bv) { best = k; bv = v; } return best; };
 const agentModelTurns = new Map();
 // Parent model at spawn: the model of the parent's last turn at or before the subagent's first turn.
-const parentTurns = new Map(); // `session:${sid}` or `agent:${agentId}` -> [{ts, model}]
 function modelAt(turns, ts) {
   let model = null, best = -Infinity;
   for (const t of turns || []) if (t.ts <= ts && t.ts >= best) { best = t.ts; model = t.model; }
@@ -429,7 +442,6 @@ const big = { over200k: zeroTok(), allMain: zeroTok() };
 for (const r of records) {
   const usd = costUSD(r.model, r.tok);
   const ctx = r.tok.input + r.tok.cr + r.tok.cw5m + r.tok.cw1h;
-  bump(parentTurns, r.sidechain ? `agent:${r.agentId}` : `session:${r.sid}`, () => []).push({ ts: r.ts, model: r.model });
   addTok(total, r.tok, usd);
   const bm = (byModel[r.model] ||= { main: zeroTok(), sub: zeroTok() });
   addTok(r.sidechain ? bm.sub : bm.main, r.tok, usd);
@@ -547,7 +559,7 @@ out.b_subagents = {
   }])),
   byModel: Object.fromEntries([...subByModel.entries()].map(([k, v]) => [k, { runs: v.runs, sharePctUsdOfAll: share(v.tok.usd, total.usd), tokens: fmtTok(v.tok) }])),
   agentToolCallsBySubagentTypeAndModelParam: Object.fromEntries([...[...agentCalls.entries()].reduce((acc, [k, n]) => {
-    const [type, model] = k.split('\n');
+    const [type, model] = k.split('|');
     const label = `${type === '(default)' || subByType.has(type) ? type : '(other)'}|${model}`;
     return acc.set(label, (acc.get(label) || 0) + n);
   }, new Map()).entries()].sort((a, b) => b[1] - a[1])),
