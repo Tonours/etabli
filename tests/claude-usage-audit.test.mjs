@@ -63,7 +63,7 @@ describe("claude-usage-audit", () => {
 
   test("buckets Bash result sizes on inclusive upper bounds", () => {
     const calls = Object.fromEntries(out.f_toolResults.bashResultSizeHistogram.map((b) => [b.bucket, b.calls]));
-    assert.deepEqual(calls, { "<=4000": 6, "<=8000": 1, "<=15000": 1, "<=20000": 1, "<=30000": 1, "<=50000": 0, "<=128000": 0, ">128000": 1 });
+    assert.deepEqual(calls, { "<=4000": 7, "<=8000": 1, "<=15000": 1, "<=20000": 1, "<=30000": 1, "<=50000": 0, "<=128000": 0, ">128000": 1 });
     const chars = out.f_toolResults.bashResultSizeHistogram.reduce((sum, b) => sum + b.chars, 0);
     assert.equal(chars, expected.bashResultChars);
   });

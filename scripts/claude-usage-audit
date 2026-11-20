@@ -122,7 +122,7 @@ function bashLead(cmd) {
   const full = (typeof cmd === 'string' ? cmd : '').trim();
   let s = full;
   let viaRtk = false;
-  const expanded = () => /[$`\\]/.test(full.slice(0, full.length - s.length));
+  const expanded = () => /[$`\\"']/.test(full.slice(0, full.length - s.length));
   for (let guard = 0; guard < 20; guard++) {
     const before = s;
     s = s.replace(/^#[^\n]*\n\s*/, '');
