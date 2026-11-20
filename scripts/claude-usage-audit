@@ -1,0 +1,556 @@
+#!/usr/bin/env node
+// Claude Code token usage audit. Reads ~/.claude/projects/**/*.jsonl, prints one JSON object of aggregates.
+// Usage: scripts/claude-usage-audit [--days 7] [--claude-dir ~/.claude]
+// No message content is printed: only counts, token sums, tool names, leading command words, project basenames.
+import { createReadStream, promises as fs } from 'node:fs';
+import { createInterface } from 'node:readline';
+import { homedir } from 'node:os';
+import path from 'node:path';
+
+const args = process.argv.slice(2);
+if (args.includes('-h') || args.includes('--help')) {
+  console.log('Usage: claude-usage-audit [--days N] [--claude-dir DIR]\nPrints one JSON object of token, cache, subagent, session and tool-result aggregates over the last N days (default 7).\nThe output names project basenames and leading command words: keep it private.');
+  process.exit(0);
+}
+const FLAGS = new Set(['--days', '--claude-dir']);
+const given = new Map();
+for (let i = 0; i < args.length; i += 2) {
+  if (!FLAGS.has(args[i]) || args[i + 1] === undefined || args[i + 1].startsWith('--')) {
+    console.error(`usage: claude-usage-audit [--days N] [--claude-dir DIR] (bad argument: ${args[i]})`);
+    process.exit(2);
+  }
+  given.set(args[i], args[i + 1]);
+}
+const opt = (name, def) => given.get(name) ?? def;
+const DAYS = Number(opt('--days', '7'));
+const CLAUDE_DIR = opt('--claude-dir', path.join(homedir(), '.claude')).replace(/^~(?=$|\/)/, homedir());
+if (!Number.isFinite(DAYS) || DAYS <= 0 || DAYS > 3650) {
+  console.error('--days must be a positive number of at most 3650');
+  process.exit(2);
+}
+const NOW = Date.now();
+const START = NOW - DAYS * 86400e3;
+const ACTIVE_GAP_MS = 5 * 60e3;
+
+// List prices, USD per MTok (Anthropic first-party, from the claude-api skill model table cached 2026-11-03).
+// cacheRead is the published cache-read price where known, else 0.1x input. Cache write: 1.25x input (5m), 2x input (1h).
+const PRICES = {
+  'claude-fable-5-2': { in: 8, out: 40, cr: 0.2 },
+  'claude-fable-5-1': { in: 10, out: 50, cr: 1.0 },
+  'claude-fable-5': { in: 10, out: 50, cr: 1.0 },
+  'claude-opus-5-5': { in: 4, out: 20, cr: 0.2 },
+  'claude-opus-5': { in: 5, out: 25, cr: 0.5 },
+  'claude-opus-4-8': { in: 5, out: 25, cr: 0.5 },
+  'claude-opus-4-7': { in: 5, out: 25, cr: 0.5 },
+  'claude-opus-4-6': { in: 5, out: 25, cr: 0.5 },
+  'claude-sonnet-5-5': { in: 2, out: 10, cr: 0.1 },
+  'claude-sonnet-5': { in: 2, out: 10, cr: 0.2 },
+  'claude-sonnet-4-6': { in: 3, out: 15, cr: 0.3 },
+  'claude-haiku-5-5': { in: 0.1, out: 0.5, cr: 0.01 },
+  'claude-haiku-4-5': { in: 1, out: 5, cr: 0.1 },
+};
+const unpricedModels = new Set();
+function priceOf(model) {
+  const base = String(model || '').replace(/\[.*\]$/, '').replace(/-\d{8}$/, '');
+  if (PRICES[base]) return PRICES[base];
+  unpricedModels.add(model);
+  return null;
+}
+function costUSD(model, u) {
+  const p = priceOf(model);
+  if (!p) return 0;
+  return (u.input * p.in + u.cw5m * p.in * 1.25 + u.cw1h * p.in * 2 + u.cr * p.cr + u.output * p.out) / 1e6;
+}
+
+// ---------- helpers ----------
+const zeroTok = () => ({ input: 0, cw5m: 0, cw1h: 0, cr: 0, output: 0, thinking: 0, turns: 0, usd: 0 });
+function addTok(dst, u, usd) {
+  dst.input += u.input; dst.cw5m += u.cw5m; dst.cw1h += u.cw1h; dst.cr += u.cr; dst.output += u.output;
+  dst.thinking += u.thinking; dst.turns += 1; dst.usd += usd;
+}
+const count = (x) => (Number.isFinite(x) && x >= 0 ? x : 0);
+const rawTotal = (t) => t.input + t.cw5m + t.cw1h + t.cr + t.output;
+function bump(map, key, init) { let v = map.get(key); if (v === undefined) { v = init(); map.set(key, v); } return v; }
+function pct(sorted, p) {
+  if (!sorted.length) return null;
+  const i = Math.min(sorted.length - 1, Math.max(0, Math.ceil((p / 100) * sorted.length) - 1));
+  return sorted[i];
+}
+function dist(values) {
+  const s = [...values].sort((a, b) => a - b);
+  return { n: s.length, p50: pct(s, 50), p90: pct(s, 90), max: s.length ? s[s.length - 1] : null };
+}
+const round = (x, d = 2) => Math.round(x * 10 ** d) / 10 ** d;
+function dayKey(ms) {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function projectName(cwd) {
+  if (!cwd) return '(unknown)';
+  const parts = cwd.split('/').filter(Boolean);
+  let base = parts[parts.length - 1] || cwd;
+  if (parts.length > 1 && /^(repo|worktree|checkout|src)$/.test(base)) {
+    // e.g. $TMPDIR/pr-council-12345.abcdef/repo -> pr-council
+    return `${parts[parts.length - 2].replace(/[-.]\d+(\.[A-Za-z0-9]+)?$/, '')}/${base}`;
+  }
+  // Fleet thread dirs end in a random id: keep the parent name too.
+  if (parts.length > 1 && /^[a-z0-9]{8,14}$/.test(base) && /\d/.test(base)) return `${parts[parts.length - 2]}/${base}`;
+  return base;
+}
+function textLen(content) {
+  if (content == null) return { chars: 0, images: 0 };
+  if (typeof content === 'string') return { chars: content.length, images: 0 };
+  let chars = 0, images = 0;
+  if (Array.isArray(content)) {
+    for (const c of content) {
+      if (!c) continue;
+      if (c.type === 'text' && typeof c.text === 'string') chars += c.text.length;
+      else if (c.type === 'image') images += 1;
+      else chars += JSON.stringify(c).length;
+    }
+  }
+  return { chars, images };
+}
+function userText(msg) {
+  const c = msg?.content;
+  if (typeof c === 'string') return c;
+  if (Array.isArray(c)) return c.filter((x) => x?.type === 'text').map((x) => x.text).join('\n');
+  return '';
+}
+const RTK_PASSTHRU = new Set(['bypass', 'proxy', 'run']);
+function bashLead(cmd) {
+  let s = String(cmd || '').trim();
+  let viaRtk = false;
+  for (let guard = 0; guard < 20; guard++) {
+    const before = s;
+    s = s.replace(/^#[^\n]*\n\s*/, '');
+    s = s.replace(/^cd\s+("[^"]*"|'[^']*'|\S+)\s*(&&|;|\n)\s*/, '');
+    s = s.replace(/^(export\s+)?[A-Za-z_][A-Za-z0-9_]*=("[^"]*"|'[^']*'|\S*)\s*(&&|;|\n)\s*/, '');
+    s = s.replace(/^(export\s+)?[A-Za-z_][A-Za-z0-9_]*=("[^"]*"|'[^']*'|\S*)\s+/, '');
+    s = s.replace(/^(source|\.)\s+\S+\s*(&&|;)\s*/, '');
+    s = s.replace(/^(time|sudo|command|exec|nohup)\s+/, '');
+    s = s.replace(/^timeout\s+\S+\s+/, '');
+    s = s.replace(/^[({]\s*/, '');
+    if (/^rtk\s/.test(s)) {
+      viaRtk = true;
+      s = s.replace(/^rtk\s+/, '');
+      const sub = s.split(/\s+/)[0];
+      if (RTK_PASSTHRU.has(sub)) s = s.replace(/^\S+\s+/, '');
+      else return { word: `rtk ${sub}`, viaRtk };
+    }
+    if (s === before) break;
+  }
+  let w = s.split(/[\s;|&]+/)[0] || '(empty)';
+  w = w.replace(/^["']|["']$/g, '');
+  if (w.includes('/')) w = path.basename(w);
+  return { word: w.slice(0, 40), viaRtk };
+}
+
+// ---------- file discovery ----------
+async function walk(dir, out) {
+  let ents;
+  try { ents = await fs.readdir(dir, { withFileTypes: true }); } catch { return; }
+  for (const e of ents) {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) await walk(p, out);
+    else if (e.isFile() && e.name.endsWith('.jsonl')) {
+      try { const st = await fs.stat(p); if (st.mtimeMs >= START) out.push(p); } catch { /* vanished */ }
+    }
+  }
+}
+
+// ---------- state ----------
+const seenMsg = new Map();      // key -> record (dedup by message.id + requestId)
+const seenUuid = new Set();
+const seenToolResult = new Set();
+const toolUseInfo = new Map();  // tool_use id -> {name, lead, viaRtk}
+const agentMeta = new Map();    // agentId -> meta
+const schema = { assistantLinesTotal: 0, assistantLinesDuplicate: 0, assistantNoUsage: 0, cacheCreationUnsplit: 0, sidechainInMainFile: 0, subagentFilesWithoutMeta: 0, parseErrors: 0, linesSkippedApiRequest: 0, filesScanned: 0, bytesScanned: 0, effortFieldMissing: 0, syntheticModelTurns: 0 };
+
+const records = []; // deduped assistant turns
+const toolChars = new Map(); // group -> {calls, chars, images, mainChars, subChars}
+const toolCharsByTool = new Map();
+const bashWords = new Map(); // word -> {count, chars, rtk}
+const bigResults = { over20k: 0, over20kChars: 0, over50k: 0, over50kChars: 0 };
+const BASH_BUCKETS = [4000, 8000, 15000, 20000, 30000, 50000, 128000];
+const bashHistogram = [...BASH_BUCKETS.map((max) => `<=${max}`), `>${BASH_BUCKETS.at(-1)}`].map((bucket) => ({ bucket, calls: 0, chars: 0 }));
+let toolResultCharsTotal = 0;
+const agentCalls = new Map(); // `${subagent_type}|${model}` -> count
+const events = { compactBoundary: new Map(), compactSummaryLines: 0, clearCmd: 0, compactCmd: 0, scheduledTaskFire: 0 };
+const sessionCwd = new Map();
+const sessionEntry = new Map();
+
+async function readMeta(file) {
+  const metaPath = file.replace(/\.jsonl$/, '.meta.json');
+  try { return JSON.parse(await fs.readFile(metaPath, 'utf8')); } catch { return null; }
+}
+
+async function processFile(file) {
+  const isSubFile = /\/subagents\/agent-[^/]+\.jsonl$/.test(file);
+  let fileAgentId = null, meta = null;
+  if (isSubFile) {
+    fileAgentId = path.basename(file, '.jsonl').replace(/^agent-/, '');
+    meta = await readMeta(file);
+    if (!meta) schema.subagentFilesWithoutMeta += 1;
+    agentMeta.set(fileAgentId, { ...(meta || {}), file: true });
+  }
+  schema.filesScanned += 1;
+  const rl = createInterface({ input: createReadStream(file, { encoding: 'utf8' }), crlfDelay: Infinity });
+  for await (const line of rl) {
+    schema.bytesScanned += line.length;
+    if (line.startsWith('{"type":"api-request')) { schema.linesSkippedApiRequest += 1; continue; }
+    if (!line) continue;
+    let o;
+    try { o = JSON.parse(line); } catch { schema.parseErrors += 1; continue; }
+    if (!o || typeof o !== 'object') { schema.parseErrors += 1; continue; }
+    for (const k of ['cwd', 'entrypoint']) if (o[k] !== undefined && typeof o[k] !== 'string') delete o[k];
+    const ts = o.timestamp ? Date.parse(o.timestamp) : NaN;
+    if (!Number.isFinite(ts) || ts < START || ts > NOW + 3600e3) continue;
+    const sid = o.sessionId || o.session_id || '(none)';
+    const sidechain = isSubFile || o.isSidechain === true;
+    const agentId = isSubFile ? fileAgentId : (o.isSidechain ? (o.agentId || `sidechain:${sid}`) : null);
+    if (!isSubFile && o.isSidechain === true) schema.sidechainInMainFile += 1;
+    if (!sidechain && o.cwd && !sessionCwd.has(sid)) sessionCwd.set(sid, o.cwd);
+    if (!sidechain && o.entrypoint && !sessionEntry.has(sid)) sessionEntry.set(sid, o.entrypoint);
+
+    if (o.type === 'assistant') {
+      schema.assistantLinesTotal += 1;
+      const m = o.message || {};
+      // tool_use blocks (each content block may be on its own line)
+      for (const c of Array.isArray(m.content) ? m.content : []) {
+        if (c?.type !== 'tool_use' || toolUseInfo.has(c.id)) continue;
+        const info = { name: typeof c.name === 'string' ? c.name : '(invalid)' };
+        if (c.name === 'Bash') Object.assign(info, bashLead(c.input?.command));
+        if (c.name === 'Agent' || c.name === 'Task') {
+          const k = `${c.input?.subagent_type || '(default)'}|${c.input?.model || '(unset)'}`;
+          agentCalls.set(k, (agentCalls.get(k) || 0) + 1);
+        }
+        toolUseInfo.set(c.id, info);
+      }
+      const u = m.usage;
+      if (!u) { schema.assistantNoUsage += 1; continue; }
+      if (m.model === '<synthetic>') { schema.syntheticModelTurns += 1; continue; }
+      const key = `${m.id || o.uuid}|${o.requestId || ''}`;
+      const cc = count(u.cache_creation_input_tokens);
+      let cw5m = cc, cw1h = 0;
+      if (u.cache_creation && (u.cache_creation.ephemeral_1h_input_tokens != null || u.cache_creation.ephemeral_5m_input_tokens != null)) {
+        cw1h = count(u.cache_creation.ephemeral_1h_input_tokens);
+        cw5m = count(u.cache_creation.ephemeral_5m_input_tokens);
+      } else if (cc) schema.cacheCreationUnsplit += 1;
+      const tok = {
+        input: count(u.input_tokens), cw5m, cw1h, cr: count(u.cache_read_input_tokens),
+        output: count(u.output_tokens), thinking: count(u.output_tokens_details?.thinking_tokens),
+      };
+      const prev = seenMsg.get(key);
+      if (prev) {
+        schema.assistantLinesDuplicate += 1;
+        for (const f of ['input', 'cw5m', 'cw1h', 'cr', 'output', 'thinking']) prev.tok[f] = Math.max(prev.tok[f], tok[f]);
+        continue;
+      }
+      if (o.effort == null && o.perTurnEffort == null) schema.effortFieldMissing += 1;
+      const rec = { ts, sid, sidechain, agentId, model: typeof m.model === 'string' && m.model ? m.model : '(none)', tok, effort: o.perTurnEffort || o.effort || '(none)', cwd: o.cwd, file };
+      seenMsg.set(key, rec);
+      records.push(rec);
+      continue;
+    }
+
+    if (o.type === 'user') {
+      const m = o.message || {};
+      if (Array.isArray(m.content)) {
+        for (const c of m.content) {
+          if (c?.type !== 'tool_result' || seenToolResult.has(c.tool_use_id)) continue;
+          seenToolResult.add(c.tool_use_id);
+          const info = toolUseInfo.get(c.tool_use_id) || { name: '(unmatched)' };
+          const { chars, images } = textLen(c.content);
+          toolResultCharsTotal += chars;
+          const group = info.name.startsWith('mcp__') ? `mcp__${info.name.split('__')[1]}` : info.name;
+          for (const [map, k] of [[toolChars, group], [toolCharsByTool, info.name]]) {
+            const g = bump(map, k, () => ({ calls: 0, chars: 0, images: 0, mainChars: 0, subChars: 0, maxChars: 0 }));
+            g.calls += 1; g.chars += chars; g.images += images; g.maxChars = Math.max(g.maxChars, chars);
+            if (sidechain) g.subChars += chars; else g.mainChars += chars;
+          }
+          if (chars > 20000) { bigResults.over20k += 1; bigResults.over20kChars += chars; }
+          if (chars > 50000) { bigResults.over50k += 1; bigResults.over50kChars += chars; }
+          if (info.name === 'Bash') {
+            const b = bump(bashWords, info.word, () => ({ count: 0, chars: 0, viaRtk: 0 }));
+            b.count += 1; b.chars += chars; if (info.viaRtk) b.viaRtk += 1;
+            const i = BASH_BUCKETS.findIndex((max) => chars <= max);
+            const slot = bashHistogram[i < 0 ? BASH_BUCKETS.length : i];
+            slot.calls += 1; slot.chars += chars;
+          }
+        }
+      }
+      if (o.uuid && seenUuid.has(o.uuid)) continue;
+      if (o.uuid) seenUuid.add(o.uuid);
+      if (o.isCompactSummary) events.compactSummaryLines += 1;
+      if (!sidechain) {
+        const t = userText(m);
+        if (t.includes('<command-name>/clear</command-name>')) events.clearCmd += 1;
+        if (t.includes('<command-name>/compact</command-name>')) events.compactCmd += 1;
+      }
+      continue;
+    }
+
+    if (o.type === 'system') {
+      if (o.uuid && seenUuid.has(o.uuid)) continue;
+      if (o.uuid) seenUuid.add(o.uuid);
+      if (o.subtype === 'compact_boundary') {
+        const trig = o.compactMetadata?.trigger || '(unknown)';
+        events.compactBoundary.set(trig, (events.compactBoundary.get(trig) || 0) + 1);
+      } else if (o.subtype === 'scheduled_task_fire') events.scheduledTaskFire += 1;
+      else if (o.subtype === 'local_command' && !sidechain) {
+        const t = typeof o.content === 'string' ? o.content : '';
+        if (t.includes('<command-name>/clear</command-name>')) events.clearCmd += 1;
+        if (t.includes('<command-name>/compact</command-name>')) events.compactCmd += 1;
+      }
+    }
+  }
+}
+
+// ---------- run ----------
+const t0 = Date.now();
+const files = [];
+await walk(path.join(CLAUDE_DIR, 'projects'), files);
+// Main files first so tool_use maps and session cwd exist; order inside does not matter for usage.
+files.sort((a, b) => Number(/\/subagents\//.test(a)) - Number(/\/subagents\//.test(b)));
+for (const f of files) {
+  try { await processFile(f); } catch (e) { schema.parseErrors += 1; }
+}
+
+// ---------- aggregate ----------
+const out = {
+  meta: {
+    generatedAt: new Date(NOW).toISOString(), windowDays: DAYS, windowStart: new Date(START).toISOString(),
+    claudeDir: CLAUDE_DIR.replace(homedir(), '~'), files: files.length, elapsedSec: 0,
+    weights: 'usd = list-price equivalent: input*Pin + cacheWrite5m*1.25*Pin + cacheWrite1h*2*Pin + cacheRead*Pcr + output*Pout (USD/MTok, Anthropic first-party list prices; subscription plans are not billed this way, use as relative weight only)',
+    prices: PRICES,
+  },
+};
+
+const domModel = (map) => { let best = null, bv = -1; for (const [k, v] of map) if (v > bv) { best = k; bv = v; } return best; };
+const sessionModelTurns = new Map();
+const agentModelTurns = new Map();
+const agentTypeOf = (id) => {
+  const m = agentMeta.get(id);
+  if (m?.agentType) return m.agentType;
+  if (String(id).startsWith('sidechain:')) return '(sidechain-in-main-file)';
+  return '(no-meta)';
+};
+
+const total = zeroTok();
+const byModel = {}; // model -> {main, sub}
+const perDay = new Map();
+const subByType = new Map();
+const subByModel = new Map();
+const effortDist = new Map();
+const projects = new Map();
+const entrypoints = new Map();
+const sessions = new Map(); // sid -> {turns, peak, first, last, firstCtx, minCtx, firstTs, mainTok, ts:[]}
+const activity = new Map(); // sid -> [ts...] (main + subagent)
+const agentFirst = new Map(); // agentId -> {ts, ctx}
+const agentRuns = new Map();
+const cache = { input: 0, cw5m: 0, cw1h: 0, cr: 0, missTurns: 0, missCtxTokens: 0, missUsd: 0, missTurnsMain: 0, missTurnsSub: 0, missByModel: {} };
+const big = { over200k: zeroTok(), allMain: zeroTok() };
+
+for (const r of records) {
+  const usd = costUSD(r.model, r.tok);
+  const ctx = r.tok.input + r.tok.cr + r.tok.cw5m + r.tok.cw1h;
+  r.ctx = ctx; r.usd = usd;
+  addTok(total, r.tok, usd);
+  const bm = (byModel[r.model] ||= { main: zeroTok(), sub: zeroTok() });
+  addTok(r.sidechain ? bm.sub : bm.main, r.tok, usd);
+  const day = dayKey(r.ts);
+  const d = bump(perDay, day, () => ({ byModel: {}, total: zeroTok(), sub: zeroTok(), sessions: new Set() }));
+  addTok(d.total, r.tok, usd);
+  if (r.sidechain) addTok(d.sub, r.tok, usd);
+  const dm = (d.byModel[r.model] ||= { main: zeroTok(), sub: zeroTok() });
+  addTok(r.sidechain ? dm.sub : dm.main, r.tok, usd);
+  if (!r.sidechain) d.sessions.add(r.sid);
+  bump(activity, r.sid, () => []).push(r.ts);
+
+  const ek = `${r.model}|${r.effort}`;
+  addTok(bump(effortDist, ek, zeroTok), r.tok, usd);
+
+  const proj = projectName(r.sidechain ? (sessionCwd.get(r.sid) || r.cwd) : (r.cwd || sessionCwd.get(r.sid)));
+  addTok(bump(projects, proj, zeroTok), r.tok, usd);
+  const ep = bump(entrypoints, sessionEntry.get(r.sid) || '(unknown)', () => ({ tok: zeroTok(), sids: new Set() }));
+  addTok(ep.tok, r.tok, usd); ep.sids.add(r.sid);
+
+  cache.input += r.tok.input; cache.cw5m += r.tok.cw5m; cache.cw1h += r.tok.cw1h; cache.cr += r.tok.cr;
+  if (r.tok.cr === 0 && ctx > 50000) {
+    cache.missTurns += 1; cache.missCtxTokens += ctx; cache.missUsd += usd;
+    if (r.sidechain) cache.missTurnsSub += 1; else cache.missTurnsMain += 1;
+    cache.missByModel[r.model] = (cache.missByModel[r.model] || 0) + 1;
+  }
+
+  if (r.sidechain) {
+    const mt = bump(agentModelTurns, r.agentId, () => new Map());
+    mt.set(r.model, (mt.get(r.model) || 0) + 1);
+    const af = agentFirst.get(r.agentId);
+    if (!af || r.ts < af.ts) agentFirst.set(r.agentId, { ts: r.ts, ctx });
+    const run = bump(agentRuns, r.agentId, () => ({ tok: zeroTok(), sid: r.sid, peak: 0 }));
+    addTok(run.tok, r.tok, usd); run.peak = Math.max(run.peak, ctx);
+    addTok(bump(subByModel, r.model, () => ({ runs: 0, tok: zeroTok() })).tok, r.tok, usd);
+  } else {
+    const mt = bump(sessionModelTurns, r.sid, () => new Map());
+    mt.set(r.model, (mt.get(r.model) || 0) + 1);
+    const s = bump(sessions, r.sid, () => ({ turns: 0, peak: 0, firstTs: Infinity, lastTs: 0, firstCtx: 0, minCtx: Infinity, tok: zeroTok() }));
+    s.turns += 1; s.peak = Math.max(s.peak, ctx); s.minCtx = Math.min(s.minCtx, ctx);
+    if (r.ts < s.firstTs) { s.firstTs = r.ts; s.firstCtx = ctx; }
+    s.lastTs = Math.max(s.lastTs, r.ts);
+    addTok(s.tok, r.tok, usd);
+    addTok(big.allMain, r.tok, usd);
+    if (ctx > 200000) addTok(big.over200k, r.tok, usd);
+  }
+}
+
+// subagent breakdown
+let subSameModel = 0, subDiffModel = 0, subParentUnknown = 0;
+const sameModelByType = new Map();
+for (const [aid, run] of agentRuns) {
+  const type = agentTypeOf(aid);
+  const model = domModel(agentModelTurns.get(aid) || new Map());
+  const meta = agentMeta.get(aid) || {};
+  const parentModel = meta.parentAgentId
+    ? domModel(agentModelTurns.get(meta.parentAgentId) || new Map())
+    : domModel(sessionModelTurns.get(run.sid) || new Map());
+  const t = bump(subByType, type, () => ({ runs: 0, tok: zeroTok(), models: {}, byParentEntrypoint: {}, requestedModel: {}, sameAsParent: 0, peakCtx: [] , firstCtx: []}));
+  t.runs += 1; t.peakCtx.push(run.peak);
+  for (const f of ['input', 'cw5m', 'cw1h', 'cr', 'output', 'thinking', 'turns', 'usd']) t.tok[f] += run.tok[f];
+  t.models[model] = (t.models[model] || 0) + 1;
+  const pep = sessionEntry.get(run.sid) || '(unknown)';
+  const pe = (t.byParentEntrypoint[pep] ||= {}); pe[model] = (pe[model] || 0) + 1;
+  const rq = meta.model || (agentMeta.has(aid) && Object.keys(meta).length > 1 ? '(unset-in-meta)' : '(no-meta)');
+  t.requestedModel[rq] = (t.requestedModel[rq] || 0) + 1;
+  const af = agentFirst.get(aid); if (af) t.firstCtx.push(af.ctx);
+  if (!parentModel) subParentUnknown += 1;
+  else if (parentModel === model) { subSameModel += 1; t.sameAsParent += 1; }
+  else subDiffModel += 1;
+  bump(subByModel, model, () => ({ runs: 0, tok: zeroTok() })).runs += 1;
+}
+
+// concurrency (minute buckets)
+const minuteCount = new Map();
+for (const [, tsList] of activity) {
+  tsList.sort((a, b) => a - b);
+  const mins = new Set();
+  for (let i = 0; i < tsList.length; i++) {
+    mins.add(Math.floor(tsList[i] / 60e3));
+    if (i > 0 && tsList[i] - tsList[i - 1] < ACTIVE_GAP_MS) {
+      for (let m = Math.floor(tsList[i - 1] / 60e3); m <= Math.floor(tsList[i] / 60e3); m++) mins.add(m);
+    }
+  }
+  for (const m of mins) minuteCount.set(m, (minuteCount.get(m) || 0) + 1);
+}
+const concVals = [...minuteCount.values()];
+const concPerDay = new Map();
+for (const [m, c] of minuteCount) {
+  const d = bump(concPerDay, dayKey(m * 60e3), () => ({ activeMin: 0, ge2: 0, ge4: 0, ge6: 0, max: 0 }));
+  d.activeMin += 1; if (c >= 2) d.ge2 += 1; if (c >= 4) d.ge4 += 1; if (c >= 6) d.ge6 += 1; d.max = Math.max(d.max, c);
+}
+
+const fmtTok = (t) => ({
+  input: t.input, cacheWrite5m: t.cw5m, cacheWrite1h: t.cw1h, cacheRead: t.cr, output: t.output, thinking: t.thinking,
+  turns: t.turns, rawTotal: rawTotal(t), usd: round(t.usd, 2),
+});
+const share = (a, b) => (b ? round((100 * a) / b, 1) : null);
+
+const subTotal = zeroTok();
+for (const m of Object.values(byModel)) for (const f of Object.keys(subTotal)) subTotal[f] += m.sub[f];
+
+out.a_tokensByModel = Object.fromEntries(Object.entries(byModel).sort((x, y) => (y[1].main.usd + y[1].sub.usd) - (x[1].main.usd + x[1].sub.usd))
+  .map(([k, v]) => [k, { main: fmtTok(v.main), subagent: fmtTok(v.sub) }]));
+out.a_total = fmtTok(total);
+out.a_unpricedModels = [...unpricedModels];
+out.a_perDay = Object.fromEntries([...perDay.entries()].sort().map(([day, d]) => [day, {
+  total: fmtTok(d.total), subagentSharePctRaw: share(rawTotal(d.sub), rawTotal(d.total)), subagentSharePctUsd: share(d.sub.usd, d.total.usd),
+  mainSessions: d.sessions.size,
+  byModel: Object.fromEntries(Object.entries(d.byModel).map(([k, v]) => [k, { mainRaw: rawTotal(v.main), mainUsd: round(v.main.usd), subRaw: rawTotal(v.sub), subUsd: round(v.sub.usd), mainTurns: v.main.turns, subTurns: v.sub.turns }])),
+  concurrency: (() => { const c = concPerDay.get(day); return c ? { activeHours: round(c.activeMin / 60, 1), hoursGe2: round(c.ge2 / 60, 1), hoursGe4: round(c.ge4 / 60, 1), hoursGe6: round(c.ge6 / 60, 1), max: c.max } : null; })(),
+}]));
+
+out.b_subagents = {
+  sharePctRaw: share(rawTotal(subTotal), rawTotal(total)), sharePctUsd: share(subTotal.usd, total.usd), total: fmtTok(subTotal),
+  runs: agentRuns.size, sameModelAsParent: subSameModel, differentModelFromParent: subDiffModel, parentModelUnknown: subParentUnknown,
+  byType: Object.fromEntries([...subByType.entries()].sort((x, y) => y[1].tok.usd - x[1].tok.usd).map(([k, v]) => [k, {
+    runs: v.runs, sameModelAsParent: v.sameAsParent, ranOnModel: v.models, ranOnModelByParentEntrypoint: v.byParentEntrypoint, metaRequestedModel: v.requestedModel,
+    sharePctUsdOfAll: share(v.tok.usd, total.usd), tokens: fmtTok(v.tok), firstTurnCtx: dist(v.firstCtx), peakCtx: dist(v.peakCtx),
+  }])),
+  byModel: Object.fromEntries([...subByModel.entries()].map(([k, v]) => [k, { runs: v.runs, sharePctUsdOfAll: share(v.tok.usd, total.usd), tokens: fmtTok(v.tok) }])),
+  agentToolCallsBySubagentTypeAndModelParam: Object.fromEntries([...agentCalls.entries()].sort((a, b) => b[1] - a[1])),
+};
+
+const sess = [...sessions.values()];
+out.c_sessions = {
+  mainSessions: sess.length,
+  perDay: Object.fromEntries([...perDay.entries()].sort().map(([d, v]) => [d, v.sessions.size])),
+  concurrency: {
+    definition: 'per sessionId (main thread + its subagents); a session is active across consecutive assistant messages < 5 min apart; sampled per minute over minutes with >=1 active session',
+    max: concVals.length ? concVals.reduce((a, b) => Math.max(a, b), 0) : 0, ...(() => { const d = dist(concVals); return { p50: d.p50, p90: d.p90, activeMinutes: d.n }; })(),
+    hoursGe2: round(concVals.filter((c) => c >= 2).length / 60, 1), hoursGe4: round(concVals.filter((c) => c >= 4).length / 60, 1), hoursGe6: round(concVals.filter((c) => c >= 6).length / 60, 1),
+  },
+};
+
+const peaks = sess.map((s) => s.peak);
+out.d_context = {
+  perSessionPeak: dist(peaks),
+  sessionsPeakOver: { '100k': peaks.filter((p) => p > 100e3).length, '200k': peaks.filter((p) => p > 200e3).length, '300k': peaks.filter((p) => p > 300e3).length, '500k': peaks.filter((p) => p > 500e3).length },
+  mainTurnsOver200k: big.over200k.turns,
+  shareOfMainTokensInTurnsOver200kPctRaw: share(rawTotal(big.over200k), rawTotal(big.allMain)),
+  shareOfMainTokensInTurnsOver200kPctUsd: share(big.over200k.usd, big.allMain.usd),
+  avgAssistantTurnsPerSession: sess.length ? round(sess.reduce((a, s) => a + s.turns, 0) / sess.length, 1) : null,
+  turnsPerSession: dist(sess.map((s) => s.turns)),
+  sessionsLongerThan4h: sess.filter((s) => s.lastTs - s.firstTs > 4 * 3600e3).length,
+  sessionDurationHours: dist(sess.map((s) => round((s.lastTs - s.firstTs) / 3600e3, 2))),
+  compactBoundaryByTrigger: Object.fromEntries(events.compactBoundary), compactSummaryLines: events.compactSummaryLines,
+  clearCommands: events.clearCmd, compactCommands: events.compactCmd, scheduledTaskFires: events.scheduledTaskFire,
+};
+
+const inTot = cache.input + cache.cw5m + cache.cw1h + cache.cr;
+out.e_cache = {
+  uncachedInput: cache.input, cacheWrite5m: cache.cw5m, cacheWrite1h: cache.cw1h, cacheRead: cache.cr,
+  pctOfInputSide: { uncached: share(cache.input, inTot), write5m: share(cache.cw5m, inTot), write1h: share(cache.cw1h, inTot), read: share(cache.cr, inTot) },
+  readToWriteRatio: round(cache.cr / Math.max(1, cache.cw5m + cache.cw1h), 2),
+  missTurns_cr0_ctxOver50k: cache.missTurns, missTurnsMain: cache.missTurnsMain, missTurnsSub: cache.missTurnsSub,
+  missCtxTokens: cache.missCtxTokens, missUsd: round(cache.missUsd), missSharePctUsd: share(cache.missUsd, total.usd), missByModel: cache.missByModel,
+};
+
+const topN = (map, n, key) => [...map.entries()].sort((a, b) => b[1][key] - a[1][key]).slice(0, n);
+out.f_toolResults = {
+  totalChars: toolResultCharsTotal, unit: 'characters of tool_result content as sent to the model (~4 chars per token)',
+  topGroups: Object.fromEntries(topN(toolChars, 15, 'chars').map(([k, v]) => [k, { ...v, pct: share(v.chars, toolResultCharsTotal) }])),
+  topTools: Object.fromEntries(topN(toolCharsByTool, 15, 'chars').map(([k, v]) => [k, { calls: v.calls, chars: v.chars, maxChars: v.maxChars }])),
+  bashTopLeadingWords: Object.fromEntries(topN(bashWords, 25, 'chars').map(([k, v]) => [k, { ...v, avgChars: Math.round(v.chars / v.count) }])),
+  bashCallsExplicitRtk: [...bashWords.values()].reduce((a, b) => a + b.viaRtk, 0),
+  bashCallsTotal: [...bashWords.values()].reduce((a, b) => a + b.count, 0),
+  rtkRewriteNote: 'PreToolUse rewrites are not recorded in transcripts (tool_use.input and wireToolInputs hold the model-written command); viaRtk counts only commands the model itself prefixed with rtk',
+  bashResultSizeHistogram: bashHistogram,
+  resultsOver20kChars: bigResults.over20k, resultsOver20kTotalChars: bigResults.over20kChars, resultsOver50kChars: bigResults.over50k, resultsOver50kTotalChars: bigResults.over50kChars,
+};
+
+out.g_firstTurnOverhead = {
+  mainSessionFirstTurnCtx: dist(sess.map((s) => s.firstCtx)),
+  mainSessionMinCtx: dist(sess.map((s) => s.minCtx)),
+  mainSessionFirstTurnCtxByEntrypoint: (() => {
+    const byEntry = new Map();
+    for (const [sid, s] of sessions) bump(byEntry, sessionEntry.get(sid) || '(unknown)', () => []).push(s.firstCtx);
+    return Object.fromEntries([...byEntry.entries()].sort().map(([k, v]) => [k, dist(v)]));
+  })(),
+  note: 'first turn of resumed/forked sessions includes history; minCtx (lowest context seen in a session) is a second estimate of fixed overhead',
+  subagentFirstTurnCtxByType: Object.fromEntries([...subByType.entries()].sort((a, b) => b[1].runs - a[1].runs).map(([k, v]) => [k, dist(v.firstCtx)])),
+};
+
+out.h_byEntrypoint = Object.fromEntries([...entrypoints.entries()].map(([k, v]) => [k, { sessions: v.sids.size, usd: round(v.tok.usd), pctUsd: share(v.tok.usd, total.usd), rawTotal: rawTotal(v.tok), turns: v.tok.turns }]));
+out.h_topProjects = Object.fromEntries(topN(projects, 10, 'usd').map(([k, v]) => [k, { usd: round(v.usd), pctUsd: share(v.usd, total.usd), rawTotal: rawTotal(v), turns: v.turns }]));
+
+out.i_effort = {
+  outputSharePctRaw: share(total.output, rawTotal(total)), outputSharePctUsd: (() => {
+    let o = 0; for (const r of records) { const p = priceOf(r.model); if (p) o += (r.tok.output * p.out) / 1e6; } return share(o, total.usd);
+  })(),
+  thinkingTokens: total.thinking, thinkingPctOfOutput: share(total.thinking, total.output),
+  byModelEffort: Object.fromEntries([...effortDist.entries()].sort((a, b) => b[1].usd - a[1].usd).map(([k, v]) => [k, { turns: v.turns, output: v.output, thinking: v.thinking, usd: round(v.usd), pctUsd: share(v.usd, total.usd) }])),
+};
+
+out.schema = { ...schema, dedupedAssistantTurns: records.length, subagentFiles: [...agentMeta.values()].filter((m) => m.file).length };
+out.meta.elapsedSec = round((Date.now() - t0) / 1000, 1);
+process.stdout.write(JSON.stringify(out, null, 1) + '\n');
