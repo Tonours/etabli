@@ -5,7 +5,9 @@
  * carries a synthetic turn, an out-of-window turn, one malformed line, then a
  * JSON null line followed by a valid turn that must still count. Subagent sub2
  * mixes Opus and Sonnet turns, one with a non-numeric token count. The sdk
- * session carries a non-string cwd and tool name that must not drop later turns.
+ * session carries a non-string cwd, tool name and timestamp and a model named
+ * like an Object property; none may drop later turns. A Bash call just before the
+ * window returns inside it and must keep its bucket.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -45,6 +47,8 @@ export function writeFixture(dir, now = Date.now()) {
     assistant({ sid: "sess-cli", ts: at(56), id: "a3", model: "<synthetic>", u: usage(1, 0, 0, 1) }),
     assistant({ sid: "sess-cli", ts: new Date(now - 30 * 86400e3).toISOString(), id: "old", u: usage(999, 0, 0, 999) }),
     `{"type":"assistant", ${MARKER} not json`,
+    assistant({ sid: "sess-cli", ts: at(7 * 1440 + 1), id: "early", u: usage(1, 0, 0, 1), content: [{ type: "tool_use", id: "bash-early", name: "Bash", input: { command: "ls" } }] }),
+    toolResult({ sid: "sess-cli", ts: at(7 * 1440 - 1), uuid: "u-res-early", toolUseId: "bash-early", chars: 30000 }),
     "null",
     assistant({ sid: "sess-cli", ts: at(50), id: "a4", u: usage(1, 0, 0, 7) }),
   ];
@@ -63,12 +67,15 @@ export function writeFixture(dir, now = Date.now()) {
   writeFileSync(join(project, "sess-sdk.jsonl"), jsonl([
     assistant({ sid: "sess-sdk", ts: at(30), id: "b1", model: "claude-sonnet-5-5", u: usage(10, 0, 40000, 20), extra: { entrypoint: "sdk-cli", cwd: 17 }, content: [{ type: "tool_use", id: "odd-0", name: ["mcp__fake__tool"], input: {} }] }),
     toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-odd-res", toolUseId: "odd-0", chars: 100 }),
+    { type: "assistant", sessionId: "sess-sdk", timestamp: { toString: null }, message: { id: "msg-badts", model: "claude-sonnet-5-5", usage: usage(1, 0, 0, 1) } },
+    assistant({ sid: "sess-sdk", ts: at(28), id: "b3", model: "constructor", u: usage(1, 0, 0, 2) }),
     assistant({ sid: "sess-sdk", ts: at(29), id: "b2", model: "claude-sonnet-5-5", u: usage(10, 40000, 220000, 20) }),
   ]));
 
   return {
     bashSizes,
-    mainTurns: 5,
+    bashResultChars: [...bashSizes, 30000].reduce((a, b) => a + b, 0),
+    mainTurns: 6,
     subagentTurns: 4,
     firstTurnCtx: { cli: 20010, "sdk-cli": 40010 },
   };

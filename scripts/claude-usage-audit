@@ -52,7 +52,7 @@ const PRICES = {
 const unpricedModels = new Set();
 function priceOf(model) {
   const base = String(model || '').replace(/\[.*\]$/, '').replace(/-\d{8}$/, '');
-  if (PRICES[base]) return PRICES[base];
+  if (Object.hasOwn(PRICES, base)) return PRICES[base];
   unpricedModels.add(model);
   return null;
 }
@@ -204,8 +204,23 @@ async function processFile(file) {
     try { o = JSON.parse(line); } catch { schema.parseErrors += 1; continue; }
     if (!o || typeof o !== 'object') { schema.parseErrors += 1; continue; }
     for (const k of ['cwd', 'entrypoint']) if (o[k] !== undefined && typeof o[k] !== 'string') delete o[k];
+    if (o.timestamp !== undefined && typeof o.timestamp !== 'string') { schema.parseErrors += 1; continue; }
     const ts = o.timestamp ? Date.parse(o.timestamp) : NaN;
-    if (!Number.isFinite(ts) || ts < START || ts > NOW + 3600e3) continue;
+    const inWindow = Number.isFinite(ts) && ts >= START && ts <= NOW + 3600e3;
+    const m = o.message && typeof o.message === 'object' ? o.message : {};
+    if (o.type === 'assistant') {
+      for (const c of Array.isArray(m.content) ? m.content : []) {
+        if (c?.type !== 'tool_use' || toolUseInfo.has(c.id)) continue;
+        const info = { name: typeof c.name === 'string' ? c.name : '(invalid)' };
+        if (c.name === 'Bash') Object.assign(info, bashLead(c.input?.command));
+        if (inWindow && (c.name === 'Agent' || c.name === 'Task')) {
+          const k = `${c.input?.subagent_type || '(default)'}|${c.input?.model || '(unset)'}`;
+          agentCalls.set(k, (agentCalls.get(k) || 0) + 1);
+        }
+        toolUseInfo.set(c.id, info);
+      }
+    }
+    if (!inWindow) continue;
     const sid = o.sessionId || o.session_id || '(none)';
     const sidechain = isSubFile || o.isSidechain === true;
     const agentId = isSubFile ? fileAgentId : (o.isSidechain ? (o.agentId || `sidechain:${sid}`) : null);
@@ -215,18 +230,6 @@ async function processFile(file) {
 
     if (o.type === 'assistant') {
       schema.assistantLinesTotal += 1;
-      const m = o.message || {};
-      // tool_use blocks (each content block may be on its own line)
-      for (const c of Array.isArray(m.content) ? m.content : []) {
-        if (c?.type !== 'tool_use' || toolUseInfo.has(c.id)) continue;
-        const info = { name: typeof c.name === 'string' ? c.name : '(invalid)' };
-        if (c.name === 'Bash') Object.assign(info, bashLead(c.input?.command));
-        if (c.name === 'Agent' || c.name === 'Task') {
-          const k = `${c.input?.subagent_type || '(default)'}|${c.input?.model || '(unset)'}`;
-          agentCalls.set(k, (agentCalls.get(k) || 0) + 1);
-        }
-        toolUseInfo.set(c.id, info);
-      }
       const u = m.usage;
       if (!u) { schema.assistantNoUsage += 1; continue; }
       if (m.model === '<synthetic>') { schema.syntheticModelTurns += 1; continue; }
@@ -338,7 +341,7 @@ const agentTypeOf = (id) => {
 };
 
 const total = zeroTok();
-const byModel = {}; // model -> {main, sub}
+const byModel = Object.create(null); // model -> {main, sub}
 const perDay = new Map();
 const subByType = new Map();
 const subByModel = new Map();
@@ -349,7 +352,7 @@ const sessions = new Map(); // sid -> {turns, peak, first, last, firstCtx, minCt
 const activity = new Map(); // sid -> [ts...] (main + subagent)
 const agentFirst = new Map(); // agentId -> {ts, ctx}
 const agentRuns = new Map();
-const cache = { input: 0, cw5m: 0, cw1h: 0, cr: 0, missTurns: 0, missCtxTokens: 0, missUsd: 0, missTurnsMain: 0, missTurnsSub: 0, missByModel: {} };
+const cache = { input: 0, cw5m: 0, cw1h: 0, cr: 0, missTurns: 0, missCtxTokens: 0, missUsd: 0, missTurnsMain: 0, missTurnsSub: 0, missByModel: Object.create(null) };
 const big = { over200k: zeroTok(), allMain: zeroTok() };
 
 for (const r of records) {
@@ -360,7 +363,7 @@ for (const r of records) {
   const bm = (byModel[r.model] ||= { main: zeroTok(), sub: zeroTok() });
   addTok(r.sidechain ? bm.sub : bm.main, r.tok, usd);
   const day = dayKey(r.ts);
-  const d = bump(perDay, day, () => ({ byModel: {}, total: zeroTok(), sub: zeroTok(), sessions: new Set() }));
+  const d = bump(perDay, day, () => ({ byModel: Object.create(null), total: zeroTok(), sub: zeroTok(), sessions: new Set() }));
   addTok(d.total, r.tok, usd);
   if (r.sidechain) addTok(d.sub, r.tok, usd);
   const dm = (d.byModel[r.model] ||= { main: zeroTok(), sub: zeroTok() });
@@ -414,12 +417,12 @@ for (const [aid, run] of agentRuns) {
   const parentModel = meta.parentAgentId
     ? domModel(agentModelTurns.get(meta.parentAgentId) || new Map())
     : domModel(sessionModelTurns.get(run.sid) || new Map());
-  const t = bump(subByType, type, () => ({ runs: 0, tok: zeroTok(), models: {}, byParentEntrypoint: {}, requestedModel: {}, sameAsParent: 0, peakCtx: [] , firstCtx: []}));
+  const t = bump(subByType, type, () => ({ runs: 0, tok: zeroTok(), models: Object.create(null), byParentEntrypoint: Object.create(null), requestedModel: Object.create(null), sameAsParent: 0, peakCtx: [] , firstCtx: []}));
   t.runs += 1; t.peakCtx.push(run.peak);
   for (const f of ['input', 'cw5m', 'cw1h', 'cr', 'output', 'thinking', 'turns', 'usd']) t.tok[f] += run.tok[f];
   t.models[model] = (t.models[model] || 0) + 1;
   const pep = sessionEntry.get(run.sid) || '(unknown)';
-  const pe = (t.byParentEntrypoint[pep] ||= {}); pe[model] = (pe[model] || 0) + 1;
+  const pe = (t.byParentEntrypoint[pep] ||= Object.create(null)); pe[model] = (pe[model] || 0) + 1;
   const rq = meta.model || (agentMeta.has(aid) && Object.keys(meta).length > 1 ? '(unset-in-meta)' : '(no-meta)');
   t.requestedModel[rq] = (t.requestedModel[rq] || 0) + 1;
   const af = agentFirst.get(aid); if (af) t.firstCtx.push(af.ctx);

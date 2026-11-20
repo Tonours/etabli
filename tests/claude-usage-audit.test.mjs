@@ -33,9 +33,10 @@ describe("claude-usage-audit", () => {
     assert.equal(out.schema.dedupedAssistantTurns, expected.mainTurns + expected.subagentTurns);
     assert.equal(out.schema.assistantLinesDuplicate, 1);
     assert.equal(out.schema.syntheticModelTurns, 1);
-    assert.equal(out.schema.parseErrors, 2);
-    assert.equal(out.a_total.output, 100 + 80 + 7 + 20 + 20 + 40 + 40 + 10 + 5);
-    assert.equal(out.a_total.input, 10 + 5 + 1 + 10 + 10 + 10 + 10 + 10);
+    assert.equal(out.schema.parseErrors, 3);
+    assert.equal(out.a_total.output, 100 + 80 + 7 + 20 + 20 + 40 + 40 + 10 + 5 + 2);
+    assert.equal(out.a_total.input, 10 + 5 + 1 + 10 + 1 + 10 + 10 + 10 + 10);
+    assert.equal(out.a_tokensByModel.constructor.main.output, 2);
   });
 
   test("keeps the reference top-level sections", () => {
@@ -53,9 +54,9 @@ describe("claude-usage-audit", () => {
 
   test("buckets Bash result sizes on inclusive upper bounds", () => {
     const calls = Object.fromEntries(out.f_toolResults.bashResultSizeHistogram.map((b) => [b.bucket, b.calls]));
-    assert.deepEqual(calls, { "<=4000": 1, "<=8000": 1, "<=15000": 1, "<=20000": 1, "<=30000": 0, "<=50000": 0, "<=128000": 0, ">128000": 1 });
+    assert.deepEqual(calls, { "<=4000": 1, "<=8000": 1, "<=15000": 1, "<=20000": 1, "<=30000": 1, "<=50000": 0, "<=128000": 0, ">128000": 1 });
     const chars = out.f_toolResults.bashResultSizeHistogram.reduce((sum, b) => sum + b.chars, 0);
-    assert.equal(chars, expected.bashSizes.reduce((a, b) => a + b, 0));
+    assert.equal(chars, expected.bashResultChars);
   });
 
   test("reports first-turn context per entrypoint", () => {
