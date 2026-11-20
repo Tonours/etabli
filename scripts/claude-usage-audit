@@ -179,6 +179,7 @@ const agentCalls = new Map(); // `${subagent_type}|${model}` -> count
 const events = { compactBoundary: new Map(), compactSummaryLines: 0, clearCmd: 0, compactCmd: 0, scheduledTaskFire: 0 };
 const sessionCwd = new Map();
 const sessionEntry = new Map();
+const sessionStart = new Map();
 
 async function readMeta(file) {
   const metaPath = file.replace(/\.jsonl$/, '.meta.json');
@@ -192,7 +193,8 @@ async function processFile(file) {
     fileAgentId = path.basename(file, '.jsonl').replace(/^agent-/, '');
     meta = await readMeta(file);
     if (!meta) schema.subagentFilesWithoutMeta += 1;
-    agentMeta.set(fileAgentId, { ...(meta || {}), file: true });
+    if (meta && typeof meta === 'object') for (const k of ['agentType', 'parentAgentId', 'model']) if (meta[k] !== undefined && typeof meta[k] !== 'string') delete meta[k];
+    agentMeta.set(fileAgentId, { ...(meta && typeof meta === 'object' ? meta : {}), file: true });
   }
   schema.filesScanned += 1;
   const rl = createInterface({ input: createReadStream(file, { encoding: 'utf8' }), crlfDelay: Infinity });
@@ -221,13 +223,15 @@ async function processFile(file) {
           toolUseInfo.set(c.id, info);
         }
       }
-      if (!inWindow) continue;
-      const sid = o.sessionId || o.session_id || '(none)';
+      const rawSid = o.sessionId || o.session_id;
+      const sid = typeof rawSid === 'string' && rawSid ? rawSid : '(none)';
       const sidechain = isSubFile || o.isSidechain === true;
-      const agentId = isSubFile ? fileAgentId : (o.isSidechain ? (o.agentId || `sidechain:${sid}`) : null);
-      if (!isSubFile && o.isSidechain === true) schema.sidechainInMainFile += 1;
       if (!sidechain && o.cwd && !sessionCwd.has(sid)) sessionCwd.set(sid, o.cwd);
       if (!sidechain && o.entrypoint && !sessionEntry.has(sid)) sessionEntry.set(sid, o.entrypoint);
+      if (!sidechain && Number.isFinite(ts) && !(sessionStart.get(sid) <= ts)) sessionStart.set(sid, ts);
+      if (!inWindow) continue;
+      const agentId = isSubFile ? fileAgentId : (o.isSidechain ? (typeof o.agentId === 'string' && o.agentId ? o.agentId : `sidechain:${sid}`) : null);
+      if (!isSubFile && o.isSidechain === true) schema.sidechainInMainFile += 1;
 
       if (o.type === 'assistant') {
         schema.assistantLinesTotal += 1;
@@ -252,7 +256,7 @@ async function processFile(file) {
           continue;
         }
         if (o.effort == null && o.perTurnEffort == null) schema.effortFieldMissing += 1;
-        const rec = { ts, sid, sidechain, agentId, model: typeof m.model === 'string' && m.model ? m.model : '(none)', tok, effort: o.perTurnEffort || o.effort || '(none)', cwd: o.cwd, file };
+        const rec = { ts, sid, sidechain, agentId, model: typeof m.model === 'string' && m.model ? m.model : '(none)', tok, effort: [o.perTurnEffort, o.effort].find((x) => typeof x === 'string' && x) || '(none)', cwd: o.cwd, file };
         seenMsg.set(key, rec);
         records.push(rec);
         continue;
@@ -533,12 +537,14 @@ out.f_toolResults = {
   resultsOver20kChars: bigResults.over20k, resultsOver20kTotalChars: bigResults.over20kChars, resultsOver50kChars: bigResults.over50k, resultsOver50kTotalChars: bigResults.over50kChars,
 };
 
+const startedInWindow = [...sessions].filter(([sid]) => !(sessionStart.get(sid) < START));
 out.g_firstTurnOverhead = {
-  mainSessionFirstTurnCtx: dist(sess.map((s) => s.firstCtx)),
+  mainSessionFirstTurnCtx: dist(startedInWindow.map(([, s]) => s.firstCtx)),
+  mainSessionsStartedBeforeWindow: sessions.size - startedInWindow.length,
   mainSessionMinCtx: dist(sess.map((s) => s.minCtx)),
   mainSessionFirstTurnCtxByEntrypoint: (() => {
     const byEntry = new Map();
-    for (const [sid, s] of sessions) bump(byEntry, sessionEntry.get(sid) || '(unknown)', () => []).push(s.firstCtx);
+    for (const [sid, s] of startedInWindow) bump(byEntry, sessionEntry.get(sid) || '(unknown)', () => []).push(s.firstCtx);
     return Object.fromEntries([...byEntry.entries()].sort().map(([k, v]) => [k, dist(v)]));
   })(),
   note: 'first turn of resumed/forked sessions includes history; minCtx (lowest context seen in a session) is a second estimate of fixed overhead',

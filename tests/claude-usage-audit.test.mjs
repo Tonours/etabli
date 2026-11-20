@@ -34,8 +34,8 @@ describe("claude-usage-audit", () => {
     assert.equal(out.schema.assistantLinesDuplicate, 1);
     assert.equal(out.schema.syntheticModelTurns, 1);
     assert.equal(out.schema.parseErrors, 3);
-    assert.equal(out.a_total.output, 100 + 80 + 7 + 20 + 20 + 40 + 40 + 10 + 5 + 2);
-    assert.equal(out.a_total.input, 10 + 5 + 1 + 10 + 1 + 10 + 10 + 10 + 10);
+    assert.equal(out.a_total.output, 100 + 80 + 7 + 20 + 20 + 40 + 40 + 10 + 5 + 2 + 3);
+    assert.equal(out.a_total.input, 10 + 5 + 1 + 10 + 1 + 10 + 10 + 10 + 10 + 1);
     assert.equal(out.a_tokensByModel.constructor.main.output, 2);
   });
 
@@ -60,6 +60,8 @@ describe("claude-usage-audit", () => {
   });
 
   test("reports first-turn context per entrypoint", () => {
+    assert.equal(out.g_firstTurnOverhead.mainSessionsStartedBeforeWindow, 1);
+    assert.equal(out.g_firstTurnOverhead.mainSessionFirstTurnCtx.n, 2);
     const byEntry = out.g_firstTurnOverhead.mainSessionFirstTurnCtxByEntrypoint;
     assert.deepEqual(Object.keys(byEntry), ["cli", "sdk-cli"]);
     for (const [entry, ctx] of Object.entries(expected.firstTurnCtx)) {

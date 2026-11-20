@@ -8,7 +8,8 @@
  * session carries a non-string cwd, tool name and timestamp and a model named
  * like an Object property; none may drop later turns. A Bash call just before the
  * window returns inside it and must keep its bucket; an older Bash call with a
- * non-string command must not drop later rows.
+ * non-string command must not drop later rows. sess-resumed started before the
+ * window: its in-window turn is not a first turn, and its effort is not a string.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -46,11 +47,7 @@ export function writeFixture(dir, now = Date.now()) {
     assistant({ sid: "sess-cli", ts: at(57), id: "a2", u: usage(5, 20000, 1000, 50), content: [{ type: "tool_use", id: "agent-0", name: "Agent", input: { subagent_type: "general-purpose", prompt: `${MARKER} agent prompt` } }] }),
     assistant({ sid: "sess-cli", ts: at(57), id: "a2", u: usage(5, 20000, 1000, 80) }),
     assistant({ sid: "sess-cli", ts: at(56), id: "a3", model: "<synthetic>", u: usage(1, 0, 0, 1) }),
-    assistant({ sid: "sess-cli", ts: new Date(now - 30 * 86400e3).toISOString(), id: "old", u: usage(999, 0, 0, 999) }),
     `{"type":"assistant", ${MARKER} not json`,
-    assistant({ sid: "sess-cli", ts: at(7 * 1440 + 1), id: "early", u: usage(1, 0, 0, 1), content: [{ type: "tool_use", id: "bash-early", name: "Bash", input: { command: "ls" } }] }),
-    toolResult({ sid: "sess-cli", ts: at(7 * 1440 - 1), uuid: "u-res-early", toolUseId: "bash-early", chars: 30000 }),
-    { type: "assistant", sessionId: "sess-cli", timestamp: at(8 * 1440), message: { id: "msg-oddcmd", content: [{ type: "tool_use", id: "bash-odd", name: "Bash", input: { command: { toString: null } } }] } },
     "null",
     assistant({ sid: "sess-cli", ts: at(50), id: "a4", u: usage(1, 0, 0, 7) }),
   ];
@@ -66,6 +63,15 @@ export function writeFixture(dir, now = Date.now()) {
     assistant({ sid: "sess-cli", ts: at(54), id: "s4", model: "claude-sonnet-5-5", u: { ...usage(0, 3000, 0, 5), input_tokens: MARKER }, extra: { isSidechain: true } }),
   ]));
 
+  writeFileSync(join(project, "sess-resumed.jsonl"), jsonl([
+    assistant({ sid: "sess-resumed", ts: new Date(now - 8 * 86400e3).toISOString(), id: "r0", u: usage(1, 0, 15000, 1), extra: { entrypoint: "cli" } }),
+    assistant({ sid: "sess-resumed", ts: new Date(now - 30 * 86400e3).toISOString(), id: "old", u: usage(999, 0, 0, 999) }),
+    assistant({ sid: "sess-resumed", ts: at(7 * 1440 + 1), id: "early", u: usage(1, 0, 0, 1), content: [{ type: "tool_use", id: "bash-early", name: "Bash", input: { command: "ls" } }] }),
+    toolResult({ sid: "sess-resumed", ts: at(7 * 1440 - 1), uuid: "u-res-early", toolUseId: "bash-early", chars: 30000 }),
+    { type: "assistant", sessionId: "sess-resumed", timestamp: at(8 * 1440), message: { id: "msg-oddcmd", content: [{ type: "tool_use", id: "bash-odd", name: "Bash", input: { command: { toString: null } } }] } },
+    assistant({ sid: "sess-resumed", ts: at(20), id: "r1", u: usage(1, 90000, 0, 3), extra: { perTurnEffort: { toString: null } } }),
+  ]));
+
   writeFileSync(join(project, "sess-sdk.jsonl"), jsonl([
     assistant({ sid: "sess-sdk", ts: at(30), id: "b1", model: "claude-sonnet-5-5", u: usage(10, 0, 40000, 20), extra: { entrypoint: "sdk-cli", cwd: 17 }, content: [{ type: "tool_use", id: "odd-0", name: ["mcp__fake__tool"], input: {} }] }),
     toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-odd-res", toolUseId: "odd-0", chars: 100 }),
@@ -77,7 +83,7 @@ export function writeFixture(dir, now = Date.now()) {
   return {
     bashSizes,
     bashResultChars: [...bashSizes, 30000].reduce((a, b) => a + b, 0),
-    mainTurns: 6,
+    mainTurns: 7,
     subagentTurns: 4,
     firstTurnCtx: { cli: 20010, "sdk-cli": 40010 },
   };
