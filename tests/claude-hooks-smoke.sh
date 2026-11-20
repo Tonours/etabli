@@ -421,11 +421,12 @@ jq -n '{hooks:{PreToolUse:[{matcher:"Bash",hooks:[{type:"command",command:"rtk h
 	exit 1
 }
 migrated_commands="$(jq -r '.. | .command? // empty' "$rtk_home/.claude/settings.json")"
-assert_contains "$migrated_commands" 'rtk hook claude && node audit.mjs'
-if printf '%s\n' "$migrated_commands" | grep -v 'audit' | grep -Eq '(^|/)rtk[[:space:]]+hook[[:space:]]+claude'; then
-	printf 'claude-hooks-merge must retire the raw rtk hook and its option variants\n' >&2
-	exit 1
-fi
+for kept in 'rtk hook claude' 'rtk hook claude --ultra-compact' '/opt/homebrew/bin/rtk hook claude' 'rtk hook claude && node audit.mjs'; do
+	printf '%s\n' "$migrated_commands" | grep -Fxq "$kept" || {
+		printf 'claude-hooks-merge must keep the rtk hook the owner installed: %s\n' "$kept" >&2
+		exit 1
+	}
+done
 
 old_home="$TMP_DIR/old-install-home"
 mkdir -p "$old_home/.claude"

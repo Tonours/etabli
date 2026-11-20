@@ -144,8 +144,8 @@ ungoverned and outside the index gate.
 `settings.workflow-hooks.json` is a merge fragment. The installer links it but
 does not merge it, because the live settings file can hold secrets. Run
 `scripts/claude-hooks-merge --dry-run`, then `scripts/claude-hooks-merge`. It
-adds the fragment's hooks, removes only hooks the repo retired (`rtk-guard.mjs` and a bare
-`rtk hook claude` included), backs up first, refuses invalid JSON, and never
+adds the fragment's hooks, removes only hooks the repo retired (`rtk-guard.mjs` included; a bare
+`rtk hook claude` stays, ADR-0049), backs up first, refuses invalid JSON, and never
 reads secrets back into the repo. Rerun it after a deploy that adds a hook,
 then verify with `scripts/claude-hooks-check`.
 

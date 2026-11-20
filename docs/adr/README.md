@@ -50,3 +50,4 @@ Decisions live in this directory. Run `/adr` to record one.
 - [0046](0046-admit-a-durable-personal-adapter-on-gromarchy.md) — Admit a durable personal adapter on gromarchy [accepted]
 - [0047](0047-build-the-durable-web-client-with-react-tailwind-and-shadcn-ui-at-depl.md) — Build the durable web client with React, Tailwind and shadcn/ui at deploy [accepted]
 - [0048](0048-routines-leave-a-standard-run-record.md) — Routines leave a standard run record [accepted]
+- [0049](0049-keep-the-rtk-claude-hook-the-owner-installs.md) — Keep the rtk Claude hook the owner installs [accepted]
