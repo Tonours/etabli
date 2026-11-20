@@ -240,7 +240,8 @@ async function processFile(file) {
         const u = m.usage;
         if (!u) { schema.assistantNoUsage += 1; continue; }
         if (m.model === '<synthetic>') { schema.syntheticModelTurns += 1; continue; }
-        const key = `${m.id || o.uuid}|${o.requestId || ''}`;
+        const id = [m.id, o.uuid].find((x) => typeof x === 'string' && x);
+        const key = id ? `${id}|${typeof o.requestId === 'string' ? o.requestId : ''}` : Symbol('no-id');
         const cc = count(u.cache_creation_input_tokens);
         let cw5m = cc, cw1h = 0;
         if (u.cache_creation && (u.cache_creation.ephemeral_1h_input_tokens != null || u.cache_creation.ephemeral_5m_input_tokens != null)) {
@@ -305,7 +306,7 @@ async function processFile(file) {
         if (o.uuid && seenUuid.has(o.uuid)) continue;
         if (o.uuid) seenUuid.add(o.uuid);
         if (o.subtype === 'compact_boundary') {
-          const trig = o.compactMetadata?.trigger || '(unknown)';
+          const trig = typeof o.compactMetadata?.trigger === 'string' && o.compactMetadata.trigger ? o.compactMetadata.trigger : '(unknown)';
           events.compactBoundary.set(trig, (events.compactBoundary.get(trig) || 0) + 1);
         } else if (o.subtype === 'scheduled_task_fire') events.scheduledTaskFire += 1;
         else if (o.subtype === 'local_command' && !sidechain) {

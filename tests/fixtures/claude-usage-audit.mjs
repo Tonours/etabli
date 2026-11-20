@@ -11,6 +11,7 @@
  * non-string command must not drop later rows. sess-resumed started before the
  * window: its in-window turn is not a first turn, and its effort is not a string.
  * Two files without session ids are two sessions: the old one never marks the new one resumed.
+ * The new one also carries a non-string compaction trigger and two id-less turns (two turns).
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -78,6 +79,9 @@ export function writeFixture(dir, now = Date.now()) {
   ]));
   writeFileSync(join(project, "nosid-new.jsonl"), jsonl([
     { type: "assistant", timestamp: at(10), requestId: "req-n1", uuid: "u-n1", message: { id: "msg-n1", model: "claude-opus-5-5", usage: usage(1, 0, 5000, 4) } },
+    { type: "system", subtype: "compact_boundary", timestamp: at(9), uuid: "u-cb", compactMetadata: { trigger: { toString: null } } },
+    { type: "assistant", timestamp: at(8), message: { model: "claude-opus-5-5", usage: usage(1, 0, 0, 6) } },
+    { type: "assistant", timestamp: at(7), message: { model: "claude-opus-5-5", usage: usage(1, 0, 0, 6) } },
   ]));
 
   writeFileSync(join(project, "sess-sdk.jsonl"), jsonl([
@@ -91,7 +95,7 @@ export function writeFixture(dir, now = Date.now()) {
   return {
     bashSizes,
     bashResultChars: [...bashSizes, 30000].reduce((a, b) => a + b, 0),
-    mainTurns: 8,
+    mainTurns: 10,
     subagentTurns: 4,
     firstTurnCtx: { cli: 20010, "sdk-cli": 40010 },
   };
