@@ -180,6 +180,7 @@ const events = { compactBoundary: new Map(), compactSummaryLines: 0, clearCmd: 0
 const sessionCwd = new Map();
 const sessionEntry = new Map();
 const sessionStart = new Map();
+let fileSeq = 0;
 
 async function readMeta(file) {
   const metaPath = file.replace(/\.jsonl$/, '.meta.json');
@@ -189,6 +190,7 @@ async function readMeta(file) {
 async function processFile(file) {
   const isSubFile = /\/subagents\/agent-[^/]+\.jsonl$/.test(file);
   let fileAgentId = null, meta = null;
+  const noSid = `(none):${(fileSeq += 1)}`;
   if (isSubFile) {
     fileAgentId = path.basename(file, '.jsonl').replace(/^agent-/, '');
     meta = await readMeta(file);
@@ -224,7 +226,7 @@ async function processFile(file) {
         }
       }
       const rawSid = o.sessionId || o.session_id;
-      const sid = typeof rawSid === 'string' && rawSid ? rawSid : '(none)';
+      const sid = typeof rawSid === 'string' && rawSid ? rawSid : noSid;
       const sidechain = isSubFile || o.isSidechain === true;
       if (!sidechain && o.cwd && !sessionCwd.has(sid)) sessionCwd.set(sid, o.cwd);
       if (!sidechain && o.entrypoint && !sessionEntry.has(sid)) sessionEntry.set(sid, o.entrypoint);

@@ -10,6 +10,7 @@
  * window returns inside it and must keep its bucket; an older Bash call with a
  * non-string command must not drop later rows. sess-resumed started before the
  * window: its in-window turn is not a first turn, and its effort is not a string.
+ * Two files without session ids are two sessions: the old one never marks the new one resumed.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -72,6 +73,13 @@ export function writeFixture(dir, now = Date.now()) {
     assistant({ sid: "sess-resumed", ts: at(20), id: "r1", u: usage(1, 90000, 0, 3), extra: { perTurnEffort: { toString: null } } }),
   ]));
 
+  writeFileSync(join(project, "nosid-old.jsonl"), jsonl([
+    { type: "user", timestamp: new Date(now - 9 * 86400e3).toISOString(), uuid: "u-nosid-old", message: { content: "x" } },
+  ]));
+  writeFileSync(join(project, "nosid-new.jsonl"), jsonl([
+    { type: "assistant", timestamp: at(10), requestId: "req-n1", uuid: "u-n1", message: { id: "msg-n1", model: "claude-opus-5-5", usage: usage(1, 0, 5000, 4) } },
+  ]));
+
   writeFileSync(join(project, "sess-sdk.jsonl"), jsonl([
     assistant({ sid: "sess-sdk", ts: at(30), id: "b1", model: "claude-sonnet-5-5", u: usage(10, 0, 40000, 20), extra: { entrypoint: "sdk-cli", cwd: 17 }, content: [{ type: "tool_use", id: "odd-0", name: ["mcp__fake__tool"], input: {} }] }),
     toolResult({ sid: "sess-sdk", ts: at(29), uuid: "u-odd-res", toolUseId: "odd-0", chars: 100 }),
@@ -83,7 +91,7 @@ export function writeFixture(dir, now = Date.now()) {
   return {
     bashSizes,
     bashResultChars: [...bashSizes, 30000].reduce((a, b) => a + b, 0),
-    mainTurns: 7,
+    mainTurns: 8,
     subagentTurns: 4,
     firstTurnCtx: { cli: 20010, "sdk-cli": 40010 },
   };
