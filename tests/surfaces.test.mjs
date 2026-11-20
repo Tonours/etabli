@@ -1110,10 +1110,23 @@ describe("Claude managed env", () => {
     assert.equal(settings.skillListingMaxDescChars, 400);
     assert.equal(settings.modelSettings, null);
   });
+  test("refuses tracked numbers past the safe integer range before backup or write", () => {
+    const f = trackedFixture({});
+    writeFileSync(f.tracked, '{"skillOverrides":{},"autoCompactWindow":9007199254740993}');
+    const bytes = readFileSync(f.settings, "utf8");
+    const child = f.run();
+    assert.equal(child.status, 1);
+    assert.match(child.stderr, /^claude-settings-sync: autoCompactWindow must be an integer/);
+    assert.equal(readFileSync(f.settings, "utf8"), bytes);
+    assert.equal(existsSync(`${f.settings}.bak.first`), false);
+  });
   test("refuses to rewrite local numbers that cannot round-trip, before backup or write", () => {
     for (const raw of [
       '{"skillOverrides":{},"modelSettings":{"claude-haiku-5-5":{"autoCompactWindow":1e400}}}',
       '{"skillOverrides":{},"other":9007199254740993}',
+      '{"skillOverrides":{},"other":[{"nested":1e-400}]}',
+      '{"skillOverrides":{},"other":1.0000000000000001}',
+      '{"skillOverrides":{},"other":-9007199254740993}',
     ]) {
       const f = trackedFixture({ skillListingMaxDescChars: 400 });
       writeFileSync(f.settings, raw);
@@ -1129,5 +1142,14 @@ describe("Claude managed env", () => {
     const written = JSON.parse(readFileSync(control.settings));
     assert.equal(written.ratio, 1.5);
     assert.equal(written.big, 9007199254740991);
+    const exact = trackedFixture({ skillListingMaxDescChars: 400 });
+    writeFileSync(exact.settings, '{"skillOverrides":{},"a":1e21,"b":0.1,"c":"1e400 is just text","d":-0,"e":2.500}');
+    const exactRun = exact.run();
+    assert.equal(exactRun.status, 0, exactRun.stderr);
+    const exactWritten = JSON.parse(readFileSync(exact.settings));
+    assert.equal(exactWritten.a, 1e21);
+    assert.equal(exactWritten.b, 0.1);
+    assert.equal(exactWritten.c, "1e400 is just text");
+    assert.equal(exactWritten.e, 2.5);
   });
 });

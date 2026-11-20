@@ -158,7 +158,7 @@ for (const [key, { min, max }] of NUMERIC_KEYS) {
   const value = tracked[key];
   if (value === undefined) continue;
   if (
-    !Number.isInteger(value) ||
+    !Number.isSafeInteger(value) ||
     value < min ||
     (max !== undefined && value > max)
   ) {
@@ -197,9 +197,11 @@ for (const key of SCALAR_KEYS) {
 }
 
 let localSettings;
+let localRaw = "";
 let localMissing = false;
 try {
-  localSettings = JSON.parse(fs.readFileSync(localPath, "utf8"));
+  localRaw = fs.readFileSync(localPath, "utf8");
+  localSettings = JSON.parse(localRaw);
 } catch (error) {
   if (error.code === "ENOENT") {
     localMissing = true;
@@ -411,15 +413,40 @@ if (dryRun) {
   process.exit(0);
 }
 
-function hasUnsafeNumber(value, seen = new Set()) {
-  if (typeof value === "number") {
-    return !Number.isFinite(value) || (Number.isInteger(value) && !Number.isSafeInteger(value));
-  }
-  if (typeof value !== "object" || value === null || seen.has(value)) return false;
-  seen.add(value);
-  return Object.values(value).some((child) => hasUnsafeNumber(child, seen));
+function decimalForm(text) {
+  const match = /^(-?)(\d+)(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/.exec(text);
+  if (!match) return null;
+  const frac = match[3] ?? "";
+  let digits = (match[2] + frac).replace(/^0+/, "");
+  let exponent = Number(match[4] ?? 0) - frac.length;
+  const trimmed = digits.replace(/0+$/, "");
+  exponent += digits.length - trimmed.length;
+  digits = trimmed;
+  return digits === "" ? "0" : `${match[1]}${digits}e${exponent}`;
 }
-if (!localMissing && hasUnsafeNumber(localSettings)) {
+function hasLossyNumber(raw) {
+  let inString = false;
+  for (let i = 0; i < raw.length; i += 1) {
+    const char = raw[i];
+    if (inString) {
+      if (char === "\\") i += 1;
+      else if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char !== "-" && !(char >= "0" && char <= "9")) continue;
+    const token = /^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/.exec(raw.slice(i))?.[0];
+    if (!token) continue;
+    const value = Number(token);
+    if (!Number.isFinite(value) || decimalForm(token) !== decimalForm(String(value))) return true;
+    i += token.length - 1;
+  }
+  return false;
+}
+if (!localMissing && hasLossyNumber(localRaw)) {
   fail("local settings hold a number that cannot round-trip through JSON; refusing to rewrite");
 }
 
