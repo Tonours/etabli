@@ -11,7 +11,8 @@
  * non-string command must not drop later rows. sess-resumed started before the
  * window: its in-window turn is not a first turn, and its effort is not a string.
  * Two files without session ids are two sessions: the old one never marks the new one resumed.
- * The new one also carries a non-string compaction trigger and two id-less turns (two turns).
+ * The new one also carries a non-string compaction trigger and two id-less turns,
+ * which cannot be deduplicated and count as parse errors, not turns.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -95,7 +96,7 @@ export function writeFixture(dir, now = Date.now()) {
   return {
     bashSizes,
     bashResultChars: [...bashSizes, 30000].reduce((a, b) => a + b, 0),
-    mainTurns: 10,
+    mainTurns: 8,
     subagentTurns: 4,
     firstTurnCtx: { cli: 20010, "sdk-cli": 40010 },
   };
