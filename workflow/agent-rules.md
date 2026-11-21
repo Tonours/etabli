@@ -26,6 +26,7 @@
 - Handoff: root `PLAN.md` § Notes / Handoff; without a plan, a distilled
   vault note (state, decisions, next action), never a transcript, a raw plan
   or an ad hoc `/tmp` file.
+- Over ~150k context at a task boundary: write the handoff, then propose `/clear`; no mid-session model switch.
 - Long background steps follow `workflow/skills/orchestration.md` § Background
   steps (log path, ETA, start check, final push notification).
 - No approval pauses: destructive work, pushes, deploys, and external writes
