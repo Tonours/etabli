@@ -281,6 +281,47 @@ The two optional background defaults above do not disable compaction or a
 mandatory evaluator. The sourced research and proposed comparison protocol are
 in [`20261109-claude-code-token-optimization.md`](../docs/research/20261109-claude-code-token-optimization.md).
 
+### Tracked cost settings
+
+The tracked fragment carries the cost settings that must hold on every
+machine. `scripts/lib/claude-settings-sync.mjs` merges them into
+`~/.claude/settings.json` at deploy; an explicitly tracked key overwrites its
+local value, and removing a key from the fragment leaves the local value in
+place.
+
+| Key | Value | Minimum Claude Code |
+|---|---|---|
+| `env.CLAUDE_CODE_SUBAGENT_MODEL` | `"sonnet"` | 2.1.251 |
+| `env.CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS` | `"100000"` | 2.1.299 |
+| `modelSettings.claude-opus-5-5.effortLevel` | `"medium"` | 2.1.251 |
+| `modelSettings.claude-sonnet-5-5.effortLevel` | `"medium"` | 2.1.251 |
+| `autoCompactWindow` | `200000` | 2.1.288 |
+| `bashOutputMaxChars` | `15000` | 2.1.261 |
+| `skillListingMaxDescChars` | `400` | none (ungated) |
+
+A gated key is skipped with a warning naming its minimum version when
+`claude --version` on PATH is older, absent, failing or unreadable; the
+ungated and satisfied keys still sync. `skillListingMaxDescChars` has no
+documented minimum and always syncs, since an older client ignores a key it
+does not know. A local `modelSettings.<id>.autoCompactWindow` overrides the
+tracked window in the same file, and the sync warns about it without printing
+its value.
+
+Measure with `scripts/claude-usage-audit --days 7` before and seven days
+after a settings change (ADR-0050): one JSON object of aggregates over the
+transcript tree, never message content, kept on the host because it names
+project basenames.
+
+`scripts/deploy-agent-workflow --check` also flags an `rtk` on PATH whose
+owner-installed hook cannot run from a live Claude root: no
+`hooks.PreToolUse` group matching `Bash` runs `rtk hook claude`, or
+`disableAllHooks` turns every hook off. The command is read as shell words,
+quotes and backslashes removed; a command substitution among its first words
+counts as no hook. Run `rtk init -g --hook-only` for the
+reported root. Unset `CLAUDE_CONFIG_DIR` for `~/.claude` or set it to the
+reported directory for an override. RTK and its hook are owner-installed
+(ADR-0049). The check stays silent when `rtk` is absent.
+
 ## PR autoreview
 
 Review usage and timing share `~/.claude/logs/pr-review-usage.log`. The target

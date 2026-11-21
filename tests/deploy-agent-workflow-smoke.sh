@@ -619,6 +619,13 @@ pi_check() {
   shift 2
   (cd "$TMP_DIR/cwd-pi" && env -u CLAUDE_CONFIG_DIR HOME="$pi_home" ETABLI_SKIP_LIVE_CHECKS=1 PATH="$pi_path" "$NODE_BIN" "$DEPLOY_SCRIPT" --check --home "$HOME_DIR" "$@")
 }
+# The rtk hook check reads the same live home: seed a valid hook so an rtk on
+# the caller's PATH cannot fail the pi cases below.
+seed_rtk_hook() {
+  jq '.hooks = {PreToolUse: [{matcher: "Bash", hooks: [{type: "command", command: "rtk hook claude"}]}]}' \
+    "$1" >"$TMP_DIR/settings-seed.json" && mv "$TMP_DIR/settings-seed.json" "$1"
+}
+seed_rtk_hook "$HOME_DIR/.claude/settings.json"
 pi_first_rc=0
 pi_check "$HOME_DIR" "$TMP_DIR/locked-bin:$TMP_DIR/dir-bin:$HOME_DIR/.local/bin:$TMP_DIR/shadow-bin:$PATH" >"$TMP_DIR/pi-first.out" 2>&1 || pi_first_rc=$?
 chmod 700 "$TMP_DIR/locked-bin"
@@ -659,6 +666,8 @@ ln -s "$NODE_BIN" "$TMP_DIR/live-bin/node"
 printf '#!/bin/sh\nexit 1\n' >"$TMP_DIR/live-pi-bin/pi"
 chmod +x "$TMP_DIR/live-pi-bin/pi"
 env -u CLAUDE_CONFIG_DIR HOME="$LIVE_HOME" ETABLI_SKIP_LIVE_CHECKS=1 "$NODE_BIN" "$DEPLOY_SCRIPT" --apply --home "$LIVE_HOME" >/dev/null
+# Keep the live counts independent of an rtk installed on the live PATH dirs.
+seed_rtk_hook "$LIVE_HOME/.claude/settings.json"
 live_check() {
   local path="$1"
   shift
@@ -722,5 +731,206 @@ grep -q 'SKIP *skill load and settings drift checks (ETABLI_SKIP_SKILL_LOAD_CHEC
   exit 1
 }
 rm -rf "$LIVE_HOME/.claude/skills/ungoverned-personal" "$LIVE_HOME/.agents/skills/stale.bak.1"
+
+# Check mode on a live home flags an rtk on PATH with no effective rtk hook
+# in the Claude settings, and stays silent otherwise (ADR-0049 shapes).
+mkdir -p "$TMP_DIR/rtk-bin"
+printf '#!/bin/sh\nexit 0\n' >"$TMP_DIR/rtk-bin/rtk"
+chmod +x "$TMP_DIR/rtk-bin/rtk"
+RTK_PRESENT="$TMP_DIR/rtk-bin:$TMP_DIR/live-bin:/usr/bin:/bin"
+RTK_ABSENT="$TMP_DIR/live-bin"
+cp "$HOME_DIR/.claude/settings.json" "$TMP_DIR/settings-pristine.json"
+rtk_check() {
+  local rtk_path="$1"
+  shift
+  env -u CLAUDE_CONFIG_DIR HOME="$HOME_DIR" ETABLI_SKIP_LIVE_CHECKS=1 PATH="$rtk_path" \
+    "$NODE_BIN" "$DEPLOY_SCRIPT" --check --home "$HOME_DIR" "$@"
+}
+assert_rtk_silent() {
+  if [ "$2" -ne 0 ] || grep -q 'rtk init -g --hook-only' "$3"; then
+    printf 'rtk check must stay silent: %s\n' "$1" >&2
+    cat "$3" >&2
+    exit 1
+  fi
+}
+RTK_HOME_PHYSICAL="$(cd "$HOME_DIR" && pwd -P)"
+assert_rtk_flagged() {
+  if [ "$2" -eq 0 ] || ! grep -Fq "rtk hook in $RTK_HOME_PHYSICAL/.claude/settings.json; run rtk init -g --hook-only" "$3" || ! grep -q '^Summary: ' "$3"; then
+    printf 'rtk check must flag with the remediation: %s\n' "$1" >&2
+    cat "$3" >&2
+    exit 1
+  fi
+}
+rtk_case() {
+  local rc=0
+  rtk_check "$3" >"$TMP_DIR/rtk-case.out" 2>&1 || rc=$?
+  if [ "$2" = silent ]; then
+    assert_rtk_silent "$1" "$rc" "$TMP_DIR/rtk-case.out"
+  else
+    assert_rtk_flagged "$1" "$rc" "$TMP_DIR/rtk-case.out"
+  fi
+}
+write_hook_case() {
+  "$NODE_BIN" - "$TMP_DIR/settings-pristine.json" "$HOME_DIR/.claude/settings.json" "$1" "$2" "$3" <<'NODE'
+const fs = require("node:fs");
+const [src, dst, command, matcher, type] = process.argv.slice(2);
+const settings = JSON.parse(fs.readFileSync(src, "utf8"));
+const group = { hooks: [{ type, command }] };
+if (matcher !== "__absent__") group.matcher = JSON.parse(matcher);
+settings.hooks = { PreToolUse: [group] };
+fs.writeFileSync(dst, JSON.stringify(settings, null, 2) + "\n");
+NODE
+}
+set_hooks_json() {
+  jq --argjson hooks "$1" '.hooks = $hooks' "$TMP_DIR/settings-pristine.json" >"$HOME_DIR/.claude/settings.json"
+}
+jq 'del(.hooks)' "$TMP_DIR/settings-pristine.json" >"$HOME_DIR/.claude/settings.json"
+rtk_case 'rtk absent without a hook' silent "$RTK_ABSENT"
+rtk_case 'rtk present without a hook' flagged "$RTK_PRESENT"
+for rtk_command in 'rtk hook claude' 'rtk hook claude --ultra-compact' '/opt/homebrew/bin/rtk hook claude' 'rtk hook claude && node audit.mjs' 'rtk hook claude; :' 'rtk hook claude&&node audit.mjs' $'rtk\thook\tclaude' '~/.local/bin/rtk hook claude' '$HOME/.local/bin/rtk hook claude' '${HOME}/.local/bin/rtk hook claude'; do
+  write_hook_case "$rtk_command" '"Bash"' command
+  rtk_case "kept hook shape: $rtk_command" silent "$RTK_PRESENT"
+done
+for rtk_command in '"/opt/RTK Tools/bin/rtk" hook claude' "'/opt/x/rtk' hook claude" '"rtk" hook claude' \
+  '"/opt/RTK Tools/bin"/rtk hook claude' '"rtk" "hook" claude' '/opt/RTK\ Tools/bin/rtk hook claude' \
+  'rtk hook claude>/dev/null' 'rtk hook claude 2>/dev/null' '"/opt/\$(tools)/rtk" hook claude' $'rtk hook "clau\\\nde"' $'rtk hook claude\nnode audit.mjs'; do
+  write_hook_case "$rtk_command" '"Bash"' command
+  rtk_case "shell-word forms: $rtk_command" silent "$RTK_PRESENT"
+done
+for rtk_matcher in '__absent__' '""' '"*"' '"Bash|Read"'; do
+  write_hook_case 'rtk hook claude' "$rtk_matcher" command
+  rtk_case "Bash matcher: $rtk_matcher" silent "$RTK_PRESENT"
+done
+set_hooks_json '{"PreToolUse":[{"matcher":"Write|Edit","hooks":[{"type":"command","command":"rtk hook claude"}]},"junk",{"matcher":"Bash","hooks":[{"type":"command","command":"echo rtk hook claude"}]},{"matcher":"Bash","hooks":[{"type":"command","command":"rtk hook claude"}]}]}'
+rtk_case 'valid hook after invalid entries' silent "$RTK_PRESENT"
+for rtk_command in 'echo rtk hook claude' '# rtk hook claude' '#/opt/homebrew/bin/rtk hook claude' 'false&&/usr/bin/rtk hook claude' $'rtk hook\nclaude' '>/dev/null/rtk hook claude' 'FOO=/usr/bin/rtk hook claude'; do
+  write_hook_case "$rtk_command" '"Bash"' command
+  rtk_case "ineffective command: $rtk_command" flagged "$RTK_PRESENT"
+done
+for rtk_command in '"/opt/x/rtk hook claude"' '"/opt/x/rtk hook claude' 'rtk\ hook claude' \
+  '$(command -v rtk) hook claude' '"$(command -v rtk)" hook claude' '"/opt/\\$(tools)/rtk" hook claude' 'rtk hook claude)' 'rtk hook claude<(printf x)' 'rtk hook claude>(cat)' \
+  $'rtk hook claude\r' $'rtk hook\rclaude'; do
+  write_hook_case "$rtk_command" '"Bash"' command
+  rtk_case "ineffective or unprovable command: $rtk_command" flagged "$RTK_PRESENT"
+done
+for rtk_matcher in '"Write|Edit"' '"["' '3' 'null' '"Bash)|(?:Write"' '"B"' '"ash"'; do
+  write_hook_case 'rtk hook claude' "$rtk_matcher" command
+  rtk_case "non-Bash matcher: $rtk_matcher" flagged "$RTK_PRESENT"
+done
+write_hook_case 'rtk hook claude' '"Bash"' prompt
+rtk_case 'non-command hook type' flagged "$RTK_PRESENT"
+jq '.disableAllHooks = false' "$TMP_DIR/settings-pristine.json" >"$HOME_DIR/.claude/settings.json"
+rtk_case 'hooks enabled with a valid hook' silent "$RTK_PRESENT"
+jq '.disableAllHooks = true' "$TMP_DIR/settings-pristine.json" >"$HOME_DIR/.claude/settings.json"
+rtk_rc=0
+rtk_check "$RTK_PRESENT" >"$TMP_DIR/rtk-disabled.out" 2>&1 || rtk_rc=$?
+[ "$rtk_rc" -ne 0 ] && grep -Fq 'cannot run while disableAllHooks is true' "$TMP_DIR/rtk-disabled.out" &&
+  grep -Fq 'rtk init -g --hook-only' "$TMP_DIR/rtk-disabled.out" || {
+  printf 'rtk check must flag a hook disabled by disableAllHooks:\n' >&2
+  cat "$TMP_DIR/rtk-disabled.out" >&2
+  exit 1
+}
+jq 'del(.hooks)' "$TMP_DIR/settings-pristine.json" >"$HOME_DIR/.claude/settings.json"
+rtk_rc=0
+env -u CLAUDE_CONFIG_DIR HOME="$TMP_DIR" ETABLI_SKIP_LIVE_CHECKS=1 PATH="$RTK_PRESENT" \
+  "$NODE_BIN" "$DEPLOY_SCRIPT" --check --home "$HOME_DIR" >"$TMP_DIR/rtk-other-home.out" 2>&1 || rtk_rc=$?
+assert_rtk_silent 'rtk present against another home' "$rtk_rc" "$TMP_DIR/rtk-other-home.out"
+settings_before="$(hash256 "$HOME_DIR/.claude/settings.json" | awk '{print $1}')"
+rtk_rc=0
+rtk_check "$RTK_PRESENT" --fix >"$TMP_DIR/rtk-fix.out" 2>&1 || rtk_rc=$?
+assert_rtk_flagged 'check --fix without a hook' "$rtk_rc" "$TMP_DIR/rtk-fix.out"
+[ "$settings_before" = "$(hash256 "$HOME_DIR/.claude/settings.json" | awk '{print $1}')" ] || {
+  printf 'check --fix changed the Claude settings\n' >&2
+  exit 1
+}
+set_hooks_json '{"PreToolUse":"x"}'
+rtk_case 'PreToolUse not an array' flagged "$RTK_PRESENT"
+set_hooks_json '{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":3}]}]}'
+rtk_case 'non-string hook command' flagged "$RTK_PRESENT"
+printf '{bad rtk-marker-7f3a' >"$HOME_DIR/.claude/settings.json"
+rtk_case 'invalid settings JSON' flagged "$RTK_PRESENT"
+grep -q 'rtk-marker-7f3a' "$TMP_DIR/rtk-case.out" && {
+  printf 'rtk check printed settings content\n' >&2
+  exit 1
+}
+printf '[]' >"$HOME_DIR/.claude/settings.json"
+rtk_case 'non-object settings' flagged "$RTK_PRESENT"
+rm "$HOME_DIR/.claude/settings.json"
+rtk_case 'missing settings file' flagged "$RTK_PRESENT"
+cp "$TMP_DIR/settings-pristine.json" "$HOME_DIR/.claude/settings.json"
+
+# The CLAUDE_CONFIG_DIR override root inside the live home gets the same
+# check, one issue per root missing the hook.
+RTK_OVR_HOME="$TMP_DIR/rtk-override-home"
+RTK_OVR_DIR="$RTK_OVR_HOME/relocated-claude"
+mkdir -p "$RTK_OVR_DIR"
+HOME="$RTK_OVR_HOME" CLAUDE_CONFIG_DIR="$RTK_OVR_DIR" ETABLI_SKIP_LIVE_CHECKS=1 \
+  "$NODE_BIN" "$DEPLOY_SCRIPT" --apply --home "$RTK_OVR_HOME" >/dev/null
+rtk_override_check() {
+  env HOME="$RTK_OVR_HOME" CLAUDE_CONFIG_DIR="$RTK_OVR_DIR" ETABLI_SKIP_LIVE_CHECKS=1 PATH="$RTK_PRESENT" \
+    "$NODE_BIN" "$DEPLOY_SCRIPT" --check --home "$RTK_OVR_HOME"
+}
+remediation_count() {
+  grep -c 'rtk init -g --hook-only' "$1" || true
+}
+unresolved_count() {
+  sed -n 's/^Summary: .* \([0-9][0-9]*\) unresolved$/\1/p' "$1"
+}
+seed_rtk_hook "$RTK_OVR_HOME/.claude/settings.json"
+seed_rtk_hook "$RTK_OVR_DIR/settings.json"
+rtk_override_check >"$TMP_DIR/rtk-ovr-ok.out" 2>&1 || :
+[ "$(remediation_count "$TMP_DIR/rtk-ovr-ok.out")" -eq 0 ] || {
+  printf 'rtk check flagged two hooked roots:\n' >&2
+  cat "$TMP_DIR/rtk-ovr-ok.out" >&2
+  exit 1
+}
+rtk_base_unresolved="$(unresolved_count "$TMP_DIR/rtk-ovr-ok.out")"
+jq 'del(.hooks)' "$RTK_OVR_DIR/settings.json" >"$TMP_DIR/settings-ovr.json" && mv "$TMP_DIR/settings-ovr.json" "$RTK_OVR_DIR/settings.json"
+rtk_override_check >"$TMP_DIR/rtk-ovr-one.out" 2>&1 || :
+RTK_OVR_PHYSICAL="$(cd "$RTK_OVR_DIR" && pwd -P)"
+[ "$(remediation_count "$TMP_DIR/rtk-ovr-one.out")" -eq 1 ] &&
+  grep -Fq "rtk hook in $RTK_OVR_PHYSICAL/settings.json; run rtk init -g --hook-only with CLAUDE_CONFIG_DIR set to that directory" "$TMP_DIR/rtk-ovr-one.out" &&
+  [ "$(unresolved_count "$TMP_DIR/rtk-ovr-one.out")" -eq $((rtk_base_unresolved + 1)) ] || {
+  printf 'rtk check must flag only the override root missing the hook:\n' >&2
+  cat "$TMP_DIR/rtk-ovr-one.out" >&2
+  exit 1
+}
+jq 'del(.hooks)' "$RTK_OVR_HOME/.claude/settings.json" >"$TMP_DIR/settings-ovr.json" && mv "$TMP_DIR/settings-ovr.json" "$RTK_OVR_HOME/.claude/settings.json"
+rtk_override_check >"$TMP_DIR/rtk-ovr-two.out" 2>&1 || :
+RTK_OVR_DEFAULT="$(cd "$RTK_OVR_HOME/.claude" && pwd -P)"
+[ "$(remediation_count "$TMP_DIR/rtk-ovr-two.out")" -eq 2 ] &&
+  grep -Fq "rtk hook in $RTK_OVR_DEFAULT/settings.json; run env -u CLAUDE_CONFIG_DIR rtk init -g --hook-only" "$TMP_DIR/rtk-ovr-two.out" &&
+  [ "$(unresolved_count "$TMP_DIR/rtk-ovr-two.out")" -eq $((rtk_base_unresolved + 2)) ] || {
+  printf 'rtk check must count one unresolved issue per root missing the hook:\n' >&2
+  cat "$TMP_DIR/rtk-ovr-two.out" >&2
+  exit 1
+}
+
+# Outside --check the rtk hook is never reported.
+RTK_MODE_HOME="$TMP_DIR/rtk-mode-home"
+mkdir -p "$RTK_MODE_HOME"
+for rtk_mode in --dry-run --apply; do
+  env -u CLAUDE_CONFIG_DIR HOME="$RTK_MODE_HOME" ETABLI_SKIP_LIVE_CHECKS=1 PATH="$RTK_PRESENT" \
+    "$NODE_BIN" "$DEPLOY_SCRIPT" "$rtk_mode" --home "$RTK_MODE_HOME" >"$TMP_DIR/rtk-mode.out" 2>&1 || {
+    cat "$TMP_DIR/rtk-mode.out" >&2
+    exit 1
+  }
+  grep -q 'rtk init -g --hook-only' "$TMP_DIR/rtk-mode.out" && {
+    printf '%s ran the rtk hook check:\n' "$rtk_mode" >&2
+    cat "$TMP_DIR/rtk-mode.out" >&2
+    exit 1
+  }
+done
+
+# An rtk in a live PATH directory leaves the seeded live home at its counts.
+printf '#!/bin/sh\nexit 0\n' >"$TMP_DIR/live-bin/rtk"
+chmod +x "$TMP_DIR/live-bin/rtk"
+live_check "$TMP_DIR/live-bin:/usr/bin:/bin" >"$TMP_DIR/live-rtk.out" 2>&1 || :
+grep -q '^Summary: .* 0 unresolved' "$TMP_DIR/live-rtk.out" && ! grep -q 'rtk init -g --hook-only' "$TMP_DIR/live-rtk.out" || {
+  printf 'live check counts moved with an rtk on its PATH:\n' >&2
+  cat "$TMP_DIR/live-rtk.out" >&2
+  exit 1
+}
+rm "$TMP_DIR/live-bin/rtk"
 
 printf 'deploy agent workflow smoke test: ok\n'

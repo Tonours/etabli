@@ -66,6 +66,9 @@ backup_count() {
 mkdir -p "$TMP_HOME/.pi/agent/npm/node_modules" "$TMP_HOME/.pi/agent/skills"
 mkdir -p "$TMP_HOME/.claude/agents" "$TMP_HOME/.claude/skills" \
   "$TMP_HOME/personal-agents" "$TMP_HOME/external-skill"
+# An rtk on the caller's PATH must not affect these link-only fixtures.
+printf '%s\n' '{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"rtk hook claude"}]}]}}' \
+  >"$TMP_HOME/.claude/settings.json"
 printf 'personal agent\n' >"$TMP_HOME/personal-agents/personal.md"
 ln -s "$REPO/claude/agents/playwright-generator.md" "$TMP_HOME/.claude/agents/playwright-generator.md"
 ln -s "$TMP_HOME/personal-agents/personal.md" "$TMP_HOME/.claude/agents/personal.md"
