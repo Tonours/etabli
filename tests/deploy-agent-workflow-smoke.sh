@@ -808,7 +808,7 @@ for rtk_command in 'echo rtk hook claude' '# rtk hook claude' '#/opt/homebrew/bi
   rtk_case "ineffective command: $rtk_command" flagged "$RTK_PRESENT"
 done
 for rtk_command in '"/opt/x/rtk hook claude"' '"/opt/x/rtk hook claude' 'rtk\ hook claude' \
-  '$(command -v rtk) hook claude' '"$(command -v rtk)" hook claude' '"/opt/\\$(tools)/rtk" hook claude' 'rtk hook claude)'; do
+  '$(command -v rtk) hook claude' '"$(command -v rtk)" hook claude' '"/opt/\\$(tools)/rtk" hook claude' 'rtk hook claude)' 'rtk hook claude<(printf x)' 'rtk hook claude>(cat)'; do
   write_hook_case "$rtk_command" '"Bash"' command
   rtk_case "ineffective or unprovable command: $rtk_command" flagged "$RTK_PRESENT"
 done
