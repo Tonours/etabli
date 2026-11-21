@@ -98,18 +98,19 @@ function piShadow(homeDir) {
 }
 
 // Reads the first shell words of a hook command, with quotes and backslashes
-// removed as the shell does. An operator, newline, comment, unbalanced quote or
-// command substitution ends the read, so a word after it is never returned.
+// removed as the shell does; only space, tab and newline separate words. An
+// operator, newline, comment, unbalanced quote or command substitution ends
+// the read, so a word after it is never returned.
 function shellWords(command, count) {
   const words = [];
-  let i = command.match(/^\s*/)[0].length;
+  let i = command.match(/^[ \t\n]*/)[0].length;
   if (command[i] === "#") return words;
   while (words.length < count) {
     const start = i;
     let word = "";
-    while (i < command.length && !/[\s;&|<>()]/.test(command[i])) {
+    while (i < command.length && !/[ \t\n;&|<>()]/.test(command[i])) {
       if (command[i] === "`" || command.startsWith("$(", i)) return words;
-      const quoted = (command[i] === "'" ? /'([^']*)'/y : /"((?:[^"\\]|\\.)*)"/y);
+      const quoted = (command[i] === "'" ? /'([^']*)'/y : /"((?:[^"\\]|\\[^])*)"/y);
       if (command[i] === "'" || command[i] === '"') {
         quoted.lastIndex = i;
         const match = quoted.exec(command);
@@ -137,7 +138,7 @@ function isRtkHookCommand(command) {
   const [exe, hook, claude] = shellWords(command, 3);
   return Boolean(exe && hook && claude)
     && (exe.word === "rtk" || exe.word.endsWith("/rtk")) && !/^[A-Za-z_]\w*=/.test(exe.raw)
-    && hook.word === "hook" && claude.word === "claude" && /^(?:$|[\s;&|]|[<>](?!\())/.test(claude.after);
+    && hook.word === "hook" && claude.word === "claude" && /^(?:$|[ \t\n;&|]|[<>](?!\())/.test(claude.after);
 }
 
 function isRecord(value) {
