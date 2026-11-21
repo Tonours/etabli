@@ -113,7 +113,7 @@ function shellWords(command, count) {
       if (command[i] === "'" || command[i] === '"') {
         quoted.lastIndex = i;
         const match = quoted.exec(command);
-        if (!match || /`|\$\(/.test(command[i] === '"' ? match[1] : "")) return words;
+        if (!match || (command[i] === '"' && /(?:^|[^\\])(?:\\\\)*(?:`|\$\()/.test(match[1]))) return words;
         word += command[i] === '"' ? match[1].replace(/\\([\\"$`\n])/g, (_, c) => (c === "\n" ? "" : c)) : match[1];
         i = quoted.lastIndex;
       } else if (command[i] === "\\") {
@@ -137,7 +137,7 @@ function isRtkHookCommand(command) {
   const [exe, hook, claude] = shellWords(command, 3);
   return Boolean(exe && hook && claude)
     && (exe.word === "rtk" || exe.word.endsWith("/rtk")) && !/^[A-Za-z_]\w*=/.test(exe.raw)
-    && hook.word === "hook" && claude.word === "claude" && /^(?:\s|[;&|])?$/.test(claude.next);
+    && hook.word === "hook" && claude.word === "claude" && /^[\s;&|<>]?$/.test(claude.next);
 }
 
 function isRecord(value) {
