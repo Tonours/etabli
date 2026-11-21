@@ -791,6 +791,10 @@ for rtk_command in 'rtk hook claude' 'rtk hook claude --ultra-compact' '/opt/hom
   write_hook_case "$rtk_command" '"Bash"' command
   rtk_case "kept hook shape: $rtk_command" silent "$RTK_PRESENT"
 done
+for rtk_command in '"/opt/RTK Tools/bin/rtk" hook claude' "'/opt/x/rtk' hook claude" '"rtk" hook claude'; do
+  write_hook_case "$rtk_command" '"Bash"' command
+  rtk_case "fully quoted executable: $rtk_command" silent "$RTK_PRESENT"
+done
 for rtk_matcher in '__absent__' '""' '"*"' '"Bash|Read"'; do
   write_hook_case 'rtk hook claude' "$rtk_matcher" command
   rtk_case "Bash matcher: $rtk_matcher" silent "$RTK_PRESENT"
@@ -800,6 +804,11 @@ rtk_case 'valid hook after invalid entries' silent "$RTK_PRESENT"
 for rtk_command in 'echo rtk hook claude' '# rtk hook claude' '#/opt/homebrew/bin/rtk hook claude' 'false&&/usr/bin/rtk hook claude' $'rtk hook\nclaude' '>/dev/null/rtk hook claude' 'FOO=/usr/bin/rtk hook claude'; do
   write_hook_case "$rtk_command" '"Bash"' command
   rtk_case "ineffective command: $rtk_command" flagged "$RTK_PRESENT"
+done
+for rtk_command in '"/opt/x/rtk hook claude"' '"rtk" "hook" claude' '"/opt/x/rtk hook claude' \
+  '"/opt/x"/rtk hook claude' '"/opt/RTK\ Tools/bin/rtk" hook claude'; do
+  write_hook_case "$rtk_command" '"Bash"' command
+  rtk_case "ineffective quoted command: $rtk_command" flagged "$RTK_PRESENT"
 done
 for rtk_matcher in '"Write|Edit"' '"["' '3' 'null' '"Bash)|(?:Write"' '"B"' '"ash"'; do
   write_hook_case 'rtk hook claude' "$rtk_matcher" command

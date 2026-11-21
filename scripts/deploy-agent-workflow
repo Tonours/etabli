@@ -97,7 +97,7 @@ function piShadow(homeDir) {
   return 1;
 }
 
-const RTK_HOOK_COMMAND = /^\s*(?!#)([\w.+~:@%${}/-]*\/)?rtk[ \t]+hook[ \t]+claude([\s;&|]|$)/;
+const RTK_HOOK_COMMAND = /^\s*(?!#)(?:(?:[\w.+~:@%${}/-]*\/)?rtk|(["'])(?:[^"'\\]*\/)?rtk\1)[ \t]+hook[ \t]+claude([\s;&|]|$)/;
 
 function isRecord(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
