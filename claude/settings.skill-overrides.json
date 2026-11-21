@@ -25,7 +25,7 @@
     "employer-backend-suite": "on",
     "employer-docs-writing": "user-invocable-only",
     "grilling": "on",
-    "herdr": "on",
+    "herdr": "user-invocable-only",
     "implement": "on",
     "linear-ticket-create": "on",
     "plan-implement": "on",

@@ -15,7 +15,6 @@ const PINNED_ON = new Set([
   "codebase-design",
   "employer-backend-suite",
   "grilling",
-  "herdr",
   "implement",
   "linear-ticket-create",
   "plan-implement",
