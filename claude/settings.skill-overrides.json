@@ -6,6 +6,17 @@
   "autoMemoryEnabled": false,
   "promptSuggestionEnabled": false,
   "awaySummaryEnabled": false,
+  "env": {
+    "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet",
+    "CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS": "100000"
+  },
+  "modelSettings": {
+    "claude-opus-5-5": { "effortLevel": "medium" },
+    "claude-sonnet-5-5": { "effortLevel": "medium" }
+  },
+  "autoCompactWindow": 200000,
+  "bashOutputMaxChars": 15000,
+  "skillListingMaxDescChars": 400,
   "skillOverrides": {
     "adr": "user-invocable-only",
     "adversary": "on",

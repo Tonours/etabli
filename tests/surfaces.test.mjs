@@ -728,8 +728,9 @@ describe("Claude managed env", () => {
       }
     }
   });
-  test("shared background defaults install privately without changing compaction or models", () => {
+  test("shared fragment installs privately with the tracked token-usage keys", () => {
     const f = fixture(undefined);
+    writeFileSync(f.claude, "#!/bin/sh\nprintf '%s\\n' '2.1.329 (Claude Code)'\n");
     copyFileSync(fileURLToPath(new URL("../claude/settings.skill-overrides.json", import.meta.url)), f.tracked);
     rmSync(f.settings);
     const child = f.run("install", "0", "install");
@@ -737,6 +738,11 @@ describe("Claude managed env", () => {
     const settings = JSON.parse(readFileSync(f.settings));
     assert.equal(settings.promptSuggestionEnabled, false);
     assert.equal(settings.awaySummaryEnabled, false);
+    assert.deepEqual(settings.env, { CLAUDE_CODE_SUBAGENT_MODEL: "sonnet", CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS: "100000" });
+    assert.deepEqual(settings.modelSettings, { "claude-opus-5-5": { effortLevel: "medium" }, "claude-sonnet-5-5": { effortLevel: "medium" } });
+    assert.equal(settings.autoCompactWindow, 200000);
+    assert.equal(settings.bashOutputMaxChars, 15000);
+    assert.equal(settings.skillListingMaxDescChars, 400);
     for (const key of ["model", "effortLevel", "idleCompaction", "autoCompactEnabled"]) assert.equal(settings[key], undefined);
     assert.equal(lstatSync(f.settings).mode & 0o777, 0o600);
   });
@@ -795,7 +801,7 @@ describe("Claude managed env", () => {
     assert.equal(JSON.parse(readFileSync(f.settings)).theme, "dark");
   });
   test("rejects invalid tracked env before backup or write", () => {
-    for (const env of [null, [], "bad", { OTHER: secret }, { ["__proto__"]: secret }, { CLAUDE_CODE_SUBAGENT_MODEL: "" }, { CLAUDE_CODE_SUBAGENT_MODEL: null }, { CLAUDE_CODE_SUBAGENT_MODEL: 1 }]) {
+    for (const env of [null, [], "bad", { OTHER: secret }, { ["__proto__"]: secret }, { CLAUDE_CODE_SUBAGENT_MODEL: "" }, { CLAUDE_CODE_SUBAGENT_MODEL: null }, { CLAUDE_CODE_SUBAGENT_MODEL: 1 }, { CLAUDE_CODE_SUBAGENT_MODEL_FORCE: "1" }, { CLAUDE_CODE_SUBAGENT_MODEL: "sonnet", CLAUDE_CODE_SUBAGENT_MODEL_FORCE: "1" }, { CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS: "99999" }, { CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS: "100k" }, { CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS: " 100000" }, { CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS: 100000 }, { CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS: "0100000" }, { CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS: "1000000000000000000000000000000000000" }]) {
       const f = fixture(env, { skillOverrides: {}, env: { TOKEN: secret } });
       const bytes = readFileSync(f.settings, "utf8");
       const child = f.run();
@@ -882,13 +888,19 @@ describe("Claude managed env", () => {
       assert.deepEqual(JSON.parse(readFileSync(f.settings)), original);
     }
   });
-  test("shared fragment leaves existing model choices unchanged", () => {
-    const original = { skillOverrides: {}, env: { TOKEN: secret, CLAUDE_CODE_SUBAGENT_MODEL: "opus" } };
+  test("shared fragment activates the tracked token-usage keys over local values", () => {
+    const original = { skillOverrides: {}, env: { TOKEN: secret, CLAUDE_CODE_SUBAGENT_MODEL: "opus" }, modelSettings: { "claude-opus-5-5": { effortLevel: "high", maxEffortLevel: "high" } }, autoCompactWindow: 300000 };
     const f = fixture(undefined, original);
+    writeFileSync(f.claude, "#!/bin/sh\nprintf '%s\\n' '2.1.329 (Claude Code)'\n");
     copyFileSync(fileURLToPath(new URL("../claude/settings.skill-overrides.json", import.meta.url)), f.tracked);
     const result = f.run();
     assert.equal(result.status, 0, result.stderr);
-    assert.deepEqual(JSON.parse(readFileSync(f.settings)).env, original.env);
+    const settings = JSON.parse(readFileSync(f.settings));
+    assert.deepEqual(settings.env, { TOKEN: secret, CLAUDE_CODE_SUBAGENT_MODEL: "sonnet", CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS: "100000" });
+    assert.deepEqual(settings.modelSettings, { "claude-opus-5-5": { effortLevel: "medium", maxEffortLevel: "high" }, "claude-sonnet-5-5": { effortLevel: "medium" } });
+    assert.equal(settings.autoCompactWindow, 200000);
+    assert.equal(settings.bashOutputMaxChars, 15000);
+    assert.equal(settings.skillListingMaxDescChars, 400);
     assert.doesNotMatch(result.stdout + result.stderr, new RegExp(secret));
   });
   test("fragments without env preserve existing local env", () => {
@@ -900,5 +912,259 @@ describe("Claude managed env", () => {
     assert.equal(child.stderr, "");
     assert.deepEqual(JSON.parse(readFileSync(f.settings)), original);
     assert.equal(existsSync(`${f.settings}.bak.first`), false);
+  });
+  function trackedFixture(tracked, local = { skillOverrides: {} }, version = "2.1.329") {
+    const f = fixture(undefined, local);
+    if (version === null) rmSync(f.claude);
+    else writeFileSync(f.claude, `#!/bin/sh\nprintf '%s\\n' '${version} (Claude Code)'\n`);
+    writeFileSync(f.tracked, JSON.stringify({ skillOverrides: {}, ...tracked }));
+    return f;
+  }
+  const fullTracked = {
+    env: { CLAUDE_CODE_SUBAGENT_MODEL: "sonnet", CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS: "100000" },
+    modelSettings: { "claude-opus-5-5": { effortLevel: "medium" } },
+    autoCompactWindow: 200000,
+    bashOutputMaxChars: 15000,
+    skillListingMaxDescChars: 400,
+  };
+  test("rejects out-of-bounds or mistyped tracked numbers before backup or write", () => {
+    const bad = [
+      { autoCompactWindow: 99999 }, { autoCompactWindow: 200000.5 }, { autoCompactWindow: "200000" }, { autoCompactWindow: null },
+      { bashOutputMaxChars: 3999 }, { bashOutputMaxChars: 128001 }, { bashOutputMaxChars: 15000.5 }, { bashOutputMaxChars: "15000" },
+      { skillListingMaxDescChars: 0 }, { skillListingMaxDescChars: -1 }, { skillListingMaxDescChars: 400.5 }, { skillListingMaxDescChars: "400" },
+    ];
+    for (const extra of bad) {
+      const f = trackedFixture(extra, { skillOverrides: {}, env: { TOKEN: secret } });
+      const bytes = readFileSync(f.settings, "utf8");
+      const child = f.run();
+      assert.equal(child.status, 1, JSON.stringify(extra));
+      assert.match(child.stderr, /^claude-settings-sync: .*must be an integer/);
+      assert.doesNotMatch(child.stdout + child.stderr, new RegExp(secret));
+      assert.equal(readFileSync(f.settings, "utf8"), bytes);
+      assert.equal(existsSync(`${f.settings}.bak.first`), false);
+    }
+    for (const extra of [{ autoCompactWindow: 100000 }, { bashOutputMaxChars: 4000 }, { bashOutputMaxChars: 128000 }, { skillListingMaxDescChars: 1 }]) {
+      const f = trackedFixture(extra);
+      assert.equal(f.run().status, 0, JSON.stringify(extra));
+      const [key, value] = Object.entries(extra)[0];
+      assert.equal(JSON.parse(readFileSync(f.settings))[key], value);
+    }
+    for (const raw of [
+      '{"skillOverrides":{},"skillListingMaxDescChars":0.9999999999999999999999}',
+      '{"skillOverrides":{},"bashOutputMaxChars":3999.9999999999999999999}',
+      '{"skillOverrides":{},"autoCompactWindow":99999.999999999999999999}',
+    ]) {
+      const f = trackedFixture({}, { skillOverrides: {}, env: { TOKEN: secret } });
+      writeFileSync(f.tracked, raw);
+      const bytes = readFileSync(f.settings, "utf8");
+      const child = f.run("rawbad");
+      assert.equal(child.status, 1, raw);
+      assert.match(child.stderr, /^claude-settings-sync: tracked fragment .*round-trip/);
+      assert.doesNotMatch(child.stdout + child.stderr, new RegExp(secret));
+      assert.equal(readFileSync(f.settings, "utf8"), bytes);
+      assert.equal(existsSync(`${f.settings}.bak.rawbad`), false);
+    }
+  });
+  test("rejects invalid tracked modelSettings before backup or write", () => {
+    const bad = [
+      null, [], "bad",
+      { opus: { effortLevel: "medium" } }, { "Claude-opus-5-5": { effortLevel: "medium" } }, { "claude-opus-5.5": { effortLevel: "medium" } },
+      { "claude-opus-5-5": null }, { "claude-opus-5-5": [] }, { "claude-opus-5-5": "medium" },
+      { "claude-opus-5-5": {} }, { "claude-opus-5-5": { effortLevel: "max" } }, { "claude-opus-5-5": { effortLevel: 1 } },
+      { "claude-opus-5-5": { effortLevel: "medium", maxEffortLevel: "high" } },
+      { "claude-opus-5-5": { effortLevel: "medium", autoCompactWindow: 200000 } },
+    ];
+    for (const modelSettings of bad) {
+      const f = trackedFixture({ modelSettings }, { skillOverrides: {}, env: { TOKEN: secret } });
+      const bytes = readFileSync(f.settings, "utf8");
+      const child = f.run();
+      assert.equal(child.status, 1, JSON.stringify(modelSettings));
+      assert.match(child.stderr, /^claude-settings-sync: modelSettings/);
+      assert.doesNotMatch(child.stdout + child.stderr, new RegExp(secret));
+      assert.equal(readFileSync(f.settings, "utf8"), bytes);
+      assert.equal(existsSync(`${f.settings}.bak.first`), false);
+    }
+  });
+  test("per-key gates skip only the keys above the probed version", () => {
+    const mixed = trackedFixture(fullTracked, { skillOverrides: {} }, "2.1.270");
+    const mixedRun = mixed.run();
+    assert.equal(mixedRun.status, 0, mixedRun.stderr);
+    assert.match(mixedRun.stderr, /WARN +env\.CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS skipped: requires Claude Code >=2\.1\.299/);
+    assert.match(mixedRun.stderr, /WARN +autoCompactWindow skipped: requires Claude Code >=2\.1\.288/);
+    const mixedSettings = JSON.parse(readFileSync(mixed.settings));
+    assert.equal(mixedSettings.env.CLAUDE_CODE_SUBAGENT_MODEL, "sonnet");
+    assert.equal(mixedSettings.env.CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS, undefined);
+    assert.equal(mixedSettings.modelSettings["claude-opus-5-5"].effortLevel, "medium");
+    assert.equal(mixedSettings.autoCompactWindow, undefined);
+    assert.equal(mixedSettings.bashOutputMaxChars, 15000);
+    assert.equal(mixedSettings.skillListingMaxDescChars, 400);
+    const boundaries = [
+      ["2.1.250", (s) => s.env === undefined && s.modelSettings === undefined && s.skillListingMaxDescChars === 400],
+      ["2.1.251", (s) => s.env.CLAUDE_CODE_SUBAGENT_MODEL === "sonnet" && s.modelSettings !== undefined && s.bashOutputMaxChars === undefined],
+      ["2.1.260", (s) => s.bashOutputMaxChars === undefined],
+      ["2.1.261", (s) => s.bashOutputMaxChars === 15000 && s.autoCompactWindow === undefined],
+      ["2.1.287", (s) => s.autoCompactWindow === undefined],
+      ["2.1.288", (s) => s.autoCompactWindow === 200000 && s.env.CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS === undefined],
+      ["2.1.298", (s) => s.env.CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS === undefined],
+      ["2.1.299", (s) => s.env.CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS === "100000"],
+    ];
+    for (const [version, holds] of boundaries) {
+      const f = trackedFixture(fullTracked, { skillOverrides: {} }, version);
+      const child = f.run();
+      assert.equal(child.status, 0, `${version}: ${child.stderr}`);
+      assert.ok(holds(JSON.parse(readFileSync(f.settings))), version);
+    }
+    for (const version of [null, "bogus"]) {
+      const f = trackedFixture(fullTracked, { skillOverrides: {} }, version);
+      const child = f.run();
+      assert.equal(child.status, 0, child.stderr);
+      for (const minimum of ["2.1.251", "2.1.261", "2.1.288", "2.1.299"]) assert.match(child.stderr, new RegExp(`WARN.*>=${minimum.replaceAll(".", "\\.")}`));
+      const settings = JSON.parse(readFileSync(f.settings));
+      assert.equal(settings.env, undefined);
+      assert.equal(settings.modelSettings, undefined);
+      assert.equal(settings.autoCompactWindow, undefined);
+      assert.equal(settings.bashOutputMaxChars, undefined);
+      assert.equal(settings.skillListingMaxDescChars, 400);
+    }
+  });
+  test("modelSettings merge keeps other fields and models, warns on a local window override", () => {
+    const original = {
+      skillOverrides: {},
+      modelSettings: {
+        "claude-opus-5-5": { effortLevel: "high", maxEffortLevel: "high", autoCompactWindow: 777777 },
+        "claude-haiku-5-5": { effortLevel: "low" },
+        "odd-entry": "kept-as-is",
+      },
+    };
+    const f = trackedFixture({ modelSettings: { "claude-opus-5-5": { effortLevel: "medium" } }, autoCompactWindow: 200000 }, original);
+    const child = f.run();
+    assert.equal(child.status, 0, child.stderr);
+    assert.match(child.stderr, /WARN +local modelSettings\.claude-opus-5-5\.autoCompactWindow overrides the tracked autoCompactWindow/);
+    assert.doesNotMatch(child.stdout + child.stderr, /777777/);
+    assert.deepEqual(JSON.parse(readFileSync(f.settings)).modelSettings, {
+      "claude-opus-5-5": { effortLevel: "medium", maxEffortLevel: "high", autoCompactWindow: 777777 },
+      "claude-haiku-5-5": { effortLevel: "low" },
+      "odd-entry": "kept-as-is",
+    });
+    const same = trackedFixture({ autoCompactWindow: 200000 }, { skillOverrides: {}, modelSettings: { "claude-opus-5-5": { autoCompactWindow: 200000 } } });
+    const sameRun = same.run();
+    assert.equal(sameRun.status, 0, sameRun.stderr);
+    assert.doesNotMatch(sameRun.stderr, /overrides the tracked/);
+    const gated = trackedFixture(
+      { autoCompactWindow: 200000 },
+      { skillOverrides: {}, modelSettings: { "claude-opus-5-5": { autoCompactWindow: 777777 } } },
+      "2.1.287",
+    );
+    const gatedRun = gated.run();
+    assert.equal(gatedRun.status, 0, gatedRun.stderr);
+    assert.match(gatedRun.stderr, /WARN +autoCompactWindow skipped: requires Claude Code >=2\.1\.288/);
+    assert.doesNotMatch(gatedRun.stderr, /overrides the tracked/);
+  });
+  test("refuses malformed local modelSettings without printing local values", () => {
+    const badLocals = [
+      { skillOverrides: {}, modelSettings: null },
+      { skillOverrides: {}, modelSettings: [] },
+      { skillOverrides: {}, modelSettings: secret },
+      { skillOverrides: {}, modelSettings: { "claude-opus-5-5": null } },
+      { skillOverrides: {}, modelSettings: { "claude-opus-5-5": [secret] } },
+      { skillOverrides: {}, modelSettings: { "claude-opus-5-5": secret } },
+    ];
+    for (const local of badLocals) {
+      const f = trackedFixture({ modelSettings: { "claude-opus-5-5": { effortLevel: "medium" } } }, local);
+      const bytes = readFileSync(f.settings, "utf8");
+      const child = f.run();
+      assert.equal(child.status, 1, JSON.stringify(local));
+      assert.match(child.stderr, /^claude-settings-sync: local settings modelSettings/);
+      assert.doesNotMatch(child.stdout + child.stderr, new RegExp(secret));
+      assert.equal(readFileSync(f.settings, "utf8"), bytes);
+      assert.equal(existsSync(`${f.settings}.bak.first`), false);
+    }
+  });
+  test("check mode reports drift without writing and passes once synced", () => {
+    const mutations = [
+      (s) => { s.modelSettings["claude-opus-5-5"].effortLevel = "high"; },
+      (s) => { s.autoCompactWindow = 300000; },
+      (s) => { s.bashOutputMaxChars = 20000; },
+      (s) => { s.skillListingMaxDescChars = 401; },
+      (s) => { s.env.CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS = "200000"; },
+      (s) => { delete s.modelSettings["claude-opus-5-5"]; },
+    ];
+    for (const mutate of mutations) {
+      const f = trackedFixture(fullTracked, { skillOverrides: {} });
+      assert.equal(f.run().status, 0);
+      assert.equal(f.run("checkstamp", "1", "check").status, 0);
+      const synced = JSON.parse(readFileSync(f.settings, "utf8"));
+      mutate(synced);
+      writeFileSync(f.settings, JSON.stringify(synced));
+      const bytes = readFileSync(f.settings, "utf8");
+      const drift = f.run("checkstamp", "1", "check");
+      assert.equal(drift.status, 1, drift.stdout);
+      assert.match(drift.stdout, /^DRIFT +Claude tracked settings differ.*--apply/);
+      assert.equal(readFileSync(f.settings, "utf8"), bytes);
+      assert.equal(existsSync(`${f.settings}.bak.checkstamp`), false);
+      assert.equal(f.run("resync").status, 0);
+      assert.equal(f.run("checkstamp", "1", "check").status, 0);
+    }
+    const missing = trackedFixture(fullTracked);
+    rmSync(missing.settings);
+    const missingRun = missing.run("checkstamp", "1", "check");
+    assert.equal(missingRun.status, 1);
+    assert.match(missingRun.stdout, /^DRIFT /);
+    assert.equal(existsSync(missing.settings), false);
+  });
+  test("a gated-out modelSettings does not block ungated keys over malformed local modelSettings", () => {
+    const f = trackedFixture(
+      { modelSettings: { "claude-opus-5-5": { effortLevel: "medium" } }, skillListingMaxDescChars: 400 },
+      { skillOverrides: {}, modelSettings: null },
+      "2.1.250",
+    );
+    const child = f.run();
+    assert.equal(child.status, 0, child.stderr);
+    assert.match(child.stderr, /WARN +modelSettings skipped: requires Claude Code >=2\.1\.251/);
+    const settings = JSON.parse(readFileSync(f.settings));
+    assert.equal(settings.skillListingMaxDescChars, 400);
+    assert.equal(settings.modelSettings, null);
+  });
+  test("refuses tracked numbers past the safe integer range before backup or write", () => {
+    const f = trackedFixture({});
+    writeFileSync(f.tracked, '{"skillOverrides":{},"autoCompactWindow":9007199254740993}');
+    const bytes = readFileSync(f.settings, "utf8");
+    const child = f.run();
+    assert.equal(child.status, 1);
+    assert.match(child.stderr, /^claude-settings-sync: tracked fragment .*round-trip/);
+    assert.equal(readFileSync(f.settings, "utf8"), bytes);
+    assert.equal(existsSync(`${f.settings}.bak.first`), false);
+  });
+  test("refuses to rewrite local numbers that cannot round-trip, before backup or write", () => {
+    for (const raw of [
+      '{"skillOverrides":{},"modelSettings":{"claude-haiku-5-5":{"autoCompactWindow":1e400}}}',
+      '{"skillOverrides":{},"other":9007199254740993}',
+      '{"skillOverrides":{},"other":[{"nested":1e-400}]}',
+      '{"skillOverrides":{},"other":1.0000000000000001}',
+      '{"skillOverrides":{},"other":-9007199254740993}',
+    ]) {
+      const f = trackedFixture({ skillListingMaxDescChars: 400 });
+      writeFileSync(f.settings, raw);
+      const child = f.run();
+      assert.equal(child.status, 1, raw);
+      assert.match(child.stderr, /^claude-settings-sync: .*round-trip/);
+      assert.doesNotMatch(child.stdout + child.stderr, /9007199254740993|1e400/);
+      assert.equal(readFileSync(f.settings, "utf8"), raw);
+      assert.equal(existsSync(`${f.settings}.bak.first`), false);
+    }
+    const control = trackedFixture({ skillListingMaxDescChars: 400 }, { skillOverrides: {}, ratio: 1.5, big: 9007199254740991 });
+    assert.equal(control.run().status, 0);
+    const written = JSON.parse(readFileSync(control.settings));
+    assert.equal(written.ratio, 1.5);
+    assert.equal(written.big, 9007199254740991);
+    const exact = trackedFixture({ skillListingMaxDescChars: 400 });
+    writeFileSync(exact.settings, '{"skillOverrides":{},"a":1e21,"b":0.1,"c":"1e400 is just text","d":-0,"e":2.500}');
+    const exactRun = exact.run();
+    assert.equal(exactRun.status, 0, exactRun.stderr);
+    const exactWritten = JSON.parse(readFileSync(exact.settings));
+    assert.equal(exactWritten.a, 1e21);
+    assert.equal(exactWritten.b, 0.1);
+    assert.equal(exactWritten.c, "1e400 is just text");
+    assert.equal(exactWritten.e, 2.5);
   });
 });

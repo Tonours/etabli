@@ -368,8 +368,8 @@ jq -e '.skillOverrides == {"nested-declared":"off","personal-hidden":"off","repo
 jq -e '.autoMemoryEnabled == false' "$ROOT_DIR/claude/settings.skill-overrides.json" >/dev/null ||
   fail "claude/settings.skill-overrides.json must track autoMemoryEnabled false (the vault owns durable memory)"
 
-jq -e 'has("env") | not' "$ROOT_DIR/claude/settings.skill-overrides.json" >/dev/null ||
-  fail "shared fragment must not activate a global subagent model"
+jq -e '.env == {"CLAUDE_CODE_SUBAGENT_MODEL":"sonnet","CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS":"100000"}' "$ROOT_DIR/claude/settings.skill-overrides.json" >/dev/null ||
+  fail "shared fragment must track the subagent model and idle compaction env defaults"
 printf '%s\n' '{"skillOverrides":{},"env":{"LOCAL_TOKEN":"synthetic-env-secret"}}' >"$FIX/sync/env-settings.json"
 jq '.env = {"CLAUDE_CODE_SUBAGENT_MODEL":"sonnet"}' "$ROOT_DIR/claude/settings.skill-overrides.json" >"$FIX/sync/env-tracked.json"
 mkdir -p "$FIX/runtime-bin"

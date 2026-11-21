@@ -52,3 +52,4 @@ Decisions live in this directory. Run `/adr` to record one.
 - [0048](0048-routines-leave-a-standard-run-record.md) — Routines leave a standard run record [accepted]
 - [0049](0049-keep-the-rtk-claude-hook-the-owner-installs.md) — Keep the rtk Claude hook the owner installs [accepted]
 - [0050](0050-track-the-claude-usage-audit-script.md) — Track the Claude usage audit script [accepted]
+- [0051](0051-track-claude-code-token-usage-settings.md) — Track the Claude Code token-usage settings in the shared fragment [accepted]

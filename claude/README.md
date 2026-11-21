@@ -160,8 +160,8 @@ fragment `settings.skill-overrides.json` carries the skill map plus
 automatic away recaps. These managed scalars win over local values at each
 deploy; changing a toggle in `/config` lasts only until the next sync.
 `CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION` and `CLAUDE_CODE_ENABLE_AWAY_SUMMARY`
-can override them; sync preserves those environment values. Idle/auto
-compaction, models, effort and permissions are not changed by these defaults.
+can override them; sync preserves those environment values. Permissions are
+not changed by these defaults; the token-usage keys below (ADR-0051) are.
 `scripts/lib/claude-settings-sync.mjs` copies only
 whitelisted keys into `~/.claude/settings.json`, so no secret can leak into the
 fragment. `permissions.defaultMode: "bypassPermissions"` and the two skip flags
@@ -172,20 +172,38 @@ Use `/goal <measurable done condition, validation command, constraints, stop
 limit>` for till-done loops. Pi and Claude orchestration parity lives in
 [`../workflow/skills/orchestration.md`](../workflow/skills/orchestration.md).
 
-Sync supports optional `env.CLAUDE_CODE_SUBAGENT_MODEL` (for example `sonnet`).
-It stays unset in the shared fragment until all runtimes (including SDK/IDE CLIs) are verified.
-An explicitly tracked key overwrites its local value; other local `env` keys and
-values are preserved without logging. On Claude Code >=2.1.251, this is a default for
-subagents with no explicit model: per-call model and agent frontmatter
-(including `inherit`) take precedence. Explicit Opus adversaries remain Opus.
-`CLAUDE_CODE_SUBAGENT_MODEL_FORCE` is not managed; if set by the user, native
-forced-model behavior still applies. Older Claude versions gave the default
-env key higher precedence; upgrade before using this policy. See the
+The fragment also tracks the token-usage keys (ADR-0051):
+`env.CLAUDE_CODE_SUBAGENT_MODEL: "sonnet"`,
+`env.CLAUDE_CODE_IDLE_COMPACT_MIN_TOKENS: "100000"`, `modelSettings` effort
+`medium` for `claude-opus-5-5` and `claude-sonnet-5-5`,
+`autoCompactWindow: 200000`, `bashOutputMaxChars: 15000` and
+`skillListingMaxDescChars: 400`. Every runtime on the three hosts was
+inventoried at 2.1.292 or newer before the subagent-model default was
+activated. An explicitly tracked key overwrites its local value; other local
+keys and values (other `env` entries, other `modelSettings` models and
+fields such as `maxEffortLevel` or a per-model `autoCompactWindow`) are
+preserved without logging; a per-model window that overrides the tracked one
+draws a warning naming the model only. Removing a key from the fragment
+leaves the local value in place. On Claude Code >=2.1.251, the subagent
+model is a default for subagents with no explicit model: per-call model and
+agent frontmatter (including `inherit`) take precedence. Explicit Opus
+adversaries remain Opus.
+`CLAUDE_CODE_SUBAGENT_MODEL_FORCE` is not managed and the writer rejects it
+as a tracked key; if set by the user, native forced-model behavior still
+applies. Older Claude versions gave the default env key higher precedence;
+upgrade before using this policy. See the
 [native model resolution order](https://code.claude.com/docs/en/sub-agents#choose-a-model).
 The PATH version probe is a partial check, not certification of other runtimes.
-Sync probes `claude --version` on PATH (5 s cap). On an old, missing or
-unrecognized runtime, it warns and skips only the managed env key; other
-tracked settings still sync. Existing local env values remain untouched.
+Sync probes `claude --version` on PATH (5 s cap) and gates each key on its
+documented minimum: subagent model and per-model effort 2.1.251, Bash cap
+2.1.261, compaction window 2.1.288, idle threshold 2.1.299; the skill
+description cap has no documented minimum and is ungated. On an old, missing
+or unrecognized runtime, sync warns per skipped key, naming its minimum;
+satisfied and ungated keys still sync. Out-of-bounds tracked values are
+refused before any backup or write (never silently clamped). Existing local
+env values remain untouched. `scripts/deploy-agent-workflow --check` on a
+live home reports tracked-settings drift as an unresolved issue naming
+`--apply`, without writing.
 Council launchers exclude user settings but do not scrub an inherited process
 env: a model-less descendant can receive this default from a Claude caller.
 Explicit reviewer models, effort and turn limits stay unchanged. Plugin
