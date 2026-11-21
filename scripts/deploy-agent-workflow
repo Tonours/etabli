@@ -97,7 +97,48 @@ function piShadow(homeDir) {
   return 1;
 }
 
-const RTK_HOOK_COMMAND = /^\s*(?!#)(?:(?:[\w.+~:@%${}/-]*\/)?rtk|(["'])(?:[^"'\\]*\/)?rtk\1)[ \t]+hook[ \t]+claude([\s;&|]|$)/;
+// Reads the first shell words of a hook command, with quotes and backslashes
+// removed as the shell does. An operator, newline, comment, unbalanced quote or
+// command substitution ends the read, so a word after it is never returned.
+function shellWords(command, count) {
+  const words = [];
+  let i = command.match(/^\s*/)[0].length;
+  if (command[i] === "#") return words;
+  while (words.length < count) {
+    const start = i;
+    let word = "";
+    while (i < command.length && !/[\s;&|<>()]/.test(command[i])) {
+      if (command[i] === "`" || command.startsWith("$(", i)) return words;
+      const quoted = (command[i] === "'" ? /'([^']*)'/y : /"((?:[^"\\]|\\.)*)"/y);
+      if (command[i] === "'" || command[i] === '"') {
+        quoted.lastIndex = i;
+        const match = quoted.exec(command);
+        if (!match || /`|\$\(/.test(command[i] === '"' ? match[1] : "")) return words;
+        word += command[i] === '"' ? match[1].replace(/\\([\\"$`\n])/g, (_, c) => (c === "\n" ? "" : c)) : match[1];
+        i = quoted.lastIndex;
+      } else if (command[i] === "\\") {
+        if (command[i + 1] !== "\n") word += command[i + 1] ?? "";
+        i += 2;
+      } else {
+        word += command[i];
+        i += 1;
+      }
+    }
+    if (i === start) return words;
+    const next = command[i] ?? "";
+    words.push({ word, raw: command.slice(start, i), next });
+    if (next !== " " && next !== "\t") return words;
+    i += command.slice(i).match(/^[ \t]*/)[0].length;
+  }
+  return words;
+}
+
+function isRtkHookCommand(command) {
+  const [exe, hook, claude] = shellWords(command, 3);
+  return Boolean(exe && hook && claude)
+    && (exe.word === "rtk" || exe.word.endsWith("/rtk")) && !/^[A-Za-z_]\w*=/.test(exe.raw)
+    && hook.word === "hook" && claude.word === "claude" && /^(?:\s|[;&|])?$/.test(claude.next);
+}
 
 function isRecord(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -121,7 +162,7 @@ function hasRtkHook(settings) {
   return settings.hooks.PreToolUse.some((group) => isRecord(group) && matcherHitsBash(group.matcher)
     && Array.isArray(group.hooks)
     && group.hooks.some((hook) => isRecord(hook) && hook.type === "command"
-      && typeof hook.command === "string" && RTK_HOOK_COMMAND.test(hook.command)));
+      && typeof hook.command === "string" && isRtkHookCommand(hook.command)));
 }
 
 function rtkHookCheck(claudeRoots, override) {

@@ -315,7 +315,9 @@ project basenames.
 `scripts/deploy-agent-workflow --check` also flags an `rtk` on PATH whose
 owner-installed hook cannot run from a live Claude root: no
 `hooks.PreToolUse` group matching `Bash` runs `rtk hook claude`, or
-`disableAllHooks` turns every hook off. Run `rtk init -g --hook-only` for the
+`disableAllHooks` turns every hook off. The command is read as shell words,
+quotes and backslashes removed; a command substitution among its first words
+counts as no hook. Run `rtk init -g --hook-only` for the
 reported root. Unset `CLAUDE_CONFIG_DIR` for `~/.claude` or set it to the
 reported directory for an override. RTK and its hook are owner-installed
 (ADR-0049). The check stays silent when `rtk` is absent.
