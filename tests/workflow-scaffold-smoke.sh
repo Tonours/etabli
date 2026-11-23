@@ -70,6 +70,8 @@ assert_contains "$NEW_PROJECT/workflow/skills/review-rounds.md" "same budget, it
 assert_contains "$NEW_PROJECT/workflow/skills/review-rounds.md" "rounds stay spent across upgrades"
 assert_contains "$NEW_PROJECT/workflow/templates/review-lead.md" "claude-agent|pool-route"
 assert_contains "$NEW_PROJECT/workflow/templates/plan-archive.md" "- Tier: <small|bounded-fix|standard|high-risk>; review: <self|single|full>"
+assert_contains "$NEW_PROJECT/docs/plan/README.md" "- Tier: <small|bounded-fix|standard|high-risk>; review: <self|single|full>"
+assert_contains "$NEW_PROJECT/workflow/skills/review.md" "A standard run takes neither fallback: it follows § Standard review."
 assert_contains "$NEW_PROJECT/workflow/skills/adversary.md" "minutes fixed before launch and never shortened"
 assert_contains "$NEW_PROJECT/workflow/skills/adversary.md" "recorded as \`cross_model: unavailable (<category>)\` with"
 assert_contains "$NEW_PROJECT/workflow/skills/adversary.md" "plan mode: re-open each cited Observed Fact"

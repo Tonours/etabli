@@ -65,7 +65,7 @@ Same-session Logic self-review is forbidden.
    readable routing file keeps the runner above. A sentinel from any inverted
    child moves every hunter of that review to the parent's runner above once,
    re-dispatching hunters already returned; note the fallback and its
-   sentinel under Consider.
+   sentinel under Consider. A standard run takes neither fallback: it follows § Standard review.
    Hunter templates are self-contained; the parent reads the rubric for
    filtering. Open deciding APIs when needed. Unresolved inspection errors
    forbid GO. Helper executions capture native JSON. An empty patch is not a
