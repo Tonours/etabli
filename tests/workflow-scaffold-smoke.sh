@@ -82,6 +82,43 @@ assert_not_contains "$NEW_PROJECT/workflow/skills/review-rounds.md" "double-samp
 assert_not_contains "$NEW_PROJECT/workflow/skills/implementation-loop.md" "double-sample"
 assert_not_contains "$NEW_PROJECT/workflow/skills/adversary.md" "double-sample"
 assert_not_contains "$NEW_PROJECT/workflow/skills/review.md" "double-sample"
+# Every line of review.md § Standard review, and the high-risk clauses of the loop, stay pinned whole.
+while IFS= read -r pin; do
+  assert_contains "$NEW_PROJECT/workflow/skills/review.md" "$pin"
+done <<'PINS'
+The single review of a standard run (`workflow/skills/implementation-loop.md`
+§ Risk tiers) replaces steps 13 and 13b there; no code-diff adversary follows.
+- Shape: one Logic hunter child, then Spec in the parent recorded
+  `spec: parent`, plus the Threat hunter on the same route when step 5b fires.
+- Route: the author-family inversion route of step 4 when one exists;
+  otherwise, or after a sentinel from it, the next non-author route of
+  `workflow/skills/adversary.md` § Cross-harness frontier pool, recorded
+  `runner: pool-route`: that route's own read-only command (Codex:
+  `codex exec --sandbox read-only --model <model>`) with the full hunter
+  template, the `Axis:`, Intent and `Standards:` lines and the pinned patch
+  path in the brief. Never the parent's same-family runner while an eligible
+  route is untried.
+- Deadline: a Pi child runs with `PI_REVIEW_HUNTER_TIMEOUT=1800`, so a timeout
+  meets the technical-unavailability bar of `workflow/skills/adversary.md`
+  § Code diff mode.
+- Provenance: a pool route records the effective model from the harness's own
+  record; a pool-route answer without effective-model provenance, or any
+  truncated answer, is rerun once, then `blocked`. A Pi child's requested
+  `--model` id is its provenance (`hunter_model:`; `pi --mode text` prints no
+  effective model).
+- Every eligible route technically unavailable → one fresh same-family Logic
+  hunter labeled `same-family`, recorded `cross_model: unavailable
+  (<category>)`, with a residual-risk line in the final report.
+- Re-review: `workflow/skills/review-rounds.md` § Bounded fix and standard.
+PINS
+while IFS= read -r pin; do
+  assert_contains "$NEW_PROJECT/workflow/skills/implementation-loop.md" "$pin"
+done <<'PINS'
+  mandatory (13b), both hunters mandatory (13).
+5. High-risk: run `workflow/skills/adversary.md` before editing (standard skips it).
+- adversary plan review (high-risk only);
+- adversary code-diff review (high-risk: named model; standard and a bounded fix: their one review);
+PINS
 assert_contains "$NEW_PROJECT/workflow/skills/adversary.md" "minutes fixed before launch and never shortened"
 assert_contains "$NEW_PROJECT/workflow/skills/adversary.md" "recorded as \`cross_model: unavailable (<category>)\` with"
 assert_contains "$NEW_PROJECT/workflow/skills/adversary.md" "plan mode: re-open each cited Observed Fact"
