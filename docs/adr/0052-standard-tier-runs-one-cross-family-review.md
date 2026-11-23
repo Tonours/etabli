@@ -80,7 +80,7 @@ Measure:
   at the review date, from its `defect` and `would_have_needed`, that the plan
   adversary, the Spec hunter or the code-diff adversary would have caught it.
   The tally is manual and only aggregate counts are written down.
-- Restore criterion. Two or more cohort records whose `would_have_needed` names a
+- Restore criterion. Two or more cohort records the owner attributes to the same
   removed pass restore that pass at standard. Fewer than five cohort archives in
   the window make the count inconclusive and extend it by four weeks. Otherwise
   the next cut candidates may open their own plan.

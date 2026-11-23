@@ -22,7 +22,7 @@ final report. `widening` on a T round counts as findings.
 - Clean (any round) → VALIDATE. A later fold or fix within the delta bar
   (§ Delta re-review) takes the next unspent D; a larger one takes the
   next unspent T.
-- T1: findings → fold → T2. T2: findings → fold → D1.
+- T1: findings → fold → T2. T2: findings → fold → next unspent D.
 - D: findings within delta → fold → next unspent D. Widening beyond
   delta → next unspent T. Nothing left → `blocked`.
 Adversary: every T round, plus a D round after a findings round or whose
