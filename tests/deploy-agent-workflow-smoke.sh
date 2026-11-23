@@ -541,7 +541,7 @@ node "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" "$local_settings" "$ROOT
 jq -e '.defaultProvider == "zai" and .defaultModel == "glm-5.3" and (.enabledModels | index("custom/provider-model")) != null and (.enabledModels | index("zai/glm-5.3-flash")) != null and (.enabledModels | index("cursor/claude-sonnet-5@300k")) == null' "$local_settings" >/dev/null
 
 local_settings="$TMP_DIR/custom-default.json"
-printf '%s\n' '{"packages":["npm:pi-cursor-sdk",{"source":"npm:pi-autoresearch@1.9.0"},"npm:@narumitw/pi-goal@0.54.11",{"source":"npm:pi-simplify"},"npm:pi-subagents@0.77.0","npm:mitsupi",{"source":"npm:pi-lens","skills":["lens"]},{"source":"npm:pi-lens@4.0.0"},{"source":"git:github.com/badlogic/pi-skills@feature/topic","skills":["danger"]},"https://github.com/badlogic/pi-skills.git@main","npm:@zhushanwen/pi-ask-user"]}' >"$local_settings"
+printf '%s\n' '{"packages":["npm:pi-cursor-sdk",{"source":"npm:pi-autoresearch@1.9.0"},"npm:@narumitw/pi-goal@0.54.11",{"source":"npm:pi-simplify"},"npm:pi-subagents@0.77.0",{"source":"npm:pi-mcp-adapter@5.2.0","skills":["mcp-scripting"]},"npm:pi-mcp-adapter","npm:mitsupi",{"source":"npm:pi-lens","skills":["lens"]},{"source":"npm:pi-lens@4.0.0"},{"source":"git:github.com/badlogic/pi-skills@feature/topic","skills":["danger"]},"https://github.com/badlogic/pi-skills.git@main","npm:@zhushanwen/pi-ask-user"],"extensions":["-builtin:mcp","./custom-ext.ts"]}' >"$local_settings"
 node "$ROOT_DIR/scripts/lib/pi-agent-settings-sync.mjs" "$local_settings" "$ROOT_DIR/pi/agent/settings.json" 0 smoke >/dev/null
 node - "$local_settings" "$ROOT_DIR/pi/agent/settings.json" <<'NODE'
 const fs = require("node:fs");
@@ -554,12 +554,14 @@ for (const entry of tracked.packages) {
   if (!sources.includes(entry.source)) throw new Error(`pinned sync did not install the tracked ${entry.source}`);
 }
 for (const source of sources) {
-  if (/^npm:(pi-cursor-sdk|pi-autoresearch|@narumitw\/pi-goal|pi-simplify|pi-subagents)(@|$)/.test(source) || source.includes("github.com/badlogic/pi-skills")) {
+  if (/^npm:(pi-cursor-sdk|pi-autoresearch|@narumitw\/pi-goal|pi-simplify|pi-subagents|pi-mcp-adapter)(@|$)/.test(source) || source.includes("github.com/badlogic/pi-skills")) {
     throw new Error(`retired Pi package survived sync: ${source}`);
   }
 }
 if (!sources.includes("npm:@zhushanwen/pi-ask-user")) throw new Error("pinned sync dropped a local-only package");
 if (sources.length !== tracked.packages.length + 1) throw new Error(`pinned sync kept ${sources.length} entries for ${tracked.packages.length} tracked plus 1 local`);
+if (JSON.stringify(local.extensions) !== JSON.stringify(["./custom-ext.ts"])) throw new Error(`stale -builtin:mcp cleanup failed: ${JSON.stringify(local.extensions)}`);
+if (JSON.stringify(local.defaultTools) !== JSON.stringify(["+codemode"])) throw new Error(`defaultTools not synced: ${JSON.stringify(local.defaultTools)}`);
 NODE
 
 # An unrelated local default is kept.
@@ -709,6 +711,45 @@ grep -q '^DRIFT .*--apply' "$TMP_DIR/live-drift.out" &&
   exit 1
 }
 jq '.skillListingMaxDescChars = 400' "$LIVE_HOME/.claude/settings.json" >"$TMP_DIR/drifted.json" && mv "$TMP_DIR/drifted.json" "$LIVE_HOME/.claude/settings.json"
+
+# Pi tracked-settings drift on a live home fails --check, names --apply, and
+# leaves settings, backups and symlinked targets untouched.
+PI_SETTINGS_OK="$(cat "$LIVE_HOME/.pi/agent/settings.json")"
+PI_BACKUPS_BEFORE="$({ ls "$LIVE_HOME/.pi/agent/"settings.json.bak.* 2>/dev/null || true; } | wc -l)"
+jq 'del(.defaultTools) | .packages += [{"source":"npm:pi-mcp-adapter@5.2.0","skills":["mcp-scripting"]}] | .extensions = ["-builtin:mcp"]' "$LIVE_HOME/.pi/agent/settings.json" >"$TMP_DIR/pi-drifted.json" && mv "$TMP_DIR/pi-drifted.json" "$LIVE_HOME/.pi/agent/settings.json"
+PI_DRIFTED="$(cat "$LIVE_HOME/.pi/agent/settings.json")"
+live_check "$TMP_DIR/live-bin:/usr/bin:/bin" >"$TMP_DIR/live-pi-drift.out" 2>&1 &&
+  { printf 'live check passed with Pi settings drift\n' >&2; exit 1; }
+grep -q '^DRIFT .*Pi agent settings.*--apply' "$TMP_DIR/live-pi-drift.out" &&
+  grep -q '^Summary: .* 1 unresolved' "$TMP_DIR/live-pi-drift.out" || {
+  printf 'live check must report Pi settings drift as unresolved, naming --apply:\n' >&2
+  cat "$TMP_DIR/live-pi-drift.out" >&2
+  exit 1
+}
+[ "$(cat "$LIVE_HOME/.pi/agent/settings.json")" = "$PI_DRIFTED" ] && [ "$({ ls "$LIVE_HOME/.pi/agent/"settings.json.bak.* 2>/dev/null || true; } | wc -l)" = "$PI_BACKUPS_BEFORE" ] || {
+  printf 'the Pi drift check must not write settings or backups\n' >&2
+  exit 1
+}
+PI_LINK_TARGET="$TMP_DIR/pi-link-target.json"
+printf '%s\n' "$PI_DRIFTED" >"$PI_LINK_TARGET"
+rm "$LIVE_HOME/.pi/agent/settings.json"
+ln -s "$PI_LINK_TARGET" "$LIVE_HOME/.pi/agent/settings.json"
+live_check "$TMP_DIR/live-bin:/usr/bin:/bin" >"$TMP_DIR/live-pi-link-drift.out" 2>&1 &&
+  { printf 'live check passed with symlinked Pi settings\n' >&2; exit 1; }
+grep -q '^DRIFT .*is a symlink.*--apply' "$TMP_DIR/live-pi-link-drift.out" &&
+  [ -L "$LIVE_HOME/.pi/agent/settings.json" ] && [ "$(cat "$PI_LINK_TARGET")" = "$PI_DRIFTED" ] || {
+  printf 'live check must flag a symlinked Pi settings file without detaching or rewriting its target\n' >&2
+  cat "$TMP_DIR/live-pi-link-drift.out" >&2
+  exit 1
+}
+env -u CLAUDE_CONFIG_DIR HOME="$LIVE_HOME" ETABLI_SKIP_LIVE_CHECKS=1 "$NODE_BIN" "$DEPLOY_SCRIPT" --apply --home "$LIVE_HOME" >/dev/null
+[ ! -L "$LIVE_HOME/.pi/agent/settings.json" ] && [ -f "$LIVE_HOME/.pi/agent/settings.json" ] &&
+  [ "$(cat "$PI_LINK_TARGET")" = "$PI_DRIFTED" ] &&
+  jq -e '.defaultTools == ["+codemode"] and (.extensions | not)' "$LIVE_HOME/.pi/agent/settings.json" >/dev/null || {
+  printf 'deploy --apply must detach symlinked Pi settings before syncing without mutating the original target\n' >&2
+  exit 1
+}
+printf '%s\n' "$PI_SETTINGS_OK" >"$LIVE_HOME/.pi/agent/settings.json"
 grep -q 'SKIP .*Pi skill load check' "$TMP_DIR/live-ok.out" || { printf 'live check must say it skipped the Pi leg without pi:\n' >&2; cat "$TMP_DIR/live-ok.out" >&2; exit 1; }
 mkdir -p "$LIVE_HOME/.claude/skills/ungoverned-personal"
 printf -- '---\nname: ungoverned-personal\ndescription: stub\n---\nstub\n' >"$LIVE_HOME/.claude/skills/ungoverned-personal/SKILL.md"

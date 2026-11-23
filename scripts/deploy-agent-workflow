@@ -247,14 +247,31 @@ function skillLoadCheck({ claudeRoot, install }) {
 
 // Check mode: the settings writer in its read-only check mode; drift or a
 // refusal counts as one unresolved issue and nothing is written.
-function settingsDriftCheck({ homeDir, claudeRoot, timestamp: stamp }) {
+function settingsDriftCheck({ homeDir, claudeRoot, claudeOnly, timestamp: stamp }) {
+  let failures = 0;
+  if (!claudeOnly) {
+    const piResult = spawnSync(
+      process.execPath,
+      [
+        join(scriptDir, "lib/pi-agent-settings-sync.mjs"),
+        join(homeDir, ".pi/agent/settings.json"),
+        join(repoDir, "pi/agent/settings.json"),
+        "1",
+        stamp,
+        "check",
+      ],
+      { stdio: "inherit" },
+    );
+    if (piResult.status !== 0) failures += 1;
+  }
   const fragment = join(repoDir, "claude/settings.skill-overrides.json");
   if (!existsSync(fragment)) {
     emit("MISSING", "Claude skill-overrides fragment source");
-    return 1;
+    return failures + 1;
   }
   const result = spawnSync(process.execPath, [join(scriptDir, "lib/claude-settings-sync.mjs"), join(claudeRoot, "settings.json"), fragment, "1", stamp, "check", homeDir], { stdio: "inherit" });
-  return result.status === 0 ? 0 : 1;
+  if (result.status !== 0) failures += 1;
+  return failures;
 }
 
 // Check mode: read-only skill-load checks; each failure counts as unresolved.

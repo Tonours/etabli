@@ -4,26 +4,81 @@ import { backupFile, writeJsonAtomic } from "./surfaces.mjs";
 
 const modelRouting = JSON.parse(fs.readFileSync(new URL("../../workflow/runtime/model-routing.json", import.meta.url), "utf8"));
 
-const [localPath, trackedPath, dryRunRaw, timestamp] = process.argv.slice(2);
+const [localPath, trackedPath, dryRunRaw, timestamp, modeArg] = process.argv.slice(2);
 const dryRun = dryRunRaw === "1";
-if (!localPath || !trackedPath) {
-  console.error("usage: pi-agent-settings-sync.mjs <local> <tracked> <dryRun> <timestamp>");
+const mode = modeArg ?? "deploy";
+if (!localPath || !trackedPath || !["deploy", "check"].includes(mode)) {
+  console.error("usage: pi-agent-settings-sync.mjs <local> <tracked> <dryRun> <timestamp> [deploy|check]");
   process.exit(2);
+}
+
+const ADDITIVE_TOOL_TOKEN = /^\+[a-z0-9_-]+$/i;
+const RETIRED_EXTENSIONS = new Set(["-builtin:mcp"]);
+
+function fail(message) {
+  console.error(`pi-agent-settings-sync: ${message}`);
+  process.exit(1);
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function readSettings(path, label) {
   try {
     return JSON.parse(fs.readFileSync(path, "utf8"));
   } catch (error) {
-    console.error(
-      `pi-agent-settings-sync: cannot read ${label} settings at ${path}: ${error.message}`,
-    );
+    fail(`cannot read ${label} settings at ${path}: ${error.code ?? "invalid JSON"}`);
+  }
+}
+
+function assertStringArray(value, label, { nonEmpty = false } = {}) {
+  if (value === undefined) return;
+  if (
+    !Array.isArray(value) ||
+    value.some((entry) => typeof entry !== "string" || (nonEmpty && entry.trim().length === 0))
+  ) {
+    fail(`${label} must be an array of ${nonEmpty ? "non-empty " : ""}strings`);
+  }
+}
+
+const trackedSettings = readSettings(trackedPath, "tracked");
+if (!isPlainObject(trackedSettings)) {
+  fail(`tracked settings at ${trackedPath} must be a JSON object`);
+}
+if (trackedSettings.defaultTools !== undefined) {
+  if (
+    !Array.isArray(trackedSettings.defaultTools) ||
+    trackedSettings.defaultTools.some((entry) => typeof entry !== "string" || !ADDITIVE_TOOL_TOKEN.test(entry))
+  ) {
+    fail("tracked settings defaultTools must be an array of +<tool> entries");
+  }
+}
+assertStringArray(trackedSettings.extensions, "tracked settings extensions");
+
+if (mode === "check") {
+  let stat;
+  try {
+    stat = fs.lstatSync(localPath);
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      console.log(`DRIFT          Pi agent settings missing at ${localPath}; run scripts/deploy-agent-workflow --apply`);
+      process.exit(1);
+    }
+    fail(`cannot read local settings at ${localPath}: ${error.code ?? "invalid JSON"}`);
+  }
+  if (stat.isSymbolicLink()) {
+    console.log(`DRIFT          Pi agent settings at ${localPath} is a symlink; run scripts/deploy-agent-workflow --apply`);
     process.exit(1);
   }
 }
 
 const localSettings = readSettings(localPath, "local");
-const trackedSettings = readSettings(trackedPath, "tracked");
+if (!isPlainObject(localSettings)) {
+  fail(`local settings at ${localPath} must be a JSON object`);
+}
+assertStringArray(localSettings.defaultTools, "local settings defaultTools", { nonEmpty: true });
+assertStringArray(localSettings.extensions, "local settings extensions");
 
 const legacySources = new Set([
   "npm:pi-interview",
@@ -69,6 +124,7 @@ const retiredIdentities = new Set([
   "npm:@narumitw/pi-goal",
   "npm:pi-simplify",
   "npm:pi-subagents",
+  "npm:pi-mcp-adapter",
   "git:github.com/badlogic/pi-skills",
 ]);
 
@@ -93,9 +149,11 @@ let localModels = Array.isArray(localSettings.enabledModels)
   ? localSettings.enabledModels
   : [];
 
+let removedMcpAdapter = false;
 localPackages = localPackages.filter((entry) => {
   const source = sourceOf(entry);
   if (source && isLegacySource(source)) {
+    if (packageIdentity(source) === "npm:pi-mcp-adapter") removedMcpAdapter = true;
     changes.push(`remove ${source}`);
     return false;
   }
@@ -123,6 +181,45 @@ for (const trackedEntry of trackedPackages) {
   if (duplicates.length > 0) {
     localPackages = localPackages.filter((_, index) => !duplicates.includes(index));
     changes.push(`remove duplicate ${identity}`);
+  }
+}
+
+let extensionsChanged = false;
+let nextExtensions = localSettings.extensions;
+if (removedMcpAdapter && Array.isArray(localSettings.extensions)) {
+  const removed = [];
+  nextExtensions = localSettings.extensions.filter((entry) => {
+    if (RETIRED_EXTENSIONS.has(entry)) {
+      removed.push(entry);
+      return false;
+    }
+    return true;
+  });
+  if (removed.length > 0) {
+    extensionsChanged = true;
+    for (const entry of new Set(removed)) {
+      changes.push(`remove extension ${entry}`);
+    }
+  }
+}
+
+const trackedDefaultTools = trackedSettings.defaultTools ?? [];
+let defaultToolsChanged = false;
+let nextDefaultTools = localSettings.defaultTools;
+if (trackedDefaultTools.length > 0 && (localSettings.defaultTools === undefined || localSettings.defaultTools.length > 0)) {
+  nextDefaultTools = [...(localSettings.defaultTools ?? [])];
+  for (const token of trackedDefaultTools) {
+    const toolName = token.slice(1);
+    if (
+      nextDefaultTools.includes(token) ||
+      nextDefaultTools.includes(toolName) ||
+      nextDefaultTools.includes(`-${toolName}`)
+    ) {
+      continue;
+    }
+    nextDefaultTools.push(token);
+    defaultToolsChanged = true;
+    changes.push(`add defaultTool ${token}`);
   }
 }
 
@@ -160,8 +257,17 @@ if (
 }
 
 if (changes.length === 0) {
-  console.log("OK             Pi agent settings resources");
+  if (mode === "deploy") {
+    console.log("OK             Pi agent settings resources");
+  }
   process.exit(0);
+}
+
+if (mode === "check") {
+  console.log(
+    `DRIFT          Pi agent settings differ from tracked settings (${changes.join(", ")}); run scripts/deploy-agent-workflow --apply`,
+  );
+  process.exit(1);
 }
 
 if (dryRun) {
@@ -173,6 +279,13 @@ const backup = backupFile(localPath, { stamp: timestamp });
 localSettings.packages = localPackages;
 localSettings.enabledModels = localModels;
 localSettings.skills = trackedSettings.skills;
+if (extensionsChanged) {
+  if (nextExtensions.length === 0) delete localSettings.extensions;
+  else localSettings.extensions = nextExtensions;
+}
+if (defaultToolsChanged) {
+  localSettings.defaultTools = nextDefaultTools;
+}
 writeJsonAtomic(localPath, localSettings);
 console.log(`BACKUP         ${backup}`);
 console.log(`SYNC           Pi agent settings resources (${changes.join(", ")})`);

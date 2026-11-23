@@ -34,8 +34,18 @@ The repository's own `.mcp.json` is `{"mcpServers": {}}` on purpose.
    when its current runtime exposes no tools for it. One runtime's
    availability says nothing about another's.
 6. **Project-specific MCP stays with the project**, in that repository's
-   `.mcp.json` or native equivalent.
-7. **Prefer CLIs when they are the source of truth.** GitHub uses `gh`, and
+   `.mcp.json` (Claude) or `.pi/mcp.json` (native Pi, loaded after granting
+   project trust).
+7. **Pi uses built-in MCP and native `codemode` (ADR-0052).** `builtin:mcp`
+   and `builtin:codemode` ship with Pi (`defaultTools: ["+codemode"]`, default
+   mode `"on"`). User servers live in `~/.pi/agent/mcp.json`, per-server and
+   per-tool visibility use `exposure` / `toolExposure` (`codemode` by default),
+   and OAuth tokens stay local in `~/.pi/agent/mcp-auth.json` via `/mcp login`.
+   `npm:pi-mcp-adapter` is retired; if a host still had servers declared only
+   in `~/.pi/agent/mcp-adapter.json` or a project's `.mcp.json`, copy them
+   manually into `~/.pi/agent/mcp.json` or `.pi/mcp.json` (and grant Pi project
+   trust), then run `/mcp login` for OAuth servers.
+8. **Prefer CLIs when they are the source of truth.** GitHub uses `gh`, and
    each vault keeps its own local CLI and validator.
 
 ## Linear MCP gap

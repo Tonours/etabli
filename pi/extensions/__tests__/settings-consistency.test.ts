@@ -121,9 +121,7 @@ describe("Pi settings consistency", () => {
       themes: [],
     });
     expect(packageBySource("git:github.com/badlogic/pi-skills")).toBeUndefined();
-    expect(packageBySource("npm:pi-mcp-adapter")?.skills).toEqual([
-      "mcp-scripting",
-    ]);
+    expect(packageBySource("npm:pi-mcp-adapter")).toBeUndefined();
     expect(packageBySource("npm:@zenspc/pi-pstack")).toBeUndefined();
     expect(packageBySource("npm:pi-subagents")).toBeUndefined();
 
@@ -150,10 +148,20 @@ describe("Pi settings consistency", () => {
     // Installer delegates surface convergence; deploy owns settings synchronization.
     expect(installScript).toContain('"$BOOTSTRAP_DIR/deploy-agent-workflow" --apply');
     expect(deployAgentWorkflowScript).toContain("pi-agent-settings-sync.mjs");
+    expect(settingsSyncModule).toContain('"npm:pi-mcp-adapter",');
     expect(settingsSyncModule).toContain('"npm:pi-subagents",');
     expect(settingsSyncModule).toContain('"npm:@tintinweb/pi-subagents",');
     expect(settingsSyncModule).toContain('"npm:pi-hooks",');
     expect(settingsSyncModule).not.toContain('"npm:@agwab/pi-workflow@0.8.1",');
+  });
+
+  test("enables native Pi codemode by default alongside direct tools", () => {
+    const typed = settings as typeof settings & {
+      defaultTools?: string[];
+      codemode?: { mode?: string };
+    };
+    expect(typed.defaultTools).toEqual(["+codemode"]);
+    expect(typed.codemode?.mode).toBeUndefined();
   });
 
   test("enables the exact managed model set without retired aliases", () => {
