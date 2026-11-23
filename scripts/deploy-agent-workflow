@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
-import { accessSync, constants, existsSync, lstatSync, readFileSync, realpathSync, statSync, writeSync } from "node:fs";
+import { accessSync, constants, existsSync, readFileSync, realpathSync, statSync, writeSync } from "node:fs";
 import { basename, delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { activeScopes, backupStamp, claudeConfigOverride, physicalHome, reconcile, seedPiSettings, skillRecords } from "./lib/surfaces.mjs";
+import { activeScopes, backupStamp, claudeConfigOverride, physicalHome, reconcile, skillRecords } from "./lib/surfaces.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoDir = dirname(scriptDir);
@@ -205,28 +205,13 @@ function syncSettings({ homeDir, claudeRoot, claudeOnly, apply, timestamp: stamp
   let failures = 0;
   if (!claudeOnly) {
     failures += attempt(() => {
-      const piLocal = join(homeDir, ".pi/agent/settings.json");
-      const piTracked = join(repoDir, "pi/agent/settings.json");
-      const piSync = join(scriptDir, "lib/pi-agent-settings-sync.mjs");
-      if (apply) {
-        let linkStat = null;
-        try {
-          linkStat = lstatSync(piLocal);
-        } catch {
-          linkStat = null;
-        }
-        if (!linkStat?.isFile()) {
-          const target = linkStat && (!linkStat.isSymbolicLink() || existsSync(piLocal)) ? piLocal : piTracked;
-          const preflight = spawnSync(process.execPath, [piSync, target, piTracked, "1", stamp], {
-            stdio: ["ignore", "ignore", "inherit"],
-          });
-          if (preflight.status !== 0) {
-            throw new Error(`pi-agent-settings-sync.mjs exited ${preflight.status ?? preflight.signal}`);
-          }
-        }
-      }
-      if (!seedPiSettings({ homeDir, repoDir, apply }, emit)) return;
-      run(piSync, [piLocal, piTracked, dryRun, stamp]);
+      run(join(scriptDir, "lib/pi-agent-settings-sync.mjs"), [
+        join(homeDir, ".pi/agent/settings.json"),
+        join(repoDir, "pi/agent/settings.json"),
+        dryRun,
+        stamp,
+        "managed",
+      ]);
     });
   }
   const fragment = join(repoDir, "claude/settings.skill-overrides.json");

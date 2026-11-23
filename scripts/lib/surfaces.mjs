@@ -243,7 +243,7 @@ function stagedPath(path) {
   return join(dirname(path), `.${basename(path)}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`);
 }
 
-function replaceFile(path, content, mode) {
+export function replaceFile(path, content, mode) {
   const staged = stagedPath(path);
   const fd = openSync(staged, "wx", 0o600);
   try {

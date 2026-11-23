@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 import fs from "node:fs";
-import { backupFile, writeJsonAtomic } from "./surfaces.mjs";
+import { dirname } from "node:path";
+import { backupFile, replaceFile, writeJsonAtomic } from "./surfaces.mjs";
 
 const modelRouting = JSON.parse(fs.readFileSync(new URL("../../workflow/runtime/model-routing.json", import.meta.url), "utf8"));
 
 const [localPath, trackedPath, dryRunRaw, timestamp, modeArg] = process.argv.slice(2);
 const dryRun = dryRunRaw === "1";
 const mode = modeArg ?? "deploy";
-if (!localPath || !trackedPath || !["deploy", "check"].includes(mode)) {
-  console.error("usage: pi-agent-settings-sync.mjs <local> <tracked> <dryRun> <timestamp> [deploy|check]");
+if (!localPath || !trackedPath || !["deploy", "check", "managed"].includes(mode)) {
+  console.error("usage: pi-agent-settings-sync.mjs <local> <tracked> <dryRun> <timestamp> [deploy|check|managed]");
   process.exit(2);
 }
 
@@ -24,24 +25,28 @@ function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function readSettings(path, label) {
+function readSettings(path, label, { allowMissing = false } = {}) {
   let raw;
+  let fileMode;
   let fd;
   try {
     fd = fs.openSync(path, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
-    if (!fs.fstatSync(fd).isFile()) {
+    const stat = fs.fstatSync(fd);
+    if (!stat.isFile()) {
       fs.closeSync(fd);
       fd = undefined;
       fail(`cannot read ${label} settings at ${path}: not a regular file`);
     }
+    fileMode = stat.mode & 0o7777;
     raw = fs.readFileSync(fd, "utf8");
   } catch (error) {
+    if (allowMissing && error.code === "ENOENT") return null;
     fail(`cannot read ${label} settings at ${path}: ${error.code ?? "invalid JSON"}`);
   } finally {
     if (fd !== undefined) fs.closeSync(fd);
   }
   try {
-    return JSON.parse(raw);
+    return { data: JSON.parse(raw), raw, mode: fileMode };
   } catch {
     fail(`cannot read ${label} settings at ${path}: invalid JSON`);
   }
@@ -57,10 +62,20 @@ function assertStringArray(value, label, { nonEmpty = false } = {}) {
   }
 }
 
-const trackedSettings = readSettings(trackedPath, "tracked");
+function assertArray(value, label) {
+  if (value !== undefined && !Array.isArray(value)) {
+    fail(`${label} must be an array`);
+  }
+}
+
+const trackedFile = readSettings(trackedPath, "tracked");
+const trackedSettings = trackedFile.data;
 if (!isPlainObject(trackedSettings)) {
   fail(`tracked settings at ${trackedPath} must be a JSON object`);
 }
+assertArray(trackedSettings.packages, "tracked settings packages");
+assertStringArray(trackedSettings.enabledModels, "tracked settings enabledModels", { nonEmpty: true });
+assertStringArray(trackedSettings.skills, "tracked settings skills", { nonEmpty: true });
 if (trackedSettings.defaultTools !== undefined) {
   if (
     !Array.isArray(trackedSettings.defaultTools) ||
@@ -71,30 +86,66 @@ if (trackedSettings.defaultTools !== undefined) {
 }
 assertStringArray(trackedSettings.extensions, "tracked settings extensions");
 
-if (mode === "check") {
-  let stat;
-  try {
-    stat = fs.lstatSync(localPath);
-  } catch (error) {
-    if (error.code === "ENOENT") {
-      console.log(`DRIFT          Pi agent settings missing at ${localPath}; run scripts/deploy-agent-workflow --apply`);
-      process.exit(1);
-    }
+let localStat = null;
+try {
+  localStat = fs.lstatSync(localPath);
+} catch (error) {
+  if (error.code !== "ENOENT") {
     fail(`cannot read local settings at ${localPath}: ${error.code ?? "invalid JSON"}`);
   }
-  if (stat.isSymbolicLink()) {
+}
+
+if (mode === "check") {
+  if (localStat === null) {
+    console.log(`DRIFT          Pi agent settings missing at ${localPath}; run scripts/deploy-agent-workflow --apply`);
+    process.exit(1);
+  }
+  if (localStat.isSymbolicLink()) {
     console.log(`DRIFT          Pi agent settings at ${localPath} is a symlink; run scripts/deploy-agent-workflow --apply`);
     process.exit(1);
   }
-  if (!stat.isFile()) {
+  if (!localStat.isFile()) {
     fail(`cannot read local settings at ${localPath}: not a regular file`);
   }
 }
 
-const localSettings = readSettings(localPath, "local");
+let migratingSymlink = false;
+let localFile = null;
+if (mode === "managed") {
+  if (localStat === null) {
+    if (dryRun) {
+      console.log("WOULD_COPY     Pi agent settings bootstrap");
+      process.exit(0);
+    }
+    fs.mkdirSync(dirname(localPath), { recursive: true });
+    replaceFile(localPath, trackedFile.raw, trackedFile.mode);
+    console.log("COPY           Pi agent settings bootstrap");
+    process.exit(0);
+  }
+  if (localStat.isSymbolicLink()) {
+    localFile = readSettings(localPath, "local", { allowMissing: true });
+    if (localFile === null) {
+      if (dryRun) {
+        console.log("WOULD_MIGRATE  Pi agent settings symlink to local file");
+        process.exit(0);
+      }
+      replaceFile(localPath, trackedFile.raw, 0o600);
+      console.log("COPY           Pi agent settings bootstrap after dangling symlink");
+      process.exit(0);
+    }
+    migratingSymlink = true;
+  } else if (!localStat.isFile()) {
+    fail(`cannot read local settings at ${localPath}: not a regular file`);
+  }
+}
+
+const localSettings = (localFile ?? readSettings(localPath, "local")).data;
 if (!isPlainObject(localSettings)) {
   fail(`local settings at ${localPath} must be a JSON object`);
 }
+assertArray(localSettings.packages, "local settings packages");
+assertStringArray(localSettings.enabledModels, "local settings enabledModels", { nonEmpty: true });
+assertStringArray(localSettings.skills, "local settings skills", { nonEmpty: true });
 assertStringArray(localSettings.defaultTools, "local settings defaultTools", { nonEmpty: true });
 assertStringArray(localSettings.extensions, "local settings extensions");
 
@@ -274,8 +325,38 @@ if (
   changes.push("skills-key");
 }
 
+if (migratingSymlink) {
+  if (dryRun) {
+    console.log("WOULD_MIGRATE  Pi agent settings symlink to local file");
+    if (changes.length > 0) {
+      console.log(`WOULD_SYNC     Pi agent settings resources (${changes.join(", ")})`);
+    }
+    process.exit(0);
+  }
+  if (changes.length > 0) {
+    localSettings.packages = localPackages;
+    localSettings.enabledModels = localModels;
+    localSettings.skills = trackedSettings.skills;
+    if (extensionsChanged) {
+      if (nextExtensions.length === 0) delete localSettings.extensions;
+      else localSettings.extensions = nextExtensions;
+    }
+    if (defaultToolsChanged) {
+      localSettings.defaultTools = nextDefaultTools;
+    }
+  }
+  replaceFile(localPath, changes.length > 0 ? `${JSON.stringify(localSettings, null, 2)}\n` : localFile.raw, 0o600);
+  console.log("MIGRATE        Pi agent settings symlink to local file");
+  if (changes.length > 0) {
+    console.log(`SYNC           Pi agent settings resources (${changes.join(", ")})`);
+  } else {
+    console.log("OK             Pi agent settings resources");
+  }
+  process.exit(0);
+}
+
 if (changes.length === 0) {
-  if (mode === "deploy") {
+  if (mode !== "check") {
     console.log("OK             Pi agent settings resources");
   }
   process.exit(0);

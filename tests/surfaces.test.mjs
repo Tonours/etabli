@@ -559,6 +559,21 @@ describe("deploy-agent-workflow", () => {
     assert.equal(missingRun.status, 1);
     assert.match(missingRun.stderr, /tracked settings defaultTools/);
     assert.equal(existsSync(missingSettings), false);
+
+    writeFileSync(join(repo, "pi/agent/settings.json"), '{"packages":[],"enabledModels":["zai/glm-5.3"],"skills":[],"defaultTools":["+codemode"]}\n');
+    const badTarget = join(tmp, "bad-symlink-target.json");
+    writeFileSync(badTarget, "{bad\n");
+    const dryLinkHome = join(tmp, "dry-link-home");
+    const dryLinkSettings = join(dryLinkHome, ".pi/agent/settings.json");
+    mkdirSync(dirname(dryLinkSettings), { recursive: true });
+    symlinkSync(badTarget, dryLinkSettings);
+    const dryRun = spawnSync(process.execPath, [join(repo, "scripts/deploy-agent-workflow"), "--dry-run", "--home", dryLinkHome], {
+      encoding: "utf8",
+      env: { ...process.env, ETABLI_SCOPE: "", ETABLI_SKIP_LIVE_CHECKS: "1" },
+    });
+    assert.equal(dryRun.status, 1);
+    assert.match(dryRun.stderr, /invalid JSON/);
+    assert.equal(lstatSync(dryLinkSettings).isSymbolicLink(), true);
   });
 });
 
@@ -1308,6 +1323,10 @@ describe("pi-agent-settings-sync", () => {
     const trackedBase = JSON.parse(readFileSync(trackedDefault, "utf8"));
     const badLocals = [
       "[]",
+      JSON.stringify({ packages: "npm:mitsupi@1.6.0" }),
+      JSON.stringify({ enabledModels: "zai/glm-5.3" }),
+      JSON.stringify({ enabledModels: [""] }),
+      JSON.stringify({ skills: "!deslop" }),
       JSON.stringify({ defaultTools: "codemode" }),
       JSON.stringify({ defaultTools: [1] }),
       JSON.stringify({ defaultTools: [""] }),
@@ -1326,6 +1345,10 @@ describe("pi-agent-settings-sync", () => {
 
     const badTrackedPayloads = [
       "[]",
+      JSON.stringify({ ...trackedBase, packages: "npm:mitsupi@1.6.0" }),
+      JSON.stringify({ ...trackedBase, enabledModels: "zai/glm-5.3" }),
+      JSON.stringify({ ...trackedBase, enabledModels: [1] }),
+      JSON.stringify({ ...trackedBase, skills: "!deslop" }),
       JSON.stringify({ ...trackedBase, defaultTools: "codemode" }),
       JSON.stringify({ ...trackedBase, defaultTools: ["codemode"] }),
       JSON.stringify({ ...trackedBase, defaultTools: ["-codemode"] }),
