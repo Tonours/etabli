@@ -82,7 +82,23 @@ assert_not_contains "$NEW_PROJECT/workflow/skills/review-rounds.md" "double-samp
 assert_not_contains "$NEW_PROJECT/workflow/skills/implementation-loop.md" "double-sample"
 assert_not_contains "$NEW_PROJECT/workflow/skills/adversary.md" "double-sample"
 assert_not_contains "$NEW_PROJECT/workflow/skills/review.md" "double-sample"
-# Every line of review.md § Standard review, and the high-risk clauses of the loop, stay pinned whole.
+# Every line of review.md § Standard review, review-rounds.md § Bounded fix and standard, and the high-risk clauses of the loop, stay pinned whole.
+while IFS= read -r pin; do
+  assert_contains "$NEW_PROJECT/workflow/skills/review-rounds.md" "$pin"
+done <<'PINS'
+A bounded fix (`workflow/skills/implementation-loop.md` § Risk tiers) has a
+smaller budget: its single review is T1, and blocking findings fold into one D1
+by a fresh reviewer of the same kind. Still blocking after D1, or a fix that
+leaves the surface → upgrade to standard with a plan, never a second T.
+With no plan, record each round in the final report. A standard run has the
+same budget, its D1 over the whole cumulative patch (§ Delta re-review
+escalations met); a high finding is rejected only by the D1 reviewer, never
+the implementer alone. Still blocking after D1, a fix on a high-risk surface,
+or a review due with T1 and D1 spent → high-risk: plan adversary on the
+current plan before more edits, then a full tour as the next unspent T. Spent
+rounds stay spent across upgrades: a bounded fix upgraded after T1 and D1
+reaches high-risk's T2, never a fresh T1.
+PINS
 while IFS= read -r pin; do
   assert_contains "$NEW_PROJECT/workflow/skills/review.md" "$pin"
 done <<'PINS'
