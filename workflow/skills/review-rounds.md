@@ -52,7 +52,7 @@ reaches high-risk's T2, never a fresh T1.
 
 ## Delta re-review
 
-After CI-driven commits that touch runtime code on a PR branch:
+After CI-driven commits that touch runtime code on a PR branch (standard: its cumulative D1 instead):
 
 Delta = ancestry test (`git merge-base --is-ancestor <reviewed-sha>
 HEAD`, fail → full review) + `git diff --numstat -z <reviewed-sha>
@@ -63,7 +63,7 @@ HEAD` + unstaged (`git diff --numstat -z`) + staged (`git diff --cached
 fails to parse (unreadable output) → full review as well; any
 status change after enumeration → recompute. Lines = Σ added+deleted. Binary (`-`),
 ambiguous rename, or unclassifiable → full review. Escalate to a
-FULL review (hunters + adversary; a standard run: its cumulative D1) when delta > 50 lines (heuristic:
+FULL review (hunters + adversary) when delta > 50 lines (heuristic:
 past it, partial re-read no longer beats full; any doubt → full),
 or it touches contractual surfaces (`workflow/`, `scripts/`,
 `tests/`, `skills/`, `claude/scopes/`, `.github/`,
