@@ -74,8 +74,9 @@ Measure:
   A record whose change has no such archive counts as `unknown` exposure.
 - Counting command, run per vault (`<vault>` is the memory vault root):
   `grep -rhIA12 '^escaped-defect:' <vault> | grep -E 'tier:' | sort | uniq -c`.
-  The denominator comes from
-  `grep -rh '^- Tier: standard; review: single' docs/plan/`.
+  The denominator is the archives listed by
+  `grep -rl '^- Tier: standard; review: single' docs/plan/ | xargs grep -H '^- Archived:'`
+  whose `Archived:` date is on or after the merge date.
 - Attribution. A record counts against a removed pass only when the owner judges
   at the review date, from its `defect` and `would_have_needed`, that the plan
   adversary, the Spec hunter or the code-diff adversary would have caught it.

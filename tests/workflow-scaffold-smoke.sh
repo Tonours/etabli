@@ -74,7 +74,7 @@ assert_contains "$NEW_PROJECT/docs/plan/README.md" "- Tier: <small|bounded-fix|s
 assert_contains "$NEW_PROJECT/workflow/skills/review.md" "A standard run takes neither fallback: it follows § Standard review."
 assert_contains "$NEW_PROJECT/workflow/skills/review.md" "- Shape: one Logic hunter child, then Spec in the parent recorded"
 assert_contains "$NEW_PROJECT/workflow/skills/review.md" "- Provenance: a pool route records the effective model from the harness's own"
-assert_contains "$NEW_PROJECT/workflow/skills/review-rounds.md" "escalations met); a high finding is rejected only by the D1 reviewer, never"
+assert_contains "$NEW_PROJECT/workflow/skills/review-rounds.md" "escalations met); a high finding is rejected only by a cross-family D1, never"
 assert_contains "$NEW_PROJECT/workflow/skills/review-rounds.md" "or a review due with T1 and D1 spent → high-risk: plan adversary on the"
 assert_contains "$NEW_PROJECT/workflow/skills/review-rounds.md" "T2: findings → fold → next unspent D."
 assert_contains "$NEW_PROJECT/workflow/skills/implementation-loop.md" "Pin once; high-risk dispatches fresh Logic and Spec hunters; standard"
@@ -124,8 +124,8 @@ and a bounded fix have their one fresh-context review instead, cross-family
 required at standard while a route is available, preferred for a bounded fix.
 A same-family one only when labeled `same-family`, never as independent:
 the only single-pass same-family exception; a high finding upgrades a bounded fix to standard.
-- `high`: accept/reject via a **cross-model** pass (standard: its D1
-reviewer). The implementer alone must not close a high finding.
+- `high`: accept/reject via a **cross-model** pass (standard: a cross-family
+D1 reviewer, else high-risk). The implementer alone must not close a high finding.
 PINS
 while IFS= read -r pin; do
   assert_contains "$NEW_PROJECT/workflow/spec.md" "$pin"
@@ -144,8 +144,8 @@ review). An answer without provenance, or
 fallback. The pass runs after Logic+Spec lead review; a single same-family
 pass cannot replace it.
 - Name `adversary_model`.
-- High findings: accept/reject via cross-model (standard: its D1 reviewer),
-not the implementer alone.
+- High findings: accept/reject via cross-model (standard: a cross-family D1
+reviewer, else high-risk), not the implementer alone.
 - Plan-mode adversary is required before high-risk implementation completion.
 PINS
 # Every line of review.md § Standard review, review-rounds.md § Bounded fix and standard, and the high-risk clauses of the loop, stay pinned whole.
@@ -158,7 +158,7 @@ by a fresh reviewer of the same kind. Still blocking after D1, or a fix that
 leaves the surface → upgrade to standard with a plan, never a second T.
 With no plan, record each round in the final report. A standard run has the
 same budget, its D1 over the whole cumulative patch (§ Delta re-review
-escalations met); a high finding is rejected only by the D1 reviewer, never
+escalations met); a high finding is rejected only by a cross-family D1, never
 the implementer alone. Still blocking after D1, a fix on a high-risk surface,
 or a review due with T1 and D1 spent → high-risk: plan adversary on the
 current plan before more edits, then a full tour as the next unspent T. Spent
@@ -213,6 +213,11 @@ assert_not_contains "$ROOT_DIR/GLOSSARY.md" "accepted for the standard tier inst
 assert_contains "$ROOT_DIR/skills/shared/adversary/SKILL.md" "**high-risk** requires cross-model; **small** and **standard** skip it"
 assert_not_contains "$ROOT_DIR/skills/shared/adversary/SKILL.md" "**small** skips it; **standard** and **high-risk** require cross-model."
 assert_not_contains "$ROOT_DIR/skills/shared/adversary/SKILL.md" "Plan-mode adversary is required before autonomous implementation completion."
+assert_not_contains "$ROOT_DIR/workflow/skills/adversary.md" "(standard: its D1"
+assert_not_contains "$ROOT_DIR/workflow/skills/review-rounds.md" "rejected only by the D1 reviewer"
+assert_not_contains "$ROOT_DIR/skills/shared/adversary/SKILL.md" "(standard: its D1 reviewer)"
+assert_contains "$ROOT_DIR/docs/adr/0052-standard-tier-runs-one-cross-family-review.md" "\`grep -rl '^- Tier: standard; review: single' docs/plan/ | xargs grep -H '^- Archived:'\`"
+assert_contains "$ROOT_DIR/docs/adr/0052-standard-tier-runs-one-cross-family-review.md" "whose \`Archived:\` date is on or after the merge date."
 while IFS= read -r pin; do
   assert_contains "$ROOT_DIR/AGENTS.md" "$pin"
 done <<'PINS'
@@ -289,7 +294,7 @@ done <<'PINS'
   review). An answer without provenance, or
   fallback. The pass runs after Logic+Spec lead review; a single same-family
   pass cannot replace it.
-  not the implementer alone.
+  reviewer, else high-risk), not the implementer alone.
 PINS
 while IFS= read -r pin; do
   assert_not_contains "$ROOT_DIR/skills/shared/adversary/SKILL.md" "$pin"
@@ -316,8 +321,8 @@ done <<'PINS'
      required at standard while a route is available, preferred for a bounded fix.
      A same-family one only when labeled `same-family`, never as independent:
      the only single-pass same-family exception; a high finding upgrades a bounded fix to standard.
-   - `high`: accept/reject via a **cross-model** pass (standard: its D1
-     reviewer). The implementer alone must not close a high finding.
+   - `high`: accept/reject via a **cross-model** pass (standard: a cross-family
+     D1 reviewer, else high-risk). The implementer alone must not close a high finding.
 PINS
 while IFS= read -r pin; do
   assert_not_contains "$ROOT_DIR/workflow/skills/adversary.md" "$pin"

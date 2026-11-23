@@ -104,8 +104,8 @@ plan. High-risk only, after the fresh-context review (Logic + Spec hunters, then
    implementations that were overlooked (same rungs as implementation-loop 12b).
 4. **Arbitration of findings:**
    - `low` / `medium`: implementer may accept or reject with concrete evidence.
-   - `high`: accept/reject via a **cross-model** pass (standard: its D1
-     reviewer). The implementer alone must not close a high finding.
+   - `high`: accept/reject via a **cross-model** pass (standard: a cross-family
+     D1 reviewer, else high-risk). The implementer alone must not close a high finding.
    - Record decisions in Decision Log / handoff.
 5. Fold accepted findings as fixes; re-run checks after any fix.
 6. Verdict: `GO`, `GO WITH NOTES`, or `BLOCK`. A surviving blocker stops the

@@ -43,7 +43,7 @@ by a fresh reviewer of the same kind. Still blocking after D1, or a fix that
 leaves the surface → upgrade to standard with a plan, never a second T.
 With no plan, record each round in the final report. A standard run has the
 same budget, its D1 over the whole cumulative patch (§ Delta re-review
-escalations met); a high finding is rejected only by the D1 reviewer, never
+escalations met); a high finding is rejected only by a cross-family D1, never
 the implementer alone. Still blocking after D1, a fix on a high-risk surface,
 or a review due with T1 and D1 spent → high-risk: plan adversary on the
 current plan before more edits, then a full tour as the next unspent T. Spent

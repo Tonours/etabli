@@ -29,7 +29,7 @@
     "shared/adversary": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "9020f73e5e7f1b0f8f77a5132901ec99fe21e092c3e7a7ec647df2c9e104ea20"
+      "computedHash": "e64aa191037f6e58b4cb9e33241136426f252ab20a765f6c54631bf62aff257a"
     },
     "shared/review": {
       "source": "local",

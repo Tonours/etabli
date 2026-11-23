@@ -37,8 +37,8 @@ Rules:
   the model provenance, the hash captured before dispatch
   (`shasum -a 256 PLAN.md`) and the verdict, with deltas, in
   `## Review Changes` before fresh approval.
-- High findings: accept/reject via cross-model (standard: its D1 reviewer),
-  not the implementer alone.
+- High findings: accept/reject via cross-model (standard: a cross-family D1
+  reviewer, else high-risk), not the implementer alone.
 - Plan-mode adversary is required before high-risk implementation completion.
 - Use `review` for the primary post-implementation code review; code-diff
   adversary is the independent second pass on the same cumulative diff.
