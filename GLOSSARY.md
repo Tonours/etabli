@@ -33,16 +33,16 @@ A surface etabli no longer manages (ADR-0031); its stale links are left in place
 _Avoid_: legacy surface, old surface
 
 **T/D counter**:
-The review budget of one run (`workflow/skills/review-rounds.md`): T1 and T2 are full rounds, D1 and D2 are delta rounds on the fix diff; findings after D2 block the run.
+The review budget of one run (`workflow/skills/review-rounds.md`): T1 and T2 are full rounds, D1 and D2 are delta rounds on the fix diff; findings after D2 block the run. A bounded fix and a standard run get T1 and D1 only (a standard D1 covers the whole cumulative patch); one counter spans tier upgrades.
 _Avoid_: review loop, retry
 
 **Deciding code**:
 The code that decides a runtime behavior the diff touches, opened by the Logic hunter and recorded as one `file:line` row (`workflow/review-rubric.md`).
 _Avoid_: relevant code, context
 
-**Double-sample**:
-Two independent same-family adversary passes with recorded run ids: the standard-tier fallback when every eligible cross-model route is technically unavailable, recorded as `cross_model: unavailable (<category>)` (`workflow/skills/adversary.md`).
-_Avoid_: second opinion, cross-check
+**Standard review**:
+The single fresh-context review of a standard run: one Logic hunter on another model family, Spec in the parent; a labeled `same-family` pass only when every eligible route is technically unavailable, recorded as `cross_model: unavailable (<category>)` (`workflow/skills/review.md`).
+_Avoid_: light review, second opinion
 
 **Daily Pi**:
 The Pi review path where the Logic hunter is the only child and the parent runs the Spec pass itself (`workflow/skills/review.md`).

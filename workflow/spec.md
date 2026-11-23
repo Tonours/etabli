@@ -54,7 +54,7 @@ Non-negotiables:
 - Answers/handoffs: `workflow/answer-quality.md`.
 - Autonomous plan-loop requests use `plan-implement`. Prompt wording such as "PLAN.md ready" is routing context, not proof.
 - Implementation-bound autonomous loops are not complete until validation,
-  adversary evidence, review, implemented-plan archive under `docs/plan/`, and
+  their tier's review evidence (adversary at high-risk), implemented-plan archive under `docs/plan/`, and
   root `PLAN.md` cleanup are evidenced.
 - Work spanning several repos still uses one plan: one owner repo holds root
   `PLAN.md` and the single archive, other repos are declared satellites, and the
@@ -74,7 +74,7 @@ Non-negotiables:
   age alone is not abandonment (`workflow/plan-archive.md`).
 - Validation: focused checks over full-suite ritual (`scripts/verify-agentic-infra core`,
   `bun test pi/extensions/__tests__/`); record commands and results.
-- Review: Logic hunter then Spec hunter, plus the Threat hunter on access,
+- Review: Logic hunter then Spec hunter (standard: one cross-family Logic hunter, Spec in the parent), plus the Threat hunter on access,
   trust-boundary or public-API changes; `GO` needs a filled deciding-code table
   for runtime diffs (`workflow/review-rubric.md`). An escaped defect after `GO`
   fills `workflow/templates/escaped-defect.md`.
@@ -115,7 +115,7 @@ Only personal runs hosted by `durable/` on gromarchy replace every `PLAN.md`
 reference with their SQLite `EtabliPlanDoc`, including snapshot hashes, reviews,
 handoffs and the READY gate. Immutable final store snapshots replace `docs/plan/`
 archives; no plan projection or archive file is written. See `workflow/plan-archive.md`.
-Shared contracts remain authoritative; this exception changes storage, not gates.
+Shared contracts remain authoritative; this exception changes storage, and keeps its four-axis review until its own plan changes it (ADR-0052).
 The daemon stops at `blocked` or after push, PR creation and notification; it never merges.
 
 ## Minimal READY gate
@@ -155,7 +155,7 @@ commands require Linear MCP or stop with `LINEAR_MCP_UNAVAILABLE` — see
 `docs/mcp-strategy.md` § Linear MCP gap. Rationale: ADR-0027.
 
 Obligations per case (tiers: `workflow/skills/implementation-loop.md`): planned
-work runs its tier's full sequence; a bounded fix needs no plan but a failing
+work runs its tier's sequence (standard: one cross-family review, no adversary); a bounded fix needs no plan but a failing
 reproducer, focused checks and one fresh-context review; a review-only request
 returns findings and stops; host-restricted effects follow § Human checkpoints.
 

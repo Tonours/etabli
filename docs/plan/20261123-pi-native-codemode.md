@@ -12,7 +12,7 @@
 - `pi/agent/settings.json` enables Pi's native `codemode` (`"defaultTools": ["+codemode"]`, default mode `"on"`) and drops `npm:pi-mcp-adapter@5.2.0`.
 - `scripts/lib/pi-agent-settings-sync.mjs` retires `npm:pi-mcp-adapter` (pinned or unpinned, string or object), strips stale exact `"-builtin:mcp"` from local `extensions` in the same run that retires `npm:pi-mcp-adapter` (preserving other entries, deleting `extensions` when emptied, and respecting deliberate `pi config` opt-outs afterwards), merges tracked additive `defaultTools` (`+tool`) while preserving explicit `"-codemode"` opt-outs, existing `"codemode"` entries, and explicit empty `[]` allowlists, fails closed on malformed local/tracked shapes before backup or write, and supports an optional 5th `check` mode argument that reports `DRIFT ... --apply` on missing, symlinked (`lstatSync`), or drifted Pi settings without mutating files or symlinks.
 - `scripts/deploy-agent-workflow --check` runs Pi settings drift checks alongside Claude tracked settings when `!claudeOnly` without invoking `seedPiSettings`.
-- Added ADR-0052 (`docs/adr/0052-use-pi-native-mcp-and-codemode.md` + `docs/adr/README.md` index) with a 30-day review date (`2026-12-23`), updated `docs/symlink-layout.md` and `docs/mcp-strategy.md`, and expanded tests in `pi/extensions/__tests__/settings-consistency.test.ts`, `tests/surfaces.test.mjs`, and `tests/deploy-agent-workflow-smoke.sh`.
+- Added ADR-0053 (`docs/adr/0053-use-pi-native-mcp-and-codemode.md` + `docs/adr/README.md` index) with a 30-day review date (`2026-12-23`), updated `docs/symlink-layout.md` and `docs/mcp-strategy.md`, and expanded tests in `pi/extensions/__tests__/settings-consistency.test.ts`, `tests/surfaces.test.mjs`, and `tests/deploy-agent-workflow-smoke.sh`.
 - Claude Code configuration and live host files were left untouched.
 
 ## Context
@@ -63,6 +63,6 @@
   - Hosts with MCP servers declared only in `~/.pi/agent/mcp-adapter.json` or project `.mcp.json`, or using adapter Keychain OAuth, require manual copy to `~/.pi/agent/mcp.json` or `.pi/mcp.json` (plus Pi project trust) and `/mcp login`.
   - `mutation: unavailable (linux has no sandbox-exec)` on Linux host.
   - Pre-existing local test harness quirks noted during verification (unrelated to this change): `pi/extensions/__tests__/installed-extension-loader.test.ts` runs `bash -x pi/node_modules/.bin/pi` which triggers ImageMagick `import` when `DISPLAY`/`WAYLAND_DISPLAY` is set; 3 unrelated SIGHUP smoke tests in `shell-docs` fail when the parent shell inherits `SIG_IGN` on `SIGHUP`.
-- Parking lot: Review Pi `codemode` session usage on `2026-12-23` (ADR-0052).
+- Parking lot: Review Pi `codemode` session usage on `2026-12-23` (ADR-0053).
 - Superseded docs/specs: Revises the R4 hold in `docs/plan/20261021-research-alignment.md` (historical archive untouched).
 - Next links: After PR merge and `git pull` on each host, run `scripts/deploy-agent-workflow --apply` to converge `~/.pi/agent/settings.json`.

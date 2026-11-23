@@ -20,14 +20,13 @@ Read and follow `workflow/skills/adversary.md` (plan mode **and** code-diff mode
 Rules:
 - `PLAN.md` remains the only active execution artifact in plan mode.
 - Code-diff mode follows `workflow/skills/adversary.md` runner independence:
-  **small** skips it; **standard** and **high-risk** require cross-model.
-  Standard falls back to two fresh independent same-family samples only when
-  every eligible route is technically unavailable, recorded as
-  `cross_model: unavailable (<category>)`. An answer without provenance, or
+  **high-risk** requires cross-model; **small** and **standard** skip it
+  (standard has its one review per `workflow/skills/review.md` § Standard
+  review). An answer without provenance, or
   truncated, is rerun once; still unproven or truncated → `blocked`, never a
-  fallback. Required passes run after Logic+Spec lead review; a single same-family pass cannot
-  replace them.
-- Name `adversary_model` (or `same-family-pass: double-sample` + run ids).
+  fallback. The pass runs after Logic+Spec lead review; a single same-family
+  pass cannot replace it.
+- Name `adversary_model`.
 - Resolve frontier candidates through
   `workflow/runtime/adversary-model-policy.json`; exclude the author's
   effective model family regardless of which harness owns the route.
@@ -38,9 +37,9 @@ Rules:
   the model provenance, the hash captured before dispatch
   (`shasum -a 256 PLAN.md`) and the verdict, with deltas, in
   `## Review Changes` before fresh approval.
-- High findings: accept/reject via cross-model (or second sample), not the
-  implementer alone.
-- Plan-mode adversary is required before autonomous implementation completion.
+- High findings: accept/reject via cross-model (standard: a cross-family D1
+  reviewer, else high-risk), not the implementer alone.
+- Plan-mode adversary is required before high-risk implementation completion.
 - Use `review` for the primary post-implementation code review; code-diff
   adversary is the independent second pass on the same cumulative diff.
 - The reviewer runs read-only: it judges, it never edits. The author folds

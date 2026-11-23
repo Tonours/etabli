@@ -41,7 +41,7 @@ Seven bare lines, one per field — no bullets, no backticks, no bold, exact
 prefixes:
 
 isolation: isolated|none
-runner: pi-child|cursor-task|claude-agent
+runner: pi-child|cursor-task|claude-agent|pool-route
 hunter_model:
 spec: n/a|parent|isolated
 quality: none|ran

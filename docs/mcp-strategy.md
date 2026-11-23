@@ -36,7 +36,7 @@ The repository's own `.mcp.json` is `{"mcpServers": {}}` on purpose.
 6. **Project-specific MCP stays with the project**, in that repository's
    `.mcp.json` (Claude) or `.pi/mcp.json` (native Pi, loaded after granting
    project trust).
-7. **Pi uses built-in MCP and native `codemode` (ADR-0052).** `builtin:mcp`
+7. **Pi uses built-in MCP and native `codemode` (ADR-0053).** `builtin:mcp`
    and `builtin:codemode` ship with Pi (`defaultTools: ["+codemode"]`, default
    mode `"on"`). User servers live in `~/.pi/agent/mcp.json`, per-server and
    per-tool visibility use `exposure` / `toolExposure` (`codemode` by default),
