@@ -60,12 +60,12 @@ Same-session Logic self-review is forbidden.
    `~/.pi/agent/`, then `~/.claude/`), and runs every hunter of that review
    (Logic, Spec, Threat) as a Pi child above with `--model <provider>/<model>`
    of that route, from a Claude or Pi parent; Spec and Threat are further
-   children, never the parent. Standards stays where step 6 runs it. An
+   children, never the parent (a standard run's Spec aside: § Standard review). Standards stays where step 6 runs it. An
    unknown author (a PR reviewed from outside the run), no such route or no
    readable routing file keeps the runner above. A sentinel from any inverted
    child moves every hunter of that review to the parent's runner above once,
    re-dispatching hunters already returned; note the fallback and its
-   sentinel under Consider.
+   sentinel under Consider. A standard run takes neither fallback: it follows § Standard review.
    Hunter templates are self-contained; the parent reads the rubric for
    filtering. Open deciding APIs when needed. Unresolved inspection errors
    forbid GO. Helper executions capture native JSON. An empty patch is not a
@@ -74,8 +74,8 @@ Same-session Logic self-review is forbidden.
    `Axis: Spec`) in parallel when the runtime can (Claude/Cursor), using the
    same runner and model as the Logic hunter; otherwise sequential. Daily Pi:
    Logic is the only child; after it returns, run Spec in the parent and
-   record `spec: parent`. Accepted risk: that Spec pass shares the
-   implementer's context (self-preference);
+   record `spec: parent`; a standard run uses this shape on every runtime.
+   Accepted risk: that Spec pass shares the implementer's context (self-preference);
    Logic and the adversary stay independent.
 5. If neither `PLAN.md` nor PR/user intent exists, record `spec: n/a` and skip
    the Spec spawn.
@@ -115,6 +115,34 @@ Same-session Logic self-review is forbidden.
    one pinned patch and the existing hunters; splitting inspection does not
    authorize extra passes or hide cross-group regressions.
 7. Lead-filter with `workflow/templates/review-lead.md`. Do not re-hunt.
+
+## Standard review
+
+The single review of a standard run (`workflow/skills/implementation-loop.md`
+§ Risk tiers) replaces steps 13 and 13b there; no code-diff adversary follows.
+
+- Shape: one Logic hunter child, then Spec in the parent recorded
+  `spec: parent`, plus the Threat hunter on the same route when step 5b fires.
+- Route: the author-family inversion route of step 4 when one exists;
+  otherwise, or after a sentinel from it, the next non-author route of
+  `workflow/skills/adversary.md` § Cross-harness frontier pool, recorded
+  `runner: pool-route`: that route's own read-only command (Codex:
+  `codex exec --sandbox read-only --model <model>`) with the full hunter
+  template, the `Axis:`, Intent and `Standards:` lines and the pinned patch
+  path in the brief. Never the parent's same-family runner while an eligible
+  route is untried.
+- Deadline: a Pi child runs with `PI_REVIEW_HUNTER_TIMEOUT=1800`, so a timeout
+  meets the technical-unavailability bar of `workflow/skills/adversary.md`
+  § Code diff mode.
+- Provenance: a pool route records the effective model from the harness's own
+  record; a pool-route answer without effective-model provenance, or any
+  truncated answer, is rerun once, then `blocked`. A Pi child's requested
+  `--model` id is its provenance (`hunter_model:`; `pi --mode text` prints no
+  effective model).
+- Every eligible route technically unavailable → one fresh same-family Logic
+  hunter labeled `same-family`, recorded `cross_model: unavailable
+  (<category>)`, with a residual-risk line in the final report.
+- Re-review: `workflow/skills/review-rounds.md` § Bounded fix and standard.
 
 ## Target Resolution
 

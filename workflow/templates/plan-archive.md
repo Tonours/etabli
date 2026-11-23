@@ -14,6 +14,7 @@ validation evidence, follow-up. Omit planning scaffolding and progress logs.
 - Source plan: `PLAN.md` — <subject>
 - Source plan SHA-256: `<sha256 of the exact root PLAN.md bytes>`
 - Status: IMPLEMENTED
+- Tier: <small|bounded-fix|standard|high-risk>; review: <self|single|full>
 - Commit / branch: <when available>
 - Workflow initiative: <plan slug, or none>
 

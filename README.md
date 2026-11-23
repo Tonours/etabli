@@ -29,8 +29,8 @@ Etabli fixes that with:
   ADR-0046 admits a separate personal gromarchy daemon whose plan and final
   snapshots stay in SQLite; its runtime and clients ship in later slices.
 - **Reviews from a fresh context.** Before a code change ships, a reviewer
-  that never saw the conversation and a second model family both try to break
-  it. A small docs or config edit gets a self-review instead.
+  that never saw the conversation, on a second model family, tries to break
+  it; high-risk work adds hunters and a cross-model adversary. A small docs or config edit gets a self-review instead.
 - **Guards in code, not in prose.** Comment-free code, the PR body format,
   clean commit messages and read-only reviewer shells are enforced by hooks.
 - **One setup on every machine.** `scripts/install.sh` links everything into
