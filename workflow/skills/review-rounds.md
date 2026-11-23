@@ -3,8 +3,7 @@
 Bounded re-review machine for implementation runs. Open it only
 when a round returned blocking findings, a fold or re-review is due, or
 CI-driven commits landed after a review (`workflow/skills/implementation-loop.md`
-step 13b, or a bounded fix's single review). A clean T1 never
-needs it.
+step 13b, or a bounded fix's or standard run's single review). A clean T1 never needs it.
 
 ## Review budget machine
 
@@ -36,13 +35,20 @@ Limit cases: (a) D2 findings → `blocked` (D exhausted);
 (c) out-of-delta change during D → full tour or `blocked`.
 Each round is recorded in `PLAN.md` § Review Changes.
 
-## Bounded fix
+## Bounded fix and standard
 
 A bounded fix (`workflow/skills/implementation-loop.md` § Risk tiers) has a
 smaller budget: its single review is T1, and blocking findings fold into one D1
 by a fresh reviewer of the same kind. Still blocking after D1, or a fix that
 leaves the surface → upgrade to standard with a plan, never a second T.
-With no plan, record each round in the final report.
+With no plan, record each round in the final report. A standard run has the
+same budget, its D1 over the whole cumulative patch (§ Delta re-review
+escalations met); a high finding is rejected only by the D1 reviewer, never
+the implementer alone. Still blocking after D1, a fix on a high-risk surface,
+or a review due with T1 and D1 spent → high-risk: plan adversary on the
+current plan before more edits, then a full tour as the next unspent T. Spent
+rounds stay spent across upgrades: a bounded fix upgraded after T1 and D1
+reaches high-risk's T2, never a fresh T1.
 
 ## Delta re-review
 

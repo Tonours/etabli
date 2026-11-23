@@ -93,6 +93,7 @@ done <"$CONTRACT_NAMES"
 # Route obligations (bounded fix, review reuse) stay stated where agents read them.
 assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" "**bounded fix** — a standard variant"
 assert_contains "$ROOT_DIR/workflow/spec.md" "a bounded fix needs no plan but a failing"
+assert_contains "$ROOT_DIR/workflow/spec.md" "work runs its tier's sequence (standard: one cross-family review, no adversary);"
 assert_contains "$ROOT_DIR/workflow/spec.md" "returns findings and stops; host-restricted effects follow § Human checkpoints."
 assert_contains "$ROOT_DIR/workflow/skills/adversary.md" "the only single-pass"
 assert_contains "$ROOT_DIR/workflow/skills/review-rounds.md" "## Bounded fix"

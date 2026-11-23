@@ -24,9 +24,11 @@ never downgrade mid-run.
   combined simplify/quality (12b+12c), report (17). Self-review replaces hunters
   and adversary passes (accepted risk: no external feedback). No plan or READY
   gate unless requested. A contractual path alone does not upgrade editorial text.
-- **standard** (default) — runtime code change on a known surface. Full
-  sequence below; step 13b falls back to a documented same-family
-  double-sample only when every eligible cross-model route is unavailable.
+- **standard** (default) — runtime code change on a known surface. Plan and
+  READY gate kept, no plan adversary (step 5 is high-risk only); steps 13 and
+  13b become one review per `workflow/skills/review.md` § Standard review (no
+  code-diff adversary, `spec: parent`, labeled `same-family` fallback). Re-review
+  and escalation: `workflow/skills/review-rounds.md` § Bounded fix and standard.
 - **bounded fix** — a standard variant: a reproducible defect fixed on one
   known surface that is not a contract, guard, installer/deploy script,
   settings sync, migration, or high-risk surface. No plan file, no plan
@@ -84,7 +86,7 @@ follow their journey in Risk tiers instead (no plan file, no plan adversary, no 
    wording such as "PLAN.md ready" is not proof.
 4. Stop from `DRAFT`, `CHALLENGED`, missing `PLAN.md`, or missing concrete
    checks/required evidence.
-5. Run `workflow/skills/adversary.md` before editing.
+5. High-risk: run `workflow/skills/adversary.md` before editing (standard skips it).
 6. Fold accepted findings; reconcile criteria and Decision Log.
 7. Re-review material deltas; implement only the approved current contract.
    At READY, an interactive user may choose a fresh `/implement` session
@@ -180,24 +182,21 @@ follow their journey in Risk tiers instead (no plan file, no plan adversary, no 
     unstaged, and relevant untracked implementation files in addition to the
     committed `git diff <merge-base-with-base-branch>...HEAD`. A clean
     single-commit branch may review that commit; per-slice reviews are insufficient.
-    Pin once; dispatch fresh Logic and Spec hunters: both for high-risk;
-    standard may use Daily Pi per `workflow/skills/review.md`. When its
+    Pin once; high-risk dispatches fresh Logic and Spec hunters; standard
+    runs its single review (§ Risk tiers). When its
     trigger fires, add the Threat hunter and write and run its attack tests
     (`workflow/skills/review.md` step 5b). Autonomous
     runs require fresh context (subagent reviewer or cross-model).
     Record `reviewer_model` and whether deciding-code rows were complete. A
     `GO` without runtime deciding-code is invalid: `blocked` / re-review.
     Missing eligible runner or required authorization: `blocked`.
-13b. Code-diff adversary per `workflow/skills/adversary.md`: tiered —
-    **high-risk and standard require cross-model**; **small skips**. Standard
-    falls back to a documented double-sample only when every eligible route is
-    technically unavailable (`workflow/skills/adversary.md` § Code diff mode).
+13b. Code-diff adversary per `workflow/skills/adversary.md`: **high-risk requires
+    cross-model** (no eligible route → `blocked`); **standard and small skip it**.
     An answer without effective-model provenance, or truncated, is rerun once;
     still unproven or truncated → `blocked`, never the fallback.
-    Single same-family pass alone → `blocked` (the bounded fix's labeled single review aside).
-    Name `adversary_model` (or `same-family-pass` ids plus
-    `cross_model: unavailable (<category>)`).
-    **High** findings: accept/reject via cross-model (or second sample), not
+    Single same-family pass alone → `blocked` (the labeled single review of a
+    bounded fix or a standard run aside). Name `adversary_model`.
+    **High** findings: accept/reject via cross-model, not
     the implementer alone. Fold accepted findings and re-run checks. Any
     accepted fix invalidates cumulative review and code-diff adversary evidence
     it can affect: re-review follows the review budget below.
@@ -230,10 +229,8 @@ follow their journey in Risk tiers instead (no plan file, no plan adversary, no 
 Autonomous completion requires:
 
 - recorded risk tier;
-- adversary plan review (standard/high-risk; not a bounded fix);
-- adversary code-diff review (standard/high-risk: named model; standard
-  fallback: double-sample with `cross_model: unavailable (<category>)`;
-  a bounded fix has its one review instead);
+- adversary plan review (high-risk only);
+- adversary code-diff review (high-risk: named model; standard and a bounded fix: their one review);
 - focused validation;
 - product-flow evidence when required by the plan;
 - mutation probe result (`mutation: …`) on standard (bounded fix included) and high-risk diffs
@@ -242,7 +239,7 @@ Autonomous completion requires:
 - quality pass result (or explicit skip for docs/plan-only);
 - Logic+Spec lead review on the cumulative shippable workspace patch with a
   complete deciding-code table for runtime diffs (self-review only for small
-  tier; one fresh-context review, cross-family or labeled `same-family`, for a bounded fix);
+  tier; one fresh-context review, cross-family or labeled `same-family`, for a bounded fix or standard);
 - review and adversary provenance in `PLAN.md` § Review Changes;
 - implemented-plan archive under `docs/plan/` and root `PLAN.md` cleanup
   after successful archive and validation (when a plan existed; small tier

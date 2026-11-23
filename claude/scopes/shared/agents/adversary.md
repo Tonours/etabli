@@ -30,7 +30,7 @@ list is valid and useful.
 
 - **Never read `PLAN.md`, tickets, PR descriptions, or any intent document.**
   Derive what the change is supposed to do from the diff alone, like a cold
-  human reviewer. This is the point of the double-sample; do not defeat it.
+  human reviewer. This independent context is the point of the pass; do not defeat it.
 - Read-only. No edits, no mutating commands, no spawning other agents, no
   widening scope.
 

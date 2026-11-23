@@ -51,7 +51,7 @@ Plan-mode verdicts are `READY` or `CHALLENGED`; code-diff verdicts are `GO`,
 ## Completion Evidence
 
 Adversary passes run inside the loop's BOUNDED review machine
-(`workflow/skills/review-rounds.md` T/D table): T rounds use fresh hunters plus the
+(`workflow/skills/review-rounds.md` T/D table): high-risk T rounds use fresh hunters plus the
 adversary, D rounds add the adversary after a findings round or for a
 contractual delta, and the bound never downgrades a pass to a lighter
 re-read — every shipped delta is reviewed by a fresh context. An implementation loop can
@@ -66,13 +66,13 @@ count the adversary pass as complete only when the final handoff names:
 ## Code diff mode
 
 The same adversarial gate applies to the implementation diff, not only the
-plan. After the fresh-context review (Logic hunter + Spec hunter, then lead):
+plan. High-risk only, after the fresh-context review (Logic + Spec hunters, then lead):
 
 1. Input: the implementation diff against the branch base (`git diff <base>...HEAD`
    when shipping), plus the active `PLAN.md` (or acceptance criteria if archived).
 2. **Runner independence (tiered hard gate, per implementation-loop risk
    tiers):**
-   - **high-risk and standard tiers: cross-model required.** Read-only, name
+   - **high-risk tier: cross-model required.** Read-only, name
      `adversary_model` in the handoff.
    - **Answered without provenance or truncated:** a route returned a
      review, but its effective model is not proven or the output is cut
@@ -82,23 +82,20 @@ plan. After the fresh-context review (Logic hunter + Spec hunter, then lead):
      error, network, auth, quota or rate limit, or a timeout of at least 30
      minutes fixed before launch and never shortened). Try every eligible
      route once, with one retry on a transient error. All unavailable:
-     high-risk → `blocked`; standard → a documented **double-sample** — two
-     fresh same-family reviewers, independent contexts, merged findings —
+     high-risk → `blocked`; standard → one fresh labeled `same-family` review,
      recorded as `cross_model: unavailable (<category>)` with
-     `same-family-pass` ids and a residual-risk line in the final report.
+     a residual-risk line in the final report.
      Keep each attempt's route, command, deadline, duration and result in
      the run's evidence; committed files carry the category only.
    - A `BLOCK` verdict, high findings or a wait under the deadline are never
      unavailability (items 4 and 6).
-   - **small tier:** code-diff adversary is skipped (the loop's self-review
-     covers it); a single same-family pass is never a substitute.
    - **Forbidden at every tier:** a single same-family pass presented as
      independent review. Stop as `blocked` (autonomous **and** supervised).
-   - **bounded fix** (`workflow/skills/implementation-loop.md` § Risk tiers):
-     its one fresh-context review stands in for this pass, cross-family
-     preferred. A same-family one is allowed only when labeled `same-family`
-     in the report, never presented as independent: the only single-pass
-     same-family exception. Any high finding upgrades the fix to standard.
+   - **Other tiers:** small skips this pass (its self-review covers it); standard
+     and a bounded fix have their one fresh-context review instead, cross-family
+     required at standard while a route is available, preferred for a bounded fix.
+     A same-family one only when labeled `same-family`, never as independent:
+     the only single-pass same-family exception; a high finding upgrades a bounded fix to standard.
 3. Hunt for: correctness bugs, regressions, unhandled edge cases, acceptance
    criteria not actually met, client-controlled inputs that decide access,
    entry points to the same asset the change leaves ungated, silent scope
@@ -107,8 +104,8 @@ plan. After the fresh-context review (Logic hunter + Spec hunter, then lead):
    implementations that were overlooked (same rungs as implementation-loop 12b).
 4. **Arbitration of findings:**
    - `low` / `medium`: implementer may accept or reject with concrete evidence.
-   - `high`: accept/reject via a **cross-model** pass (or the second sample in a
-     double-sample). The implementer alone must not close a high finding.
+   - `high`: accept/reject via a **cross-model** pass (standard: its D1
+     reviewer). The implementer alone must not close a high finding.
    - Record decisions in Decision Log / handoff.
 5. Fold accepted findings as fixes; re-run checks after any fix.
 6. Verdict: `GO`, `GO WITH NOTES`, or `BLOCK`. A surviving blocker stops the
