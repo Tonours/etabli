@@ -764,6 +764,22 @@ fi
   exit 1
 }
 rm "$LIVE_HOME/.pi/agent/settings.json"
+mkfifo "$LIVE_HOME/.pi/agent/settings.json"
+mkdir -p "$TMP_DIR/fifo-pi-bin"
+printf '#!/bin/sh\ntouch "%s/pi-invoked"\ncat "%s/.pi/agent/settings.json" >/dev/null\n' "$TMP_DIR" "$LIVE_HOME" >"$TMP_DIR/fifo-pi-bin/pi"
+chmod +x "$TMP_DIR/fifo-pi-bin/pi"
+if live_check "$TMP_DIR/fifo-pi-bin:$TMP_DIR/live-bin:/usr/bin:/bin" >"$TMP_DIR/live-pi-fifo.out" 2>&1; then
+  printf 'live check passed with a FIFO at Pi settings\n' >&2
+  exit 1
+fi
+if [ -e "$TMP_DIR/pi-invoked" ] ||
+  ! grep -Fq 'not a regular file' "$TMP_DIR/live-pi-fifo.out" ||
+  ! grep -Fq 'SKIP           Pi skill load check (Pi agent settings check failed)' "$TMP_DIR/live-pi-fifo.out"; then
+  printf 'live check must reject a Pi settings FIFO before launching pi:\n' >&2
+  cat "$TMP_DIR/live-pi-fifo.out" >&2
+  exit 1
+fi
+rm "$LIVE_HOME/.pi/agent/settings.json"
 printf '%s\n' "$PI_SETTINGS_OK" >"$LIVE_HOME/.pi/agent/settings.json"
 grep -q 'SKIP .*Pi skill load check' "$TMP_DIR/live-ok.out" || { printf 'live check must say it skipped the Pi leg without pi:\n' >&2; cat "$TMP_DIR/live-ok.out" >&2; exit 1; }
 mkdir -p "$LIVE_HOME/.claude/skills/ungoverned-personal"

@@ -1324,6 +1324,10 @@ describe("pi-agent-settings-sync", () => {
     const badLocals = [
       "[]",
       JSON.stringify({ packages: "npm:mitsupi@1.6.0" }),
+      JSON.stringify({ packages: [{ source: 42 }] }),
+      JSON.stringify({ packages: [""] }),
+      JSON.stringify({ packages: [{}] }),
+      JSON.stringify({ packages: [null] }),
       JSON.stringify({ enabledModels: "zai/glm-5.3" }),
       JSON.stringify({ enabledModels: [""] }),
       JSON.stringify({ skills: "!deslop" }),
@@ -1346,6 +1350,10 @@ describe("pi-agent-settings-sync", () => {
     const badTrackedPayloads = [
       "[]",
       JSON.stringify({ ...trackedBase, packages: "npm:mitsupi@1.6.0" }),
+      JSON.stringify({ ...trackedBase, packages: [{ source: 42 }] }),
+      JSON.stringify({ ...trackedBase, packages: [""] }),
+      JSON.stringify({ ...trackedBase, packages: [{}] }),
+      JSON.stringify({ ...trackedBase, packages: [null] }),
       JSON.stringify({ ...trackedBase, enabledModels: "zai/glm-5.3" }),
       JSON.stringify({ ...trackedBase, enabledModels: [1] }),
       JSON.stringify({ ...trackedBase, skills: "!deslop" }),
@@ -1366,6 +1374,13 @@ describe("pi-agent-settings-sync", () => {
       assert.equal(readFileSync(local, "utf8"), before);
       assert.equal(readdirSync(tmp).filter((n) => n.startsWith(`good-local-${index}.json.bak.`)).length, 0);
     }
+
+    const freshBad = join(tmp, "fresh-bad-pkg/settings.json");
+    const badPkgTracked = writeJson("bad-pkg-tracked.json", { ...trackedBase, packages: [{ source: 42 }] });
+    const freshBadRun = runSync(freshBad, badPkgTracked, "0", "smoke", "managed");
+    assert.equal(freshBadRun.status, 1);
+    assert.match(freshBadRun.stderr, /tracked settings packages/);
+    assert.equal(existsSync(freshBad), false);
 
     const local = writeJson("bad-mode.json", { packages: [] });
     const badMode = runSync(local, trackedDefault, "1", "smoke", "invalid-mode");

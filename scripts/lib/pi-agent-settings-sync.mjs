@@ -62,9 +62,16 @@ function assertStringArray(value, label, { nonEmpty = false } = {}) {
   }
 }
 
-function assertArray(value, label) {
-  if (value !== undefined && !Array.isArray(value)) {
-    fail(`${label} must be an array`);
+function assertPackages(value, label) {
+  if (value === undefined) return;
+  if (
+    !Array.isArray(value) ||
+    value.some((entry) => {
+      const source = typeof entry === "string" ? entry : isPlainObject(entry) ? entry.source : null;
+      return typeof source !== "string" || source.trim().length === 0;
+    })
+  ) {
+    fail(`${label} must be an array of non-empty package strings or objects with a non-empty string source`);
   }
 }
 
@@ -73,7 +80,7 @@ const trackedSettings = trackedFile.data;
 if (!isPlainObject(trackedSettings)) {
   fail(`tracked settings at ${trackedPath} must be a JSON object`);
 }
-assertArray(trackedSettings.packages, "tracked settings packages");
+assertPackages(trackedSettings.packages, "tracked settings packages");
 assertStringArray(trackedSettings.enabledModels, "tracked settings enabledModels", { nonEmpty: true });
 assertStringArray(trackedSettings.skills, "tracked settings skills", { nonEmpty: true });
 if (trackedSettings.defaultTools !== undefined) {
@@ -140,7 +147,7 @@ const localSettings = (localFile ?? readSettings(localPath, "local")).data;
 if (!isPlainObject(localSettings)) {
   fail(`local settings at ${localPath} must be a JSON object`);
 }
-assertArray(localSettings.packages, "local settings packages");
+assertPackages(localSettings.packages, "local settings packages");
 assertStringArray(localSettings.enabledModels, "local settings enabledModels", { nonEmpty: true });
 assertStringArray(localSettings.skills, "local settings skills", { nonEmpty: true });
 assertStringArray(localSettings.defaultTools, "local settings defaultTools", { nonEmpty: true });
