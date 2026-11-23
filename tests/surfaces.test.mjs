@@ -522,6 +522,44 @@ describe("deploy-agent-workflow", () => {
       assert.ok(!existsSync(home), args.join(" "));
     }
   });
+
+  test("invalid tracked Pi settings abort --apply before bootstrapping or replacing a dangling symlink", () => {
+    const repo = join(tmp, "bad-tracked-repo");
+    mkdirSync(join(repo, "scripts/lib"), { recursive: true });
+    mkdirSync(join(repo, "pi/agent"), { recursive: true });
+    mkdirSync(join(repo, "workflow/runtime"), { recursive: true });
+    copyFileSync(join(scripts, "deploy-agent-workflow"), join(repo, "scripts/deploy-agent-workflow"));
+    copyFileSync(join(scripts, "lib/surfaces.mjs"), join(repo, "scripts/lib/surfaces.mjs"));
+    copyFileSync(join(scripts, "lib/pi-agent-settings-sync.mjs"), join(repo, "scripts/lib/pi-agent-settings-sync.mjs"));
+    copyFileSync(join(scripts, "../workflow/runtime/model-routing.json"), join(repo, "workflow/runtime/model-routing.json"));
+    fixtureRepo(repo, [["shared/core-one", "etabli", "1", "1"]], [["suiteA", "https://example.invalid/a.git", "main", "shared", "alpha"]]);
+    writeSkill(join(repo, "vendor/suiteA/skills/alpha"), "name: alpha");
+    writeSkill(join(repo, "skills/shared/core-one"), "name: core-one");
+    writeFileSync(join(repo, "pi/agent/settings.json"), '{"defaultTools":"codemode"}\n');
+
+    const danglingHome = join(tmp, "dangling-home");
+    const danglingSettings = join(danglingHome, ".pi/agent/settings.json");
+    mkdirSync(dirname(danglingSettings), { recursive: true });
+    symlinkSync(join(tmp, "absent-target.json"), danglingSettings);
+    const danglingRun = spawnSync(process.execPath, [join(repo, "scripts/deploy-agent-workflow"), "--apply", "--home", danglingHome], {
+      encoding: "utf8",
+      env: { ...process.env, ETABLI_SCOPE: "", ETABLI_SKIP_LIVE_CHECKS: "1" },
+    });
+    assert.equal(danglingRun.status, 1);
+    assert.match(danglingRun.stderr, /tracked settings defaultTools/);
+    assert.equal(lstatSync(danglingSettings).isSymbolicLink(), true);
+    assert.equal(readlinkSync(danglingSettings), join(tmp, "absent-target.json"));
+
+    const missingHome = join(tmp, "missing-home");
+    const missingSettings = join(missingHome, ".pi/agent/settings.json");
+    const missingRun = spawnSync(process.execPath, [join(repo, "scripts/deploy-agent-workflow"), "--apply", "--home", missingHome], {
+      encoding: "utf8",
+      env: { ...process.env, ETABLI_SCOPE: "", ETABLI_SKIP_LIVE_CHECKS: "1" },
+    });
+    assert.equal(missingRun.status, 1);
+    assert.match(missingRun.stderr, /tracked settings defaultTools/);
+    assert.equal(existsSync(missingSettings), false);
+  });
 });
 
 describe("settings writes", () => {
