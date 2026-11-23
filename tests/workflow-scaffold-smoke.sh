@@ -84,6 +84,14 @@ assert_not_contains "$NEW_PROJECT/workflow/skills/adversary.md" "double-sample"
 assert_not_contains "$NEW_PROJECT/workflow/skills/review.md" "double-sample"
 # Every line this change added to the tier contracts stays pinned whole.
 while IFS= read -r pin; do
+  assert_contains "$ROOT_DIR/GLOSSARY.md" "$pin"
+done <<'PINS'
+The review budget of one run (`workflow/skills/review-rounds.md`): T1 and T2 are full rounds, D1 and D2 are delta rounds on the fix diff; findings after D2 block the run. A bounded fix and a standard run get T1 and D1 only (a standard D1 covers the whole cumulative patch); one counter spans tier upgrades.
+**Standard review**:
+The single fresh-context review of a standard run: one Logic hunter on another model family, Spec in the parent; a labeled `same-family` pass only when every eligible route is technically unavailable, recorded as `cross_model: unavailable (<category>)` (`workflow/skills/review.md`).
+_Avoid_: light review, second opinion
+PINS
+while IFS= read -r pin; do
   assert_contains "$NEW_PROJECT/workflow/skills/implementation-loop.md" "$pin"
 done <<'PINS'
 - **standard** (default) — runtime code change on a known surface. Plan and
