@@ -63,7 +63,7 @@ HEAD` + unstaged (`git diff --numstat -z`) + staged (`git diff --cached
 fails to parse (unreadable output) → full review as well; any
 status change after enumeration → recompute. Lines = Σ added+deleted. Binary (`-`),
 ambiguous rename, or unclassifiable → full review. Escalate to a
-FULL review (hunters + adversary) when delta > 50 lines (heuristic:
+FULL review (hunters + adversary; a standard run: its cumulative D1) when delta > 50 lines (heuristic:
 past it, partial re-read no longer beats full; any doubt → full),
 or it touches contractual surfaces (`workflow/`, `scripts/`,
 `tests/`, `skills/`, `claude/scopes/`, `.github/`,

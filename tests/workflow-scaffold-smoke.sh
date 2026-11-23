@@ -215,6 +215,7 @@ assert_not_contains "$ROOT_DIR/skills/shared/adversary/SKILL.md" "**small** skip
 assert_not_contains "$ROOT_DIR/skills/shared/adversary/SKILL.md" "Plan-mode adversary is required before autonomous implementation completion."
 assert_not_contains "$ROOT_DIR/workflow/skills/adversary.md" "(standard: its D1"
 assert_not_contains "$ROOT_DIR/workflow/skills/review-rounds.md" "rejected only by the D1 reviewer"
+assert_contains "$ROOT_DIR/workflow/skills/review-rounds.md" "FULL review (hunters + adversary; a standard run: its cumulative D1) when delta > 50 lines (heuristic:"
 assert_not_contains "$ROOT_DIR/skills/shared/adversary/SKILL.md" "(standard: its D1 reviewer)"
 assert_contains "$ROOT_DIR/docs/adr/0052-standard-tier-runs-one-cross-family-review.md" "\`grep -rl '^- Tier: standard; review: single' docs/plan/ | xargs grep -H '^- Archived:'\`"
 assert_contains "$ROOT_DIR/docs/adr/0052-standard-tier-runs-one-cross-family-review.md" "whose \`Archived:\` date is on or after the merge date."
