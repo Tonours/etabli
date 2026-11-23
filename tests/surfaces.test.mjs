@@ -1437,4 +1437,48 @@ describe("pi-agent-settings-sync", () => {
       }
     }
   });
+
+  test("managed bootstrap reconciles tracked settings on fresh homes and dangling symlinks so check passes", () => {
+    const trackedWithMissingDefault = writeJson("tracked-missing-default.json", {
+      defaultProvider: "zai",
+      defaultModel: "glm-5.3",
+      enabledModels: ["zai/glm-5.3-flash"],
+      packages: [],
+      skills: ["!deslop"],
+      defaultTools: ["+codemode"],
+    });
+
+    const fresh = join(tmp, "fresh-home/settings.json");
+    const freshDry = runSync(fresh, trackedWithMissingDefault, "1", "smoke", "managed");
+    assert.equal(freshDry.status, 0, freshDry.stderr);
+    assert.match(freshDry.stdout, /WOULD_COPY\s+Pi agent settings bootstrap/);
+    assert.match(freshDry.stdout, /WOULD_SYNC\s+Pi agent settings resources \(keep zai\/glm-5\.3\)/);
+    assert.equal(existsSync(fresh), false);
+
+    const freshApply = runSync(fresh, trackedWithMissingDefault, "0", "smoke", "managed");
+    assert.equal(freshApply.status, 0, freshApply.stderr);
+    assert.match(freshApply.stdout, /COPY\s+Pi agent settings bootstrap/);
+    assert.match(freshApply.stdout, /SYNC\s+Pi agent settings resources \(keep zai\/glm-5\.3\)/);
+    assert.deepEqual(JSON.parse(readFileSync(fresh, "utf8")).enabledModels, ["zai/glm-5.3-flash", "zai/glm-5.3"]);
+    const freshCheck = runSync(fresh, trackedWithMissingDefault, "1", "smoke", "check");
+    assert.equal(freshCheck.status, 0, freshCheck.stdout + freshCheck.stderr);
+
+    const dangling = join(tmp, "dangling-reconcile.json");
+    symlinkSync(join(tmp, "does-not-exist.json"), dangling);
+    const danglingDry = runSync(dangling, trackedWithMissingDefault, "1", "smoke", "managed");
+    assert.equal(danglingDry.status, 0, danglingDry.stderr);
+    assert.match(danglingDry.stdout, /WOULD_MIGRATE\s+Pi agent settings symlink to local file/);
+    assert.match(danglingDry.stdout, /WOULD_SYNC\s+Pi agent settings resources \(keep zai\/glm-5\.3\)/);
+    assert.equal(lstatSync(dangling).isSymbolicLink(), true);
+
+    const danglingApply = runSync(dangling, trackedWithMissingDefault, "0", "smoke", "managed");
+    assert.equal(danglingApply.status, 0, danglingApply.stderr);
+    assert.match(danglingApply.stdout, /COPY\s+Pi agent settings bootstrap after dangling symlink/);
+    assert.match(danglingApply.stdout, /SYNC\s+Pi agent settings resources \(keep zai\/glm-5\.3\)/);
+    assert.equal(lstatSync(dangling).isFile(), true);
+    assert.equal(lstatSync(dangling).mode & 0o777, 0o600);
+    assert.deepEqual(JSON.parse(readFileSync(dangling, "utf8")).enabledModels, ["zai/glm-5.3-flash", "zai/glm-5.3"]);
+    const danglingCheck = runSync(dangling, trackedWithMissingDefault, "1", "smoke", "check");
+    assert.equal(danglingCheck.status, 0, danglingCheck.stdout + danglingCheck.stderr);
+  });
 });

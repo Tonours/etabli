@@ -109,31 +109,28 @@ if (mode === "check") {
   }
 }
 
-let migratingSymlink = false;
+let managedAction = null;
 let localFile = null;
 if (mode === "managed") {
   if (localStat === null) {
-    if (dryRun) {
-      console.log("WOULD_COPY     Pi agent settings bootstrap");
-      process.exit(0);
-    }
-    fs.mkdirSync(dirname(localPath), { recursive: true });
-    replaceFile(localPath, trackedFile.raw, trackedFile.mode);
-    console.log("COPY           Pi agent settings bootstrap");
-    process.exit(0);
-  }
-  if (localStat.isSymbolicLink()) {
+    managedAction = "bootstrap";
+    localFile = {
+      data: structuredClone(trackedSettings),
+      raw: trackedFile.raw,
+      mode: trackedFile.mode,
+    };
+  } else if (localStat.isSymbolicLink()) {
     localFile = readSettings(localPath, "local", { allowMissing: true });
     if (localFile === null) {
-      if (dryRun) {
-        console.log("WOULD_MIGRATE  Pi agent settings symlink to local file");
-        process.exit(0);
-      }
-      replaceFile(localPath, trackedFile.raw, 0o600);
-      console.log("COPY           Pi agent settings bootstrap after dangling symlink");
-      process.exit(0);
+      managedAction = "bootstrap-dangling";
+      localFile = {
+        data: structuredClone(trackedSettings),
+        raw: trackedFile.raw,
+        mode: 0o600,
+      };
+    } else {
+      managedAction = "migrate-symlink";
     }
-    migratingSymlink = true;
   } else if (!localStat.isFile()) {
     fail(`cannot read local settings at ${localPath}: not a regular file`);
   }
@@ -325,28 +322,49 @@ if (
   changes.push("skills-key");
 }
 
-if (migratingSymlink) {
+function applyChanges(target) {
+  target.packages = localPackages;
+  target.enabledModels = localModels;
+  target.skills = trackedSettings.skills;
+  if (extensionsChanged) {
+    if (nextExtensions.length === 0) delete target.extensions;
+    else target.extensions = nextExtensions;
+  }
+  if (defaultToolsChanged) {
+    target.defaultTools = nextDefaultTools;
+  }
+}
+
+if (managedAction) {
   if (dryRun) {
-    console.log("WOULD_MIGRATE  Pi agent settings symlink to local file");
+    console.log(
+      managedAction === "bootstrap"
+        ? "WOULD_COPY     Pi agent settings bootstrap"
+        : "WOULD_MIGRATE  Pi agent settings symlink to local file",
+    );
     if (changes.length > 0) {
       console.log(`WOULD_SYNC     Pi agent settings resources (${changes.join(", ")})`);
     }
     process.exit(0);
   }
   if (changes.length > 0) {
-    localSettings.packages = localPackages;
-    localSettings.enabledModels = localModels;
-    localSettings.skills = trackedSettings.skills;
-    if (extensionsChanged) {
-      if (nextExtensions.length === 0) delete localSettings.extensions;
-      else localSettings.extensions = nextExtensions;
-    }
-    if (defaultToolsChanged) {
-      localSettings.defaultTools = nextDefaultTools;
-    }
+    applyChanges(localSettings);
   }
-  replaceFile(localPath, changes.length > 0 ? `${JSON.stringify(localSettings, null, 2)}\n` : localFile.raw, 0o600);
-  console.log("MIGRATE        Pi agent settings symlink to local file");
+  if (managedAction === "bootstrap") {
+    fs.mkdirSync(dirname(localPath), { recursive: true });
+  }
+  replaceFile(
+    localPath,
+    changes.length > 0 ? `${JSON.stringify(localSettings, null, 2)}\n` : localFile.raw,
+    managedAction === "bootstrap" ? trackedFile.mode : 0o600,
+  );
+  if (managedAction === "bootstrap") {
+    console.log("COPY           Pi agent settings bootstrap");
+  } else if (managedAction === "bootstrap-dangling") {
+    console.log("COPY           Pi agent settings bootstrap after dangling symlink");
+  } else {
+    console.log("MIGRATE        Pi agent settings symlink to local file");
+  }
   if (changes.length > 0) {
     console.log(`SYNC           Pi agent settings resources (${changes.join(", ")})`);
   } else {
@@ -375,16 +393,7 @@ if (dryRun) {
 }
 
 const backup = backupFile(localPath, { stamp: timestamp });
-localSettings.packages = localPackages;
-localSettings.enabledModels = localModels;
-localSettings.skills = trackedSettings.skills;
-if (extensionsChanged) {
-  if (nextExtensions.length === 0) delete localSettings.extensions;
-  else localSettings.extensions = nextExtensions;
-}
-if (defaultToolsChanged) {
-  localSettings.defaultTools = nextDefaultTools;
-}
+applyChanges(localSettings);
 writeJsonAtomic(localPath, localSettings);
 console.log(`BACKUP         ${backup}`);
 console.log(`SYNC           Pi agent settings resources (${changes.join(", ")})`);
