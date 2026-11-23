@@ -82,6 +82,64 @@ assert_not_contains "$NEW_PROJECT/workflow/skills/review-rounds.md" "double-samp
 assert_not_contains "$NEW_PROJECT/workflow/skills/implementation-loop.md" "double-sample"
 assert_not_contains "$NEW_PROJECT/workflow/skills/adversary.md" "double-sample"
 assert_not_contains "$NEW_PROJECT/workflow/skills/review.md" "double-sample"
+# Every line this change added to the tier contracts stays pinned whole.
+while IFS= read -r pin; do
+  assert_contains "$NEW_PROJECT/workflow/skills/implementation-loop.md" "$pin"
+done <<'PINS'
+- **standard** (default) — runtime code change on a known surface. Plan and
+READY gate kept, no plan adversary (step 5 is high-risk only); steps 13 and
+13b become one review per `workflow/skills/review.md` § Standard review (no
+code-diff adversary, `spec: parent`, labeled `same-family` fallback). Re-review
+and escalation: `workflow/skills/review-rounds.md` § Bounded fix and standard.
+5. High-risk: run `workflow/skills/adversary.md` before editing (standard skips it).
+Pin once; high-risk dispatches fresh Logic and Spec hunters; standard
+runs its single review (§ Risk tiers). When its
+13b. Code-diff adversary per `workflow/skills/adversary.md`: **high-risk requires
+cross-model** (no eligible route → `blocked`); **standard and small skip it**.
+Single same-family pass alone → `blocked` (the labeled single review of a
+bounded fix or a standard run aside). Name `adversary_model`.
+**High** findings: accept/reject via cross-model, not
+- adversary plan review (high-risk only);
+- adversary code-diff review (high-risk: named model; standard and a bounded fix: their one review);
+tier; one fresh-context review, cross-family or labeled `same-family`, for a bounded fix or standard);
+PINS
+while IFS= read -r pin; do
+  assert_contains "$NEW_PROJECT/workflow/skills/adversary.md" "$pin"
+done <<'PINS'
+(`workflow/skills/review-rounds.md` T/D table): high-risk T rounds use fresh hunters plus the
+plan. High-risk only, after the fresh-context review (Logic + Spec hunters, then lead):
+- **high-risk tier: cross-model required.** Read-only, name
+high-risk → `blocked`; standard → one fresh labeled `same-family` review,
+a residual-risk line in the final report.
+- **Other tiers:** small skips this pass (its self-review covers it); standard
+and a bounded fix have their one fresh-context review instead, cross-family
+required at standard while a route is available, preferred for a bounded fix.
+A same-family one only when labeled `same-family`, never as independent:
+the only single-pass same-family exception; a high finding upgrades a bounded fix to standard.
+- `high`: accept/reject via a **cross-model** pass (standard: its D1
+reviewer). The implementer alone must not close a high finding.
+PINS
+while IFS= read -r pin; do
+  assert_contains "$NEW_PROJECT/workflow/spec.md" "$pin"
+done <<'PINS'
+their tier's review evidence (adversary at high-risk), implemented-plan archive under `docs/plan/`, and
+- Review: Logic hunter then Spec hunter (standard: one cross-family Logic hunter, Spec in the parent), plus the Threat hunter on access,
+Shared contracts remain authoritative; this exception changes storage, and keeps its four-axis review until its own plan changes it (ADR-0052).
+work runs its tier's sequence (standard: one cross-family review, no adversary); a bounded fix needs no plan but a failing
+PINS
+while IFS= read -r pin; do
+  assert_contains "$ROOT_DIR/skills/shared/adversary/SKILL.md" "$pin"
+done <<'PINS'
+**high-risk** requires cross-model; **small** and **standard** skip it
+(standard has its one review per `workflow/skills/review.md` § Standard
+review). An answer without provenance, or
+fallback. The pass runs after Logic+Spec lead review; a single same-family
+pass cannot replace it.
+- Name `adversary_model`.
+- High findings: accept/reject via cross-model (standard: its D1 reviewer),
+not the implementer alone.
+- Plan-mode adversary is required before high-risk implementation completion.
+PINS
 # Every line of review.md § Standard review, review-rounds.md § Bounded fix and standard, and the high-risk clauses of the loop, stay pinned whole.
 while IFS= read -r pin; do
   assert_contains "$NEW_PROJECT/workflow/skills/review-rounds.md" "$pin"
