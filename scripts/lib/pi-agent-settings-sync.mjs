@@ -75,6 +75,64 @@ function assertPackages(value, label) {
   }
 }
 
+const legacySources = new Set([
+  "npm:pi-interview",
+  "npm:@tintinweb/pi-subagents",
+  "npm:pi-hooks",
+  "npm:glimpseui",
+  "npm:@zenspc/pi-pstack",
+  // etabli-only keeper list Pi never resolved; the catalog now owns it.
+  "local:etabli-workflow",
+]);
+
+const retiredModels = new Set(modelRouting.retired_pi_models);
+
+function sourceOf(entry) {
+  if (typeof entry === "string") return entry;
+  if (entry && typeof entry === "object" && typeof entry.source === "string")
+    return entry.source;
+  return null;
+}
+
+// A pinned source (`npm:name@1.2.3`, `git:host/repo@<ref>`) and its unpinned
+// form are one package. Git sources reduce to host/path as Pi's
+// getPackageIdentity does, so ssh, https and `.git` spellings match too.
+function packageIdentity(source) {
+  const npm = /^npm:((?:@[^/]+\/)?[^@]+)/.exec(source);
+  if (npm) return `npm:${npm[1]}`;
+  const url = source.replace(/^git:/, "");
+  const [, host, path] =
+    /^git@([^:]+):(.+)$/.exec(url) ??
+    /^(?:https?|ssh|git):\/\/(?:[^@/]+@)?([^/]+)\/(.+)$/.exec(url) ??
+    /^([^/.][^/]*\.[^/]+)\/(.+)$/.exec(url) ??
+    [];
+  if (!host) return source;
+  return `git:${host}/${path.split("@")[0].replace(/\.git$/, "")}`;
+}
+
+// Retired in every version, pinned or not.
+const retiredIdentities = new Set([
+  "npm:@tintinweb/pi-tasks",
+  "npm:pi-lens",
+  "npm:pi-cursor-sdk",
+  "npm:pi-autoresearch",
+  "npm:@narumitw/pi-goal",
+  "npm:pi-simplify",
+  "npm:pi-subagents",
+  "npm:pi-mcp-adapter",
+  "git:github.com/badlogic/pi-skills",
+]);
+
+function isLegacySource(source) {
+  return (
+    legacySources.has(source) ||
+    retiredIdentities.has(packageIdentity(source)) ||
+    source.startsWith("npm:@tintinweb/pi-subagents@") ||
+    source === "npm:@agwab/pi-workflow" ||
+    source.startsWith("npm:@agwab/pi-workflow@")
+  );
+}
+
 const trackedFile = readSettings(trackedPath, "tracked");
 const trackedSettings = trackedFile.data;
 if (!isPlainObject(trackedSettings)) {
@@ -92,6 +150,21 @@ if (trackedSettings.defaultTools !== undefined) {
   }
 }
 assertStringArray(trackedSettings.extensions, "tracked settings extensions");
+for (const entry of trackedSettings.packages ?? []) {
+  const source = sourceOf(entry);
+  if (source && isLegacySource(source)) {
+    fail(`tracked settings packages must not include retired package ${source}`);
+  }
+}
+for (const model of trackedSettings.enabledModels ?? []) {
+  if (retiredModels.has(model)) {
+    fail(`tracked settings enabledModels must not include retired model ${model}`);
+  }
+}
+const trackedDefault = `${trackedSettings.defaultProvider}/${trackedSettings.defaultModel}`;
+if (retiredModels.has(trackedDefault)) {
+  fail(`tracked settings default model must not be retired (${trackedDefault})`);
+}
 
 let localStat = null;
 try {
@@ -152,64 +225,6 @@ assertStringArray(localSettings.enabledModels, "local settings enabledModels", {
 assertStringArray(localSettings.skills, "local settings skills", { nonEmpty: true });
 assertStringArray(localSettings.defaultTools, "local settings defaultTools", { nonEmpty: true });
 assertStringArray(localSettings.extensions, "local settings extensions");
-
-const legacySources = new Set([
-  "npm:pi-interview",
-  "npm:@tintinweb/pi-subagents",
-  "npm:pi-hooks",
-  "npm:glimpseui",
-  "npm:@zenspc/pi-pstack",
-  // etabli-only keeper list Pi never resolved; the catalog now owns it.
-  "local:etabli-workflow",
-]);
-
-const retiredModels = new Set(modelRouting.retired_pi_models);
-
-function sourceOf(entry) {
-  if (typeof entry === "string") return entry;
-  if (entry && typeof entry === "object" && typeof entry.source === "string")
-    return entry.source;
-  return null;
-}
-
-// A pinned source (`npm:name@1.2.3`, `git:host/repo@<ref>`) and its unpinned
-// form are one package. Git sources reduce to host/path as Pi's
-// getPackageIdentity does, so ssh, https and `.git` spellings match too.
-function packageIdentity(source) {
-  const npm = /^npm:((?:@[^/]+\/)?[^@]+)/.exec(source);
-  if (npm) return `npm:${npm[1]}`;
-  const url = source.replace(/^git:/, "");
-  const [, host, path] =
-    /^git@([^:]+):(.+)$/.exec(url) ??
-    /^(?:https?|ssh|git):\/\/(?:[^@/]+@)?([^/]+)\/(.+)$/.exec(url) ??
-    /^([^/.][^/]*\.[^/]+)\/(.+)$/.exec(url) ??
-    [];
-  if (!host) return source;
-  return `git:${host}/${path.split("@")[0].replace(/\.git$/, "")}`;
-}
-
-// Retired in every version, pinned or not.
-const retiredIdentities = new Set([
-  "npm:@tintinweb/pi-tasks",
-  "npm:pi-lens",
-  "npm:pi-cursor-sdk",
-  "npm:pi-autoresearch",
-  "npm:@narumitw/pi-goal",
-  "npm:pi-simplify",
-  "npm:pi-subagents",
-  "npm:pi-mcp-adapter",
-  "git:github.com/badlogic/pi-skills",
-]);
-
-function isLegacySource(source) {
-  return (
-    legacySources.has(source) ||
-    retiredIdentities.has(packageIdentity(source)) ||
-    source.startsWith("npm:@tintinweb/pi-subagents@") ||
-    source === "npm:@agwab/pi-workflow" ||
-    source.startsWith("npm:@agwab/pi-workflow@")
-  );
-}
 
 const changes = [];
 const trackedPackages = Array.isArray(trackedSettings.packages)
