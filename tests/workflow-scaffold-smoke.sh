@@ -213,6 +213,215 @@ assert_not_contains "$ROOT_DIR/GLOSSARY.md" "accepted for the standard tier inst
 assert_contains "$ROOT_DIR/skills/shared/adversary/SKILL.md" "**high-risk** requires cross-model; **small** and **standard** skip it"
 assert_not_contains "$ROOT_DIR/skills/shared/adversary/SKILL.md" "**small** skips it; **standard** and **high-risk** require cross-model."
 assert_not_contains "$ROOT_DIR/skills/shared/adversary/SKILL.md" "Plan-mode adversary is required before autonomous implementation completion."
+while IFS= read -r pin; do
+  assert_contains "$ROOT_DIR/AGENTS.md" "$pin"
+done <<'PINS'
+  with its one cross-family review; settings sync, hooks and guards, secrets
+PINS
+while IFS= read -r pin; do
+  assert_not_contains "$ROOT_DIR/AGENTS.md" "$pin"
+done <<'PINS'
+  with one cross-model code-diff pass; settings sync, hooks and guards, secrets
+PINS
+while IFS= read -r pin; do
+  assert_not_contains "$ROOT_DIR/GLOSSARY.md" "$pin"
+done <<'PINS'
+**Double-sample**:
+Two independent same-family adversary passes with recorded run ids: the standard-tier fallback when every eligible cross-model route is technically unavailable, recorded as `cross_model: unavailable (<category>)` (`workflow/skills/adversary.md`).
+_Avoid_: second opinion, cross-check
+PINS
+while IFS= read -r pin; do
+  assert_contains "$ROOT_DIR/PLAN_TEMPLATE.md" "$pin"
+done <<'PINS'
+- Plan adversary, high-risk only (model, `shasum -a 256 PLAN.md` at dispatch, verdict, deltas):
+- Code review and, at high-risk, code-diff adversary (reviewers, rounds, verdicts):
+PINS
+while IFS= read -r pin; do
+  assert_not_contains "$ROOT_DIR/PLAN_TEMPLATE.md" "$pin"
+done <<'PINS'
+- Plan adversary (model, `shasum -a 256 PLAN.md` at dispatch, verdict, deltas):
+- Code review and code-diff adversary (reviewers, rounds, verdicts):
+PINS
+while IFS= read -r pin; do
+  assert_contains "$ROOT_DIR/PLAN_TEMPLATE_FULL.md" "$pin"
+done <<'PINS'
+- Plan adversary, high-risk only (model, `shasum -a 256 PLAN.md` at dispatch, verdict, deltas):
+- Code review and, at high-risk, code-diff adversary (reviewers, rounds, verdicts):
+PINS
+while IFS= read -r pin; do
+  assert_not_contains "$ROOT_DIR/PLAN_TEMPLATE_FULL.md" "$pin"
+done <<'PINS'
+- Plan adversary (model, `shasum -a 256 PLAN.md` at dispatch, verdict, deltas):
+- Code review and code-diff adversary (reviewers, rounds, verdicts):
+PINS
+while IFS= read -r pin; do
+  assert_contains "$ROOT_DIR/README.md" "$pin"
+done <<'PINS'
+  that never saw the conversation, on a second model family, tries to break
+  it; high-risk work adds hunters and a cross-model adversary. A small docs or config edit gets a self-review instead.
+PINS
+while IFS= read -r pin; do
+  assert_not_contains "$ROOT_DIR/README.md" "$pin"
+done <<'PINS'
+  that never saw the conversation and a second model family both try to break
+  it. A small docs or config edit gets a self-review instead.
+PINS
+while IFS= read -r pin; do
+  assert_contains "$ROOT_DIR/claude/scopes/shared/agents/adversary.md" "$pin"
+done <<'PINS'
+  human reviewer. This independent context is the point of the pass; do not defeat it.
+PINS
+while IFS= read -r pin; do
+  assert_not_contains "$ROOT_DIR/claude/scopes/shared/agents/adversary.md" "$pin"
+done <<'PINS'
+  human reviewer. This is the point of the double-sample; do not defeat it.
+PINS
+while IFS= read -r pin; do
+  assert_contains "$ROOT_DIR/docs/adr/README.md" "$pin"
+done <<'PINS'
+- [0052](0052-standard-tier-runs-one-cross-family-review.md) — Standard tier runs one cross-family review [accepted]
+PINS
+while IFS= read -r pin; do
+  assert_contains "$ROOT_DIR/skills/shared/adversary/SKILL.md" "$pin"
+done <<'PINS'
+  **high-risk** requires cross-model; **small** and **standard** skip it
+  (standard has its one review per `workflow/skills/review.md` § Standard
+  review). An answer without provenance, or
+  fallback. The pass runs after Logic+Spec lead review; a single same-family
+  pass cannot replace it.
+  not the implementer alone.
+PINS
+while IFS= read -r pin; do
+  assert_not_contains "$ROOT_DIR/skills/shared/adversary/SKILL.md" "$pin"
+done <<'PINS'
+  **small** skips it; **standard** and **high-risk** require cross-model.
+  Standard falls back to two fresh independent same-family samples only when
+  every eligible route is technically unavailable, recorded as
+  `cross_model: unavailable (<category>)`. An answer without provenance, or
+  fallback. Required passes run after Logic+Spec lead review; a single same-family pass cannot
+  replace them.
+- Name `adversary_model` (or `same-family-pass: double-sample` + run ids).
+- High findings: accept/reject via cross-model (or second sample), not the
+  implementer alone.
+- Plan-mode adversary is required before autonomous implementation completion.
+PINS
+while IFS= read -r pin; do
+  assert_contains "$ROOT_DIR/workflow/skills/adversary.md" "$pin"
+done <<'PINS'
+   - **high-risk tier: cross-model required.** Read-only, name
+     high-risk → `blocked`; standard → one fresh labeled `same-family` review,
+     a residual-risk line in the final report.
+   - **Other tiers:** small skips this pass (its self-review covers it); standard
+     and a bounded fix have their one fresh-context review instead, cross-family
+     required at standard while a route is available, preferred for a bounded fix.
+     A same-family one only when labeled `same-family`, never as independent:
+     the only single-pass same-family exception; a high finding upgrades a bounded fix to standard.
+   - `high`: accept/reject via a **cross-model** pass (standard: its D1
+     reviewer). The implementer alone must not close a high finding.
+PINS
+while IFS= read -r pin; do
+  assert_not_contains "$ROOT_DIR/workflow/skills/adversary.md" "$pin"
+done <<'PINS'
+(`workflow/skills/review-rounds.md` T/D table): T rounds use fresh hunters plus the
+plan. After the fresh-context review (Logic hunter + Spec hunter, then lead):
+   - **high-risk and standard tiers: cross-model required.** Read-only, name
+     high-risk → `blocked`; standard → a documented **double-sample** — two
+     fresh same-family reviewers, independent contexts, merged findings —
+     `same-family-pass` ids and a residual-risk line in the final report.
+   - **small tier:** code-diff adversary is skipped (the loop's self-review
+     covers it); a single same-family pass is never a substitute.
+   - **bounded fix** (`workflow/skills/implementation-loop.md` § Risk tiers):
+     its one fresh-context review stands in for this pass, cross-family
+     preferred. A same-family one is allowed only when labeled `same-family`
+     in the report, never presented as independent: the only single-pass
+     same-family exception. Any high finding upgrades the fix to standard.
+   - `high`: accept/reject via a **cross-model** pass (or the second sample in a
+     double-sample). The implementer alone must not close a high finding.
+PINS
+while IFS= read -r pin; do
+  assert_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" "$pin"
+done <<'PINS'
+  READY gate kept, no plan adversary (step 5 is high-risk only); steps 13 and
+  13b become one review per `workflow/skills/review.md` § Standard review (no
+  code-diff adversary, `spec: parent`, labeled `same-family` fallback). Re-review
+  and escalation: `workflow/skills/review-rounds.md` § Bounded fix and standard.
+    Pin once; high-risk dispatches fresh Logic and Spec hunters; standard
+    runs its single review (§ Risk tiers). When its
+    cross-model** (no eligible route → `blocked`); **standard and small skip it**.
+    Single same-family pass alone → `blocked` (the labeled single review of a
+    bounded fix or a standard run aside). Name `adversary_model`.
+    **High** findings: accept/reject via cross-model, not
+  tier; one fresh-context review, cross-family or labeled `same-family`, for a bounded fix or standard);
+PINS
+while IFS= read -r pin; do
+  assert_not_contains "$ROOT_DIR/workflow/skills/implementation-loop.md" "$pin"
+done <<'PINS'
+- **standard** (default) — runtime code change on a known surface. Full
+  sequence below; step 13b falls back to a documented same-family
+  double-sample only when every eligible cross-model route is unavailable.
+5. Run `workflow/skills/adversary.md` before editing.
+    Pin once; dispatch fresh Logic and Spec hunters: both for high-risk;
+    standard may use Daily Pi per `workflow/skills/review.md`. When its
+13b. Code-diff adversary per `workflow/skills/adversary.md`: tiered —
+    **high-risk and standard require cross-model**; **small skips**. Standard
+    falls back to a documented double-sample only when every eligible route is
+    technically unavailable (`workflow/skills/adversary.md` § Code diff mode).
+    Single same-family pass alone → `blocked` (the bounded fix's labeled single review aside).
+    Name `adversary_model` (or `same-family-pass` ids plus
+    `cross_model: unavailable (<category>)`).
+    **High** findings: accept/reject via cross-model (or second sample), not
+- adversary plan review (standard/high-risk; not a bounded fix);
+- adversary code-diff review (standard/high-risk: named model; standard
+  fallback: double-sample with `cross_model: unavailable (<category>)`;
+  a bounded fix has its one review instead);
+  tier; one fresh-context review, cross-family or labeled `same-family`, for a bounded fix);
+PINS
+while IFS= read -r pin; do
+  assert_contains "$ROOT_DIR/workflow/skills/review-rounds.md" "$pin"
+done <<'PINS'
+step 13b, or a bounded fix's or standard run's single review). A clean T1 never needs it.
+- T1: findings → fold → T2. T2: findings → fold → next unspent D.
+## Bounded fix and standard
+PINS
+while IFS= read -r pin; do
+  assert_not_contains "$ROOT_DIR/workflow/skills/review-rounds.md" "$pin"
+done <<'PINS'
+step 13b, or a bounded fix's single review). A clean T1 never
+- T1: findings → fold → T2. T2: findings → fold → D1.
+PINS
+while IFS= read -r pin; do
+  assert_contains "$ROOT_DIR/workflow/skills/review.md" "$pin"
+done <<'PINS'
+   children, never the parent (a standard run's Spec aside: § Standard review). Standards stays where step 6 runs it. An
+   sentinel under Consider. A standard run takes neither fallback: it follows § Standard review.
+   record `spec: parent`; a standard run uses this shape on every runtime.
+   Accepted risk: that Spec pass shares the implementer's context (self-preference);
+PINS
+while IFS= read -r pin; do
+  assert_not_contains "$ROOT_DIR/workflow/skills/review.md" "$pin"
+done <<'PINS'
+   children, never the parent. Standards stays where step 6 runs it. An
+   record `spec: parent`. Accepted risk: that Spec pass shares the
+   implementer's context (self-preference);
+PINS
+while IFS= read -r pin; do
+  assert_contains "$ROOT_DIR/workflow/spec.md" "$pin"
+done <<'PINS'
+  their tier's review evidence (adversary at high-risk), implemented-plan archive under `docs/plan/`, and
+PINS
+while IFS= read -r pin; do
+  assert_not_contains "$ROOT_DIR/workflow/spec.md" "$pin"
+done <<'PINS'
+  adversary evidence, review, implemented-plan archive under `docs/plan/`, and
+- Review: Logic hunter then Spec hunter, plus the Threat hunter on access,
+Shared contracts remain authoritative; this exception changes storage, not gates.
+work runs its tier's full sequence; a bounded fix needs no plan but a failing
+PINS
+while IFS= read -r pin; do
+  assert_contains "$ROOT_DIR/workflow/templates/review-lead.md" "$pin"
+done <<'PINS'
+runner: pi-child|cursor-task|claude-agent|pool-route
+PINS
 assert_not_contains "$NEW_PROJECT/workflow/spec.md" "work runs its tier's full sequence;"
 assert_contains "$ROOT_DIR/skills/shared/adversary/SKILL.md" "truncated, is rerun once; still unproven or truncated → \`blocked\`, never a"
 assert_contains "$NEW_PROJECT/workflow/skills/implementation-loop.md" "still unproven or truncated → \`blocked\`, never the fallback."
