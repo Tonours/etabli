@@ -9,7 +9,7 @@ manifest, `scripts/lib/surfaces.mjs` (ADR-0038).
 ```bash
 scripts/deploy-agent-workflow              # dry run, the default: prints the drift
 scripts/deploy-agent-workflow --apply      # links, prunes, then syncs settings
-scripts/deploy-agent-workflow --check      # reports drift and skill-load failures, skips the settings sync
+scripts/deploy-agent-workflow --check      # reports link/settings drift and skill-load failures without writing settings
 scripts/deploy-agent-workflow --check --fix
 scripts/check-fix-symlinks.sh              # shortcut for --check, takes --fix
 ```
@@ -107,11 +107,19 @@ removes the `~/.grok/bin/agent` collision, and Grok keeps `grok`
 ## Copies and merges
 
 These files hold local state, so the deploy writes into them instead of
-linking them. `--apply` runs both syncs; `--check` skips them.
+linking them. `--apply` runs both syncs; `--check` checks tracked-settings
+drift for both Pi and Claude read-only without writing or creating backups.
 
 - `~/.pi/agent/settings.json`: copied from `pi/agent/settings.json` when
-  missing. Then `scripts/lib/pi-agent-settings-sync.mjs` merges the tracked
-  `packages` and `enabledModels`, drops legacy packages and retired models,
+  missing (and detached from any symlink before `--apply`; `--check` flags a
+  symlink as drift without detaching it). Then
+  `scripts/lib/pi-agent-settings-sync.mjs` merges the tracked `packages`,
+  `enabledModels` and additive `defaultTools` (`["+codemode"]`, appended to
+  unset, delta, or non-empty plain allowlists while preserving explicit
+  `-codemode` opt-outs, existing `codemode` entries, and explicit empty `[]`
+  allowlists), drops legacy packages (including `npm:pi-mcp-adapter`, stripping
+  stale `-builtin:mcp` from `extensions` in that same migration run while
+  preserving deliberate `pi config` opt-outs afterwards) and retired models,
   and replaces the `skills` key.
 - `~/.claude/settings.json`: `scripts/lib/claude-settings-sync.mjs` merges
   `skillOverrides` from `claude/settings.skill-overrides.json`, where the

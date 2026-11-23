@@ -54,3 +54,4 @@ Decisions live in this directory. Run `/adr` to record one.
 - [0050](0050-track-the-claude-usage-audit-script.md) — Track the Claude usage audit script [accepted]
 - [0051](0051-track-claude-code-token-usage-settings.md) — Track the Claude Code token-usage settings in the shared fragment [accepted]
 - [0052](0052-standard-tier-runs-one-cross-family-review.md) — Standard tier runs one cross-family review [accepted]
+- [0053](0053-use-pi-native-mcp-and-codemode.md) — Use Pi native MCP and codemode by default [accepted]

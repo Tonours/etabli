@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { accessSync, constants, existsSync, readFileSync, realpathSync, statSync, writeSync } from "node:fs";
 import { basename, delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { activeScopes, backupStamp, claudeConfigOverride, physicalHome, reconcile, seedPiSettings, skillRecords } from "./lib/surfaces.mjs";
+import { activeScopes, backupStamp, claudeConfigOverride, physicalHome, reconcile, skillRecords } from "./lib/surfaces.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoDir = dirname(scriptDir);
@@ -205,12 +205,12 @@ function syncSettings({ homeDir, claudeRoot, claudeOnly, apply, timestamp: stamp
   let failures = 0;
   if (!claudeOnly) {
     failures += attempt(() => {
-      if (!seedPiSettings({ homeDir, repoDir, apply }, emit)) return;
       run(join(scriptDir, "lib/pi-agent-settings-sync.mjs"), [
         join(homeDir, ".pi/agent/settings.json"),
         join(repoDir, "pi/agent/settings.json"),
         dryRun,
         stamp,
+        "managed",
       ]);
     });
   }
@@ -247,24 +247,49 @@ function skillLoadCheck({ claudeRoot, install }) {
 
 // Check mode: the settings writer in its read-only check mode; drift or a
 // refusal counts as one unresolved issue and nothing is written.
-function settingsDriftCheck({ homeDir, claudeRoot, timestamp: stamp }) {
+function settingsDriftCheck({ homeDir, claudeRoot, claudeOnly, timestamp: stamp }) {
+  let failures = 0;
+  let piSettingsOk = true;
+  if (!claudeOnly) {
+    const piResult = spawnSync(
+      process.execPath,
+      [
+        join(scriptDir, "lib/pi-agent-settings-sync.mjs"),
+        join(homeDir, ".pi/agent/settings.json"),
+        join(repoDir, "pi/agent/settings.json"),
+        "1",
+        stamp,
+        "check",
+      ],
+      { stdio: "inherit" },
+    );
+    if (piResult.status !== 0) {
+      failures += 1;
+      piSettingsOk = false;
+    }
+  }
   const fragment = join(repoDir, "claude/settings.skill-overrides.json");
   if (!existsSync(fragment)) {
     emit("MISSING", "Claude skill-overrides fragment source");
-    return 1;
+    return { failures: failures + 1, piSettingsOk };
   }
   const result = spawnSync(process.execPath, [join(scriptDir, "lib/claude-settings-sync.mjs"), join(claudeRoot, "settings.json"), fragment, "1", stamp, "check", homeDir], { stdio: "inherit" });
-  return result.status === 0 ? 0 : 1;
+  if (result.status !== 0) failures += 1;
+  return { failures, piSettingsOk };
 }
 
 // Check mode: read-only skill-load checks; each failure counts as unresolved.
-function skillLoadChecks({ claudeRoot, claudeOnly }) {
+function skillLoadChecks({ claudeRoot, claudeOnly, piSettingsOk = true }) {
   let failures = 0;
   if (claudeSkillLoadPasses(claudeRoot) === false) {
     emit("FAIL", `Claude skill load check on ${claudeRoot} (see output above; scripts/claude-skill-load-check --fix governs new skills)`);
     failures += 1;
   }
   if (claudeOnly) return failures;
+  if (!piSettingsOk) {
+    emit("SKIP", "Pi skill load check (Pi agent settings check failed)");
+    return failures;
+  }
   const piCheck = join(scriptDir, "pi-skill-load-check");
   if (!isExecutable(piCheck)) return failures;
   if (!onPath("pi")) {
@@ -317,14 +342,12 @@ for (const root of roots) {
     // ETABLI_SKIP_SKILL_LOAD_CHECKS=1 keeps link-only fixtures (fix-links smoke) out of these checks.
     if (pass.live && process.env.ETABLI_SKIP_SKILL_LOAD_CHECKS === "1") emit("SKIP", "skill load and settings drift checks (ETABLI_SKIP_SKILL_LOAD_CHECKS=1)");
     else if (pass.live) {
-      const failures = skillLoadChecks(pass);
+      const drift = settingsDriftCheck(pass);
+      totals.issues += drift.failures;
+      totals.unresolved += drift.failures;
+      const failures = skillLoadChecks({ ...pass, piSettingsOk: drift.piSettingsOk });
       totals.issues += failures;
       totals.unresolved += failures;
-    }
-    if (pass.live && process.env.ETABLI_SKIP_SKILL_LOAD_CHECKS !== "1") {
-      const drift = settingsDriftCheck(pass);
-      totals.issues += drift;
-      totals.unresolved += drift;
     }
     continue;
   }

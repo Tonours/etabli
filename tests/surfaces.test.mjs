@@ -522,6 +522,59 @@ describe("deploy-agent-workflow", () => {
       assert.ok(!existsSync(home), args.join(" "));
     }
   });
+
+  test("invalid tracked Pi settings abort --apply before bootstrapping or replacing a dangling symlink", () => {
+    const repo = join(tmp, "bad-tracked-repo");
+    mkdirSync(join(repo, "scripts/lib"), { recursive: true });
+    mkdirSync(join(repo, "pi/agent"), { recursive: true });
+    mkdirSync(join(repo, "workflow/runtime"), { recursive: true });
+    copyFileSync(join(scripts, "deploy-agent-workflow"), join(repo, "scripts/deploy-agent-workflow"));
+    copyFileSync(join(scripts, "lib/surfaces.mjs"), join(repo, "scripts/lib/surfaces.mjs"));
+    copyFileSync(join(scripts, "lib/pi-agent-settings-sync.mjs"), join(repo, "scripts/lib/pi-agent-settings-sync.mjs"));
+    copyFileSync(join(scripts, "../workflow/runtime/model-routing.json"), join(repo, "workflow/runtime/model-routing.json"));
+    fixtureRepo(repo, [["shared/core-one", "etabli", "1", "1"]], [["suiteA", "https://example.invalid/a.git", "main", "shared", "alpha"]]);
+    writeSkill(join(repo, "vendor/suiteA/skills/alpha"), "name: alpha");
+    writeSkill(join(repo, "skills/shared/core-one"), "name: core-one");
+    writeFileSync(join(repo, "pi/agent/settings.json"), '{"defaultTools":"codemode"}\n');
+
+    const danglingHome = join(tmp, "dangling-home");
+    const danglingSettings = join(danglingHome, ".pi/agent/settings.json");
+    mkdirSync(dirname(danglingSettings), { recursive: true });
+    symlinkSync(join(tmp, "absent-target.json"), danglingSettings);
+    const danglingRun = spawnSync(process.execPath, [join(repo, "scripts/deploy-agent-workflow"), "--apply", "--home", danglingHome], {
+      encoding: "utf8",
+      env: { ...process.env, ETABLI_SCOPE: "", ETABLI_SKIP_LIVE_CHECKS: "1" },
+    });
+    assert.equal(danglingRun.status, 1);
+    assert.match(danglingRun.stderr, /tracked settings defaultTools/);
+    assert.equal(lstatSync(danglingSettings).isSymbolicLink(), true);
+    assert.equal(readlinkSync(danglingSettings), join(tmp, "absent-target.json"));
+
+    const missingHome = join(tmp, "missing-home");
+    const missingSettings = join(missingHome, ".pi/agent/settings.json");
+    const missingRun = spawnSync(process.execPath, [join(repo, "scripts/deploy-agent-workflow"), "--apply", "--home", missingHome], {
+      encoding: "utf8",
+      env: { ...process.env, ETABLI_SCOPE: "", ETABLI_SKIP_LIVE_CHECKS: "1" },
+    });
+    assert.equal(missingRun.status, 1);
+    assert.match(missingRun.stderr, /tracked settings defaultTools/);
+    assert.equal(existsSync(missingSettings), false);
+
+    writeFileSync(join(repo, "pi/agent/settings.json"), '{"packages":[],"enabledModels":["zai/glm-5.3"],"skills":[],"defaultTools":["+codemode"]}\n');
+    const badTarget = join(tmp, "bad-symlink-target.json");
+    writeFileSync(badTarget, "{bad\n");
+    const dryLinkHome = join(tmp, "dry-link-home");
+    const dryLinkSettings = join(dryLinkHome, ".pi/agent/settings.json");
+    mkdirSync(dirname(dryLinkSettings), { recursive: true });
+    symlinkSync(badTarget, dryLinkSettings);
+    const dryRun = spawnSync(process.execPath, [join(repo, "scripts/deploy-agent-workflow"), "--dry-run", "--home", dryLinkHome], {
+      encoding: "utf8",
+      env: { ...process.env, ETABLI_SCOPE: "", ETABLI_SKIP_LIVE_CHECKS: "1" },
+    });
+    assert.equal(dryRun.status, 1);
+    assert.match(dryRun.stderr, /invalid JSON/);
+    assert.equal(lstatSync(dryLinkSettings).isSymbolicLink(), true);
+  });
 });
 
 describe("settings writes", () => {
@@ -1166,5 +1219,285 @@ describe("Claude managed env", () => {
     assert.equal(exactWritten.b, 0.1);
     assert.equal(exactWritten.c, "1e400 is just text");
     assert.equal(exactWritten.e, 2.5);
+  });
+});
+
+describe("pi-agent-settings-sync", () => {
+  const repoDir = fileURLToPath(new URL("..", import.meta.url));
+  const syncScript = join(repoDir, "scripts/lib/pi-agent-settings-sync.mjs");
+  const trackedDefault = join(repoDir, "pi/agent/settings.json");
+
+  function runSync(localPath, trackedPath = trackedDefault, dryRun = "0", stamp = "smoke", mode = undefined) {
+    const args = [syncScript, localPath, trackedPath, dryRun, stamp];
+    if (mode !== undefined) args.push(mode);
+    return spawnSync(process.execPath, args, { encoding: "utf8" });
+  }
+
+  function writeJson(name, value) {
+    const file = join(tmp, name);
+    writeFileSync(file, typeof value === "string" ? value : `${JSON.stringify(value, null, 2)}\n`);
+    return file;
+  }
+
+  test("merges tracked +codemode defaultTools while preserving local overrides, opt-outs and empty allowlists", () => {
+    const unset = writeJson("unset.json", { packages: [] });
+    const first = runSync(unset);
+    assert.equal(first.status, 0, first.stderr);
+    assert.match(first.stdout, /^SYNC /m);
+    assert.deepEqual(JSON.parse(readFileSync(unset, "utf8")).defaultTools, ["+codemode"]);
+    const second = runSync(unset);
+    assert.equal(second.status, 0, second.stderr);
+    assert.match(second.stdout, /^OK /);
+    assert.equal(readdirSync(tmp).filter((n) => n.startsWith("unset.json.bak.")).length, 1);
+
+    const delta = writeJson("delta.json", { packages: [], defaultTools: ["+grep", "-bash"] });
+    assert.equal(runSync(delta).status, 0);
+    assert.deepEqual(JSON.parse(readFileSync(delta, "utf8")).defaultTools, ["+grep", "-bash", "+codemode"]);
+
+    const allowlist = writeJson("allowlist.json", { packages: [], defaultTools: ["read", "bash"] });
+    assert.equal(runSync(allowlist).status, 0);
+    assert.deepEqual(JSON.parse(readFileSync(allowlist, "utf8")).defaultTools, ["read", "bash", "+codemode"]);
+
+    const hasPlain = writeJson("has-plain.json", { packages: [], defaultTools: ["read", "codemode"] });
+    assert.equal(runSync(hasPlain).status, 0);
+    assert.deepEqual(JSON.parse(readFileSync(hasPlain, "utf8")).defaultTools, ["read", "codemode"]);
+
+    const optOut = writeJson("opt-out.json", { packages: [], defaultTools: ["-codemode"] });
+    assert.equal(runSync(optOut).status, 0);
+    assert.deepEqual(JSON.parse(readFileSync(optOut, "utf8")).defaultTools, ["-codemode"]);
+
+    const mixedOptOut = writeJson("mixed-opt-out.json", { packages: [], defaultTools: ["read", "bash", "-codemode"] });
+    assert.equal(runSync(mixedOptOut).status, 0);
+    assert.deepEqual(JSON.parse(readFileSync(mixedOptOut, "utf8")).defaultTools, ["read", "bash", "-codemode"]);
+
+    const empty = writeJson("empty.json", { packages: [], defaultTools: [] });
+    assert.equal(runSync(empty).status, 0);
+    assert.deepEqual(JSON.parse(readFileSync(empty, "utf8")).defaultTools, []);
+  });
+
+  test("retires pi-mcp-adapter and strips -builtin:mcp only during adapter migration", () => {
+    const adapter = writeJson("adapter.json", {
+      packages: [
+        { source: "npm:pi-mcp-adapter@5.2.0", skills: ["mcp-scripting"] },
+        "npm:pi-mcp-adapter",
+        "npm:local-only-pkg",
+      ],
+      extensions: ["-builtin:mcp"],
+    });
+    assert.equal(runSync(adapter).status, 0);
+    const synced = JSON.parse(readFileSync(adapter, "utf8"));
+    const sources = synced.packages.map((entry) => (typeof entry === "string" ? entry : entry.source));
+    assert.equal(sources.some((s) => s.includes("pi-mcp-adapter")), false);
+    assert.equal(sources.includes("npm:local-only-pkg"), true);
+    assert.equal(Object.hasOwn(synced, "extensions"), false);
+
+    const mixedExt = writeJson("mixed-ext.json", {
+      packages: ["npm:pi-mcp-adapter@5.2.0"],
+      extensions: ["./custom.ts", "-builtin:mcp", "+builtin:mcp", "-builtin:llama.cpp"],
+    });
+    assert.equal(runSync(mixedExt).status, 0);
+    assert.deepEqual(JSON.parse(readFileSync(mixedExt, "utf8")).extensions, [
+      "./custom.ts",
+      "+builtin:mcp",
+      "-builtin:llama.cpp",
+    ]);
+
+    const deliberateOptOut = writeJson("deliberate-mcp-opt-out.json", {
+      packages: [],
+      extensions: ["-builtin:mcp"],
+    });
+    assert.equal(runSync(deliberateOptOut).status, 0);
+    assert.deepEqual(JSON.parse(readFileSync(deliberateOptOut, "utf8")).extensions, ["-builtin:mcp"]);
+    assert.equal(runSync(deliberateOptOut, trackedDefault, "1", "smoke", "check").status, 0);
+
+    const keepPlus = writeJson("keep-plus.json", { packages: [], extensions: ["+builtin:mcp"] });
+    assert.equal(runSync(keepPlus).status, 0);
+    assert.deepEqual(JSON.parse(readFileSync(keepPlus, "utf8")).extensions, ["+builtin:mcp"]);
+
+    const keepEmpty = writeJson("keep-empty.json", { packages: [], extensions: [] });
+    assert.equal(runSync(keepEmpty).status, 0);
+    assert.deepEqual(JSON.parse(readFileSync(keepEmpty, "utf8")).extensions, []);
+  });
+
+  test("fails closed without writing on malformed local or tracked inputs", () => {
+    const trackedBase = JSON.parse(readFileSync(trackedDefault, "utf8"));
+    const badLocals = [
+      "[]",
+      JSON.stringify({ packages: "npm:mitsupi@1.6.0" }),
+      JSON.stringify({ packages: [{ source: 42 }] }),
+      JSON.stringify({ packages: [""] }),
+      JSON.stringify({ packages: [{}] }),
+      JSON.stringify({ packages: [null] }),
+      JSON.stringify({ enabledModels: "zai/glm-5.3" }),
+      JSON.stringify({ enabledModels: [""] }),
+      JSON.stringify({ skills: "!deslop" }),
+      JSON.stringify({ defaultTools: "codemode" }),
+      JSON.stringify({ defaultTools: [1] }),
+      JSON.stringify({ defaultTools: [""] }),
+      JSON.stringify({ defaultTools: ["  "] }),
+      JSON.stringify({ extensions: "-builtin:mcp" }),
+      JSON.stringify({ extensions: [null] }),
+    ];
+    for (const [index, raw] of badLocals.entries()) {
+      const file = writeJson(`bad-local-${index}.json`, raw);
+      const child = runSync(file);
+      assert.equal(child.status, 1, raw);
+      assert.match(child.stderr, /^pi-agent-settings-sync: /);
+      assert.equal(readFileSync(file, "utf8"), raw);
+      assert.equal(readdirSync(tmp).filter((n) => n.startsWith(`bad-local-${index}.json.bak.`)).length, 0);
+    }
+
+    const badTrackedPayloads = [
+      "[]",
+      JSON.stringify({ ...trackedBase, packages: "npm:mitsupi@1.6.0" }),
+      JSON.stringify({ ...trackedBase, packages: [{ source: 42 }] }),
+      JSON.stringify({ ...trackedBase, packages: ["npm:pi-mcp-adapter@5.2.0"] }),
+      JSON.stringify({ ...trackedBase, packages: [{ source: "npm:pi-mcp-adapter@5.2.0" }] }),
+      JSON.stringify({ ...trackedBase, enabledModels: ["openai-codex/gpt-5.6-sol"] }),
+      JSON.stringify({ ...trackedBase, defaultProvider: "openai-codex", defaultModel: "gpt-5.6-sol" }),
+      JSON.stringify({ ...trackedBase, packages: [""] }),
+      JSON.stringify({ ...trackedBase, packages: [{}] }),
+      JSON.stringify({ ...trackedBase, packages: [null] }),
+      JSON.stringify({ ...trackedBase, enabledModels: "zai/glm-5.3" }),
+      JSON.stringify({ ...trackedBase, enabledModels: [1] }),
+      JSON.stringify({ ...trackedBase, skills: "!deslop" }),
+      JSON.stringify({ ...trackedBase, defaultTools: "codemode" }),
+      JSON.stringify({ ...trackedBase, defaultTools: ["codemode"] }),
+      JSON.stringify({ ...trackedBase, defaultTools: ["-codemode"] }),
+      JSON.stringify({ ...trackedBase, defaultTools: [1] }),
+      JSON.stringify({ ...trackedBase, extensions: "-builtin:mcp" }),
+      JSON.stringify({ ...trackedBase, extensions: [42] }),
+    ];
+    for (const [index, raw] of badTrackedPayloads.entries()) {
+      const local = writeJson(`good-local-${index}.json`, { packages: [] });
+      const before = readFileSync(local, "utf8");
+      const tracked = writeJson(`bad-tracked-${index}.json`, raw);
+      const child = runSync(local, tracked);
+      assert.equal(child.status, 1, raw);
+      assert.match(child.stderr, /^pi-agent-settings-sync: /);
+      assert.equal(readFileSync(local, "utf8"), before);
+      assert.equal(readdirSync(tmp).filter((n) => n.startsWith(`good-local-${index}.json.bak.`)).length, 0);
+    }
+
+    const freshBad = join(tmp, "fresh-bad-pkg/settings.json");
+    const badPkgTracked = writeJson("bad-pkg-tracked.json", { ...trackedBase, packages: [{ source: 42 }] });
+    const freshBadRun = runSync(freshBad, badPkgTracked, "0", "smoke", "managed");
+    assert.equal(freshBadRun.status, 1);
+    assert.match(freshBadRun.stderr, /tracked settings packages/);
+    assert.equal(existsSync(freshBad), false);
+
+    const local = writeJson("bad-mode.json", { packages: [] });
+    const badMode = runSync(local, trackedDefault, "1", "smoke", "invalid-mode");
+    assert.equal(badMode.status, 2);
+    assert.match(badMode.stderr, /^usage: pi-agent-settings-sync\.mjs/);
+  });
+
+  test("check mode reports drift, missing files, or symlinks without writing or mutating symlinks", () => {
+    const missing = join(tmp, "missing.json");
+    const missingCheck = runSync(missing, trackedDefault, "1", "smoke", "check");
+    assert.equal(missingCheck.status, 1);
+    assert.match(missingCheck.stdout, /^DRIFT .*missing.*--apply/);
+    assert.equal(existsSync(missing), false);
+
+    const driftedFile = writeJson("drifted.json", {
+      packages: ["npm:pi-mcp-adapter@5.2.0"],
+      extensions: ["-builtin:mcp"],
+    });
+    const driftedBefore = readFileSync(driftedFile, "utf8");
+    const driftedFileCheck = runSync(driftedFile, trackedDefault, "1", "smoke", "check");
+    assert.equal(driftedFileCheck.status, 1);
+    assert.match(driftedFileCheck.stdout, /^DRIFT .*remove extension -builtin:mcp.*--apply/);
+    assert.equal(readFileSync(driftedFile, "utf8"), driftedBefore);
+
+    const target = writeJson("target.json", { packages: [], extensions: ["-builtin:mcp"] });
+    const before = readFileSync(target, "utf8");
+    const link = join(tmp, "linked.json");
+    symlinkSync(target, link);
+    const driftedLinkCheck = runSync(link, trackedDefault, "1", "smoke", "check");
+    assert.equal(driftedLinkCheck.status, 1);
+    assert.match(driftedLinkCheck.stdout, /^DRIFT .*is a symlink.*--apply/);
+    assert.equal(lstatSync(link).isSymbolicLink(), true);
+    assert.equal(readFileSync(target, "utf8"), before);
+    assert.equal(readdirSync(tmp).filter((n) => n.includes(".bak.")).length, 0);
+
+    const converged = writeJson("converged-target.json", { packages: [] });
+    assert.equal(runSync(converged).status, 0);
+    const convergedBefore = readFileSync(converged, "utf8");
+    const convergedFileCheck = runSync(converged, trackedDefault, "1", "smoke", "check");
+    assert.equal(convergedFileCheck.status, 0, convergedFileCheck.stderr);
+    assert.equal(convergedFileCheck.stdout, "");
+    const convergedLink = join(tmp, "converged-link.json");
+    symlinkSync(converged, convergedLink);
+    const linkCheck = runSync(convergedLink, trackedDefault, "1", "smoke", "check");
+    assert.equal(linkCheck.status, 1);
+    assert.match(linkCheck.stdout, /^DRIFT .*is a symlink.*--apply/);
+    assert.equal(lstatSync(convergedLink).isSymbolicLink(), true);
+    assert.equal(readFileSync(converged, "utf8"), convergedBefore);
+
+    const dangling = join(tmp, "dangling-link.json");
+    symlinkSync(join(tmp, "absent.json"), dangling);
+    const danglingCheck = runSync(dangling, trackedDefault, "1", "smoke", "check");
+    assert.equal(danglingCheck.status, 1);
+    assert.match(danglingCheck.stdout, /^DRIFT .*is a symlink.*--apply/);
+    assert.equal(lstatSync(dangling).isSymbolicLink(), true);
+    assert.equal(existsSync(join(tmp, "absent.json")), false);
+
+    const fifo = join(tmp, "settings.fifo");
+    const mkfifo = spawnSync("mkfifo", [fifo], { encoding: "utf8" });
+    if (mkfifo.status === 0) {
+      for (const mode of ["check", "deploy"]) {
+        const res = spawnSync(process.execPath, [syncScript, fifo, trackedDefault, "1", "smoke", mode], {
+          encoding: "utf8",
+          timeout: 5000,
+        });
+        assert.equal(res.signal, null, `FIFO hung in ${mode} mode`);
+        assert.equal(res.status, 1, `FIFO should fail closed in ${mode} mode`);
+        assert.match(res.stderr, /not a regular file/);
+      }
+    }
+  });
+
+  test("managed bootstrap reconciles tracked settings on fresh homes and dangling symlinks so check passes", () => {
+    const trackedWithMissingDefault = writeJson("tracked-missing-default.json", {
+      defaultProvider: "zai",
+      defaultModel: "glm-5.3",
+      enabledModels: ["zai/glm-5.3-flash"],
+      packages: [],
+      skills: ["!deslop"],
+      defaultTools: ["+codemode"],
+    });
+
+    const fresh = join(tmp, "fresh-home/settings.json");
+    const freshDry = runSync(fresh, trackedWithMissingDefault, "1", "smoke", "managed");
+    assert.equal(freshDry.status, 0, freshDry.stderr);
+    assert.match(freshDry.stdout, /WOULD_COPY\s+Pi agent settings bootstrap/);
+    assert.match(freshDry.stdout, /WOULD_SYNC\s+Pi agent settings resources \(keep zai\/glm-5\.3\)/);
+    assert.equal(existsSync(fresh), false);
+
+    const freshApply = runSync(fresh, trackedWithMissingDefault, "0", "smoke", "managed");
+    assert.equal(freshApply.status, 0, freshApply.stderr);
+    assert.match(freshApply.stdout, /COPY\s+Pi agent settings bootstrap/);
+    assert.match(freshApply.stdout, /SYNC\s+Pi agent settings resources \(keep zai\/glm-5\.3\)/);
+    assert.deepEqual(JSON.parse(readFileSync(fresh, "utf8")).enabledModels, ["zai/glm-5.3-flash", "zai/glm-5.3"]);
+    const freshCheck = runSync(fresh, trackedWithMissingDefault, "1", "smoke", "check");
+    assert.equal(freshCheck.status, 0, freshCheck.stdout + freshCheck.stderr);
+
+    const dangling = join(tmp, "dangling-reconcile.json");
+    symlinkSync(join(tmp, "does-not-exist.json"), dangling);
+    const danglingDry = runSync(dangling, trackedWithMissingDefault, "1", "smoke", "managed");
+    assert.equal(danglingDry.status, 0, danglingDry.stderr);
+    assert.match(danglingDry.stdout, /WOULD_MIGRATE\s+Pi agent settings symlink to local file/);
+    assert.match(danglingDry.stdout, /WOULD_SYNC\s+Pi agent settings resources \(keep zai\/glm-5\.3\)/);
+    assert.equal(lstatSync(dangling).isSymbolicLink(), true);
+
+    const danglingApply = runSync(dangling, trackedWithMissingDefault, "0", "smoke", "managed");
+    assert.equal(danglingApply.status, 0, danglingApply.stderr);
+    assert.match(danglingApply.stdout, /COPY\s+Pi agent settings bootstrap after dangling symlink/);
+    assert.match(danglingApply.stdout, /SYNC\s+Pi agent settings resources \(keep zai\/glm-5\.3\)/);
+    assert.equal(lstatSync(dangling).isFile(), true);
+    assert.equal(lstatSync(dangling).mode & 0o777, 0o600);
+    assert.deepEqual(JSON.parse(readFileSync(dangling, "utf8")).enabledModels, ["zai/glm-5.3-flash", "zai/glm-5.3"]);
+    const danglingCheck = runSync(dangling, trackedWithMissingDefault, "1", "smoke", "check");
+    assert.equal(danglingCheck.status, 0, danglingCheck.stdout + danglingCheck.stderr);
   });
 });

@@ -9,13 +9,10 @@
       ],
       "prompts": [],
       "themes": []
-    },
-    {
-      "source": "npm:pi-mcp-adapter@5.2.0",
-      "skills": [
-        "mcp-scripting"
-      ]
     }
+  ],
+  "defaultTools": [
+    "+codemode"
   ],
   "skills": [
     "!adonisjs-architecture",
