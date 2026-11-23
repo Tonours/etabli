@@ -1361,5 +1361,19 @@ describe("pi-agent-settings-sync", () => {
     assert.match(danglingCheck.stdout, /^DRIFT .*is a symlink.*--apply/);
     assert.equal(lstatSync(dangling).isSymbolicLink(), true);
     assert.equal(existsSync(join(tmp, "absent.json")), false);
+
+    const fifo = join(tmp, "settings.fifo");
+    const mkfifo = spawnSync("mkfifo", [fifo], { encoding: "utf8" });
+    if (mkfifo.status === 0) {
+      for (const mode of ["check", "deploy"]) {
+        const res = spawnSync(process.execPath, [syncScript, fifo, trackedDefault, "1", "smoke", mode], {
+          encoding: "utf8",
+          timeout: 5000,
+        });
+        assert.equal(res.signal, null, `FIFO hung in ${mode} mode`);
+        assert.equal(res.status, 1, `FIFO should fail closed in ${mode} mode`);
+        assert.match(res.stderr, /not a regular file/);
+      }
+    }
   });
 });

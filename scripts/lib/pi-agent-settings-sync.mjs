@@ -25,10 +25,25 @@ function isPlainObject(value) {
 }
 
 function readSettings(path, label) {
+  let raw;
+  let fd;
   try {
-    return JSON.parse(fs.readFileSync(path, "utf8"));
+    fd = fs.openSync(path, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
+    if (!fs.fstatSync(fd).isFile()) {
+      fs.closeSync(fd);
+      fd = undefined;
+      fail(`cannot read ${label} settings at ${path}: not a regular file`);
+    }
+    raw = fs.readFileSync(fd, "utf8");
   } catch (error) {
     fail(`cannot read ${label} settings at ${path}: ${error.code ?? "invalid JSON"}`);
+  } finally {
+    if (fd !== undefined) fs.closeSync(fd);
+  }
+  try {
+    return JSON.parse(raw);
+  } catch {
+    fail(`cannot read ${label} settings at ${path}: invalid JSON`);
   }
 }
 
@@ -70,6 +85,9 @@ if (mode === "check") {
   if (stat.isSymbolicLink()) {
     console.log(`DRIFT          Pi agent settings at ${localPath} is a symlink; run scripts/deploy-agent-workflow --apply`);
     process.exit(1);
+  }
+  if (!stat.isFile()) {
+    fail(`cannot read local settings at ${localPath}: not a regular file`);
   }
 }
 

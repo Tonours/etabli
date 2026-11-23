@@ -749,6 +749,21 @@ env -u CLAUDE_CONFIG_DIR HOME="$LIVE_HOME" ETABLI_SKIP_LIVE_CHECKS=1 "$NODE_BIN"
   printf 'deploy --apply must detach symlinked Pi settings before syncing without mutating the original target\n' >&2
   exit 1
 }
+PI_BAD_LINK_TARGET="$TMP_DIR/pi-bad-link-target.json"
+printf '%s\n' '{"defaultTools":"codemode"}' >"$PI_BAD_LINK_TARGET"
+rm "$LIVE_HOME/.pi/agent/settings.json"
+ln -s "$PI_BAD_LINK_TARGET" "$LIVE_HOME/.pi/agent/settings.json"
+if env -u CLAUDE_CONFIG_DIR HOME="$LIVE_HOME" ETABLI_SKIP_LIVE_CHECKS=1 "$NODE_BIN" "$DEPLOY_SCRIPT" --apply --home "$LIVE_HOME" >"$TMP_DIR/live-pi-bad-link.out" 2>&1; then
+  printf 'deploy --apply succeeded with malformed symlinked Pi settings\n' >&2
+  exit 1
+fi
+[ -L "$LIVE_HOME/.pi/agent/settings.json" ] && [ "$(readlink "$LIVE_HOME/.pi/agent/settings.json")" = "$PI_BAD_LINK_TARGET" ] &&
+  [ "$(cat "$PI_BAD_LINK_TARGET")" = '{"defaultTools":"codemode"}' ] || {
+  printf 'deploy --apply must leave a malformed Pi settings symlink intact:\n' >&2
+  cat "$TMP_DIR/live-pi-bad-link.out" >&2
+  exit 1
+}
+rm "$LIVE_HOME/.pi/agent/settings.json"
 printf '%s\n' "$PI_SETTINGS_OK" >"$LIVE_HOME/.pi/agent/settings.json"
 grep -q 'SKIP .*Pi skill load check' "$TMP_DIR/live-ok.out" || { printf 'live check must say it skipped the Pi leg without pi:\n' >&2; cat "$TMP_DIR/live-ok.out" >&2; exit 1; }
 mkdir -p "$LIVE_HOME/.claude/skills/ungoverned-personal"
