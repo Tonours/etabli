@@ -209,7 +209,7 @@ export function writeCarriedFixture(dir, now = Date.now()) {
     user("c3", at(40), "sdk-cli"),
     att("c3", at(40), { type: "prompt_snapshot" }),
     att("c3", at(40), { type: "prompt_snapshot", tools: [] }),
-    att("c3", at(40), { type: "prompt_snapshot", tools: [{}] }),
+    att("c3", at(40), { type: "prompt_snapshot", tools: [{}, { name: "" }, { name: "  " }] }),
   ]));
   writeFileSync(join(project, "old.jsonl"), jsonl([
     user("old", at(8 * 1440), "cli"),

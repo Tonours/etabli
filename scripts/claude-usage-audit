@@ -235,7 +235,7 @@ function collectCarried(c, a) {
   const tool = (name) => { const srv = mcpServer(name); if (srv === undefined) c.tools.add(identClass(name)); else c.servers.add(srv); };
   if (a.type === 'prompt_snapshot' && Array.isArray(a.tools)) {
     // A list with no named tool is no inventory: counting it would let a tool read as never carried.
-    for (const t of a.tools) if (typeof t?.name === 'string') { tool(t.name); c.snapshot = true; }
+    for (const t of a.tools) if (typeof t?.name === 'string' && t.name.trim()) { tool(t.name); c.snapshot = true; }
   } else if (a.type === 'deferred_tools_delta') for (const n of strings(a.addedNames)) tool(n);
   else if (a.type === 'mcp_instructions_delta') for (const n of strings(a.addedNames)) c.instr.add(serverKey(n));
   else if (a.type === 'agent_listing_delta') for (const n of strings(a.addedTypes)) c.agents.add(identClass(n));
