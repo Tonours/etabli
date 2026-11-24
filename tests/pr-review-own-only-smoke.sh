@@ -163,6 +163,32 @@ gone "$f.registered" "$f.token" "$f.claimed" "$f.launch"
 [ "$(cat "$WATCHED")" = $'acme/widgets\t3' ] || fail "watched: $(cat "$WATCHED")"
 pass 'purge: skipped posting-off for an own PR, skipped own-only for a foreign one, foreign entry dropped'
 
+pr_views() { grep -c '^pr view' "$GH_CALLS" || true; }
+reset; own_only_on
+f="$(key_of acme/widgets 25)"; o="$(key_of acme/widgets 26)"; u="$(key_of acme/widgets 27)"
+author acme/widgets 25 someone; author acme/widgets 26 owner; author acme/widgets 27 -; watch acme/widgets 26
+printf '%s\tsomeone\n' "$HEAD" >"$f.registered"; printf '%s\tdryrun\t0\t1\n' "$HEAD" >"$o.status"; printf '%s\tsomeone\n' "$HEAD" >"$u.registered"
+rc=0; purge_foreign owner || rc=$?
+[ "$rc" = 3 ] || fail "first purge with an unreadable author: exit $rc"
+: >"$GH_CALLS"
+printf '%s\tsomeone\n' "$HEAD" >"$f.registered"
+rc=0; purge_foreign owner || rc=$?
+[ "$rc" = 3 ] || fail "second purge with an unreadable author: exit $rc"
+[ "$(pr_views)" = 1 ] || fail "second purge: $(pr_views) pr view calls, want 1 (the unreadable author only): $(cat "$GH_CALLS")"
+gone "$f.registered"
+[ "$(first_line "$f.status")" = 'skipped own-only' ] || fail "known foreign key: $(first_line "$f.status")"
+[ "$(first_line "$o.status")" = "$(printf '%s\tdryrun\t0\t1' "$HEAD")" ] || fail "known own dry-run key: $(first_line "$o.status")"
+[ "$(cat "$WATCHED")" = $'acme/widgets\t26' ] || fail "watched: $(cat "$WATCHED")"
+present "$u.registered"
+author acme/widgets 27 someone; : >"$GH_CALLS"
+purge_foreign owner
+[ "$(pr_views)" = 1 ] || fail "author readable again: $(pr_views) pr view calls, want 1"
+gone "$u.registered"
+[ "$(first_line "$u.status")" = 'skipped own-only' ] || fail "once readable: $(first_line "$u.status")"
+: >"$GH_CALLS"; purge_foreign owner
+[ "$(pr_views)" = 0 ] || fail "settled purge: $(pr_views) pr view calls, want 0"
+pass 'purge: a known author is not asked again, a failed read is, outcomes unchanged'
+
 reset; own_only_on
 c="$(key_of acme/widgets 3)"; f="$(key_of acme/widgets 4)"
 author acme/widgets 3 owner; author acme/widgets 4 someone; watch acme/widgets 3; watch acme/widgets 4

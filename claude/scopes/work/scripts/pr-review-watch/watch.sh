@@ -391,16 +391,17 @@ process_watched() {
   remove_finished_clones
 }
 
+# A PR author never changes: a read is kept across ticks, a failed one is retried next time.
 cached_author() {
   local id author
   id="$(printf '%s#%s' "$1" "$2" | tr '[:upper:]' '[:lower:]')"
-  if author="$(awk -F'\t' -v id="$id" '$1 == id {print $2; found = 1; exit} END {exit !found}' "$AUTHOR_CACHE")"; then
-    [ "$author" != - ] && printf '%s' "$author"
+  if author="$(awk -F'\t' -v id="$id" '$1 == id && $2 != "" {print $2; found = 1; exit} END {exit !found}' "$AUTHOR_CACHE" 2>/dev/null)"; then
+    printf '%s' "$author"
     return
   fi
-  author="$(pr_author_login "$1" "$2")" || author=-
+  author="$(pr_author_login "$1" "$2")" || return 1
   printf '%s\t%s\n' "$id" "$author" >>"$AUTHOR_CACHE"
-  [ "$author" != - ] && printf '%s' "$author"
+  printf '%s' "$author"
 }
 
 remove_reservation() {
@@ -422,7 +423,7 @@ purge_foreign() {
   local me file base key pair author status_mode marker unread=0 next="$WATCHED.next" entry_repo entry_number
   local -a keys=()
   me="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
-  AUTHOR_CACHE="$(mktemp)" || return 1
+  AUTHOR_CACHE="$STATE_DIR/authors"
   while IFS= read -r key; do
     keys+=("$key")
   done < <(find "$RUNS" -maxdepth 1 \( -type f -o -type l \) | while IFS= read -r file; do
@@ -458,7 +459,6 @@ purge_foreign() {
     printf '%s\t%s\n' "$entry_repo" "$entry_number" >>"$next"
   done <"$WATCHED"
   mv "$next" "$WATCHED"
-  rm -f "$AUTHOR_CACHE"
   [ "$unread" = 0 ] || return 3
 }
 
