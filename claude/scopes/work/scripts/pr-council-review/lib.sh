@@ -10,8 +10,10 @@ CLAUDE_PASS_IDLE="${PR_REVIEW_PASS_IDLE:-900}"
 CLAUDE_MAX_TURNS="${PR_REVIEW_MAX_TURNS:-200}"
 CLAUDE_MAX_BUDGET_USD="${PR_REVIEW_MAX_BUDGET_USD:-25}"
 STOP_GRACE_SECONDS="${PR_REVIEW_STOP_GRACE:-10}"
+CLAUDE_PASS_CLAUDEAI_MCP=false
 AUTO_PROFILE=(--permission-mode auto --permission-prompts none)
-READ_ONLY_PROFILE=("${AUTO_PROFILE[@]}" --disallowedTools=Edit,Write,NotebookEdit)
+LEAN_DENY='Workflow,ListAgents,ShareOnboardingGuide,Agent(Explore),Agent(Plan),Agent(statusline-setup)'
+READ_ONLY_PROFILE=("${AUTO_PROFILE[@]}" "--disallowedTools=Edit,Write,NotebookEdit,$LEAN_DENY")
 ISOLATED_SETTINGS=(--settings '{"disableAllHooks":true}' --strict-mcp-config --setting-sources project,local)
 USAGE_TARGET="${USAGE_TARGET:-}"
 export GIT_TERMINAL_PROMPT=0
@@ -385,12 +387,12 @@ claude_pass() {
   [ -n "$CLAUDE" ] || { echo "=== $label: claude binary not found" >&2; return 1; }
   case "$profile" in
     read-only) set -- "${READ_ONLY_PROFILE[@]}" "$@" ;;
-    auto) set -- "${AUTO_PROFILE[@]}" "$@" ;;
+    auto) set -- "${AUTO_PROFILE[@]}" "--disallowedTools=$LEAN_DENY" "$@" ;;
     *) echo "=== $label: unknown profile $profile" >&2; return 1 ;;
   esac
   rm -f "$raw.stream.stalled"
   started=$SECONDS
-  run_with_timeout --idle "$CLAUDE_PASS_IDLE" "$raw.stream" "$CLAUDE_PASS_TIMEOUT" "$CLAUDE" -p "$prompt" \
+  run_with_timeout --idle "$CLAUDE_PASS_IDLE" "$raw.stream" "$CLAUDE_PASS_TIMEOUT" env FORCE_PROMPT_CACHING_5M=1 ENABLE_CLAUDEAI_MCP_SERVERS="$CLAUDE_PASS_CLAUDEAI_MCP" "$CLAUDE" -p "$prompt" \
     --output-format stream-json --verbose --max-turns "$CLAUDE_MAX_TURNS" --max-budget-usd "$CLAUDE_MAX_BUDGET_USD" "$@" \
     </dev/null >"$raw.stream" 2>"$raw.err" || rc=$?
   record_timing "$label" "$started" "$rc"

@@ -13,6 +13,8 @@ export HOME="$TMP_DIR/home" TMPDIR="$TMP_DIR/tmp"
 unset XDG_CONFIG_HOME
 export FAKE_DIR="$TMP_DIR/fake"
 export FAKE_LOG="$FAKE_DIR/calls.log"
+LEAN_DENY='Workflow,ListAgents,ShareOnboardingGuide,Agent(Explore),Agent(Plan),Agent(statusline-setup)'
+export FORCE_PROMPT_CACHING_5M=inherited ENABLE_CLAUDEAI_MCP_SERVERS=inherited
 export FAKE_FIXTURES="$FIXTURES"
 export GH_CONFIG_DIR="$TMP_DIR/gh-config" GH_TOKEN=invalid-flow-token GITHUB_TOKEN=invalid-flow-token
 export GH_ENTERPRISE_TOKEN=invalid-flow-token GITHUB_ENTERPRISE_TOKEN=invalid-flow-token
@@ -109,6 +111,16 @@ case "$prompt" in
   *) echo "fake claude: unknown prompt" >&2; exit 1 ;;
 esac
 printf 'claude %s GIT_TERMINAL_PROMPT=%s %s\n' "$role" "${GIT_TERMINAL_PROMPT:-unset}" "${flags[*]}" >>"$FAKE_LOG"
+deny='' settings=0
+for arg in "${flags[@]}"; do
+  case "$arg" in
+    --disallowedTools=*|--disallowed-tools=*) deny="$deny|${arg#*=}" ;;
+    --disallowedTools|--disallowed-tools) deny="$deny|bare-variadic-form" ;;
+    --settings|--settings=*) settings=$((settings + 1)) ;;
+  esac
+done
+printf '%s FORCE_PROMPT_CACHING_5M=%s ENABLE_CLAUDEAI_MCP_SERVERS=%s settings=%s deny=%s\n' "$role" \
+  "${FORCE_PROMPT_CACHING_5M:-unset}" "${ENABLE_CLAUDEAI_MCP_SERVERS:-unset}" "$settings" "$deny" >>"$FAKE_DIR/profiles.log"
 [ "$role" != VALIDATOR ] || printf '%s' "$prompt" >"$FAKE_DIR/validator-prompt.txt"
 [ "$role" != VALIDATOR ] || { pwd -P; git rev-parse --show-toplevel HEAD; git remote get-url origin; cat .claude/settings.local.json; ls node_modules; } >"$FAKE_DIR/validator-cwd" 2>/dev/null
 [ "$role" != PHASEA_ONLY ] || printf '%s' "$prompt" >"$FAKE_DIR/phasea-prompt.txt"
@@ -931,7 +943,7 @@ case_timing_returns() {
         FAKE_QUALITY_PATCH='.result = "timing-sentinel"' FAKE_QUALITY_TEXT=timing-sentinel FAKE_QUALITY_RC="$process_rc" /bin/bash -c '
           . "$1"
           if [ "$3" = timeout ]; then run_with_timeout() { return 124; }; fi
-          claude_pass code-review "$2" read-only "/code-review high"
+          claude_pass code-review "$2" read-only "/code-review high" "${ISOLATED_SETTINGS[@]}"
         ' _ "$SCRIPTS/pr-council-review/lib.sh" "$TMP_DIR/timed.json" "$mode" >"$TMP_DIR/timed.out" 2>"$TMP_DIR/timed.err" || rc=$?
       check "timing $sample ($log): semantic exit unchanged" [ "$rc" = "$expected" ]
       if [ -n "$expected_text" ]; then printf '%s\n' "$expected_text"; fi >"$TMP_DIR/timed.expected"
@@ -1510,7 +1522,7 @@ case_delta_structured() {
   FAKE_DELTA_PATCH="$(delta_review '{"findings":[{"path":"a.txt","line":2,"body":"two is wrong","severity":"medium","verification":"confirmed"},{"path":"m.py","line":9,"body":"outside the diff","severity":"high","verification":"confirmed"}],"confident":false}')" \
     verify_after_findings "$HEAD2"
   check "delta: fakes answered" called "claude DELTA"
-  check "delta: read-only profile" eval 'argv_of DELTA | grep -q -- "--permission-mode auto --permission-prompts none --disallowedTools=Edit,Write,NotebookEdit "'
+  check "delta: read-only profile" eval 'argv_of DELTA | grep -q -- "--permission-mode auto --permission-prompts none --disallowedTools=Edit,Write,NotebookEdit,$LEAN_DENY "'
   check "delta: no bypass" eval '! argv_of DELTA | grep -q -- --dangerously-skip-permissions'
   check "delta: json schema" eval 'argv_of DELTA | grep -q -- "--json-schema "'
   check "delta: low effort" eval 'argv_of DELTA | grep -q -- "--effort low "'
@@ -2250,6 +2262,28 @@ case_stalled_pass
 case_linked_on_later_pushes
 case_council_hangup
 fi
+
+check_pass_profiles() {
+  local log="$FAKE_DIR/profiles.log" role line want_mcp want_deny want_settings wrong=''
+  [ $# -eq 0 ] || [ -s "$log" ] || return 0
+  check "profiles: claude passes were logged" [ -s "$log" ]
+  while read -r role line; do
+    case "$role" in
+      VALIDATOR|PHASEA_ONLY) want_mcp=false want_deny="|$LEAN_DENY" want_settings=0 ;;
+      AUTOREVIEW) want_mcp=true want_deny="|Edit,Write,NotebookEdit,$LEAN_DENY" want_settings=0 ;;
+      QUALITY|THERMO|DELTA|VERIFY) want_mcp=false want_deny="|Edit,Write,NotebookEdit,$LEAN_DENY" want_settings=1 ;;
+      *) want_mcp=unknown-role want_deny='' want_settings='' ;;
+    esac
+    [ "$line" = "FORCE_PROMPT_CACHING_5M=1 ENABLE_CLAUDEAI_MCP_SERVERS=$want_mcp settings=$want_settings deny=$want_deny" ] ||
+      wrong="$wrong$role $line"$'\n'
+  done <"$log"
+  printf '%s' "$wrong"
+  check "profiles: every pass has one lean deny flag, its settings count, the 5m cache and connectors off outside autoreview" [ -z "$wrong" ]
+  [ $# -ne 0 ] || for role in VALIDATOR PHASEA_ONLY QUALITY THERMO DELTA VERIFY AUTOREVIEW; do
+    check "profiles: a $role pass was logged" grep -q "^$role " "$log"
+  done
+}
+check_pass_profiles "$@"
 
 if [ "$failures" -ne 0 ]; then
   printf 'PR review flow smoke test: %s failure(s)\n' "$failures"
