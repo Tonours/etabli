@@ -184,6 +184,7 @@ describe("claude-usage-audit j_carriedVsUsed", () => {
       claude_ai_Foo_Bar: { carriedSessions: 1, instructionSessions: 1, usedSessions: 1, calls: 1 },
       claude_ai_Baz_Qux: { carriedSessions: 1, instructionSessions: 1, usedSessions: 0, calls: 0 },
       team: { carriedSessions: 1, instructionSessions: 1, usedSessions: 0, calls: 0 },
+      dash: { carriedSessions: 1, instructionSessions: 1, usedSessions: 0, calls: 0 },
       "(other)": { carriedSessions: 1, instructionSessions: 0, usedSessions: 0, calls: 0 },
       srv_one: { carriedSessions: 1, instructionSessions: 0, usedSessions: 0, calls: 0 },
     });

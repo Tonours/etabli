@@ -222,11 +222,12 @@ const useById = new Map();      // in-window tool_use id -> {sid, tool, server, 
 const uses = [];                // the same, for a tool_use without a string id
 const strings = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []);
 // An instruction names a server by display name (`claude.ai Foo Bar`), a tool by its normalized
-// name (`mcp__claude_ai_Foo_Bar__x`): both key on the normalized form, Claude Code's rule, cut at
-// the first `__` as its tool-name parser cuts the server segment (`team  tools` -> `team`).
+// name (`mcp__claude_ai_Foo_Bar__x`): both key on the normalized form (Claude Code's rule), then on
+// the segment its tool-name parser reads back from `mcp__<form>__<tool>` (`team  tools`, `team_` -> `team`).
 const serverKey = (name) => {
   const k = name.replace(/[^A-Za-z0-9_-]/g, '_');
-  return identClass((name.startsWith('claude.ai ') ? k.replace(/_+/g, '_').replace(/^_|_$/g, '') : k).split('__')[0]);
+  const form = name.startsWith('claude.ai ') ? k.replace(/_+/g, '_').replace(/^_|_$/g, '') : k;
+  return identClass(`mcp__${form}__x`.split('__')[1]);
 };
 // A tool name is already normalized: its server segment (Claude Code's own split) prints only as an identifier.
 const mcpServer = (tool) => (tool.startsWith('mcp__') ? identClass(tool.split('__')[1]) : undefined);

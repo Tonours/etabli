@@ -194,8 +194,8 @@ export function writeCarriedFixture(dir, now = Date.now()) {
     att("c2", at(45), { type: "prompt_snapshot", tools: [{ name: "Read" }, { name: `${MARKER} bad name` }, { name: `mcp__${MARKER} bad name__x` }] }),
     att("c2", at(45), { type: "agent_listing_delta", addedTypes: ["Explore"] }),
     att("c2", at(45), { type: "deferred_tools_delta", addedNames: ["mcp__claude_ai_Baz_Qux__y"] }),
-    att("c2", at(45), { type: "mcp_instructions_delta", addedNames: ["claude.ai Baz (Qux)", "team  tools"] }),
-    att("c2", at(45), { type: "deferred_tools_delta", addedNames: ["mcp__team__tools__search"] }),
+    att("c2", at(45), { type: "mcp_instructions_delta", addedNames: ["claude.ai Baz (Qux)", "team  tools", "dash_"] }),
+    att("c2", at(45), { type: "deferred_tools_delta", addedNames: ["mcp__team__tools__search", "mcp__dash___q"] }),
     att("c2", at(44), { type: "prompt_snapshot", tools: [{ name: "NotebookEdit" }] }, { isSidechain: true }),
     turn("c2", at(43), "t3", [call("ag4", "Agent", { subagent_type: "Plan" })]),
   ]));
