@@ -12,6 +12,7 @@ export PR_REVIEW_WATCH_STATE_DIR="$fixture/state" PR_REVIEW_WATCH_COUNCIL="$fixt
 export PR_REVIEW_USAGE_LOG="$fixture/usage" PR_REVIEW_STOP_GRACE=1
 export CALLS="$fixture/calls" ARGS="$fixture/args" WRITES="$fixture/writes"
 export VIEW_FILE="$fixture/view-target"
+export FORCE_PROMPT_CACHING_5M=inherited ENABLE_CLAUDEAI_MCP_SERVERS=inherited
 export BASE_VIEW_FILE="$fixture/view-base"
 mkdir -p "$HOME/.local/bin" "$TMPDIR" "$PR_REVIEW_WATCH_STATE_DIR/runs" "$PR_REVIEW_WATCH_STATE_DIR/reports" "$GH_CONFIG_DIR"
 : >"$CALLS"; : >"$ARGS"; : >"$WRITES"
@@ -50,6 +51,7 @@ cat >"$HOME/.local/bin/claude" <<'CLAUDE'
 #!/bin/bash
 [ "${1:-}" != --version ] || { echo 'test-cli'; exit 0; }
 echo private >>"$CALLS"
+printf '@@call FORCE_PROMPT_CACHING_5M=%s ENABLE_CLAUDEAI_MCP_SERVERS=%s\n' "${FORCE_PROMPT_CACHING_5M:-unset}" "${ENABLE_CLAUDEAI_MCP_SERVERS:-unset}" >>"$ARGS"
 printf '%s\n' "$@" >>"$ARGS"
 prompt="$2"
 items="$(sed -n 's/^SOURCE_ITEMS: //p' <<<"$prompt")"
@@ -300,12 +302,21 @@ echo 'ok a missing historical object in a recreated clone triggers one complete 
 # The actual CLI profile, rather than the fake model, prevents model-side writes.
 node - "$ARGS" <<'JS'
 const fs = require('node:fs');
-const args = fs.readFileSync(process.argv[2], 'utf8').split('\n');
-if (!args.includes('--tools') || args[args.indexOf('--tools') + 1] !== 'Read,Grep,Glob') throw Error('read tools not restricted');
-if (!args.includes('--strict-mcp-config')) throw Error('MCP not isolated');
-if (args.some(a => a === '--allowedTools' || a.startsWith('--allowedTools='))) throw Error('unexpected permission grant');
+const lean = 'Workflow,ListAgents,ShareOnboardingGuide,Agent(Explore),Agent(Plan),Agent(statusline-setup)';
+const calls = fs.readFileSync(process.argv[2], 'utf8').split('@@call ').slice(1);
+if (calls.length === 0) throw Error('no private pass was logged');
+for (const call of calls) {
+  const [env, ...args] = call.split('\n');
+  if (env !== 'FORCE_PROMPT_CACHING_5M=1 ENABLE_CLAUDEAI_MCP_SERVERS=false') throw Error(`pass env: ${env}`);
+  if (!args.includes('--tools') || args[args.indexOf('--tools') + 1] !== 'Read,Grep,Glob') throw Error('read tools not restricted');
+  if (!args.includes('--strict-mcp-config')) throw Error('MCP not isolated');
+  if (args.some(a => a === '--allowedTools' || a.startsWith('--allowedTools='))) throw Error('unexpected permission grant');
+  const deny = args.filter(a => /^--disallowed(Tools|-tools)(=|$)/.test(a));
+  if (deny.length !== 1 || deny[0] !== `--disallowedTools=Edit,Write,NotebookEdit,${lean}`) throw Error(`deny flags: ${deny.join(' ')}`);
+  if (args.filter(a => a === '--settings' || a.startsWith('--settings=')).length !== 1) throw Error('expected exactly one --settings');
+}
 JS
 [ ! -s "$WRITES" ]
 for forbidden in registered council-done council-clean watermark approval-pending; do [ ! -e "$key.$forbidden" ]; done
-echo 'ok zero gh writes, no posting authority and read-only model tool profile'
+echo 'ok zero gh writes, no posting authority, read-only lean tool profile and the cache and MCP env'
 echo 'private smoke: all scenarios passed'

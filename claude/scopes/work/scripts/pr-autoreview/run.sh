@@ -102,6 +102,7 @@ PROMPT="$(render_template "$PROMPT_FILE" REPO="$REPO" PR_NUMBER="$PR_NUMBER" PR_
 echo "reviewing PR #$PR_NUMBER ($PR_URL) at ${SHA:0:8} with $MODEL"
 cd "$HOME"
 CLAUDE_PASS_TIMEOUT="$TIMEOUT"
+CLAUDE_PASS_CLAUDEAI_MCP=true
 USAGE_TARGET="$REPO#$PR_NUMBER@$SHA"
 RC=0
 claude_pass autoreview "$RAW" read-only "$PROMPT" --model "$MODEL" --effort "$EFFORT" >"$RUN_DIR/result.md" || RC=$?
