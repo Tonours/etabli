@@ -128,8 +128,9 @@ drift for both Pi and Claude read-only without writing or creating backups.
   `awaySummaryEnabled` and optional
   `env.CLAUDE_CODE_SUBAGENT_MODEL` support (not activated in the shared fragment).
   The PATH check does not certify SDK/IDE runtimes; other local env keys are preserved. The
-  whitelist also admits `permissions.defaultMode` and the two skip prompts, and
-  refuses any other key. Nothing is read back into the repo.
+  whitelist also admits `permissions.defaultMode`, `permissions.deny` (allowlisted
+  entries, merged by union, ADR-0054) and the two skip prompts, and refuses any
+  other key. Nothing is read back into the repo.
   Managed suggestion/away-recap defaults are false and overwrite local toggles
   on deploy; their native environment overrides are preserved. Compaction,
   model, effort and permission defaults are not changed by these two keys.

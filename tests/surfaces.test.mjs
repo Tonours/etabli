@@ -729,6 +729,7 @@ describe("settings writes", () => {
 describe("Claude managed env", () => {
   const sync = fileURLToPath(new URL("../scripts/lib/claude-settings-sync.mjs", import.meta.url));
   const secret = "SYNTHETIC_PRIVATE_VALUE_NEVER_LOG";
+  const trackedDeny = ["Artifact", "SendFeedback", "ShareOnboardingGuide", "Agent(Explore)", "Agent(Plan)", "Agent(statusline-setup)"];
   function fixture(env, local = { skillOverrides: {} }) {
     const bin = join(tmp, "bin");
     mkdirSync(bin, { recursive: true });
@@ -796,11 +797,16 @@ describe("Claude managed env", () => {
     assert.equal(settings.autoCompactWindow, 200000);
     assert.equal(settings.bashOutputMaxChars, 15000);
     assert.equal(settings.skillListingMaxDescChars, 400);
+    assert.deepEqual(settings.permissions, { deny: trackedDeny });
     for (const key of ["model", "effortLevel", "idleCompaction", "autoCompactEnabled"]) assert.equal(settings[key], undefined);
     assert.equal(lstatSync(f.settings).mode & 0o777, 0o600);
   });
   test("background fragments cannot admit adjacent privileged settings or env keys", () => {
-    for (const extra of [{ model: "haiku", env: { CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION: "0" } }, { env: { CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION: "0" } }]) {
+    for (const extra of [
+      { model: "haiku", env: { CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION: "0" } },
+      { env: { CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION: "0" } },
+      ...["allow", "ask", "additionalDirectories"].map((key) => ({ permissions: { deny: ["Artifact"], [key]: ["Bash"] } })),
+    ]) {
       const original = { skillOverrides: {}, env: { TOKEN: secret } };
       const f = fixture(undefined, original);
       writeFileSync(f.tracked, JSON.stringify({ skillOverrides: {}, promptSuggestionEnabled: false, ...extra }));
@@ -1037,6 +1043,74 @@ describe("Claude managed env", () => {
       assert.equal(readFileSync(f.settings, "utf8"), bytes);
       assert.equal(existsSync(`${f.settings}.bak.first`), false);
     }
+  });
+  test("permissions.deny merges by union, keeps local entries and keys, then settles", () => {
+    const original = { skillOverrides: {}, env: { TOKEN: secret }, permissions: { allow: ["Bash(ls:*)"], defaultMode: "default", deny: ["mcp__x", "Bash(rm:*)", "Artifact"] } };
+    const f = trackedFixture({ permissions: { deny: trackedDeny } }, original);
+    const dry = f.run("dry", "1");
+    assert.equal(dry.status, 0, dry.stderr);
+    assert.match(dry.stdout, /^WOULD_SYNC +Claude tracked settings.*0 skills, 6 settings keys/);
+    assert.deepEqual(JSON.parse(readFileSync(f.settings)), original);
+    assert.equal(existsSync(`${f.settings}.bak.dry`), false);
+    const first = f.run();
+    assert.equal(first.status, 0, first.stderr);
+    assert.match(first.stdout, /SET +permissions\.deny \+= SendFeedback\n/);
+    assert.doesNotMatch(first.stdout, /permissions\.deny \+= Artifact\n/);
+    assert.match(first.stdout, /0 skills, 6 settings keys/);
+    assert.doesNotMatch(first.stdout + first.stderr, new RegExp(secret));
+    assert.deepEqual(JSON.parse(readFileSync(f.settings)), { ...original, permissions: { ...original.permissions, deny: ["mcp__x", "Bash(rm:*)", ...trackedDeny] } });
+    assert.deepEqual(JSON.parse(readFileSync(`${f.settings}.bak.first`)), original);
+    const bytes = readFileSync(f.settings, "utf8");
+    const second = f.run("second");
+    assert.equal(second.status, 0, second.stderr);
+    assert.match(second.stdout, /^OK +Claude tracked settings/);
+    assert.equal(readFileSync(f.settings, "utf8"), bytes);
+    assert.equal(existsSync(`${f.settings}.bak.second`), false);
+  });
+  test("refuses a tracked deny entry outside the allowlist or a malformed list before backup or write", () => {
+    for (const deny of [["Bash"], ["mcp__x"], ["Artifact", "Artifact"], ["Artifact", 1], "Artifact", [], null]) {
+      const f = trackedFixture({ permissions: { deny } }, { skillOverrides: {}, env: { TOKEN: secret } });
+      const bytes = readFileSync(f.settings, "utf8");
+      const child = f.run();
+      assert.equal(child.status, 1, JSON.stringify(deny));
+      assert.match(child.stderr, /^claude-settings-sync: permissions\.deny/);
+      assert.doesNotMatch(child.stdout + child.stderr, new RegExp(secret));
+      assert.equal(readFileSync(f.settings, "utf8"), bytes);
+      assert.equal(existsSync(`${f.settings}.bak.first`), false);
+    }
+  });
+  test("check passes on a local deny superset and reports drift while a tracked entry is missing", () => {
+    const superset = trackedFixture({ permissions: { deny: trackedDeny } }, { skillOverrides: {}, permissions: { deny: ["Bash(rm:*)", ...[...trackedDeny].reverse()] } });
+    const pass = superset.run("check", "0", "check");
+    assert.equal(pass.status, 0, pass.stdout + pass.stderr);
+    const f = trackedFixture({ permissions: { deny: trackedDeny } }, { skillOverrides: {}, permissions: { deny: ["Bash(rm:*)", ...trackedDeny.slice(1)] } });
+    const bytes = readFileSync(f.settings, "utf8");
+    const drift = f.run("check", "0", "check");
+    assert.equal(drift.status, 1);
+    assert.match(drift.stdout, /^DRIFT/);
+    assert.equal(readFileSync(f.settings, "utf8"), bytes);
+    assert.equal(existsSync(`${f.settings}.bak.check`), false);
+  });
+  test("refuses malformed local permissions or deny before backup or write", () => {
+    for (const permissions of ["deny", ["Artifact"], null, { deny: "Artifact" }, { deny: null }, { deny: {} }, { deny: ["Bash(rm:*)", 1] }]) {
+      const f = trackedFixture({ permissions: { deny: trackedDeny } }, { skillOverrides: {}, env: { TOKEN: secret }, permissions });
+      const bytes = readFileSync(f.settings, "utf8");
+      const child = f.run();
+      assert.equal(child.status, 1, JSON.stringify(permissions));
+      assert.match(child.stderr, /^claude-settings-sync: local settings permissions/);
+      assert.doesNotMatch(child.stdout + child.stderr, new RegExp(secret));
+      assert.equal(readFileSync(f.settings, "utf8"), bytes);
+      assert.equal(existsSync(`${f.settings}.bak.first`), false);
+    }
+  });
+  test("permissions.deny merges with no claude on PATH while the gated keys skip", () => {
+    const f = trackedFixture({ ...fullTracked, permissions: { deny: trackedDeny } }, { skillOverrides: {} }, null);
+    const child = f.run();
+    assert.equal(child.status, 0, child.stderr);
+    assert.match(child.stderr, /WARN +env\.CLAUDE_CODE_SUBAGENT_MODEL skipped/);
+    const settings = JSON.parse(readFileSync(f.settings));
+    assert.deepEqual(settings.permissions, { deny: trackedDeny });
+    assert.equal(settings.env, undefined);
   });
   test("per-key gates skip only the keys above the probed version", () => {
     const mixed = trackedFixture(fullTracked, { skillOverrides: {} }, "2.1.270");

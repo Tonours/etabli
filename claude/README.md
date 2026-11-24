@@ -298,6 +298,7 @@ place.
 | `autoCompactWindow` | `200000` | 2.1.288 |
 | `bashOutputMaxChars` | `15000` | 2.1.261 |
 | `skillListingMaxDescChars` | `400` | none (ungated) |
+| `permissions.deny` | six unused tools and agent types (ADR-0054) | none (ungated) |
 
 A gated key is skipped with a warning naming its minimum version when
 `claude --version` on PATH is older, absent, failing or unreadable; the
@@ -306,6 +307,14 @@ documented minimum and always syncs, since an older client ignores a key it
 does not know. A local `modelSettings.<id>.autoCompactWindow` overrides the
 tracked window in the same file, and the sync warns about it without printing
 its value.
+
+`permissions.deny` merges by union instead of overwriting: local entries stay
+in place, missing tracked entries are appended, and `--check` reports drift
+only while a tracked entry is missing. The writer accepts only entries from
+its allowlist and refuses a malformed local `permissions` or `deny` before
+any backup. To roll an entry back, strike it from the fragment, then delete
+it from `permissions.deny` in each host's `~/.claude/settings.json` or
+restore the writer's backup.
 
 Measure with `scripts/claude-usage-audit --days 7` before and seven days
 after a settings change (ADR-0050): one JSON object of aggregates over the

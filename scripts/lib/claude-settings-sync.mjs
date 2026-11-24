@@ -22,7 +22,15 @@ const SCALAR_KEYS = new Set([
   "promptSuggestionEnabled",
   "awaySummaryEnabled",
 ]);
-const PERMISSION_KEYS = new Set(["defaultMode"]);
+const PERMISSION_KEYS = new Set(["defaultMode", "deny"]);
+const DENY_ENTRIES = new Set([
+  "Artifact",
+  "SendFeedback",
+  "ShareOnboardingGuide",
+  "Agent(Explore)",
+  "Agent(Plan)",
+  "Agent(statusline-setup)",
+]);
 const ATTRIBUTION_KEYS = new Set(["commit", "pr"]);
 const ENV_KEYS = new Set([
   "CLAUDE_CODE_SUBAGENT_MODEL",
@@ -110,7 +118,21 @@ if (tracked.permissions !== undefined) {
         `permissions[${name}] is not allowed; permitted keys: ${[...PERMISSION_KEYS].join(", ")}`,
       );
     }
-    if (typeof value !== "string" || value.length === 0) {
+    if (name === "deny") {
+      if (!Array.isArray(value) || value.length === 0) {
+        fail("permissions.deny must be a non-empty array");
+      }
+      for (const entry of value) {
+        if (typeof entry !== "string" || !DENY_ENTRIES.has(entry)) {
+          fail(
+            `permissions.deny entry ${JSON.stringify(entry)} is not allowed; permitted entries: ${[...DENY_ENTRIES].join(", ")}`,
+          );
+        }
+      }
+      if (new Set(value).size !== value.length) {
+        fail("permissions.deny must not repeat an entry");
+      }
+    } else if (typeof value !== "string" || value.length === 0) {
       fail(`permissions[${name}] must be a non-empty string`);
     }
   }
@@ -231,6 +253,18 @@ if (
 ) {
   fail("local settings env must be an object; refusing to merge");
 }
+if (localSettings.permissions !== undefined && !isPlainObject(localSettings.permissions)) {
+  fail("local settings permissions must be an object; refusing to merge");
+}
+const localDeny = localSettings.permissions?.deny;
+if (
+  localDeny !== undefined &&
+  !(Array.isArray(localDeny) && localDeny.every((entry) => typeof entry === "string"))
+) {
+  fail("local settings permissions.deny must be an array of strings; refusing to merge");
+}
+const trackedDeny = tracked.permissions?.deny ?? [];
+const missingDeny = trackedDeny.filter((entry) => !(localDeny ?? []).includes(entry));
 
 function isPlainObject(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -360,8 +394,9 @@ function trackedMatchesLocal() {
   }
   const livePermissions = localSettings.permissions ?? {};
   for (const [name, value] of Object.entries(tracked.permissions ?? {})) {
-    if (livePermissions[name] !== value) return false;
+    if (name !== "deny" && livePermissions[name] !== value) return false;
   }
+  if (missingDeny.length > 0) return false;
   const liveAttribution = localSettings.attribution ?? {};
   for (const [name, value] of Object.entries(tracked.attribution ?? {})) {
     if (liveAttribution[name] !== value) return false;
@@ -401,7 +436,8 @@ if (mode === "check") {
 
 const keyCount = Object.keys(trackedMap).length;
 const settingsKeyCount =
-  Object.keys(tracked.permissions ?? {}).length +
+  Object.keys(tracked.permissions ?? {}).filter((name) => name !== "deny").length +
+  trackedDeny.length +
   Object.keys(tracked.attribution ?? {}).length +
   Object.keys(managedEnv ?? {}).length +
   Object.keys(managedModelSettings ?? {}).length +
@@ -464,8 +500,9 @@ if (!localMissing && mode === "deploy") {
   for (const [name, value] of Object.entries(tracked.permissions ?? {}).sort(
     ([a], [b]) => a.localeCompare(b),
   )) {
-    console.log(`SET            permissions.${name} -> ${value}`);
+    if (name !== "deny") console.log(`SET            permissions.${name} -> ${value}`);
   }
+  for (const entry of missingDeny) console.log(`SET            permissions.deny += ${entry}`);
   for (const [name, value] of Object.entries(tracked.attribution ?? {}).sort(
     ([a], [b]) => a.localeCompare(b),
   )) {
@@ -497,6 +534,7 @@ if (tracked.permissions !== undefined) {
     ...(localSettings.permissions ?? {}),
     ...tracked.permissions,
   };
+  if (trackedDeny.length > 0) localSettings.permissions.deny = [...(localDeny ?? []), ...missingDeny];
 }
 if (tracked.attribution !== undefined) {
   localSettings.attribution = {
