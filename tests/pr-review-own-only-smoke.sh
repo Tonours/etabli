@@ -33,7 +33,7 @@ for arg in "$@"; do
 done
 emit() { if [ -n "$jqf" ]; then jq -r "$jqf"; else cat; fi; }
 case "$1 $2" in
-  'api user') echo '{"login":"owner"}' | emit ;;
+  'api user') echo '{"login":"owner","node_id":"owner"}' | emit ;;
   'api repos/'*)
     repo_id=1; name="${2#repos/}"
     [ ! -f "$FAKE/repoid.${name//\//_}" ] || repo_id="$(cat "$FAKE/repoid.${name//\//_}")"
@@ -43,8 +43,9 @@ case "$1 $2" in
     author=someone
     [ ! -f "$FAKE/author.${repo//\//_}_$3" ] || author="$(cat "$FAKE/author.${repo//\//_}_$3")"
     [ "$author" != - ] || exit 1
+    author_id="${author#* }"; author="${author%% *}"
     requested='[{"login":"owner"}]'; [ "$author" != owner ] || requested='[]'
-    jq -cn --arg head "$HEAD" --arg author "$author" --argjson requested "$requested" '($author | if . == "~" then null else {login: .} end) as $who | {
+    jq -cn --arg head "$HEAD" --arg author "$author" --arg author_id "$author_id" --argjson requested "$requested" '($author | if . == "~" then null else {login: ., id: $author_id} end) as $who | {
       state: "OPEN", isDraft: false, headRefOid: $head, url: "https://example.test/pr", baseRefName: "main",
       reviewRequests: $requested, latestReviews: [], author: $who,
       changedFiles: 1, additions: 1, deletions: 0, files: [{path: "a.ts", additions: 1, deletions: 0}]}' | emit ;;
@@ -209,20 +210,21 @@ gone "$o.token"
 [ "$(pr_views)" = 0 ] || fail "reused name settled: $(pr_views) pr view calls, want 0"
 printf -- '-\n' >"$FAKE/repoid.acme_widgets"; : >"$GH_CALLS"; purge_foreign owner
 [ "$(pr_views)" -ge 1 ] || fail "unreadable repository id: the cache was trusted"
-awk -F'\t' '$1 !~ /^[0-9]+#[0-9]+$/ {bad = 1} END {exit bad}' "$PR_REVIEW_WATCH_STATE_DIR/authors.owner" || fail "an author was stored without a repository id: $(cat "$PR_REVIEW_WATCH_STATE_DIR/authors.owner")"
+awk -F'\t' '$1 !~ /^[0-9]+#[0-9]+$/ {bad = 1} END {exit bad}' "$PR_REVIEW_WATCH_STATE_DIR/author-ids" || fail "an author was stored without a repository id: $(cat "$PR_REVIEW_WATCH_STATE_DIR/author-ids")"
 rm -f "$FAKE/repoid.acme_widgets"
 pass 'purge: authors are cached by repository id, a reused name is read again'
 
-# A login rename: #25 is cached as the old login's PR, then the owner becomes renamed.
+# A login rename keeps the account id; another account taking the old login has another id.
 printf '2\n' >"$FAKE/repoid.acme_widgets"; purge_foreign owner
-author acme/widgets 25 renamed; : >"$GH_CALLS"
-purge_foreign renamed
+author acme/widgets 25 'renamed owner'; author acme/widgets 29 'owner U_other'; watch acme/widgets 29
+rm -f "$PR_REVIEW_WATCH_STATE_DIR/author-ids"; : >"$GH_CALLS"
+purge_foreign owner
 [ "$(first_line "$f.status")" = "$(printf '%s\tdryrun\t0\t1' "$HEAD")" ] || fail "renamed login, own PR: $(first_line "$f.status")"
 present "$f.token"
 [ "$(cat "$WATCHED")" = $'acme/widgets\t25' ] || fail "renamed login watch list: $(cat "$WATCHED")"
-[ "$(pr_views)" -ge 1 ] || fail "renamed login: the old cache was trusted"
+[ "$(pr_views)" -ge 1 ] || fail "renamed login: no author read"
 rm -f "$FAKE/repoid.acme_widgets"
-pass 'purge: a login rename starts a fresh author cache'
+pass 'purge: authors compare by account id, a login rename or a reused login changes nothing'
 
 reset; own_only_on
 c="$(key_of acme/widgets 3)"; f="$(key_of acme/widgets 4)"

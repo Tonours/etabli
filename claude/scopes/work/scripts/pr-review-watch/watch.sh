@@ -391,20 +391,20 @@ process_watched() {
   remove_finished_clones
 }
 
-# A PR author never changes: a read is kept across ticks, a failed one is retried next time.
-# A repository name can be reused, so the cache keys a PR by the repository's GitHub id,
-# read once per purge; without that id the author is read and not stored.
+# A PR author never changes: its account id is kept across ticks, a failed read is retried
+# next time. A repository name can be reused, so the cache keys a PR by the repository's
+# GitHub id, read once per purge; without that id the author is read and not stored.
 cached_author() {
   local repo_id author
   if ! repo_id="$(repo_identity "$1")"; then
-    pr_author_login "$1" "$2"
+    pr_author_id "$1" "$2"
     return
   fi
   if author="$(awk -F'\t' -v id="$repo_id#$2" '$1 == id && $2 != "" {print $2; found = 1; exit} END {exit !found}' "$AUTHOR_CACHE" 2>/dev/null)"; then
     printf '%s' "$author"
     return
   fi
-  author="$(pr_author_login "$1" "$2")" || return 1
+  author="$(pr_author_id "$1" "$2")" || return 1
   printf '%s\t%s\n' "$repo_id#$2" "$author" >>"$AUTHOR_CACHE"
   printf '%s' "$author"
 }
@@ -440,10 +440,10 @@ write_skip_status() {
 purge_foreign() {
   local me file base key pair author status_mode marker unread=0 next="$WATCHED.next" entry_repo entry_number
   local -a keys=()
-  me="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
-  # One cache per own login: after a login rename the old logins are never compared again.
-  [[ "$me" =~ ^[a-z0-9-]+$ ]] || return 1
-  AUTHOR_CACHE="$STATE_DIR/authors.$me"
+  # $1 is the own account id (own_only_account_id), compared with author account ids.
+  me="$1"
+  [[ "$me" =~ ^[A-Za-z0-9_=-]+$ ]] || return 1
+  AUTHOR_CACHE="$STATE_DIR/author-ids"
   REPO_IDS="$(mktemp "${TMPDIR:-/tmp}/pr-review-repo-ids.XXXXXX")" || return 1
   while IFS= read -r key; do
     keys+=("$key")
@@ -492,7 +492,7 @@ purge_foreign_command() {
   touch "$WATCHED"
   acquire_lock "$LOCK_DIR" 'watch\.sh' || { echo "a watcher tick is running, purge not done" >&2; return 75; }
   trap 'rm -rf "$LOCK_DIR"' EXIT
-  me="$(own_only_login)" || { echo "gh not authenticated" >&2; return 1; }
+  me="$(own_only_account_id)" || { echo "gh not authenticated" >&2; return 1; }
   purge_foreign "$me" || rc=$?
   return "$rc"
 }
@@ -500,7 +500,7 @@ purge_foreign_command() {
 purge_foreign_tick() {
   local me
   own_only || return 0
-  me="$(gh api user --jq .login 2>/dev/null)" && [ -n "$me" ] || return 0
+  me="$(own_only_account_id)" || return 0
   purge_foreign "$me" || true
 }
 
