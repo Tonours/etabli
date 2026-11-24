@@ -4,6 +4,16 @@
     "pr": ""
   },
   "autoMemoryEnabled": false,
+  "permissions": {
+    "deny": [
+      "Artifact",
+      "SendFeedback",
+      "ShareOnboardingGuide",
+      "Agent(Explore)",
+      "Agent(Plan)",
+      "Agent(statusline-setup)"
+    ]
+  },
   "promptSuggestionEnabled": false,
   "awaySummaryEnabled": false,
   "env": {
