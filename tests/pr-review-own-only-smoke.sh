@@ -189,6 +189,22 @@ gone "$u.registered"
 [ "$(pr_views)" = 0 ] || fail "settled purge: $(pr_views) pr view calls, want 0"
 pass 'purge: a known author is not asked again, a failed read is, outcomes unchanged'
 
+# A reused repository name: the cached foreign author of #25 is now the owner's PR.
+author acme/widgets 25 owner; watch acme/widgets 25; : >"$GH_CALLS"
+printf '%s\tdryrun\t0\t1\n' "$HEAD" >"$f.status"; printf '%s\n' "$HEAD" >"$f.token"
+purge_foreign owner
+[ "$(first_line "$f.status")" = "$(printf '%s\tdryrun\t0\t1' "$HEAD")" ] || fail "reused name key: $(first_line "$f.status")"
+present "$f.token"
+grep -q $'^acme/widgets\t25$' "$WATCHED" || fail "reused name entry dropped: $(cat "$WATCHED")"
+[ "$(pr_views)" = 1 ] || fail "reused name: $(pr_views) pr view calls, want 1"
+: >"$GH_CALLS"; purge_foreign owner
+[ "$(pr_views)" = 0 ] || fail "reused name settled: $(pr_views) pr view calls, want 0"
+author acme/widgets 28 someone; watch acme/widgets 28; purge_foreign owner
+grep -q $'^acme/widgets\t28$' "$WATCHED" && fail "foreign entry 28 kept"
+author acme/widgets 28 owner; watch acme/widgets 28; purge_foreign owner
+grep -q $'^acme/widgets\t28$' "$WATCHED" || fail "reused name watch entry dropped: $(cat "$WATCHED")"
+pass 'purge: a cached foreign author is read again before it removes anything'
+
 reset; own_only_on
 c="$(key_of acme/widgets 3)"; f="$(key_of acme/widgets 4)"
 author acme/widgets 3 owner; author acme/widgets 4 someone; watch acme/widgets 3; watch acme/widgets 4
