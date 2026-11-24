@@ -219,10 +219,11 @@ describe("claude-usage-audit j_carriedVsUsed", () => {
   });
 
   test("credits a call copied into two sessions to one of them whatever the file order", () => {
-    for (const oldInA of [true, false]) {
-      const { out } = run((dir) => writeDuplicateCallFixture(dir, oldInA, Date.now(), true));
-      assert.deepEqual(out.j_carriedVsUsed.sessionsStarted, { "(unknown)": { sessions: 1, withToolSnapshot: 0 }, cli: { sessions: 1, withToolSnapshot: 0 } }, `oldInA=${oldInA}`);
-      assert.deepEqual(out.j_carriedVsUsed.builtinToolsByEntrypoint, { cli: { Explore: row(0, 1, 1) } }, `oldInA=${oldInA}`);
+    for (const fork of [true, "nosid"]) for (const oldInA of [true, false]) {
+      const { out } = run((dir) => writeDuplicateCallFixture(dir, oldInA, Date.now(), fork));
+      const label = `fork=${fork} oldInA=${oldInA}`;
+      assert.deepEqual(out.j_carriedVsUsed.sessionsStarted, { "(unknown)": { sessions: 1, withToolSnapshot: 0 }, cli: { sessions: 1, withToolSnapshot: 0 } }, label);
+      assert.deepEqual(out.j_carriedVsUsed.builtinToolsByEntrypoint, { cli: { Explore: row(0, 1, 1) } }, label);
     }
   });
 });

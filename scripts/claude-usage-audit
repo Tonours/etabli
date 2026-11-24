@@ -230,6 +230,8 @@ const serverKey = (name) => {
   return identClass(`mcp__${form}__x`.split('__')[1]);
 };
 // A tool name is already normalized: its server segment (Claude Code's own split) prints only as an identifier.
+const knownSid = (sid) => !sid.startsWith('(none):');
+const keepsCall = (a, b) => (knownSid(a) === knownSid(b) ? a <= b : knownSid(a)); // session a keeps a call over b
 const mcpServer = (tool) => (tool.startsWith('mcp__') ? identClass(tool.split('__')[1]) : undefined);
 function collectCarried(c, a) {
   const tool = (name) => { const srv = mcpServer(name); if (srv === undefined) c.tools.add(identClass(name)); else c.servers.add(srv); };
@@ -311,9 +313,11 @@ async function processFile(file) {
             const server = mcpServer(name);
             const agentType = name === 'Agent' || name === 'Task' ? (c.input?.subagent_type ? identClass(c.input.subagent_type) : '(default)') : null;
             const use = { sid, tool: server === undefined ? identClass(name) : null, server, agentType };
-            // A call copied into two sessions (a fork) goes to the smaller id, whatever the file order.
+            // A call copied into two sessions (a fork) goes to a known session id first, then the smaller id,
+            // whatever the file order.
+            const prev = typeof c.id === 'string' ? useById.get(c.id)?.sid : undefined;
             if (typeof c.id !== 'string') uses.push(use);
-            else if (!(useById.get(c.id)?.sid <= sid)) useById.set(c.id, use);
+            else if (prev === undefined || !keepsCall(prev, sid)) useById.set(c.id, use);
           }
           if (toolUseInfo.has(c.id)) continue;
           const info = { name: typeof c.name === 'string' ? identClass(c.name) : '(invalid)' };

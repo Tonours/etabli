@@ -232,9 +232,10 @@ export function writeDuplicateCallFixture(dir, oldInA, now = Date.now(), fork = 
   mkdirSync(project, { recursive: true });
   const line = (sid, minutesAgo) => ({ type: "assistant", sessionId: sid, timestamp: at(minutesAgo), uuid: `u-${sid}`, message: { id: `msg-${sid}`, content: [{ type: "tool_use", id: "dup-1", name: "Explore" }] } });
   // fork: the same call in two in-window sessions, fork-1 (cli) and fork-2 (no entrypoint), swapped between files.
+  // fork "nosid": the second copy carries no session id.
   // Not fork: the 8-day copy sits in dup-a.jsonl when oldInA, else in dup-b.jsonl.
   const [a, b] = fork
-    ? [[{ type: "user", sessionId: "fork-1", entrypoint: "cli", timestamp: at(60) }, line("fork-1", 60)], [line("fork-2", 30)]]
+    ? [[{ type: "user", sessionId: "fork-1", entrypoint: "cli", timestamp: at(60) }, line("fork-1", 60)], [fork === "nosid" ? { ...line("fork-2", 30), sessionId: undefined } : line("fork-2", 30)]]
     : [[line("old", 8 * 1440)], [line("new", 1440)]];
   writeFileSync(join(project, "dup-a.jsonl"), jsonl(oldInA ? a : b));
   writeFileSync(join(project, "dup-b.jsonl"), jsonl(oldInA ? b : a));
