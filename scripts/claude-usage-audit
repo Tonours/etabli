@@ -10,7 +10,7 @@ import path from 'node:path';
 
 const args = process.argv.slice(2);
 if (args.includes('-h') || args.includes('--help')) {
-  console.log('Usage: claude-usage-audit [--days N] [--claude-dir DIR] [--seven-day-used-pct N]\nPrints one JSON object of token, cache, subagent, session and tool-result aggregates over the last N days (default 7).\n--seven-day-used-pct records the statusline rate_limits.seven_day.used_percentage read at the reset.\nThe output names project basenames, tool names and subagent types: keep it private.');
+  console.log('Usage: claude-usage-audit [--days N] [--claude-dir DIR] [--seven-day-used-pct N]\nPrints one JSON object of token, cache, subagent, session, tool-result and carried-versus-used aggregates over the last N days (default 7).\n--seven-day-used-pct records the statusline rate_limits.seven_day.used_percentage read at the reset.\nThe output names project basenames, tool names and subagent types: keep it private.');
   process.exit(0);
 }
 const FLAGS = new Set(['--days', '--claude-dir', '--seven-day-used-pct']);
@@ -172,7 +172,8 @@ const toolUseInfo = new Map();  // tool_use id -> {name, viaRtk}
 const parentTurns = new Map();  // `session:${sid}` or `agent:${agentId}` -> [{ts, model}], any timestamp
 const toolResults = [];         // {id, chars, images, sidechain}; names resolve once every file is read
 const agentMeta = new Map();    // agentId -> meta
-const schema = { assistantLinesTotal: 0, assistantLinesDuplicate: 0, assistantNoUsage: 0, cacheCreationUnsplit: 0, sidechainInMainFile: 0, subagentFilesWithoutMeta: 0, parseErrors: 0, linesSkippedApiRequest: 0, filesScanned: 0, bytesScanned: 0, effortFieldMissing: 0, syntheticModelTurns: 0, unreadableDirs: 0, unreadableFiles: 0 };
+// toolScanGaps: lines whose calls the use counts may miss (dropped before the tool_use loop, or undated).
+const schema = { assistantLinesTotal: 0, assistantLinesDuplicate: 0, assistantNoUsage: 0, cacheCreationUnsplit: 0, sidechainInMainFile: 0, subagentFilesWithoutMeta: 0, parseErrors: 0, toolScanGaps: 0, linesSkippedApiRequest: 0, filesScanned: 0, bytesScanned: 0, effortFieldMissing: 0, syntheticModelTurns: 0, unreadableDirs: 0, unreadableFiles: 0 };
 
 const records = []; // deduped assistant turns
 const toolChars = new Map(); // group -> {calls, chars, images, mainChars, subChars}
@@ -212,6 +213,32 @@ let toolResultCharsTotal = 0;
 // keeps it to one identifier (no `|`, no newline), and it prints only when a subagent meta file
 // names the same type (mapped at output).
 const agentCalls = new Map();
+// j_carriedVsUsed. Carried: per main session, the names its own attachment lines list, already
+// classed. Use: every in-window tool_use, deduplicated among in-window occurrences only, since
+// toolUseInfo also holds ids first seen before the window.
+const carried = new Map();      // sid -> {tools, servers, instr, agents: Set, snapshot}
+const listedTypes = new Set();  // agent types any agent listing or subagent meta file names
+const useById = new Map();      // in-window tool_use id -> {sid, tool, server, agentType}
+const uses = [];                // the same, for a tool_use without a string id
+const strings = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []);
+// An instruction names a server by display name (`claude.ai Foo Bar`), a tool by its normalized
+// name (`mcp__claude_ai_Foo_Bar__x`): both key on the normalized form, Claude Code's rule.
+const serverKey = (name) => {
+  const k = name.replace(/[^A-Za-z0-9_-]/g, '_');
+  return identClass(name.startsWith('claude.ai ') ? k.replace(/_+/g, '_').replace(/^_|_$/g, '') : k);
+};
+// A tool name is already normalized: its server segment (Claude Code's own split) prints only as an identifier.
+const mcpServer = (tool) => (tool.startsWith('mcp__') ? identClass(tool.split('__')[1]) : undefined);
+function collectCarried(c, a) {
+  const tool = (name) => { const srv = mcpServer(name); if (srv === undefined) c.tools.add(identClass(name)); else c.servers.add(srv); };
+  if (a.type === 'prompt_snapshot' && Array.isArray(a.tools)) {
+    // An empty list is no inventory: counting it would let a tool read as never carried.
+    if (a.tools.length) c.snapshot = true;
+    for (const t of a.tools) if (typeof t?.name === 'string') tool(t.name);
+  } else if (a.type === 'deferred_tools_delta') for (const n of strings(a.addedNames)) tool(n);
+  else if (a.type === 'mcp_instructions_delta') for (const n of strings(a.addedNames)) c.instr.add(serverKey(n));
+  else if (a.type === 'agent_listing_delta') for (const n of strings(a.addedTypes)) c.agents.add(identClass(n));
+}
 const events = { compactBoundary: new Map(), compactSummaryLines: 0, clearCmd: 0, compactCmd: 0, scheduledTaskFire: 0 };
 const sessionCwd = new Map();
 const sessionEntry = new Map();
@@ -246,6 +273,7 @@ async function processFile(file) {
     meta = await readMeta(file);
     if (!meta) schema.subagentFilesWithoutMeta += 1;
     const m = meta && typeof meta === 'object' ? meta : {};
+    if (m.agentType !== undefined) listedTypes.add(identClass(m.agentType));
     agentMeta.set(fileAgentId, {
       file: true, hasMeta: Object.keys(m).length > 0, agentType: m.agentType === undefined ? undefined : identClass(m.agentType),
       parentAgentId: typeof m.parentAgentId === 'string' ? m.parentAgentId : undefined,
@@ -256,22 +284,37 @@ async function processFile(file) {
   schema.filesScanned += 1;
   try {
   for await (const line of handle.readLines({ encoding: 'utf8' })) {
+    let indexed = false;
     try {
       schema.bytesScanned += line.length;
       if (line.startsWith('{"type":"api-request')) { schema.linesSkippedApiRequest += 1; continue; }
       if (!line) continue;
       let o;
-      try { o = JSON.parse(line); } catch { schema.parseErrors += 1; continue; }
-      if (!o || typeof o !== 'object') { schema.parseErrors += 1; continue; }
+      try { o = JSON.parse(line); } catch { schema.parseErrors += 1; schema.toolScanGaps += 1; continue; }
+      if (!o || typeof o !== 'object') { schema.parseErrors += 1; schema.toolScanGaps += 1; continue; }
       if (o.cwd !== undefined && typeof o.cwd !== 'string') delete o.cwd;
       if (o.entrypoint !== undefined) o.entrypoint = typeof o.entrypoint === 'string' ? entrypointClass(o.entrypoint) : undefined;
-      if (o.timestamp !== undefined && typeof o.timestamp !== 'string') { schema.parseErrors += 1; continue; }
+      if (o.timestamp !== undefined && typeof o.timestamp !== 'string') { schema.parseErrors += 1; schema.toolScanGaps += 1; continue; }
       const ts = o.timestamp ? Date.parse(o.timestamp) : NaN;
       const inWindow = Number.isFinite(ts) && ts >= START && ts <= NOW + 3600e3;
       const m = o.message && typeof o.message === 'object' ? o.message : {};
+      const rawSid = o.sessionId || o.session_id;
+      const sid = typeof rawSid === 'string' && rawSid ? rawSid : noSid;
       if (o.type === 'assistant') {
+        let undated = false;
         for (const c of Array.isArray(m.content) ? m.content : []) {
-          if (c?.type !== 'tool_use' || toolUseInfo.has(c.id)) continue;
+          if (c?.type !== 'tool_use') continue;
+          if (!Number.isFinite(ts)) undated = true;
+          else if (inWindow) {
+            const name = typeof c.name === 'string' ? c.name : '';
+            const server = mcpServer(name);
+            const agentType = name === 'Agent' || name === 'Task' ? (c.input?.subagent_type ? identClass(c.input.subagent_type) : '(default)') : null;
+            const use = { sid, tool: server === undefined ? identClass(name) : null, server, agentType };
+            // A call copied into two sessions (a fork) goes to the smaller id, whatever the file order.
+            if (typeof c.id !== 'string') uses.push(use);
+            else if (!(useById.get(c.id)?.sid <= sid)) useById.set(c.id, use);
+          }
+          if (toolUseInfo.has(c.id)) continue;
           const info = { name: typeof c.name === 'string' ? identClass(c.name) : '(invalid)' };
           if (c.name === 'Bash') info.viaRtk = typeof c.input?.command === 'string' && leadsWithRtk(c.input.command);
           if (inWindow && (c.name === 'Agent' || c.name === 'Task')) {
@@ -281,13 +324,18 @@ async function processFile(file) {
           }
           toolUseInfo.set(c.id, info);
         }
+        if (undated) schema.toolScanGaps += 1;
       }
-      const rawSid = o.sessionId || o.session_id;
-      const sid = typeof rawSid === 'string' && rawSid ? rawSid : noSid;
+      indexed = true;
       const sidechain = isSubFile || o.isSidechain === true;
       if (!sidechain && o.cwd && !sessionCwd.has(sid)) sessionCwd.set(sid, o.cwd);
       if (!sidechain && o.entrypoint && !sessionEntry.has(sid)) sessionEntry.set(sid, o.entrypoint);
       if (!sidechain && Number.isFinite(ts) && !(sessionStart.get(sid) <= ts)) sessionStart.set(sid, ts);
+      if (o.type === 'attachment' && o.attachment && typeof o.attachment === 'object') {
+        if (o.attachment.type === 'agent_listing_delta') for (const n of strings(o.attachment.addedTypes)) listedTypes.add(identClass(n));
+        // A sidechain line's attachments belong to a subagent: never carried by the session.
+        if (!sidechain) collectCarried(bump(carried, sid, () => ({ tools: new Set(), servers: new Set(), instr: new Set(), agents: new Set(), snapshot: false })), o.attachment);
+      }
       const agentId = isSubFile ? fileAgentId : (o.isSidechain ? (typeof o.agentId === 'string' && o.agentId ? o.agentId : `sidechain:${sid}`) : null);
       // Parent model history, before the window filter: a subagent launched just before the cutoff still finds it.
       if (o.type === 'assistant' && Number.isFinite(ts) && typeof m.model === 'string' && m.model && m.model !== '<synthetic>') {
@@ -358,7 +406,7 @@ async function processFile(file) {
         } else if (o.subtype === 'scheduled_task_fire') events.scheduledTaskFire += 1;
         else if (o.subtype === 'local_command' && !sidechain) countSlashCommands(typeof o.content === 'string' ? o.content : '');
       }
-    } catch { schema.parseErrors += 1; }
+    } catch { schema.parseErrors += 1; if (!indexed) schema.toolScanGaps += 1; }
   }
   } finally { await handle.close(); }
 }
@@ -650,6 +698,42 @@ out.i_effort = {
   thinkingTokens: total.thinking, thinkingPctOfOutput: share(total.thinking, total.output),
   byModelEffort: Object.fromEntries([...effortDist.entries()].sort((a, b) => b[1].usd - a[1].usd).map(([k, v]) => [k, { turns: v.turns, output: v.output, thinking: v.thinking, usd: round(v.usd), pctUsd: share(v.usd, total.usd) }])),
 };
+
+{
+  const tally = () => ({ carriedSessions: 0, used: new Set(), calls: 0 });
+  const serverTally = () => ({ carriedSessions: 0, instructionSessions: 0, used: new Set(), calls: 0 });
+  const entryOf = (sid) => sessionEntry.get(sid) || '(unknown)';
+  // subagent_type is tool input: it prints only when an agent listing or a meta file names it.
+  const agentLabel = (t) => (t === '(default)' || listedTypes.has(t) ? t : '(other)');
+  const started = new Map(), tools = new Map(), servers = new Map(), agents = new Map();
+  for (const [sid, ts] of sessionStart) {
+    if (ts < START || ts > NOW + 3600e3) continue;
+    const ep = entryOf(sid), c = carried.get(sid);
+    const s = bump(started, ep, () => ({ sessions: 0, withToolSnapshot: 0 }));
+    s.sessions += 1;
+    if (!c) continue;
+    if (c.snapshot) s.withToolSnapshot += 1;
+    const byTool = bump(tools, ep, () => new Map());
+    for (const n of c.tools) bump(byTool, n, tally).carriedSessions += 1;
+    for (const n of c.servers) bump(servers, n, serverTally).carriedSessions += 1;
+    for (const n of c.instr) bump(servers, n, serverTally).instructionSessions += 1;
+    for (const n of c.agents) bump(agents, n, tally).carriedSessions += 1;
+  }
+  for (const u of [...useById.values(), ...uses]) {
+    const rows = [u.server === undefined ? bump(bump(tools, entryOf(u.sid), () => new Map()), u.tool, tally) : bump(servers, u.server, serverTally)];
+    if (u.agentType) rows.push(bump(agents, agentLabel(u.agentType), tally));
+    for (const r of rows) { r.used.add(u.sid); r.calls += 1; }
+  }
+  const rows = (map) => Object.fromEntries([...map].sort((a, b) => b[1].calls - a[1].calls || b[1].carriedSessions - a[1].carriedSessions || (a[0] < b[0] ? -1 : 1))
+    .map(([k, { used, calls, ...carriedCounts }]) => [k, { ...carriedCounts, usedSessions: used.size, calls }]));
+  out.j_carriedVsUsed = {
+    note: 'carriedSessions, instructionSessions and sessionsStarted count main sessions started in the window, from their own attachment lines; usedSessions and calls count every distinct in-window tool_use from main and subagent files, under the session id its line carries. A run is complete only with schema.toolScanGaps, unreadableFiles and unreadableDirs at 0',
+    sessionsStarted: Object.fromEntries([...started].sort()),
+    builtinToolsByEntrypoint: Object.fromEntries([...tools].sort().map(([ep, m]) => [ep, rows(m)])),
+    mcpServers: rows(servers),
+    agentTypes: rows(agents),
+  };
+}
 
 out.schema = { ...schema, dedupedAssistantTurns: records.length, subagentFiles: [...agentMeta.values()].filter((m) => m.file).length };
 out.meta.elapsedSec = round((Date.now() - t0) / 1000, 1);

@@ -2,7 +2,7 @@
 status: accepted
 date: 2026-11-20
 tags: [tokens, measurement, claude]
-affected_components: [scripts/claude-usage-audit, tests/claude-usage-audit.test.mjs, tests/fixtures/claude-usage-audit.mjs, workflow/runtime/agentic-infra-checks.tsv]
+affected_components: [scripts/claude-usage-audit, tests/claude-usage-audit.test.mjs, tests/fixtures/claude-usage-audit.mjs, workflow/runtime/agentic-infra-checks.tsv, claude/README.md]
 ---
 
 # Track the Claude usage audit script
@@ -17,4 +17,5 @@ Rejected: `/usage` alone (its percentages say which share of usage a tip applies
 
 - A test runs the script on fabricated transcripts: deduplication, subagent attribution against the parent's model at spawn, histogram bounds, entrypoint grouping, file-order independence, and the absence of any content marker in the output, metadata included.
 - The list prices in the script are relative weights; a subscription is not billed that way and its limits weight models and cache reads in unpublished ways.
+- 2026-11-24: `j_carriedVsUsed` sets the tools (per entrypoint), MCP servers and agent types that sessions started in the window carried against those called in the window. MCP server names now print too, through the same class function; schema text, descriptions and instruction blocks never do. A spawned agent type prints only when an agent listing or a meta file names it, else `(other)`. `schema.toolScanGaps` counts the lines whose calls the use counts may miss.
 - Review date: 2027-02-20. Still unused for a settings decision by then, the script is deleted.
