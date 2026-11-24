@@ -13,18 +13,26 @@ pr_autoreview_profile=$(awk -F'\t' -v r="$pr_autoreview_repo" '$1 == r { print $
 [ -n "$pr_autoreview_profile" ] || return 0
 pr_autoreview_root=$(git rev-parse --show-toplevel 2>/dev/null) || return 0
 
-# Fleet reviews only the PR on the branch checked out in a thread's own
-# worktree, a directory named by the thread id, through the watcher dry-run:
-# skip just that branch, pushed from that worktree to its origin repo. Any
-# other push from the pane still gets an autoreview.
+# Fleet reviews, through the watcher dry-run, only the PR on the branch its
+# thread record follows (`threads.branch`), not whatever the pane checked out:
+# skip just that branch, pushed from the thread's own worktree (a directory
+# named by the thread id) to its origin repo. Any other push, or an unreadable
+# fleet database, still gets an autoreview.
 pr_autoreview_fleet_branch=""
-if [ -n "${FLEET_THREAD:-}" ] && [ "$(basename -- "$pr_autoreview_root")" = "$FLEET_THREAD" ]; then
-  pr_autoreview_origin_url=$(git remote get-url origin 2>/dev/null || true)
-  pr_autoreview_origin_repo=$(printf '%s' "$pr_autoreview_origin_url" | sed -E -e 's,\.git$,,' -e 's,^.*[:/]([^/]+/[^/]+)$,\1,')
-  if [ -n "$pr_autoreview_origin_repo" ] && [ "$pr_autoreview_origin_repo" = "$pr_autoreview_repo" ]; then
-    pr_autoreview_fleet_branch=$(git symbolic-ref --short -q HEAD 2>/dev/null || true)
-  fi
-fi
+case "${FLEET_THREAD:-}" in
+  ''|*[!A-Za-z0-9_-]*) ;;
+  *)
+    if [ "$(basename -- "$pr_autoreview_root")" = "$FLEET_THREAD" ]; then
+      pr_autoreview_origin_url=$(git remote get-url origin 2>/dev/null || true)
+      pr_autoreview_origin_repo=$(printf '%s' "$pr_autoreview_origin_url" | sed -E -e 's,\.git$,,' -e 's,^.*[:/]([^/]+/[^/]+)$,\1,')
+      pr_autoreview_fleet_db="${FLEET_DATA_DIR:-$HOME/Library/Application Support/fleet}/fleet.sqlite"
+      if [ -n "$pr_autoreview_origin_repo" ] && [ "$pr_autoreview_origin_repo" = "$pr_autoreview_repo" ] && [ -r "$pr_autoreview_fleet_db" ]; then
+        pr_autoreview_fleet_branch=$(sqlite3 -readonly -cmd '.timeout 1000' "$pr_autoreview_fleet_db" \
+          "SELECT branch FROM threads WHERE id = '$FLEET_THREAD'" 2>/dev/null || true)
+      fi
+    fi
+    ;;
+esac
 
 pr_autoreview_refs=$(mktemp "${TMPDIR:-/tmp}/pr-autoreview-refs.XXXXXX") || return 0
 cat >"$pr_autoreview_refs"
