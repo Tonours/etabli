@@ -267,7 +267,7 @@ git -C "$TMP_DIR" init -q -b feat/remote-name t-1
 git -C "$TMP_DIR/t-1" remote add origin git@github.com:owner/repo.git
 fleet_data="$TMP_DIR/fleet-data"
 mkdir -p "$fleet_data"
-sqlite3 "$fleet_data/fleet.sqlite" "CREATE TABLE threads (id TEXT PRIMARY KEY, branch TEXT); INSERT INTO threads VALUES ('t-1', 'feat/remote-name');"
+sqlite3 "$fleet_data/fleet.sqlite" "CREATE TABLE threads (id TEXT PRIMARY KEY, dir TEXT, branch TEXT); INSERT INTO threads VALUES ('t-1', '$TMP_DIR/t-1', 'feat/remote-name');"
 run_hook() {
   local dir="$1" url="$2" thread="$3"; shift 3
   rm -f "$TMP_DIR/calls"
@@ -303,6 +303,12 @@ run_hook "$TMP_DIR/t-1" git@github.com:owner/repo.git t-1 \
 expect "hook: another branch checked out in the thread worktree gets autoreview" \
   "owner/repo profile feat/other-pr 5555555555555555555555555555555555555555" "$call_args"
 git -C "$TMP_DIR/t-1" checkout -q feat/remote-name 2>/dev/null || git -C "$TMP_DIR/t-1" symbolic-ref HEAD refs/heads/feat/remote-name
+mkdir -p "$TMP_DIR/clone"
+git -C "$TMP_DIR/clone" init -q -b feat/remote-name t-1
+git -C "$TMP_DIR/clone/t-1" remote add origin git@github.com:owner/repo.git
+run_hook "$TMP_DIR/clone/t-1" git@github.com:owner/repo.git t-1 "$own_ref"
+expect "hook: a same-named clone outside the thread worktree gets autoreview" \
+  "owner/repo profile feat/remote-name 1111111111111111111111111111111111111111" "$call_args"
 hook_data="$TMP_DIR/no-fleet" run_hook "$TMP_DIR/t-1" git@github.com:owner/repo.git t-1 "$own_ref"
 expect "hook: an unreadable fleet database keeps the autoreview" \
   "owner/repo profile feat/remote-name 1111111111111111111111111111111111111111" "$call_args"
