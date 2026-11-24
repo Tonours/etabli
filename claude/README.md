@@ -310,7 +310,11 @@ its value.
 Measure with `scripts/claude-usage-audit --days 7` before and seven days
 after a settings change (ADR-0050): one JSON object of aggregates over the
 transcript tree, never message content, kept on the host because it names
-project basenames.
+project basenames, tools, MCP servers and subagent types. `j_carriedVsUsed`
+sets the tools, MCP servers and agent types each new session carried against
+the ones called in the window (a spawned type no listing names prints as
+`(other)`); `schema.toolScanGaps` above 0 means some calls may be missing
+from it.
 
 `scripts/deploy-agent-workflow --check` also flags an `rtk` on PATH whose
 owner-installed hook cannot run from a live Claude root: no

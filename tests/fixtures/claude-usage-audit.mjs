@@ -154,3 +154,89 @@ export function writeFixture(dir, now = Date.now()) {
     firstTurnCtx: { cli: 20010, "sdk-cli": 40010 },
   };
 }
+
+/**
+ * j_carriedVsUsed fixture. c1 (cli) carries Read twice by snapshot and once by deferred delta, Bash,
+ * WebSearch, one server by tool name and another by instruction display name and tool name, and two
+ * agent types; it calls Read three times (one streamed twice), the server, and three Agent types.
+ * c2 (cli) carries Read, an invalid name and Explore, plus a sidechain snapshot naming NotebookEdit.
+ * c3 (sdk-cli) has a snapshot without tools. old started before the window and calls Glob inside it.
+ * c1's subagent calls Grep under c1's id; its own snapshot is not carried. gaps holds the A10 lines.
+ * MARKER sits in a tool description and schema, an addedBlocks entry and an addedLines entry.
+ */
+export function writeCarriedFixture(dir, now = Date.now()) {
+  const at = (minutesAgo) => new Date(now - minutesAgo * 60e3).toISOString();
+  const project = join(dir, "projects", "-tmp-carried");
+  mkdirSync(join(project, "c1", "subagents"), { recursive: true });
+  const att = (sid, ts, attachment, extra = {}) => ({ type: "attachment", sessionId: sid, timestamp: ts, attachment, ...extra });
+  const call = (id, name, input = {}) => ({ type: "tool_use", id, name, input });
+  const turn = (sid, ts, id, content, extra = {}) => ({ type: "assistant", sessionId: sid, timestamp: ts, uuid: `u-${id}`, message: { id: `msg-${id}`, content }, ...extra });
+  const user = (sid, ts, entrypoint) => ({ type: "user", sessionId: sid, timestamp: ts, uuid: `u-${sid}-first`, entrypoint, message: { content: `${MARKER} prompt` } });
+
+  writeFileSync(join(project, "c1.jsonl"), jsonl([
+    user("c1", at(60), "cli"),
+    att("c1", at(60), { type: "prompt_snapshot", tools: [{ name: "Read", description: `${MARKER} description`, schema: { note: MARKER } }, { name: "Bash" }, { name: "mcp__srv_one__do" }] }),
+    att("c1", at(59), { type: "prompt_snapshot", tools: [{ name: "Read" }] }),
+    att("c1", at(59), { type: "deferred_tools_delta", addedNames: ["Read", "WebSearch", "mcp__claude_ai_Foo_Bar__x"], addedLines: [`${MARKER} line`] }),
+    att("c1", at(59), { type: "mcp_instructions_delta", addedNames: ["claude.ai Foo Bar"], addedBlocks: [`${MARKER} block`] }),
+    att("c1", at(59), { type: "agent_listing_delta", addedTypes: ["Explore", "general-purpose"], builtInTypes: ["Explore", "general-purpose"] }),
+    turn("c1", at(58), "t1", [call("r1", "Read"), call("r2", "Read"), call("m1", "mcp__claude_ai_Foo_Bar__x")]),
+    turn("c1", at(58), "t1", [call("r1", "Read")]),
+    turn("c1", at(57), "t2", [call("r3", "Read"), call("ag1", "Agent", { subagent_type: "general-purpose" }), call("ag2", "Agent", { subagent_type: "reviewer" }), call("ag3", "Agent", { subagent_type: `${MARKER}-type` })]),
+  ]));
+  writeFileSync(join(project, "c1", "subagents", "agent-s1.jsonl"), jsonl([
+    att("c1", at(50), { type: "prompt_snapshot", tools: [{ name: "Grep" }] }, { isSidechain: true }),
+    turn("c1", at(50), "s1", [call("gr1", "Grep")], { isSidechain: true }),
+  ]));
+  writeFileSync(join(project, "c1", "subagents", "agent-s1.meta.json"), JSON.stringify({ agentType: "reviewer" }));
+  writeFileSync(join(project, "c2.jsonl"), jsonl([
+    user("c2", at(45), "cli"),
+    att("c2", at(45), { type: "prompt_snapshot", tools: [{ name: "Read" }, { name: `${MARKER} bad name` }, { name: `mcp__${MARKER} bad name__x` }] }),
+    att("c2", at(45), { type: "agent_listing_delta", addedTypes: ["Explore"] }),
+    att("c2", at(45), { type: "deferred_tools_delta", addedNames: ["mcp__claude_ai_Baz_Qux__y"] }),
+    att("c2", at(45), { type: "mcp_instructions_delta", addedNames: ["claude.ai Baz (Qux)", "team  tools", "dash_"] }),
+    att("c2", at(45), { type: "deferred_tools_delta", addedNames: ["mcp__team__tools__search", "mcp__dash___q"] }),
+    att("c2", at(44), { type: "prompt_snapshot", tools: [{ name: "NotebookEdit" }] }, { isSidechain: true }),
+    turn("c2", at(43), "t3", [call("ag4", "Agent", { subagent_type: "Plan" })]),
+  ]));
+  // Same agent file name as c1's: each meta file still names its own type.
+  mkdirSync(join(project, "c2", "subagents"), { recursive: true });
+  writeFileSync(join(project, "c2", "subagents", "agent-s1.jsonl"), jsonl([{ type: "user", sessionId: "c2", isSidechain: true, timestamp: at(43) }]));
+  writeFileSync(join(project, "c2", "subagents", "agent-s1.meta.json"), JSON.stringify({ agentType: "Plan" }));
+  // A session whose first line is two hours in the future never counts as started.
+  writeFileSync(join(project, "future.jsonl"), jsonl([user("future", at(-120), "cli")]));
+  writeFileSync(join(project, "c3.jsonl"), jsonl([
+    user("c3", at(40), "sdk-cli"),
+    att("c3", at(40), { type: "prompt_snapshot" }),
+    att("c3", at(40), { type: "prompt_snapshot", tools: [] }),
+    att("c3", at(40), { type: "prompt_snapshot", tools: [{}, { name: "" }, { name: "  " }] }),
+  ]));
+  writeFileSync(join(project, "old.jsonl"), jsonl([
+    user("old", at(8 * 1440), "cli"),
+    att("old", at(8 * 1440), { type: "prompt_snapshot", tools: [{ name: "Glob" }] }),
+    turn("old", at(10), "o1", [call("g1", "Glob")]),
+  ]));
+  writeFileSync(join(project, "gaps.jsonl"), jsonl([
+    `{"type":"user","sessionId":"gaps","timest`,
+    { type: "assistant", sessionId: "gaps", timestamp: 123, message: { id: "msg-num", content: [] } },
+    { type: "assistant", sessionId: "gaps", message: { id: "msg-nots", content: [call("n1", "Edit")] } },
+    { type: "assistant", sessionId: "gaps", timestamp: "x", message: { id: "msg-badts", content: [call("n2", "Edit")] } },
+    { type: "assistant", sessionId: "gaps", timestamp: at(5), message: { usage: usage(1, 0, 0, 1), content: [call("w1", "Write")] } },
+  ]));
+}
+
+/** One tool_use id at 8 days and at 1 day before the run, in two main files; `oldInA` swaps them. */
+export function writeDuplicateCallFixture(dir, oldInA, now = Date.now(), fork = false) {
+  const at = (minutesAgo) => new Date(now - minutesAgo * 60e3).toISOString();
+  const project = join(dir, "projects", "-tmp-dup");
+  mkdirSync(project, { recursive: true });
+  const line = (sid, minutesAgo) => ({ type: "assistant", sessionId: sid, timestamp: at(minutesAgo), uuid: `u-${sid}`, message: { id: `msg-${sid}`, content: [{ type: "tool_use", id: "dup-1", name: "Explore" }] } });
+  // fork: the same call in two in-window sessions, fork-1 (cli) and fork-2 (no entrypoint), swapped between files.
+  // fork "nosid": the second copy carries no session id.
+  // Not fork: the 8-day copy sits in dup-a.jsonl when oldInA, else in dup-b.jsonl.
+  const [a, b] = fork
+    ? [[{ type: "user", sessionId: "fork-1", entrypoint: "cli", timestamp: at(60) }, line("fork-1", 60)], [fork === "nosid" ? { ...line("fork-2", 30), sessionId: undefined } : line("fork-2", 30)]]
+    : [[line("old", 8 * 1440)], [line("new", 1440)]];
+  writeFileSync(join(project, "dup-a.jsonl"), jsonl(oldInA ? a : b));
+  writeFileSync(join(project, "dup-b.jsonl"), jsonl(oldInA ? b : a));
+}
