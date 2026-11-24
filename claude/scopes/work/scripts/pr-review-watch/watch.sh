@@ -392,29 +392,34 @@ process_watched() {
 }
 
 # A PR author never changes: a read is kept across ticks, a failed one is retried next time.
-# A repository name can be reused, so with a third argument (the own login) a cached
-# foreign author is read again; the latest line for a PR wins.
+# A repository name can be reused, so the cache keys a PR by the repository's GitHub id,
+# read once per purge; without that id the author is read and not stored.
 cached_author() {
-  local author
-  if author="$(awk -F'\t' -v id="$(author_id "$1" "$2")" '$1 == id && $2 != "" {last = $2; found = 1} END {if (found) print last; exit !found}' "$AUTHOR_CACHE" 2>/dev/null)" \
-    && { [ -z "${3:-}" ] || [ "$author" = "$3" ]; }; then
+  local repo_id author
+  if ! repo_id="$(repo_identity "$1")"; then
+    pr_author_login "$1" "$2"
+    return
+  fi
+  if author="$(awk -F'\t' -v id="$repo_id#$2" '$1 == id && $2 != "" {print $2; found = 1; exit} END {exit !found}' "$AUTHOR_CACHE" 2>/dev/null)"; then
     printf '%s' "$author"
     return
   fi
   author="$(pr_author_login "$1" "$2")" || return 1
-  printf '%s\t%s\n' "$(author_id "$1" "$2")" "$author" >>"$AUTHOR_CACHE"
+  printf '%s\t%s\n' "$repo_id#$2" "$author" >>"$AUTHOR_CACHE"
   printf '%s' "$author"
 }
 
-author_id() { printf '%s#%s' "$1" "$2" | tr '[:upper:]' '[:lower:]'; }
-
-# A foreign key still holding a reservation or another status than the skip has something to lose.
-foreign_purge_pending() {
-  local file
-  for file in "$1.token" "$1.claimed" "$1.launch" "$1".launch.*; do
-    if [ -e "$file" ] || [ -L "$file" ]; then return 0; fi
-  done
-  [ "$(head -1 "$1.status" 2>/dev/null)" != 'skipped own-only' ]
+repo_identity() {
+  local name repo_id
+  name="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+  if repo_id="$(awk -F'\t' -v name="$name" '$1 == name {print $2; found = 1; exit} END {exit !found}' "$REPO_IDS" 2>/dev/null)"; then
+    printf '%s' "$repo_id"
+    return
+  fi
+  repo_id="$(own_only_gh api "repos/$1" --jq '.id // empty' </dev/null 2>/dev/null)" || return 1
+  [[ "$repo_id" =~ ^[0-9]+$ ]] || return 1
+  printf '%s\t%s\n' "$name" "$repo_id" >>"$REPO_IDS"
+  printf '%s' "$repo_id"
 }
 
 remove_reservation() {
@@ -433,10 +438,11 @@ write_skip_status() {
 }
 
 purge_foreign() {
-  local me file base key pair author revalidate status_mode marker unread=0 next="$WATCHED.next" entry_repo entry_number
+  local me file base key pair author status_mode marker unread=0 next="$WATCHED.next" entry_repo entry_number
   local -a keys=()
   me="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
   AUTHOR_CACHE="$STATE_DIR/authors"
+  REPO_IDS="$(mktemp "${TMPDIR:-/tmp}/pr-review-repo-ids.XXXXXX")" || return 1
   while IFS= read -r key; do
     keys+=("$key")
   done < <(find "$RUNS" -maxdepth 1 \( -type f -o -type l \) | while IFS= read -r file; do
@@ -444,9 +450,7 @@ purge_foreign() {
     [[ "$base" =~ ^(.+_[0-9]+)\.(registered|council-done|approval-pending|approval-body|token|claimed|launch|launch\..+|status)$ ]] && printf '%s/%s\n' "$RUNS" "${BASH_REMATCH[1]}"
   done | sort -u)
   for key in ${keys[@]+"${keys[@]}"}; do
-    revalidate=''
-    ! foreign_purge_pending "$key" || revalidate="$me"
-    if ! pair="$(own_only_key_pr "$key")" || ! author="$(cached_author "${pair% *}" "${pair#* }" "$revalidate")"; then
+    if ! pair="$(own_only_key_pr "$key")" || ! author="$(cached_author "${pair% *}" "${pair#* }")"; then
       unread=$((unread + 1))
       log "own-only purge: author of ${key##*/} unreadable, left as is"
       continue
@@ -467,13 +471,14 @@ purge_foreign() {
   : >"$next"
   while IFS=$'\t' read -r entry_repo entry_number _; do
     [ -n "$entry_repo" ] || continue
-    if author="$(cached_author "$entry_repo" "$entry_number" "$me")" && [ "$author" != "$me" ]; then
+    if author="$(cached_author "$entry_repo" "$entry_number")" && [ "$author" != "$me" ]; then
       log "own-only purge: dropping $entry_repo#$entry_number from the watch list"
       continue
     fi
     printf '%s\t%s\n' "$entry_repo" "$entry_number" >>"$next"
   done <"$WATCHED"
   mv "$next" "$WATCHED"
+  rm -f "$REPO_IDS"
   [ "$unread" = 0 ] || return 3
 }
 

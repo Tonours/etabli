@@ -34,6 +34,11 @@ done
 emit() { if [ -n "$jqf" ]; then jq -r "$jqf"; else cat; fi; }
 case "$1 $2" in
   'api user') echo '{"login":"owner"}' | emit ;;
+  'api repos/'*)
+    repo_id=1; name="${2#repos/}"
+    [ ! -f "$FAKE/repoid.${name//\//_}" ] || repo_id="$(cat "$FAKE/repoid.${name//\//_}")"
+    [ "$repo_id" != - ] || exit 1
+    echo "{\"id\":$repo_id}" | emit ;;
   'pr view')
     author=someone
     [ ! -f "$FAKE/author.${repo//\//_}_$3" ] || author="$(cat "$FAKE/author.${repo//\//_}_$3")"
@@ -189,21 +194,24 @@ gone "$u.registered"
 [ "$(pr_views)" = 0 ] || fail "settled purge: $(pr_views) pr view calls, want 0"
 pass 'purge: a known author is not asked again, a failed read is, outcomes unchanged'
 
-# A reused repository name: the cached foreign author of #25 is now the owner's PR.
-author acme/widgets 25 owner; watch acme/widgets 25; : >"$GH_CALLS"
-printf '%s\tdryrun\t0\t1\n' "$HEAD" >"$f.status"; printf '%s\n' "$HEAD" >"$f.token"
+# A reused repository name: the cached authors of #25 (foreign) and #26 (own) belong to the
+# renamed repository; the new one under the same name has another id.
+printf '2\n' >"$FAKE/repoid.acme_widgets"
+author acme/widgets 25 owner; author acme/widgets 26 someone; watch acme/widgets 25; : >"$GH_CALLS"
+printf '%s\tdryrun\t0\t1\n' "$HEAD" >"$f.status"; printf '%s\n' "$HEAD" >"$f.token"; printf '%s\n' "$HEAD" >"$o.token"
 purge_foreign owner
-[ "$(first_line "$f.status")" = "$(printf '%s\tdryrun\t0\t1' "$HEAD")" ] || fail "reused name key: $(first_line "$f.status")"
+[ "$(first_line "$f.status")" = "$(printf '%s\tdryrun\t0\t1' "$HEAD")" ] || fail "reused name, own PR: $(first_line "$f.status")"
 present "$f.token"
-grep -q $'^acme/widgets\t25$' "$WATCHED" || fail "reused name entry dropped: $(cat "$WATCHED")"
-[ "$(pr_views)" = 1 ] || fail "reused name: $(pr_views) pr view calls, want 1"
+[ "$(first_line "$o.status")" = 'skipped own-only' ] || fail "reused name, foreign PR: $(first_line "$o.status")"
+gone "$o.token"
+[ "$(cat "$WATCHED")" = $'acme/widgets\t25' ] || fail "reused name watch list: $(cat "$WATCHED")"
 : >"$GH_CALLS"; purge_foreign owner
 [ "$(pr_views)" = 0 ] || fail "reused name settled: $(pr_views) pr view calls, want 0"
-author acme/widgets 28 someone; watch acme/widgets 28; purge_foreign owner
-grep -q $'^acme/widgets\t28$' "$WATCHED" && fail "foreign entry 28 kept"
-author acme/widgets 28 owner; watch acme/widgets 28; purge_foreign owner
-grep -q $'^acme/widgets\t28$' "$WATCHED" || fail "reused name watch entry dropped: $(cat "$WATCHED")"
-pass 'purge: a cached foreign author is read again before it removes anything'
+printf -- '-\n' >"$FAKE/repoid.acme_widgets"; : >"$GH_CALLS"; purge_foreign owner
+[ "$(pr_views)" -ge 1 ] || fail "unreadable repository id: the cache was trusted"
+awk -F'\t' '$1 !~ /^[0-9]+#[0-9]+$/ {bad = 1} END {exit bad}' "$PR_REVIEW_WATCH_STATE_DIR/authors" || fail "an author was stored without a repository id: $(cat "$PR_REVIEW_WATCH_STATE_DIR/authors")"
+rm -f "$FAKE/repoid.acme_widgets"
+pass 'purge: authors are cached by repository id, a reused name is read again'
 
 reset; own_only_on
 c="$(key_of acme/widgets 3)"; f="$(key_of acme/widgets 4)"
