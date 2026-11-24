@@ -30,18 +30,19 @@ pr_author_login() {
   printf '%s' "$login" | tr '[:upper:]' '[:lower:]'
 }
 
-# GitHub account node ids never change or move to another account, unlike logins.
+# GitHub account ids never change or move to another account, unlike logins. Both ids
+# come from the REST API as numbers, so they always compare in the same format.
 pr_author_id() {
   local id
-  id="$(own_only_gh pr view "$2" --repo "$1" --json author --jq '.author.id // empty' </dev/null 2>/dev/null)" || return 1
-  [[ "$id" =~ ^[A-Za-z0-9_=-]+$ ]] || return 1
+  id="$(own_only_gh api "repos/$1/pulls/$2" --jq '.user.id // empty' </dev/null 2>/dev/null)" || return 1
+  [[ "$id" =~ ^[0-9]+$ ]] || return 1
   printf '%s' "$id"
 }
 
 own_only_account_id() {
   local id
-  id="$(own_only_gh api user --jq '.node_id // empty' </dev/null 2>/dev/null)" || return 1
-  [[ "$id" =~ ^[A-Za-z0-9_=-]+$ ]] || return 1
+  id="$(own_only_gh api user --jq '.id // empty' </dev/null 2>/dev/null)" || return 1
+  [[ "$id" =~ ^[0-9]+$ ]] || return 1
   printf '%s' "$id"
 }
 

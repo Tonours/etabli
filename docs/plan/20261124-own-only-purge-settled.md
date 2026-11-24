@@ -10,7 +10,7 @@
 - Workflow initiative: none
 
 ## Outcome
-- `purge_foreign` keeps PR author account ids in `$STATE_DIR/author-ids` across ticks, keyed by repository id. A known key costs no `gh pr view`, and the purge outcomes are unchanged.
+- `purge_foreign` keeps PR author REST account ids in `$STATE_DIR/author-user-ids` across ticks, keyed by repository id. A known key costs no `gh pr view`, and the purge outcomes are unchanged.
 - A failed author read is never stored. It is asked again on the next purge, and the purge still returns 3 (fail closed).
 
 ## Context

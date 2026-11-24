@@ -18,6 +18,7 @@ mkdir -p "$HOME/.local/bin" "$HOME/.claude" "$FAKE"
 ln -s "$SCRIPTS_ROOT" "$HOME/.claude/scripts"
 export PATH="$HOME/.local/bin:$PATH"
 HEAD=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+OWNER_ID="$(printf owner | cksum | cut -d' ' -f1)"
 export HEAD
 
 cat >"$HOME/.local/bin/gh" <<'GH'
@@ -33,7 +34,15 @@ for arg in "$@"; do
 done
 emit() { if [ -n "$jqf" ]; then jq -r "$jqf"; else cat; fi; }
 case "$1 $2" in
-  'api user') echo '{"login":"owner","node_id":"owner"}' | emit ;;
+  'api user') echo "{\"login\":\"owner\",\"id\":$(printf owner | cksum | cut -d' ' -f1)}" | emit ;;
+  'api repos/'*/pulls/*)
+    name="${2#repos/}"; number="${name##*/}"; name="${name%/pulls/*}"
+    author=someone
+    [ ! -f "$FAKE/author.${name//\//_}_$number" ] || author="$(cat "$FAKE/author.${name//\//_}_$number")"
+    [ "$author" != - ] || exit 1
+    author_id="${author#* }"; author="${author%% *}"
+    if [ "$author" = '~' ]; then echo '{"user":null}' | emit
+    else echo "{\"user\":{\"login\":\"$author\",\"id\":$(printf '%s' "$author_id" | cksum | cut -d' ' -f1)}}" | emit; fi ;;
   'api repos/'*)
     repo_id=1; name="${2#repos/}"
     [ ! -f "$FAKE/repoid.${name//\//_}" ] || repo_id="$(cat "$FAKE/repoid.${name//\//_}")"
@@ -128,7 +137,7 @@ watch acme/widgets 1; watch acme/widgets 2
 printf '%s\n' "$HEAD" >"$a.approval-pending"; printf 'body' >"$a.approval-body"; printf '%s\tdryrun\t0\t1\n' "$HEAD" >"$a.status"
 printf '%s\towner\n' "$HEAD" >"$b.registered"; printf '%s\n' "$HEAD" >"$b.council-done"
 cp "$a.status" "$TMP_DIR/status.before"
-purge_foreign owner
+purge_foreign "$OWNER_ID"
 gone "$a.approval-pending" "$a.approval-body" "$b.registered" "$b.council-done"
 cmp "$a.status" "$TMP_DIR/status.before" || fail 'a dryrun status of an own PR must stay'
 [ ! -e "$b.status" ] || fail 'a key without status gets none'
@@ -142,7 +151,7 @@ reset; own_only_on
 c="$(key_of acme/widgets 3)"; author acme/widgets 3 owner; watch acme/widgets 3
 printf '%s\towner\n' "$HEAD" >"$c.registered"; printf '%s\n' "$HEAD" >"$c.council-done"
 reserve "$c" verify tok3; : >"$c.claimed"; : >"$c.launch"; : >"$c.launch.AbC123"
-purge_foreign owner
+purge_foreign "$OWNER_ID"
 gone "$c.registered" "$c.council-done" "$c.token" "$c.claimed" "$c.launch" "$c.launch.AbC123"
 [ "$(first_line "$c.status")" = 'skipped posting-off' ] || fail "status: $(first_line "$c.status")"
 request "$(rid 3)" acme/widgets 3 dry-run
@@ -161,7 +170,7 @@ c="$(key_of acme/widgets 3)"; f="$(key_of acme/widgets 4)"
 author acme/widgets 3 owner; author acme/widgets 4 someone; watch acme/widgets 3; watch acme/widgets 4
 printf '%s\towner\n' "$HEAD" >"$c.registered"; reserve "$c" council tok3; : >"$c.launch.AbC123"
 printf '%s\tsomeone\n' "$HEAD" >"$f.registered"; reserve "$f" verify tok4; : >"$f.launch"; : >"$f.claimed"
-purge_foreign owner
+purge_foreign "$OWNER_ID"
 [ "$(first_line "$c.status")" = 'skipped posting-off' ] || fail "own PR status: $(first_line "$c.status")"
 [ "$(first_line "$f.status")" = 'skipped own-only' ] || fail "foreign PR status: $(first_line "$f.status")"
 [ "$(wc -l <"$c.status" | tr -d ' ')" = 1 ] && [ "$(wc -l <"$f.status" | tr -d ' ')" = 1 ] || fail 'a skip status is one line'
@@ -169,16 +178,16 @@ gone "$f.registered" "$f.token" "$f.claimed" "$f.launch"
 [ "$(cat "$WATCHED")" = $'acme/widgets\t3' ] || fail "watched: $(cat "$WATCHED")"
 pass 'purge: skipped posting-off for an own PR, skipped own-only for a foreign one, foreign entry dropped'
 
-pr_views() { grep -c '^pr view' "$GH_CALLS" || true; }
+pr_views() { grep -cE '^(pr view|api repos/[^ ]+/pulls/)' "$GH_CALLS" || true; }
 reset; own_only_on
 f="$(key_of acme/widgets 25)"; o="$(key_of acme/widgets 26)"; u="$(key_of acme/widgets 27)"
 author acme/widgets 25 someone; author acme/widgets 26 owner; author acme/widgets 27 -; watch acme/widgets 26
 printf '%s\tsomeone\n' "$HEAD" >"$f.registered"; printf '%s\tdryrun\t0\t1\n' "$HEAD" >"$o.status"; printf '%s\tsomeone\n' "$HEAD" >"$u.registered"
-rc=0; purge_foreign owner || rc=$?
+rc=0; purge_foreign "$OWNER_ID" || rc=$?
 [ "$rc" = 3 ] || fail "first purge with an unreadable author: exit $rc"
 : >"$GH_CALLS"
 printf '%s\tsomeone\n' "$HEAD" >"$f.registered"
-rc=0; purge_foreign owner || rc=$?
+rc=0; purge_foreign "$OWNER_ID" || rc=$?
 [ "$rc" = 3 ] || fail "second purge with an unreadable author: exit $rc"
 [ "$(pr_views)" = 1 ] || fail "second purge: $(pr_views) pr view calls, want 1 (the unreadable author only): $(cat "$GH_CALLS")"
 gone "$f.registered"
@@ -187,11 +196,11 @@ gone "$f.registered"
 [ "$(cat "$WATCHED")" = $'acme/widgets\t26' ] || fail "watched: $(cat "$WATCHED")"
 present "$u.registered"
 author acme/widgets 27 someone; : >"$GH_CALLS"
-purge_foreign owner
+purge_foreign "$OWNER_ID"
 [ "$(pr_views)" = 1 ] || fail "author readable again: $(pr_views) pr view calls, want 1"
 gone "$u.registered"
 [ "$(first_line "$u.status")" = 'skipped own-only' ] || fail "once readable: $(first_line "$u.status")"
-: >"$GH_CALLS"; purge_foreign owner
+: >"$GH_CALLS"; purge_foreign "$OWNER_ID"
 [ "$(pr_views)" = 0 ] || fail "settled purge: $(pr_views) pr view calls, want 0"
 pass 'purge: a known author is not asked again, a failed read is, outcomes unchanged'
 
@@ -200,25 +209,25 @@ pass 'purge: a known author is not asked again, a failed read is, outcomes uncha
 printf '2\n' >"$FAKE/repoid.acme_widgets"
 author acme/widgets 25 owner; author acme/widgets 26 someone; watch acme/widgets 25; : >"$GH_CALLS"
 printf '%s\tdryrun\t0\t1\n' "$HEAD" >"$f.status"; printf '%s\n' "$HEAD" >"$f.token"; printf '%s\n' "$HEAD" >"$o.token"
-purge_foreign owner
+purge_foreign "$OWNER_ID"
 [ "$(first_line "$f.status")" = "$(printf '%s\tdryrun\t0\t1' "$HEAD")" ] || fail "reused name, own PR: $(first_line "$f.status")"
 present "$f.token"
 [ "$(first_line "$o.status")" = 'skipped own-only' ] || fail "reused name, foreign PR: $(first_line "$o.status")"
 gone "$o.token"
 [ "$(cat "$WATCHED")" = $'acme/widgets\t25' ] || fail "reused name watch list: $(cat "$WATCHED")"
-: >"$GH_CALLS"; purge_foreign owner
+: >"$GH_CALLS"; purge_foreign "$OWNER_ID"
 [ "$(pr_views)" = 0 ] || fail "reused name settled: $(pr_views) pr view calls, want 0"
-printf -- '-\n' >"$FAKE/repoid.acme_widgets"; : >"$GH_CALLS"; purge_foreign owner
+printf -- '-\n' >"$FAKE/repoid.acme_widgets"; : >"$GH_CALLS"; purge_foreign "$OWNER_ID"
 [ "$(pr_views)" -ge 1 ] || fail "unreadable repository id: the cache was trusted"
-awk -F'\t' '$1 !~ /^[0-9]+#[0-9]+$/ {bad = 1} END {exit bad}' "$PR_REVIEW_WATCH_STATE_DIR/author-ids" || fail "an author was stored without a repository id: $(cat "$PR_REVIEW_WATCH_STATE_DIR/author-ids")"
+awk -F'\t' '$1 !~ /^[0-9]+#[0-9]+$/ {bad = 1} END {exit bad}' "$PR_REVIEW_WATCH_STATE_DIR/author-user-ids" || fail "an author was stored without a repository id: $(cat "$PR_REVIEW_WATCH_STATE_DIR/author-user-ids")"
 rm -f "$FAKE/repoid.acme_widgets"
 pass 'purge: authors are cached by repository id, a reused name is read again'
 
 # A login rename keeps the account id; another account taking the old login has another id.
-printf '2\n' >"$FAKE/repoid.acme_widgets"; purge_foreign owner
+printf '2\n' >"$FAKE/repoid.acme_widgets"; purge_foreign "$OWNER_ID"
 author acme/widgets 25 'renamed owner'; author acme/widgets 29 'owner U_other'; watch acme/widgets 29
-rm -f "$PR_REVIEW_WATCH_STATE_DIR/author-ids"; : >"$GH_CALLS"
-purge_foreign owner
+rm -f "$PR_REVIEW_WATCH_STATE_DIR/author-user-ids"; : >"$GH_CALLS"
+purge_foreign "$OWNER_ID"
 [ "$(first_line "$f.status")" = "$(printf '%s\tdryrun\t0\t1' "$HEAD")" ] || fail "renamed login, own PR: $(first_line "$f.status")"
 present "$f.token"
 [ "$(cat "$WATCHED")" = $'acme/widgets\t25' ] || fail "renamed login watch list: $(cat "$WATCHED")"
@@ -246,7 +255,7 @@ for mode in council verify; do
   no_council "$mode launcher"; no_writes "$mode launcher"
   gone "$c.claimed"
   [ "$(first_line "$c.status")" = "$(printf '%s\t%s\trunning\t1' "$HEAD" "$mode")" ] || fail "$mode launcher touched the status"
-  purge_foreign owner
+  purge_foreign "$OWNER_ID"
   gone "$c.token" "$c.launch.AbC123"
 done
 pass 'launchers: own PR in council or verify mode exits before any work; purge removes the reservation'

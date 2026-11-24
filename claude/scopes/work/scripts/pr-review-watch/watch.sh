@@ -442,8 +442,8 @@ purge_foreign() {
   local -a keys=()
   # $1 is the own account id (own_only_account_id), compared with author account ids.
   me="$1"
-  [[ "$me" =~ ^[A-Za-z0-9_=-]+$ ]] || return 1
-  AUTHOR_CACHE="$STATE_DIR/author-ids"
+  [[ "$me" =~ ^[0-9]+$ ]] || return 1
+  AUTHOR_CACHE="$STATE_DIR/author-user-ids"
   REPO_IDS="$(mktemp "${TMPDIR:-/tmp}/pr-review-repo-ids.XXXXXX")" || return 1
   while IFS= read -r key; do
     keys+=("$key")
