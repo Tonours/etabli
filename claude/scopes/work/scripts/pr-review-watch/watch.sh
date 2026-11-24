@@ -441,7 +441,9 @@ purge_foreign() {
   local me file base key pair author status_mode marker unread=0 next="$WATCHED.next" entry_repo entry_number
   local -a keys=()
   me="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
-  AUTHOR_CACHE="$STATE_DIR/authors"
+  # One cache per own login: after a login rename the old logins are never compared again.
+  [[ "$me" =~ ^[a-z0-9-]+$ ]] || return 1
+  AUTHOR_CACHE="$STATE_DIR/authors.$me"
   REPO_IDS="$(mktemp "${TMPDIR:-/tmp}/pr-review-repo-ids.XXXXXX")" || return 1
   while IFS= read -r key; do
     keys+=("$key")
