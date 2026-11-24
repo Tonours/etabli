@@ -347,8 +347,10 @@ the repo's `CLAUDE.md` and `~/work/brain`.
 - Findings go to Slack `#routines` only (`prompt.md`).
 - Guards: a PR under 31 days old (counted in whole days), one pass per `repo#pr@headSha`, one run per
   PR, and the kill switch `~/.claude/state/pr-autoreview.off`.
-- A push from a fleet thread (`FLEET_THREAD` set) is skipped: fleet reviews
-  that PR through the watcher dry-run and its autofix loop.
+- A fleet thread pushing the branch checked out in its own worktree (named
+  by `FLEET_THREAD`) to that worktree's origin repo is skipped: fleet reviews
+  that PR through the watcher dry-run and its autofix loop. Any other push
+  from the pane is reviewed as usual.
 - A later push is reviewed on the commits since the last reviewed head (the
   full diff after a rebase or a new base), and posts nothing when it finds
   nothing.

@@ -245,7 +245,7 @@ expect "isolation: hooks, mcp and setting sources" "1" \
 
 fake_home="$TMP_DIR/home"
 mkdir -p "$fake_home/.claude/scripts/pr-autoreview" "$fake_home/.claude/state/pr-autoreview"
-printf 'owner/repo\tprofile\n' >"$fake_home/.claude/state/pr-autoreview/repos.tsv"
+printf 'owner/repo\tprofile\nowner/other\tprofile\n' >"$fake_home/.claude/state/pr-autoreview/repos.tsv"
 printf '#!/bin/sh\necho "$@" >>"%s/calls"\n' "$TMP_DIR" >"$fake_home/.claude/scripts/pr-autoreview/run.sh"
 chmod +x "$fake_home/.claude/scripts/pr-autoreview/run.sh"
 printf '#!/bin/sh\n. "%s"\necho "stdin=$(wc -l | tr -d " ")"\n' "$SCRIPTS/pr-autoreview/hook-entry.sh" >"$TMP_DIR/pre-push"
@@ -261,13 +261,39 @@ expect "hook: husky v9 fires and keeps stdin for the real hook" "stdin=3" "$hook
 expect "hook: branch comes from the remote ref, tags and main skipped" \
   "owner/repo profile feat/remote-name 1111111111111111111111111111111111111111" \
   "$(cut -d' ' -f1-4 "$TMP_DIR/calls" 2>/dev/null)"
-rm -f "$TMP_DIR/calls"
-hook_out="$(cd "$TMP_DIR/hookrepo" && printf '%s\n' \
-  'refs/heads/local 1111111111111111111111111111111111111111 refs/heads/feat/remote-name 0000000000000000000000000000000000000000' \
-  | env -u hook_name HOME="$fake_home" FLEET_THREAD=t-1 "$TMP_DIR/pre-push" origin git@github.com:owner/repo.git)"
-sleep 1
+# Fleet reviews only the PR on the branch checked out in a thread's own
+# worktree, a directory named by the thread id: the skip is scoped to it.
+git -C "$TMP_DIR" init -q -b feat/remote-name t-1
+git -C "$TMP_DIR/t-1" remote add origin git@github.com:owner/repo.git
+run_hook() {
+  local dir="$1" url="$2" thread="$3"; shift 3
+  rm -f "$TMP_DIR/calls"
+  if [ -n "$thread" ]; then
+    hook_out="$(cd "$dir" && printf '%s\n' "$@" | env -u hook_name HOME="$fake_home" FLEET_THREAD="$thread" "$TMP_DIR/pre-push" origin "$url")"
+  else
+    hook_out="$(cd "$dir" && printf '%s\n' "$@" | env -u hook_name -u FLEET_THREAD HOME="$fake_home" "$TMP_DIR/pre-push" origin "$url")"
+  fi
+  sleep 1
+  call_args="$(cut -d' ' -f1-4 "$TMP_DIR/calls" 2>/dev/null || true)"
+}
+own_ref='refs/heads/local 1111111111111111111111111111111111111111 refs/heads/feat/remote-name 0000000000000000000000000000000000000000'
+run_hook "$TMP_DIR/t-1" git@github.com:owner/repo.git t-1 "$own_ref"
 expect "hook: a fleet thread push keeps stdin for the real hook" "stdin=1" "$hook_out"
-expect "hook: a fleet thread push starts no autoreview" "absent" "$([ -e "$TMP_DIR/calls" ] && echo present || echo absent)"
+expect "hook: a fleet thread pushes its own branch without autoreview" "" "$call_args"
+run_hook "$TMP_DIR/t-1" git@github.com:owner/repo.git t-1 \
+  'refs/heads/local 1111111111111111111111111111111111111111 refs/heads/feat/other-pr 0000000000000000000000000000000000000000'
+expect "hook: a fleet thread pushing another branch gets autoreview" \
+  "owner/repo profile feat/other-pr 1111111111111111111111111111111111111111" "$call_args"
+run_hook "$TMP_DIR/hookrepo" git@github.com:owner/repo.git t-1 "$own_ref"
+expect "hook: a fleet thread pushing outside its worktree gets autoreview" \
+  "owner/repo profile feat/remote-name 1111111111111111111111111111111111111111" "$call_args"
+run_hook "$TMP_DIR/t-1" git@github.com:owner/repo.git t-1 "$own_ref" \
+  'refs/heads/local2 4444444444444444444444444444444444444444 refs/heads/feat/other-pr 0000000000000000000000000000000000000000'
+expect "hook: a mixed fleet push reviews only the other branch" \
+  "owner/repo profile feat/other-pr 4444444444444444444444444444444444444444" "$call_args"
+run_hook "$TMP_DIR/t-1" git@github.com:owner/other.git t-1 "$own_ref"
+expect "hook: a fleet thread pushing its branch to another repo gets autoreview" \
+  "owner/other profile feat/remote-name 1111111111111111111111111111111111111111" "$call_args"
 
 [ "$failures" -eq 0 ] || { echo "$failures failure(s)"; exit 1; }
 echo "all pr-review gate checks passed"
