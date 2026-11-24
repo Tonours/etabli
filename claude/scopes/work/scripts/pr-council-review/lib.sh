@@ -103,12 +103,14 @@ extract_result() {
   jq -r .result "$1"
 }
 
-hook_refusal_ids() {
+# The denied calls that were never judged: a hook refusal, or an auto mode call
+# the classifier gave no verdict on (a sibling call changed after its review).
+excused_ids() {
   local ids
   if [ -r "$1" ] && ids="$(jq -cRn '[inputs | fromjson? | select(type == "object" and .type == "user")
     | .message.content[]? | select(type == "object" and .type == "tool_result" and .is_error == true)
     | select((.content | if type == "array" then map(.text? // "") | join("") else tostring end)
-      | test("^PreToolUse:[A-Za-z_]+ hook error: "))
+      | test("^(PreToolUse:[A-Za-z_]+ hook error: |The server-side auto mode classifier gave no verdict for )"))
     | .tool_use_id | strings]' "$1" 2>/dev/null)"; then
     printf '%s\n' "$ids"
   else
@@ -118,7 +120,7 @@ hook_refusal_ids() {
 
 check_denials() {
   local count denials refused_count refused hooks
-  hooks="$(hook_refusal_ids "$1.stream")"
+  hooks="$(excused_ids "$1.stream")"
   local list='.permission_denials | if type == "array" then . else error("not an array") end'
   local refusal='(.tool_use_id as $id | $id != null and ($hooks | index($id)) != null)'
   local line='"\(.tool_name): \(.tool_input.command // .tool_input.file_path // (.tool_input | tostring))"'
@@ -130,7 +132,7 @@ check_denials() {
     return 2
   fi
   if [ "$refused_count" -gt 0 ]; then
-    echo "=== $refused_count hook refusal(s), not a veto:" >&2
+    echo "=== $refused_count call(s) refused without a verdict, not a veto:" >&2
     printf '%s\n' "$refused" >&2
   fi
   [ "$count" -gt 0 ] || return 0
