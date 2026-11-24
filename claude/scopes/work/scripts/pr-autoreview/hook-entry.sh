@@ -26,11 +26,11 @@ case "${FLEET_THREAD:-}" in
     pr_autoreview_origin_repo=$(printf '%s' "$pr_autoreview_origin_url" | sed -E -e 's,\.git$,,' -e 's,^.*[:/]([^/]+/[^/]+)$,\1,')
     pr_autoreview_fleet_db="${FLEET_DATA_DIR:-$HOME/Library/Application Support/fleet}/fleet.sqlite"
     if [ -n "$pr_autoreview_origin_repo" ] && [ "$pr_autoreview_origin_repo" = "$pr_autoreview_repo" ] && [ -r "$pr_autoreview_fleet_db" ]; then
-      pr_autoreview_fleet_dir=$(sqlite3 -readonly -cmd '.timeout 1000' "$pr_autoreview_fleet_db" \
+      pr_autoreview_fleet_dir=$(sqlite3 -init /dev/null -readonly -cmd '.timeout 1000' "$pr_autoreview_fleet_db" \
         "SELECT dir FROM threads WHERE id = '$FLEET_THREAD'" 2>/dev/null || true)
       if [ -n "$pr_autoreview_fleet_dir" ] \
         && [ "$(cd "$pr_autoreview_fleet_dir" 2>/dev/null && pwd -P)" = "$(cd "$pr_autoreview_root" && pwd -P)" ]; then
-        pr_autoreview_fleet_branch=$(sqlite3 -readonly -cmd '.timeout 1000' "$pr_autoreview_fleet_db" \
+        pr_autoreview_fleet_branch=$(sqlite3 -init /dev/null -readonly -cmd '.timeout 1000' "$pr_autoreview_fleet_db" \
           "SELECT branch FROM threads WHERE id = '$FLEET_THREAD'" 2>/dev/null || true)
       fi
     fi
