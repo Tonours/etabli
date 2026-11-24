@@ -3,6 +3,8 @@
 [ "${hook_name:-$(basename -- "$0")}" = "pre-push" ] || return 0
 [ -z "${PR_AUTOREVIEW_DISABLED:-}" ] || return 0
 [ -f "$HOME/.claude/state/pr-autoreview.off" ] && return 0
+# A fleet thread's PR is reviewed by fleet through the watcher dry-run: no second review.
+[ -z "${FLEET_THREAD:-}" ] || return 0
 
 pr_autoreview_remote_url="${2:-}"
 pr_autoreview_repos="$HOME/.claude/state/pr-autoreview/repos.tsv"

@@ -255,12 +255,19 @@ hook_out="$(cd "$TMP_DIR/hookrepo" && printf '%s\n' \
   'refs/heads/local 1111111111111111111111111111111111111111 refs/heads/feat/remote-name 0000000000000000000000000000000000000000' \
   'refs/tags/v1 2222222222222222222222222222222222222222 refs/tags/v1 0000000000000000000000000000000000000000' \
   'refs/heads/main 3333333333333333333333333333333333333333 refs/heads/main 0000000000000000000000000000000000000000' \
-  | env -u hook_name HOME="$fake_home" "$TMP_DIR/pre-push" origin git@github.com:owner/repo.git)"
+  | env -u hook_name -u FLEET_THREAD HOME="$fake_home" "$TMP_DIR/pre-push" origin git@github.com:owner/repo.git)"
 sleep 1
 expect "hook: husky v9 fires and keeps stdin for the real hook" "stdin=3" "$hook_out"
 expect "hook: branch comes from the remote ref, tags and main skipped" \
   "owner/repo profile feat/remote-name 1111111111111111111111111111111111111111" \
   "$(cut -d' ' -f1-4 "$TMP_DIR/calls" 2>/dev/null)"
+rm -f "$TMP_DIR/calls"
+hook_out="$(cd "$TMP_DIR/hookrepo" && printf '%s\n' \
+  'refs/heads/local 1111111111111111111111111111111111111111 refs/heads/feat/remote-name 0000000000000000000000000000000000000000' \
+  | env -u hook_name HOME="$fake_home" FLEET_THREAD=t-1 "$TMP_DIR/pre-push" origin git@github.com:owner/repo.git)"
+sleep 1
+expect "hook: a fleet thread push keeps stdin for the real hook" "stdin=1" "$hook_out"
+expect "hook: a fleet thread push starts no autoreview" "absent" "$([ -e "$TMP_DIR/calls" ] && echo present || echo absent)"
 
 [ "$failures" -eq 0 ] || { echo "$failures failure(s)"; exit 1; }
 echo "all pr-review gate checks passed"
