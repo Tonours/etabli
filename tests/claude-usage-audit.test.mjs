@@ -5,7 +5,7 @@ import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:f
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { MARKER, writeCarriedFixture, writeDuplicateCallFixture, writeFixture } from "./fixtures/claude-usage-audit.mjs";
+import { MARKER, writeCarriedFixture, writeDuplicateCallFixture, writeFixture, writeLineSeparatorFixture } from "./fixtures/claude-usage-audit.mjs";
 
 const script = fileURLToPath(new URL("../scripts/claude-usage-audit", import.meta.url));
 const skipped = (file) => new RegExp(`skipped unreadable ${file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} \\(`);
@@ -216,6 +216,12 @@ describe("claude-usage-audit j_carriedVsUsed", () => {
       const { out } = run((dir) => writeDuplicateCallFixture(dir, oldInA));
       assert.deepEqual(out.j_carriedVsUsed.builtinToolsByEntrypoint["(unknown)"], { Explore: row(0, 1, 1) }, `oldInA=${oldInA}`);
     }
+  });
+
+  test("splits transcript lines on newlines only, never on U+2028 or U+2029", () => {
+    const { out } = run((dir) => writeLineSeparatorFixture(dir));
+    assert.deepEqual(out.j_carriedVsUsed.builtinToolsByEntrypoint, { cli: { Read: row(0, 1, 2) } });
+    assert.equal(out.schema.toolScanGaps, 0);
   });
 
   test("credits a call copied into two sessions to one of them whatever the file order", () => {

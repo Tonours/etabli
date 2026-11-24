@@ -267,6 +267,21 @@ async function readMeta(file) {
   try { return JSON.parse(text); } catch { schema.parseErrors += 1; return null; }
 }
 
+// JSONL splits on '\n' only: readline also breaks at U+2028 and U+2029, which JSON strings may hold raw.
+const stripCr = (line) => (line.endsWith('\r') ? line.slice(0, -1) : line);
+async function* jsonlLines(handle) {
+  let parts = [];
+  for await (const chunk of handle.createReadStream({ encoding: 'utf8', autoClose: false })) {
+    let start = 0;
+    for (let i = chunk.indexOf('\n'); i !== -1; i = chunk.indexOf('\n', start)) {
+      parts.push(chunk.slice(start, i)); yield stripCr(parts.join('')); parts = []; start = i + 1;
+    }
+    parts.push(chunk.slice(start));
+  }
+  const last = stripCr(parts.join(''));
+  if (last) yield last;
+}
+
 async function processFile(file) {
   const isSubFile = /\/subagents\/agent-[^/]+\.jsonl$/.test(file);
   let fileAgentId = null, meta = null;
@@ -286,7 +301,7 @@ async function processFile(file) {
   const handle = await fs.open(file, 'r'); // a failure here is counted as an unreadable file by the caller
   schema.filesScanned += 1;
   try {
-  for await (const line of handle.readLines({ encoding: 'utf8' })) {
+  for await (const line of jsonlLines(handle)) {
     let indexed = false;
     try {
       schema.bytesScanned += line.length;

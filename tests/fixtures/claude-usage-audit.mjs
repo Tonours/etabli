@@ -240,3 +240,15 @@ export function writeDuplicateCallFixture(dir, oldInA, now = Date.now(), fork = 
   writeFileSync(join(project, "dup-a.jsonl"), jsonl(oldInA ? a : b));
   writeFileSync(join(project, "dup-b.jsonl"), jsonl(oldInA ? b : a));
 }
+
+// Raw U+2028 and U+2029 inside a JSON string, a line longer than one read chunk, CRLF lines (one blank) and a last line
+// without a newline: one session, two Read calls. A second file holds a lone CR.
+export function writeLineSeparatorFixture(dir, now = Date.now()) {
+  const at = (minutesAgo) => new Date(now - minutesAgo * 60e3).toISOString();
+  const project = join(dir, "projects", "-tmp-separators");
+  mkdirSync(project, { recursive: true });
+  const call = (id, text) => JSON.stringify({ type: "assistant", sessionId: "sep", timestamp: at(20), uuid: `u-${id}`, message: { id: `msg-${id}`, content: [{ type: "text", text }, { type: "tool_use", id, name: "Read" }] } });
+  const user = JSON.stringify({ type: "user", sessionId: "sep", entrypoint: "cli", timestamp: at(30) });
+  writeFileSync(join(project, "sep.jsonl"), `${user}\r\n\r\n${call("t1", `a\u2028b\u2029c${"x".repeat(200000)}\u2028d`)}\n${call("t2", "e")}`);
+  writeFileSync(join(project, "cr.jsonl"), "\r");
+}
