@@ -7,8 +7,7 @@ allowed-tools: [Bash, Read, Glob, Grep]
 
 Run `~/.claude/scripts/pr-council-review/run.sh` with the arguments of the
 request, in their order (the PR, then its flags), from the repository the PR
-belongs to, and stream its output unchanged. The watcher keeps its full canonical
-stream. If the harness files Bash output, `<log-file>` is that file; read phase B
+belongs to, and stream its output unchanged. If the harness files Bash output, `<log-file>` is that file; read phase B
 first, then relevant phase A evidence:
 `bash -c '. ~/.claude/scripts/pr-council-review/lib.sh && phase_b_output "$1"' _ "<log-file>"`.
 If output stays inline, read phase B in that stream.
@@ -45,15 +44,13 @@ usage per pass is appended to `~/.claude/logs/pr-review-usage.log`.
   at most 5, each diff pinned to its head SHA and at most 5000 lines
   (`PR_COUNCIL_LINKED_MAX_LINES`; `PR_COUNCIL_LINKED_TIMEOUT`, 20 s per `gh`
   call; any failure skips it). The gate reads them: a finding a linked PR already fixes is posted as a
-  merge dependency on that PR, not as a fix request. On a later push the watch
-  collects them once more and gives the same section to the delta review and
-  the fix verification.
+  merge dependency on that PR, not as a fix request.
 - Stalled passes: every Claude pass streams its session
   (`--output-format stream-json`). One that writes nothing for 900 s
   (`PR_REVIEW_PASS_IDLE`, 0 turns it off) is stopped with exit 124, like the
   2700 s cap (`PR_REVIEW_PASS_TIMEOUT`), and the log names its last event and
-  last tool call. The watch retries a stalled gate, delta or verify pass; a
-  stalled phase A pass leaves the gate running without it.
+  last tool call. A stalled phase A pass leaves the gate running without it;
+  a stalled validator pass exits 124 so you can re-run the council.
 - Untrusted input: every prompt we own says the diff, the PR text and the
   commit messages are author data. The `/code-review` pass is a bare slash
   command and gets no such line.
@@ -79,14 +76,11 @@ when none survive. It never approves: it ends with the validator's run marker.
 The script reads the head's reviews again after that pass: when the
 validator's latest review is not an approval, it appends a marker counting it
 as open, and when findings were kept under `--post` but no new review of ours
-is on the head, it exits 1 so the watcher retries. The watcher approves only
-behind its gates and only when nothing stands; a validator approval on the head
-is taken as its completion.
+is on the head, it exits 1.
 
 A permission denial in any pass is a veto: the validator does not run or its
-review is not approved, and the script exits 3. A session that ends incomplete
-(an error, a turn or budget cap) exits 4; the watcher also counts a validator run
-without its run marker as incomplete, and retries neither on the same head.
+review is rejected, and the script exits 3. A session that ends incomplete
+(an error, a turn or budget cap) exits 4.
 
 Without `--post` the validator prints the review payload it would submit and
 writes nothing to GitHub. Pass `--post` whenever the request is to publish the

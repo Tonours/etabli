@@ -146,7 +146,6 @@ ln -s "$REPO/vendor/adonisjs-skills/skills/adonisjs-suite" "$TMP_HOME/.claude/sk
 ETABLI_SCOPE=work HOME="$TMP_HOME" "$SCRIPT" --fix --verbose >/dev/null
 assert_not_exists "$TMP_HOME/.claude/skills/adr"
 assert_link "$TMP_HOME/.claude/scripts/claude-bin.sh" "$REPO/claude/scopes/work/scripts/claude-bin.sh"
-assert_link "$TMP_HOME/.claude/scripts/pr-review-watch" "$REPO/claude/scopes/work/scripts/pr-review-watch"
 assert_link "$TMP_HOME/.claude/skills/linear-ticket-create" "$REPO/skills/work/linear-ticket-create"
 assert_link "$TMP_HOME/.pi/agent/skills/linear-ticket-create" "$REPO/skills/work/linear-ticket-create"
 assert_link "$TMP_HOME/.claude/skills/pr-council-review" "$REPO/skills/work/pr-council-review"

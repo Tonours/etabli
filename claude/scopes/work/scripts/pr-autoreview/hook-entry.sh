@@ -13,11 +13,11 @@ pr_autoreview_profile=$(awk -F'\t' -v r="$pr_autoreview_repo" '$1 == r { print $
 [ -n "$pr_autoreview_profile" ] || return 0
 pr_autoreview_root=$(git rev-parse --show-toplevel 2>/dev/null) || return 0
 
-# Fleet reviews, through the watcher dry-run, only the PR on the branch its
-# thread record follows (`threads.branch`), not whatever the pane checked out:
-# skip just that branch, pushed from the worktree fleet records for the thread
-# (`threads.dir`, compared as canonical paths) to its origin repo. Any other
-# push, or an unreadable fleet database, still gets an autoreview.
+# Skip pushes from a fleet worker on the branch its thread record follows
+# (`threads.branch`), pushed from the worktree fleet records for the thread
+# (`threads.dir`, compared as canonical paths) to its origin repo, so worker
+# pushes do not emit unsolicited Slack autoreview reports. Any other push, or
+# an unreadable fleet database, still gets an autoreview.
 pr_autoreview_fleet_branch=""
 case "${FLEET_THREAD:-}" in
   ''|*[!A-Za-z0-9_-]*) ;;

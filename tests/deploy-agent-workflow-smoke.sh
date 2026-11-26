@@ -348,7 +348,6 @@ fi
   assert_absent "$WORK_HOME_DIR/.claude/scripts/retired-routine"
   assert_link "$WORK_HOME_DIR/.claude/scripts/personal-missing-script" "$TMP_DIR/personal-missing-script"
   assert_link "$WORK_HOME_DIR/.claude/scripts/pr-autoreview" "$ROOT_DIR/claude/scopes/work/scripts/pr-autoreview"
-  assert_link "$WORK_HOME_DIR/.claude/scripts/pr-review-watch" "$ROOT_DIR/claude/scopes/work/scripts/pr-review-watch"
   assert_link "$WORK_HOME_DIR/.claude/skills/employer-backend-suite" "$ROOT_DIR/skills/work/employer-backend-suite"
   assert_absent "$WORK_HOME_DIR/.pi/agent/skills/employer-backend-suite"
   assert_link "$WORK_HOME_DIR/.claude/skills/linear-ticket-create" "$ROOT_DIR/skills/work/linear-ticket-create"
