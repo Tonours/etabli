@@ -358,106 +358,14 @@ the repo's `CLAUDE.md` and `~/work/brain`.
   PR, and the kill switch `~/.claude/state/pr-autoreview.off`.
 - A fleet thread pushing the branch fleet records for it (`threads.branch`
   of `FLEET_THREAD`), from the worktree fleet records (`threads.dir`) to that
-  worktree's origin repo, is skipped: fleet reviews that PR through the
-  watcher dry-run and its autofix loop. Any other push from the pane, or an
+  worktree's origin repo, is skipped so worker pushes do not emit duplicate
+  Slack autoreview reports. Any other push from the pane, or an
   unreadable fleet database, is reviewed as usual.
 - A later push is reviewed on the commits since the last reviewed head (the
   full diff after a rebase or a new base), and posts nothing when it finds
   nothing.
 
 `pr-autoreview/install.sh` wires a machine.
-
-## PR review watch
-
-`scopes/work/scripts/pr-review-watch/` reviews PRs where your review is
-requested, never your own. A LaunchAgent runs `watch.sh` every 60 s by default.
-It watches open PRs until they are closed, approved or no longer involve you,
-and reviews a head sha 120 s after it first sees that sha. It skips PRs with
-more than 5000 changed lines outside lockfiles, runs at most 2 reviews at once
-and 20 a day, and makes at most 3 attempts per head. Each review opens in a `pr-reviews` herdr tab, or runs
-detached.
-
-### What a review does
-
-The first review is `/pr-council-review --post`. It also reads open PRs linked
-to this one in the owner's repositories, and turns a finding one of them
-already fixes into a merge-order note. Later pushes get `/code-review` on the
-new commits, then the machine-local fix-verification skill
-(`PR_COUNCIL_VERIFY_SKILL`, else the first line of
-`~/.config/pr-council-review/verify-skill`). Without one, that step is marked
-unconfigured and the head stays due. A head whose full review found nothing,
-with no review of yours on the PR, skips the step and needs no verify skill.
-Later pushes read the linked PRs too.
-
-The watch approves only when the model is confident and its own checks hold:
-head unchanged, PR open and not draft, no unresolved thread, no other changes
-requested, CI green. Agent config files a PR changes are reset to base in every
-scratch worktree. A Claude pass silent for 900 s is stopped and retried like
-one that hits the 2700 s cap.
-
-- State: `~/.claude/state/pr-review-watch/`.
-- Logs: `~/.claude/logs/pr-review-watch.log` and `pr-review-usage.log`.
-- `watch.sh stop` sets the kill switch and stops reviews in flight.
-- `tests/pr-review-gates-smoke.sh` covers the approval gates.
-
-### Settle, polling and timing
-
-The settle clock starts when the watch first sees a head sha, not at the push
-time. Polling rounds the wait up to a later tick, and launchd scheduling, queue
-caps and review runtime can delay it further. At the default 60 s interval,
-snapshot lookups alone come to about 60 per watched PR per hour, plus
-discovery and size lookups. That counts calls, not GitHub API points.
-
-`PR_REVIEW_WATCH_SETTLE` overrides the settle delay for a direct run. The
-LaunchAgent sets only PATH, so a shell export does not reach its job: put a
-settle override in the plist's `EnvironmentVariables`.
-`pr-review-watch/install.sh <seconds>` sets the polling interval, and an
-installed plist keeps its interval until you rerun it. The scripts are linked
-to the checkout, so an edit there applies on the next run.
-
-Each pass writes a timing line to stderr and `pr-review-usage.log`:
-`timing <pass>: elapsed_s=<integer> process_exit=<code>`. Codex passes share
-one `codex` label, so correlate them with the target and run report. Phase A
-runs its passes in parallel, so the sum of pass times is not the council
-latency.
-`process_exit=0` means only that the CLI exited cleanly. Completion,
-permission checks and approval gates still decide the result. A signal that
-kills the shell can leave no timing line, so drop incomplete samples instead
-of counting them as zero.
-
-### Incomplete councils and stored reports
-
-A council with a pending lens, ticketed security or a malformed run marker is
-incomplete even when it posted findings. It records no completed council: the
-current sha stops with exit 4, and a new push gets a full council until that
-state is resolved. That costs more than the ordinary fix-verification path.
-
-Before it reuses a completed council or retries an approval, the runner
-validates the stored council report against the full sha. Missing,
-incomplete or inconsistent state gets a full council under the normal caps,
-and an invalid pending approval is requeued on the next tick. Reports expire
-after 30 days, so an older PR can need another full review.
-
-A report counts only when it meets these rules
-(`pr-council-review/lib.sh`):
-
-- exactly one phase-B header; extra header-like text, or a PR title starting
-  with `phase B: `, makes it incomplete;
-- run markers are whole lines starting with `<!-- claudine:v1 ` or
-  `=== run marker: claudine:v1 `, so inline and blockquoted copies do not
-  count;
-- each marker holds exactly one JSON object with no duplicate key, and counts
-  only when its `kind` is `run` and its `sha` is the full head sha;
-- every matching marker must be complete, and the highest finding count wins;
-- `lenses` is a non-empty array or object of strings, with no `pending` lens;
-- `security` is a non-blank string, and `ticketed` in any letter case is
-  refused;
-- `findings` is a non-negative integer.
-
-These are the consumer's rules. Whether the external validator's reports
-meet them has not been checked against a real report yet, so check one before
-you rely on the validator path. `run marker has no lenses` in the log points
-to a producer that does not emit lenses.
 
 ## Failure ownership
 

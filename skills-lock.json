@@ -74,7 +74,7 @@
     "work/pr-council-review": {
       "source": "local",
       "sourceType": "repo",
-      "computedHash": "4d8117192e9914805dfb115655a5905ad1b8306e1921b97a504e975f966ab85e"
+      "computedHash": "6719fecf8884aa31b785823b6a6efcbb9d9734084ceeda8076b2cc9a0b41be61"
     },
     "security-audit": {
       "source": "local",

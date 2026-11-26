@@ -18,84 +18,6 @@ expect() {
   fi
 }
 
-mkdir -p "$TMP_DIR/bin"
-cat >"$TMP_DIR/bin/gh" <<'GH'
-#!/usr/bin/env bash
-case "$1 $2" in
-  "pr view") printf '%s\n' "$FAKE_PR_JSON" ;;
-  "pr checks") printf '%s\n' "$FAKE_BUCKETS" ;;
-  "api graphql") [ -z "${FAKE_GRAPHQL_FAIL:-}" ] || exit 1; i=0; while [ "$i" -lt "$FAKE_UNRESOLVED" ]; do echo 1; i=$((i + 1)); done ;;
-  *) echo "unexpected gh call: $*" >&2; exit 1 ;;
-esac
-GH
-chmod +x "$TMP_DIR/bin/gh"
-
-run_gates() {
-  PATH="$TMP_DIR/bin:$PATH" PR_REVIEW_WATCH_STATE_DIR="$TMP_DIR/state" PR_REVIEW_WATCH_CI_WAIT=0 \
-    REPO=owner/repo NUMBER=7 ME=me SHA=abc KEY="$TMP_DIR/state/key" bash -c ". '$SCRIPTS/pr-review-watch/gates.sh'; $1"
-}
-
-pr_json() {
-  printf '{"state":"%s","isDraft":%s,"headRefOid":"%s","latestReviews":[%s],"author":{"login":"other"}}' "$1" "$2" "$3" "${4:-}"
-}
-
-export FAKE_UNRESOLVED=0 FAKE_BUCKETS="pass,skipping"
-export FAKE_PR_JSON="$(pr_json OPEN false abc)"
-expect "objective: all green approves" "" "$(run_gates objective_blocker)"
-expect "objective: own PR blocks" 'cannot approve own PR' "$(FAKE_PR_JSON="$(pr_json OPEN false abc | jq '.author.login = "me"')" run_gates objective_blocker)"
-expect "objective: unknown author blocks" 'PR author unreadable' "$(FAKE_PR_JSON="$(pr_json OPEN false abc | jq 'del(.author)')" run_gates objective_blocker)"
-FAKE_PR_JSON="$(pr_json OPEN false def)" expect "objective: moved head blocks" "head moved to def" "$(FAKE_PR_JSON="$(pr_json OPEN false def)" run_gates objective_blocker)"
-expect "objective: merged PR blocks" "PR is MERGED" "$(FAKE_PR_JSON="$(pr_json MERGED false abc)" run_gates objective_blocker)"
-expect "objective: draft blocks" "PR is a draft" "$(FAKE_PR_JSON="$(pr_json OPEN true abc)" run_gates objective_blocker)"
-expect "objective: other reviewer's changes requested blocks" "changes requested by alice" \
-  "$(FAKE_PR_JSON="$(pr_json OPEN false abc '{"state":"CHANGES_REQUESTED","author":{"login":"alice"}}')" run_gates objective_blocker)"
-expect "objective: own changes requested does not block" "" \
-  "$(FAKE_PR_JSON="$(pr_json OPEN false abc '{"state":"CHANGES_REQUESTED","author":{"login":"me"}}')" run_gates objective_blocker)"
-expect "objective: unresolved threads block" "2 unresolved review threads" "$(FAKE_UNRESOLVED=2 run_gates objective_blocker)"
-expect "objective: thread lookup failure blocks" "unknown unresolved review threads" "$(FAKE_GRAPHQL_FAIL=1 run_gates objective_blocker)"
-expect "objective: failing CI blocks" "CI is fail" "$(FAKE_BUCKETS="pass,fail" run_gates objective_blocker)"
-expect "objective: pending CI blocks after the wait" "CI is pending" "$(FAKE_BUCKETS="pending" run_gates objective_blocker)"
-expect "objective: no CI blocks by default" "CI is none" "$(FAKE_BUCKETS="" run_gates objective_blocker)"
-expect "objective: no CI allowed when opted in" "" "$(FAKE_BUCKETS="" PR_REVIEW_WATCH_ALLOW_NO_CI=1 run_gates objective_blocker)"
-mkdir -p "$TMP_DIR/state" && touch "$TMP_DIR/state/off"
-expect "objective: kill switch blocks" "kill switch is on" "$(run_gates objective_blocker)"
-rm -f "$TMP_DIR/state/off"
-
-verdict() { printf 'report\nVERIFY_VERDICT reviewed=%s reopened=%s regressions=%s complete=%s confident=%s\n' "$@" >"$TMP_DIR/verify.log"; }
-printf 'DELTA_CONFIDENT value=true\n' >"$TMP_DIR/verify-delta.log"
-verdict 2 0 0 true true
-expect "verify: settled and confident approves" "" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0 '$TMP_DIR/verify-delta.log'")"
-expect "verify: delta findings block" "delta review posted 1 findings" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 1 '$TMP_DIR/verify-delta.log'")"
-expect "verify: unknown delta count blocks" "delta review posted unknown findings" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' '' '$TMP_DIR/verify-delta.log'")"
-printf 'DELTA_CONFIDENT value=false\n' >"$TMP_DIR/verify-delta.log"
-expect "verify: delta uncertainty blocks a confident verifier" "delta reviewer not confident" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0 '$TMP_DIR/verify-delta.log'")"
-printf 'no delta verdict\n' >"$TMP_DIR/verify-delta.log"
-expect "verify: missing delta confidence blocks" "delta reviewer not confident" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0 '$TMP_DIR/verify-delta.log'")"
-expect "verify: absent delta log blocks" "delta reviewer not confident" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0 '$TMP_DIR/absent'")"
-printf 'DELTA_CONFIDENT value=true\n' >"$TMP_DIR/verify-delta.log"
-verdict 0 0 0 true true
-expect "verify: empty finding set without a clean review blocks" "no finding was verified" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0 '$TMP_DIR/verify-delta.log'")"
-mkdir -p "$TMP_DIR/state" && touch "$TMP_DIR/state/key.council-clean"
-expect "verify: empty finding set after a clean review approves" "" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0 '$TMP_DIR/verify-delta.log'")"
-rm -f "$TMP_DIR/state/key.council-clean"
-verdict 2 1 0 true true
-expect "verify: reopened blocks" "findings reopened" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0 '$TMP_DIR/verify-delta.log'")"
-verdict 2 0 1 true true
-expect "verify: regressions block" "regressions raised" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0 '$TMP_DIR/verify-delta.log'")"
-verdict 2 0 0 false true
-expect "verify: incomplete set blocks" "finding set incomplete" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0 '$TMP_DIR/verify-delta.log'")"
-verdict 2 0 0 true false
-expect "verify: not confident blocks" "reviewer not confident" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0 '$TMP_DIR/verify-delta.log'")"
-verdict x 0 0 true true
-expect "verify: unreadable count blocks" "unreadable finding count" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0 '$TMP_DIR/verify-delta.log'")"
-printf 'no verdict\n' >"$TMP_DIR/verify.log"
-expect "verify: missing verdict blocks" "no VERIFY_VERDICT line" "$(run_gates "verify_blocker '$TMP_DIR/verify.log' 0 '$TMP_DIR/verify-delta.log'")"
-
-printf 'DELTA_FINDINGS 0\nDELTA_CONFIDENT value=true\n' >"$TMP_DIR/delta.log"
-expect "clean: confident delta approves" "" "$(run_gates "clean_blocker '$TMP_DIR/delta.log' 0")"
-printf 'DELTA_FINDINGS 0\nDELTA_CONFIDENT value=false\n' >"$TMP_DIR/delta.log"
-expect "clean: unconfident delta blocks" "reviewer not confident" "$(run_gates "clean_blocker '$TMP_DIR/delta.log' 0")"
-
 lib() { bash -c ". '$SCRIPTS/pr-council-review/lib.sh'; $1"; }
 printf '{"result":"r","permission_denials":[{"tool_name":"Bash","tool_input":{"command":"curl x"}}]}' >"$TMP_DIR/denials-some.json"
 printf '{"result":"r","permission_denials":[]}' >"$TMP_DIR/denials-none.json"
@@ -244,11 +166,6 @@ gitc worktree add -q --detach "$TMP_DIR/verify-tree" "$cfg_head"
 lib "neutralize_author_config '$TMP_DIR/verify-tree' '$cfg_head' '$cfg_base'" >/dev/null
 expect "config: verify pass resets config to the merge base" "trusted|none|none|none" "$(cfg_state "$TMP_DIR/verify-tree")"
 expect "config: verify pass keeps the PR code" "b" "$(cat "$TMP_DIR/verify-tree/app.txt")"
-verify_fn="$(sed -n '/^run_verify_fixes() {/,/^}/p' "$SCRIPTS/pr-review-watch/review-run.sh")"
-expect "verify: neutralizes author config before claude" "1" "$(printf '%s\n' "$verify_fn" | grep -c 'neutralize_author_config "\$tree"')"
-expect "verify: isolated settings copied before targeted plugin selection" "1" "$(printf '%s\n' "$verify_fn" | grep -c '"\${ISOLATED_SETTINGS\[@\]}"')"
-expect "verify: targeted plugin settings used" "1" "$(printf '%s\n' "$verify_fn" | grep -c 'verify_settings "\$VERIFY_SKILL_NAME"')"
-expect "verify: complete isolated arguments passed" "1" "$(printf '%s\n' "$verify_fn" | grep -c '"\${verify_args\[@\]}"')"
 expect "isolation: hooks, mcp and setting sources" "1" \
   "$(grep -c "^ISOLATED_SETTINGS=(--settings '{\"disableAllHooks\":true}' --strict-mcp-config --setting-sources project,local)$" "$SCRIPTS/pr-council-review/lib.sh")"
 
